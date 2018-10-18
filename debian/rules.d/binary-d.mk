@@ -22,7 +22,7 @@ dirs_gdc = \
 	$(gcc_lexec_dir)
 ifneq ($(DEB_CROSS),yes)
   dirs_gdc += \
-	$(gdc_include_dir)/$(BASE_VERSION)
+	$(gdc_include_dir)
 endif
 
 files_gdc = \
@@ -72,7 +72,7 @@ ifneq ($(DEB_CROSS),yes)
 endif
 
 # FIXME: object.di needs to go into a libgdc-dev Multi-Arch: same package
-        # Always needed by gdc.
+	# Always needed by gdc.
 	mkdir -p $(d_gdc)/$(gdc_include_dir)
 	cp $(srcdir)/libphobos/libdruntime/object.di \
 	    $(d_gdc)/$(gdc_include_dir)/.

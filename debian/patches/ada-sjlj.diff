@@ -64,7 +64,7 @@ Index: b/src/libada/Makefile.in
  	$(MULTIDO) $(AM_MAKEFLAGS) DO=all multi-do # $(MAKE)
  
  .PHONY: all
-@@ -97,26 +98,28 @@
+@@ -97,26 +98,28 @@ LIBADA_FLAGS_TO_PASS = \
          "CFLAGS=$(CFLAGS)"
  
  # Rules to build gnatlib.
@@ -116,7 +116,7 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
 ===================================================================
 --- a/src/gcc/ada/gcc-interface/Makefile.in
 +++ b/src/gcc/ada/gcc-interface/Makefile.in
-@@ -2353,84 +2353,109 @@
+@@ -2452,84 +2452,107 @@ ADA_EXCLUDE_FILES=$(filter-out \
    $(patsubst %$(objext),%.adb,$(GNATRTL_OBJS)), \
    $(ADA_EXCLUDE_SRCS))
  
@@ -129,11 +129,9 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
 -	  true; \
 -	fi
 +libgnat = libgnat$(hyphen)$(LIBRARY_VERSION)$(soext)
-+libgnat-sjlj = libgnat$(hyphen)sjlj$(hyphen)$(LIBRARY_VERSION)$(soext)
  
 -install-gnatlib: ../stamp-gnatlib-$(RTSDIR)
-+install-gnatlib: rts-static-zcx/libgnat$(arext) rts-static-sjlj/libgnat$(arext)
-+install-gnatlib: rts-shared-zcx/$(libgnat)
++install-gnatlib: $(GNATLIB_SHARED)
  #	Create the directory before deleting it, in case the directory is
  #	a list of directories (as it may be on VMS). This ensures we are
  #	deleting the right one.
@@ -271,9 +269,9 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
 -	touch ../stamp-gnatlib1-$(RTSDIR)
 +	$(CP) $(srcdir)/tsystem.h $(dir)
  
- ifeq ($(strip $(filter-out alpha64 ia64 dec hp vms% openvms% alphavms%,$(subst -, ,$(host)))),)
+ ifeq ($(strip $(filter-out alpha64 ia64 dec hp vms% openvms% alphavms%, $(host_cpu) $(host_os))),)
  OSCONS_CPP=../../$(DECC) -E /comment=as_is -DNATIVE \
-@@ -2457,9 +2482,11 @@
+@@ -2556,9 +2579,11 @@ endif
  	$(CP) $^ ./bldtools/oscons
  	(cd ./bldtools/oscons ; gnatmake -q xoscons)
  
@@ -288,7 +286,7 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
  	    $(OSCONS_CPP) ; \
  	    $(OSCONS_EXTRACT) ; \
  	    ../bldtools/oscons/xoscons s-oscons)
-@@ -2470,9 +2497,12 @@
+@@ -2569,9 +2594,12 @@ $(RTSDIR)/s-oscons.ads: ../stamp-gnatlib
  # Example: cd $(RTSDIR); ar rc libfoo.a $(LONG_LIST_OF_OBJS)
  # is guaranteed to overflow the buffer.
  
@@ -303,7 +301,7 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
  		CC="`echo \"$(GCC_FOR_TARGET)\" \
  		| sed -e 's,\./xgcc,../../xgcc,' -e 's,-B\./,-B../../,'`" \
  	        INCLUDES="$(INCLUDES_FOR_SUBDIR) -I./../.." \
-@@ -2481,7 +2511,7 @@
+@@ -2580,7 +2608,7 @@ gnatlib: ../stamp-gnatlib1-$(RTSDIR) $(R
  		srcdir=$(fsrcdir) \
  	        -f ../Makefile $(LIBGNAT_OBJS)
  # Ada files
@@ -312,7 +310,7 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
  		CC="`echo \"$(GCC_FOR_TARGET)\" \
  		| sed -e 's,\./xgcc,../../xgcc,' -e 's,-B\./,-B../../,'`" \
  	        ADA_INCLUDES="" \
-@@ -2490,24 +2520,24 @@
+@@ -2589,24 +2617,24 @@ gnatlib: ../stamp-gnatlib1-$(RTSDIR) $(R
  	        FORCE_DEBUG_ADAFLAGS="$(FORCE_DEBUG_ADAFLAGS)" \
  		srcdir=$(fsrcdir) \
  	        -f ../Makefile $(GNATRTL_OBJS)
@@ -344,14 +342,14 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
  # Warning: this target assumes that LIBRARY_VERSION has been set correctly.
 -gnatlib-shared-default:
 -	$(MAKE) -C $(RTSDIR) \
-+%/$(libgnat) %/$(libgnat-sjlj): build_dir = $(dir $@)
-+%/$(libgnat) %/$(libgnat-sjlj): libgnarl = $(notdir $(subst libgnat,libgnarl,$@))
-+%/$(libgnat) %/$(libgnat-sjlj): % %/s-oscons.ads
++%/$(libgnat): build_dir = $(dir $@)
++%/$(libgnat): libgnarl = $(notdir $(subst libgnat,libgnarl,$@))
++%/$(libgnat): % %/s-oscons.ads
 +	$(MAKE) -C $(build_dir) \
  		CC="`echo \"$(GCC_FOR_TARGET)\" \
  		| sed -e 's,\./xgcc,../../xgcc,' -e 's,-B\./,-B../../,'`" \
  	        INCLUDES="$(INCLUDES_FOR_SUBDIR) -I./../.." \
-@@ -2515,7 +2545,7 @@
+@@ -2614,7 +2642,7 @@ gnatlib-shared-default:
  	        FORCE_DEBUG_ADAFLAGS="$(FORCE_DEBUG_ADAFLAGS)" \
  		srcdir=$(fsrcdir) \
  	        -f ../Makefile $(LIBGNAT_OBJS)
@@ -360,7 +358,7 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
  		CC="`echo \"$(GCC_FOR_TARGET)\" \
  		| sed -e 's,\./xgcc,../../xgcc,' -e 's,-B\./,-B../../,'`" \
  	        ADA_INCLUDES="" \
-@@ -2525,176 +2555,46 @@
+@@ -2624,155 +2652,32 @@ gnatlib-shared-default:
  		srcdir=$(fsrcdir) \
  	        -f ../Makefile \
  	        $(GNATRTL_OBJS)
@@ -375,7 +373,7 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
  		$(GNATRTL_NONTASKING_OBJS) $(LIBGNAT_OBJS) \
 -		$(SO_OPTS)libgnat$(hyphen)$(LIBRARY_VERSION)$(soext).1 \
 +		$(SO_OPTS)$(notdir $@).1 \
- 		$(MISCLIB) -lm
+ 		$(MISCLIB) -lm $(GNATLIBLDFLAGS)
 -	cd $(RTSDIR); `echo "$(GCC_FOR_TARGET)" \
 -                | sed -e 's,\./xgcc,../../xgcc,' -e 's,-B\./,-B../../,'` -shared $(GNATLIBCFLAGS) \
 +	cd $(build_dir); $(LN_S) $(notdir $@).1 $(notdir $@)
@@ -386,7 +384,7 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
  		$(GNATRTL_TASKING_OBJS) \
 -		$(SO_OPTS)libgnarl$(hyphen)$(LIBRARY_VERSION)$(soext).1 \
 +		$(SO_OPTS)$(libgnarl).1 \
- 		$(THREADSLIB)
+ 		$(THREADSLIB) $(GNATLIBLDFLAGS)
 -	cd $(RTSDIR); for lib in gnat gnarl; do \
 -		l=lib$${lib}$(hyphen)$(LIBRARY_VERSION)$(soext); \
 -		$(LN_S) $$l.1 $$l; \
@@ -402,6 +400,7 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
 -             GNATLIBFLAGS="$(GNATLIBFLAGS)" \
 -	     GNATLIBCFLAGS="$(GNATLIBCFLAGS)" \
 -	     GNATLIBCFLAGS_FOR_C="$(GNATLIBCFLAGS_FOR_C)" \
+-             GNATLIBLDFLAGS="$(GNATLIBLDFLAGS)" \
 -	     MULTISUBDIR="$(MULTISUBDIR)" \
 -	     THREAD_KIND="$(THREAD_KIND)" \
 -             gnatlib
@@ -410,6 +409,7 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
 -             GNATLIBFLAGS="$(GNATLIBFLAGS)" \
 -	     GNATLIBCFLAGS="$(GNATLIBCFLAGS)" \
 -	     GNATLIBCFLAGS_FOR_C="$(GNATLIBCFLAGS_FOR_C)" \
+-             GNATLIBLDFLAGS="$(GNATLIBLDFLAGS)" \
 -	     MULTISUBDIR="$(MULTISUBDIR)" \
 -	     THREAD_KIND="$(THREAD_KIND)" \
 -             gnatlib-shared-default
@@ -531,6 +531,7 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
               GNATLIBFLAGS="$(GNATLIBFLAGS)" \
  	     GNATLIBCFLAGS="$(GNATLIBCFLAGS)" \
  	     GNATLIBCFLAGS_FOR_C="$(GNATLIBCFLAGS_FOR_C)" \
+@@ -2780,23 +2685,14 @@ gnatlib-shared:
  	     MULTISUBDIR="$(MULTISUBDIR)" \
  	     THREAD_KIND="$(THREAD_KIND)" \
  	     PICFLAG_FOR_TARGET="$(PICFLAG_FOR_TARGET)" \
@@ -561,7 +562,7 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
  	$(MAKE) $(FLAGS_TO_PASS) \
  	     EH_MECHANISM="" \
  	     GNATLIBFLAGS="$(GNATLIBFLAGS)" \
-@@ -2703,13 +2603,15 @@
+@@ -2805,13 +2701,15 @@ gnatlib-sjlj:
  	     FORCE_DEBUG_ADAFLAGS="$(FORCE_DEBUG_ADAFLAGS)" \
  	     MULTISUBDIR="$(MULTISUBDIR)" \
  	     THREAD_KIND="$(THREAD_KIND)" \
@@ -583,7 +584,7 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
  	$(MAKE) $(FLAGS_TO_PASS) \
  	     EH_MECHANISM="-gcc" \
  	     GNATLIBFLAGS="$(GNATLIBFLAGS)" \
-@@ -2718,10 +2620,15 @@
+@@ -2821,10 +2719,15 @@ gnatlib-zcx:
  	     FORCE_DEBUG_ADAFLAGS="$(FORCE_DEBUG_ADAFLAGS)" \
  	     MULTISUBDIR="$(MULTISUBDIR)" \
  	     THREAD_KIND="$(THREAD_KIND)" \
@@ -604,9 +605,9 @@ Index: b/src/gnattools/Makefile.in
 ===================================================================
 --- a/src/gnattools/Makefile.in
 +++ b/src/gnattools/Makefile.in
-@@ -36,15 +36,16 @@
- LN_S=@LN_S@
- target_noncanonical=@target_noncanonical@
+@@ -44,15 +44,16 @@ CXX_LFLAGS = \
+  -L../../../$(target_noncanonical)/libstdc++-v3/src/.libs \
+  -L../../../$(target_noncanonical)/libstdc++-v3/libsupc++/.libs
  
 +RTS=../gcc/ada/rts-shared-zcx
  CFLAGS=-O2 -Wall
@@ -624,7 +625,7 @@ Index: b/src/gnattools/Makefile.in
  STATIC_GCC_LIBS := ../gcc/libcommon-target.a ../gcc/libcommon.a ../libcpp/libcpp.a \
  ../libbacktrace/.libs/libbacktrace.a ../libiberty/libiberty.a
  
-@@ -118,6 +119,7 @@
+@@ -126,6 +127,7 @@ OBJECTS = $(GNATLINK_OBJS) $(GNATMAKE_OB
  
  .PHONY: gnattools gnattools-native gnattools-cross regnattools
  gnattools: @default_gnattools_target@
@@ -632,7 +633,7 @@ Index: b/src/gnattools/Makefile.in
  
  BODIES := $(foreach f,$(OBJECTS),$(wildcard $(patsubst %.o,@srcdir@/../gcc/ada/%.adb,$(f))))
  SPECS  := $(foreach f,$(OBJECTS),$(wildcard $(patsubst %.o,@srcdir@/../gcc/ada/%.ads,$(f))))
-@@ -133,9 +135,12 @@
+@@ -141,9 +143,12 @@ stamp-gnattools-sources:
  	          rm -f $(word 1,$(subst <, ,$(PAIR)));\
  	          $(LN_S) @srcdir@/../gcc/ada/$(word 2,$(subst <, ,$(PAIR))) \
  	                  $(word 1,$(subst <, ,$(PAIR)));)
@@ -646,7 +647,7 @@ Index: b/src/gnattools/Makefile.in
  gnattools-native: ../libgnatvsn/libgnatvsn.so
  gnattools-native: stamp-gnattools-sources
  gnattools-native: $(TOOLS)
-@@ -151,7 +156,7 @@
+@@ -159,7 +164,7 @@ gnatlink-static: $(GNATLINK_OBJS) b_gnat
  	$(GCC) -o $@ $^ \
  	  ../libgnatprj/libgnatprj.a \
  	  ../libgnatvsn/libgnatvsn.a \
@@ -659,30 +660,30 @@ Index: b/src/libgnatprj/Makefile.in
 ===================================================================
 --- a/src/libgnatprj/Makefile.in
 +++ b/src/libgnatprj/Makefile.in
-@@ -26,7 +26,8 @@
+@@ -26,7 +26,8 @@ LIB_VERSION := $(strip $(shell grep ' Li
  	         sed -e 's/.*"\(.*\)".*/\1/'))
- GCC:=../gcc/xgcc -B../gcc/
- GPP := ../gcc/xg++ -B../gcc/
+ GCC=$(CC)
+ GPP=$(CXX)
 -LIBGNAT_JUST_BUILT := -nostdinc -I../gcc/ada/rts
 +RTS:=../gcc/ada/rts-shared-zcx
 +LIBGNAT_JUST_BUILT := -nostdinc -I$(RTS)
  LIBGNATVSN := -I../libgnatvsn
  CFLAGS := -g -O2
  ADAFLAGS := -g -O2 -gnatn
-@@ -76,7 +77,7 @@
+@@ -76,7 +77,7 @@ libgnatprj.so.$(LIB_VERSION): $(addprefi
  	: # Make libgnatprj.so
  	$(GCC) -o $@ -shared -fPIC -Wl,--soname,$@ -Wl,--no-allow-shlib-undefined \
  	   $^ $(addprefix ../libiberty/pic/,$(LIBIBERTY_OBJECTS)) \
 -	   -L../gcc/ada/rts -lgnat-$(LIB_VERSION) \
 +	   -L$(RTS) -lgnat-$(LIB_VERSION) \
- 	   -L../libgnatvsn -lgnatvsn
+ 	   -L../libgnatvsn -lgnatvsn $(LDFLAGS)
  	$(LN_S) -f libgnatprj.so.$(LIB_VERSION) libgnatprj.so
  	chmod a=r obj-shared/*.ali
 Index: b/src/libgnatvsn/Makefile.in
 ===================================================================
 --- a/src/libgnatvsn/Makefile.in
 +++ b/src/libgnatvsn/Makefile.in
-@@ -25,7 +25,8 @@
+@@ -25,7 +25,8 @@ LIB_VERSION := $(strip $(shell grep ' Li
                   @srcdir@/../gcc/ada/gnatvsn.ads | \
  	         sed -e 's/.*"\(.*\)".*/\1/'))
  GCC:=../gcc/xgcc -B../gcc/
@@ -690,14 +691,14 @@ Index: b/src/libgnatvsn/Makefile.in
 +RTS:=../gcc/ada/rts-shared-zcx
 +LIBGNAT_JUST_BUILT := -nostdinc -I$(RTS)
  CFLAGS := -g -O2 -gnatn
- BASEVER := $(shell cat @srcdir@/../gcc/BASE-VER)
+ FULLVER := $(shell cat @srcdir@/../gcc/FULL-VER)
  DEVPHASE := $(shell cat @srcdir@/../gcc/DEV-PHASE)
-@@ -66,7 +67,7 @@
+@@ -66,7 +67,7 @@ vpath %.c @srcdir@/../gcc
  libgnatvsn.so.$(LIB_VERSION): $(addprefix obj-shared/,$(OBJECTS))
  	: # Make libgnatvsn.so
  	$(GCC) -o $@ -shared -fPIC -Wl,--soname,$@ $^ \
--	   -L../gcc/ada/rts -lgnat-$(LIB_VERSION)
-+	   -L$(RTS) -lgnat-$(LIB_VERSION)
+-	   -L../gcc/ada/rts -lgnat-$(LIB_VERSION) $(LDFLAGS)
++	   -L$(RTS) -lgnat-$(LIB_VERSION) $(LDFLAGS)
  	ln -s libgnatvsn.so.$(LIB_VERSION) libgnatvsn.so
  	chmod a=r obj-shared/*.ali
  # Make the .ali files, but not the .o files, visible to the gnat tools.
@@ -705,7 +706,7 @@ Index: b/src/gcc/ada/gcc-interface/Make-lang.in
 ===================================================================
 --- a/src/gcc/ada/gcc-interface/Make-lang.in
 +++ b/src/gcc/ada/gcc-interface/Make-lang.in
-@@ -85,7 +85,8 @@
+@@ -85,7 +85,8 @@ ADA_FLAGS_TO_PASS = \
  	"ADA_FOR_TARGET=$(ADA_FOR_TARGET)"	\
  	"INSTALL=$(INSTALL)" 			\
  	"INSTALL_DATA=$(INSTALL_DATA)"		\
@@ -713,5 +714,5 @@ Index: b/src/gcc/ada/gcc-interface/Make-lang.in
 +	"INSTALL_PROGRAM=$(INSTALL_PROGRAM)"	\
 +	"GCC_FOR_TARGET=$(GCC_FOR_TARGET)"
  
- # List of Ada tools to build and install
- ADA_TOOLS=gnatbind gnatchop gnat gnatkr gnatlink gnatls gnatmake \
+ # Say how to compile Ada programs.
+ .SUFFIXES: .ada .adb .ads

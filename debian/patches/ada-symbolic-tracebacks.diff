@@ -23,17 +23,17 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
 ===================================================================
 --- a/src/gcc/ada/gcc-interface/Makefile.in
 +++ b/src/gcc/ada/gcc-interface/Makefile.in
-@@ -273,7 +273,8 @@
+@@ -271,7 +271,8 @@ TOOLS_LIBS = ../link.o ../targext.o ../.
  # Both . and srcdir are used, in that order,
  # so that tm.h and config.h will be found in the compilation
  # subdirectory rather than in the source directory.
--INCLUDES = -I- -I. -I.. -I$(srcdir)/ada -I$(srcdir) -I$(srcdir)/../include $(GMPINC)
-+INCLUDES = -iquote . -iquote .. -iquote $(srcdir)/ada -iquote$(srcdir) \
-+	-iquote $(srcdir)/../include $(GMPINC)
+-INCLUDES = -I- -I. -I.. -I$(srcdir)/ada -I$(srcdir) -I$(ftop_srcdir)/include $(GMPINC)
++INCLUDES = -iquote . -iquote .. -iquote $(srcdir)/ada -iquote $(srcdir) \
++ -iquote $(ftop_srcdir)/include $(GMPINC)
  
  ADA_INCLUDES = -I- -I. -I$(srcdir)/ada
  
-@@ -2317,7 +2318,7 @@
+@@ -2414,7 +2415,7 @@ endif
  # library.  LIBGNAT_OBJS is the list of object files for libgnat.
  # thread.c is special as put into GNATRTL_TASKING_OBJS by Makefile.rtl
  LIBGNAT_OBJS = adadecode.o adaint.o argv.o aux-io.o 			\
@@ -42,19 +42,19 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
    env.o errno.o exit.o expect.o final.o 				\
    init.o initialize.o locales.o mkdir.o					\
    raise.o seh_init.o socket.o sysdep.o					\
-@@ -2996,6 +2997,7 @@
+@@ -3103,6 +3104,7 @@ mkdir.o   : mkdir.c
  socket.o  : socket.c gsocket.h
  sysdep.o  : sysdep.c
  raise.o   : raise.c raise.h
 +convert_addresses.o : convert_addresses.c
+ sigtramp-armdroid.o : sigtramp-armdroid.c sigtramp.h
+ sigtramp-armvxw.o : sigtramp-armvxw.c sigtramp.h
  sigtramp-ppcvxw.o : sigtramp-ppcvxw.c sigtramp.h
- terminals.o : terminals.c
- vx_stack_info.o : vx_stack_info.c
 Index: b/src/gcc/ada/adaint.c
 ===================================================================
 --- a/src/gcc/ada/adaint.c
 +++ b/src/gcc/ada/adaint.c
-@@ -3508,35 +3508,6 @@
+@@ -3608,35 +3608,6 @@ _flush_cache (void)
  }
  #endif
  
@@ -94,7 +94,7 @@ Index: b/src/gcc/ada/convert_addresses.c
 ===================================================================
 --- /dev/null
 +++ b/src/gcc/ada/convert_addresses.c
-@@ -0,0 +1,154 @@
+@@ -0,0 +1,159 @@
 +/*
 +  Copyright (C) 1999 by Juergen Pfeifer <juergen.pfeifer@gmx.net>
 +  Ada for Linux Team (ALT)
@@ -139,19 +139,22 @@ Index: b/src/gcc/ada/convert_addresses.c
 +#define RESTSIG sigaction(SIGPIPE,&oact,NULL)
 +
 +void convert_addresses
-+(const char *file_name,
++(const char const *file_name,
 +  void* addrs[],
 +  int   n_addr,
 +  char* buf,
 +  int*  len)
 +{
 +  int max_len = *len;
-+  pid_t pid = getpid();
 +  pid_t child;
 +
 +  struct sigaction act, oact;
 +
 +  int fd1[2], fd2[2];
++
++  if (!file_name) {
++    return;
++  }
 +
 +  *buf = 0; *len = 0;
 +  act.sa_handler = SIG_IGN;
@@ -190,9 +193,10 @@ Index: b/src/gcc/ada/convert_addresses.c
 +             addr2line and an empty environment. That should be
 +             safe.
 +          */
++          char *file_name_for_execve = strdup (file_name); /* non-const */
 +          char *const argv[] = { "addr2line",
 +                                 "-e",
-+                                 file_name,
++                                 file_name_for_execve,
 +                                 "--demangle=gnat",
 +                                 "--functions",
 +                                 "--basenames",
@@ -201,6 +205,7 @@ Index: b/src/gcc/ada/convert_addresses.c
 +          if (execve("/usr/bin/addr2line", argv, envp) < 0) {
 +            CLOSE1; CLOSE2;
 +          }
++	  if (file_name_for_execve) { free (file_name_for_execve); }
 +        }
 +      }
 +      else {
@@ -385,7 +390,7 @@ Index: b/src/gcc/ada/tracebak.c
 ===================================================================
 --- a/src/gcc/ada/tracebak.c
 +++ b/src/gcc/ada/tracebak.c
-@@ -425,7 +425,7 @@
+@@ -425,7 +425,7 @@ struct layout
  /* Starting with GCC 4.6, -fomit-frame-pointer is turned on by default for
     32-bit x86/Linux as well and DWARF 2 unwind tables are emitted instead.
     See the x86-64 case below for the drawbacks with this approach.  */

@@ -1,4 +1,4 @@
-$(lib_binaries) += base
+arch_binaries += base
 
 # ---------------------------------------------------------------------------
 # gcc-base
@@ -42,11 +42,7 @@ endif
 	dh_installchangelogs -p$(p_base)
 	dh_compress -p$(p_base)
 	dh_fixperms -p$(p_base)
-ifeq ($(with_deps_on_target_arch_pkgs),yes)
-	$(cross_gencontrol) dh_gencontrol -p$(p_base) -- -v$(DEB_VERSION) $(common_substvars)
-else
 	dh_gencontrol -p$(p_base) -- -v$(DEB_VERSION) $(common_substvars)
-endif
 	dh_installdeb -p$(p_base)
 	dh_md5sums -p$(p_base)
 	dh_builddeb -p$(p_base)

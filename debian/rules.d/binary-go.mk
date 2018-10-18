@@ -59,7 +59,9 @@ ifeq ($(with_standalone_go),yes)
 # XXX: what about triarch mapping?
   files_go += \
 	$(PF)/bin/{cpp,gcc,gcov}$(pkg_ver) \
-	$(gcc_lexec_dir)/{collect2,lto1,lto-wrapper} \
+	$(PF)/bin/$(cmd_prefix)gcc-{ar,ranlib,nm}$(pkg_ver) \
+	$(PF)/share/man/man1/$(cmd_prefix)gcc-{ar,nm,ranlib}$(pkg_ver).1 \
+	$(gcc_lexec_dir)/{cc1,collect2,lto1,lto-wrapper} \
 	$(gcc_lexec_dir)/liblto_plugin.so{,.0,.0.0.0} \
 	$(gcc_lib_dir)/{libgcc*,libgcov.a,*.o} \
 	$(header_files) \
@@ -128,7 +130,25 @@ define install_gccgo_lib
 	rm -f $(d)/$(usr_lib$(3))/$(1)*.{la,so}
 	dh_link -p$(4) \
 	  /$(usr_lib$(3))/$(1).so.$(2) /$(gcc_lib_dir$(3))/$(1).so
+endef
 
+# __do_gccgo_libgcc(flavour,package,todir,fromdir)
+define __do_gccgo_libgcc
+	$(if $(findstring gccgo,$(PKGSOURCE)),
+		: # libgcc_s.so may be a linker script on some architectures
+		set -e; \
+		if [ -h $(4)/libgcc_s.so ]; then \
+		  rm -f $(4)/libgcc_s.so; \
+		  dh_link -p$(2) /$(libgcc_dir$(1))/libgcc_s.so.$(GCC_SONAME) \
+		    $(3)/libgcc_s.so; \
+		else \
+		  mv $(4)/libgcc_s.so $(d)/$(3)/libgcc_s.so; \
+		  dh_link -p$(2) /$(libgcc_dir$(1))/libgcc_s.so.$(GCC_SONAME) \
+		    $(3)/libgcc_s.so.$(GCC_SONAME); \
+		fi; \
+		$(if $(1), dh_link -p$(2) /$(3)/libgcc_s.so \
+		    $(gcc_lib_dir)/libgcc_s_$(1).so;)
+	)
 endef
 
 define do_go_dev
@@ -136,6 +156,7 @@ define do_go_dev
 	$(dh_compat2) dh_movefiles -p$(2) \
 		$(gcc_lib_dir$(1))/libgobegin.a
 	$(call install_gccgo_lib,libgo,$(GO_SONAME),$(1),$(2))
+	$(call __do_gccgo_libgcc,$(1),$(2),$(gcc_lib_dir$(1)),$(d)/$(usr_lib$(1)))
 endef
 # ----------------------------------------------------------------------
 $(binary_stamp)-libgo: $(install_stamp)
@@ -181,9 +202,14 @@ $(binary_stamp)-gccgo: $(install_stamp)
 		$(d)/$(gcc_lib_dir)/x32/; \
 	fi
 
+	$(call do_go_dev,,$(p_go))
+
 	$(dh_compat2) dh_movefiles -p$(p_go) $(files_go)
 
-	$(call do_go_dev,,$(p_go))
+ifneq (,$(findstring gccgo,$(PKGSOURCE)))
+	rm -rf $(d_go)/$(gcc_lib_dir)/include/cilk
+	rm -rf $(d_go)/$(gcc_lib_dir)/include/omp.h
+endif
 
 ifneq ($(DEB_CROSS),yes)
 	ln -sf gccgo$(pkg_ver) \
@@ -195,6 +221,25 @@ ifneq ($(GFDL_INVARIANT_FREE),yes)
 	    $(d_go)/$(PF)/share/man/man1/$(DEB_TARGET_GNU_TYPE)-gccgo$(pkg_ver).1
 	ln -sf gccgo$(pkg_ver).1 \
 	    $(d_go)/$(PF)/share/man/man1/$(TARGET_ALIAS)-gccgo$(pkg_ver).1
+endif
+endif
+
+ifeq ($(with_standalone_go),yes)
+ifneq ($(DEB_CROSS),yes)
+	for i in gcc gcov gcc-ar gcc-nm gcc-ranlib; do \
+	  ln -sf $$i$(pkg_ver) \
+	    $(d_go)/$(PF)/bin/$(DEB_TARGET_GNU_TYPE)-$$i$(pkg_ver); \
+	  ln -sf $$i$(pkg_ver) \
+	    $(d_go)/$(PF)/bin/$(TARGET_ALIAS)-$$i$(pkg_ver); \
+	done
+ifneq ($(GFDL_INVARIANT_FREE),yes)
+	for i in gcc gcov gcc-ar gcc-nm gcc-ranlib; do \
+	  ln -sf gcc$(pkg_ver).1 \
+	    $(d_go)/$(PF)/share/man/man1/$(DEB_TARGET_GNU_TYPE)-$$i$(pkg_ver).1; \
+	  ln -sf $$i$(pkg_ver).1 \
+	    $(d_go)/$(PF)/share/man/man1/$(TARGET_ALIAS)-$$i$(pkg_ver).1; \
+	done
+endif
 endif
 endif
 

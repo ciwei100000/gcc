@@ -1,254 +1,290 @@
-GCC 4.8 Release Series -- Changes, New Features, and Fixes
+GCC 4.9 Release Series -- Changes, New Features, and Fixes
 ==========================================================
 
 
 Caveats
 =======
 
-GCC now uses C++ as its implementation language. This means that to build GCC
-from sources, you will need a C++ compiler that understands C++ 2003. For more
-details on the rationale and specific changes, please refer to the C++
-conversion page.
+ - The mudflap run time checker has been removed.  The mudflap options
+   remain, but do nothing.
 
-To enable the Graphite framework for loop optimizations you now need CLooG
-version 0.18.0 and ISL version 0.11.1. Both can be obtained from the GCC
-infrastructure directory. The installation manual contains more information
-about requirements to build GCC.
+ - Support for a number of older systems and recently unmaintained or
+   untested target ports of GCC has been declared obsolete in GCC 4.9.
+   Unless there is activity to revive them, the next release of
+   GCC will have their sources permanently removed.
 
-GCC now uses a more aggressive analysis to derive an upper bound for the
-number of iterations of loops using constraints imposed by language standards.
-This may cause non-conforming programs to no longer work as expected, such as
-SPEC CPU 2006 464.h264ref and 416.gamess. A new option, -fno-aggressive-loop-
-optimizations, was added to disable this aggressive analysis. In some loops
-that have known constant number of iterations, but undefined behavior is known
-to occur in the loop before reaching or during the last iteration, GCC will
-warn about the undefined behavior in the loop instead of deriving lower upper
-bound of the number of iterations for the loop. The warning can be disabled
-with -Wno-aggressive-loop-optimizations.
+ - The following ports for individual systems on particular
+   architectures have been obsoleted:
 
-On ARM, a bug has been fixed in GCC's implementation of the AAPCS rules for
-the layout of vectors that could lead to wrong code being generated. Vectors
-larger than 8 bytes in size are now by default aligned to an 8-byte boundary.
-This is an ABI change: code that makes explicit use of vector types may be
-incompatible with binary objects built with older versions of GCC. Auto-
-vectorized code is not affected by this change.
+   - Solaris 9 (*-*-solaris2.9).  Details can be found in the announcement.
 
-On AVR, support has been removed for the command-line option -mshort-calls
-deprecated in GCC 4.7.
+More information on porting to GCC 4.9 from previous versions of GCC
+can be found in the porting guide for this release.
+See http://gcc.gnu.org/gcc-4.9/porting_to.html.
 
-On AVR, the configure option --with-avrlibc supported since GCC 4.7.2 is
-turned on per default for all non-RTEMS configurations. This option arranges
-for a better integration of AVR_Libc with avr-gcc. For technical details, see
-PR54461. To turn off the option in non-RTEMS configurations, use --with-
-avrlibc=no. If the compiler is configured for RTEMS, the option is always
-turned off.
 
-More information on porting to GCC 4.8 from previous versions of GCC can be
-found in the porting guide (http://gcc.gnu.org/gcc-4.8/porting_to.html) for
-this release.
+General Optimizer Improvements
+==============================
 
-General Optimizer Improvements (and Changes)
-============================================
 
- - DWARF4 is now the default when generating DWARF debug information. When -g
-   is used on a platform that uses DWARF debugging information, GCC will now
-   default to -gdwarf-4 -fno-debug-types-section.
-   GDB 7.5, Valgrind 3.8.0 and elfutils 0.154 debug information consumers
-   support DWARF4 by default. Before GCC 4.8 the default version used was
-   DWARF2. To make GCC 4.8 generate an older DWARF version use -g together with
-   -gdwarf-2 or -gdwarf-3. The default for Darwin and VxWorks is still
-   -gdwarf-2 -gstrict-dwarf.
+ - AddressSanitizer, a fast memory error detector, is now available on ARM.
 
- - A new general optimization level, -Og, has been introduced. It addresses the
-   need for fast compilation and a superior debugging experience while
-   providing a reasonable level of runtime performance. Overall experience for
-   development should be better than the default optimization level -O0.
-
- - A new option -ftree-partial-pre was added to control the partial redundancy
-   elimination (PRE) optimization. This option is enabled by default at the -O3
-   optimization level, and it makes PRE more aggressive.
-
- - The option -fconserve-space has been removed; it was no longer useful on
-   most targets since GCC supports putting variables into BSS without making
-   them common.
-
- - The struct reorg and matrix reorg optimizations (command-line-options
-   -fipa-struct-reorg and -fipa-matrix-reorg) have been -removed. They did not
-   always work correctly, nor did they work -with link-time optimization (LTO),
-   hence were only applicable to -programs consisting of a single translation
-   unit.
-
- - Several scalability bottle-necks have been removed from GCC's optimization
-   passes. Compilation of extremely large functions, e.g. due to the use of the
-   flatten attribute in the "Eigen" C++ linear algebra templates library, is
-   significantly faster than previous releases of GCC.
+ - UndefinedBehaviorSanitizer (ubsan), a fast undefined behavior
+   detector, has been added and can be enabled via -fsanitize=undefined.
+   Various computations will be instrumented to detect undefined
+   behavior at runtime.  UndefinedBehaviorSanitizer is currently
+   available for the C and C++ languages.
 
  - Link-time optimization (LTO) improvements:
 
-   - LTO partitioning has been rewritten for better reliability and
-     maintanibility. Several important bugs leading to link failures have been
-     fixed.
+   - Type merging was rewritten. The new implementation is significantly
+     faster and uses less memory.
 
- - Interprocedural optimization improvements:
+   - Better partitioning algorithm resulting in less streaming during
+     link time.
 
-   - A new symbol table has been implemented. It builds on existing callgraph
-     and varpool modules and provide a new API. Unusual symbol visibilities and
-     aliases are handled more consistently leading to, for example, more
-     aggressive unreachable code removal with LTO.
+   - Early removal of virtual methods reduces the size of object files
+     and improves link-time memory usage and compile time.
 
-   - The inline heuristic can now bypass limits on the size of of inlined
-     functions when the inlining is particularly profitable. This happens, for
-     example, when loop bounds or array strides get propagated.
+   - Function bodies are now loaded on-demand and released early improving
+     overall memory usage at link time.
 
-   - Values passed through aggregates (either by value or reference) are now
-     propagated at the inter-procedural level leading to better inlining
-     decisions (for example in the case of Fortran array descriptors) and
-     devirtualization.
+   - C++ hidden keyed methods can now be optimized out.
 
- - AddressSanitizer, a fast memory error detector, has been added and can be
-   enabled via -fsanitize=address. Memory access instructions will be
-   instrumented to detect heap-, stack-, and global-buffer overflow as well as
-   use-after-free bugs. To get nicer stacktraces, use -fno-omit-frame-pointer.
-   The AddressSanitizer is available on IA-32/x86-64/x32/PowerPC/PowerPC64 GNU/
-   Linux and on x86-64 Darwin.
+   - When using a linker plugin, compiling with the -flto option now
+     generates slim objects files (.o) which only contain intermediate
+     language representation for LTO. Use -ffat-lto-objects to create
+     files which contain additionally the object code.  To generate
+     static libraries suitable for LTO processing, use gcc-ar and
+     gcc-ranlib; to list symbols from a slim object file use
+     gcc-nm. (Requires that ar, ranlib and nm have been compiled with
+     plugin support.)
 
- - ThreadSanitizer has been added and can be enabled via -fsanitize=thread.
-   Instructions will be instrumented to detect data races. The ThreadSanitizer
-   is available on x86-64 GNU/Linux.
+   Memory usage building Firefox with debug enabled was reduced from 15GB
+   to 3.5GB; link time from 1700 seconds to 350 seconds.
+
+ - Inter-procedural optimization improvements:
+
+   - New type inheritance analysis module improving devirtualization.
+     Devirtualization now takes into account anonymous name-spaces and
+     the C++11 final keyword.
+
+   - New speculative devirtualization pass (controlled by
+     -fdevirtualize-speculatively).
+   - Calls that were speculatively made direct are turned back to indirect
+     where direct call is not cheaper.
+   - Local aliases are introduced for symbols that are known to be
+     semantically equivalent across shared libraries improving dynamic
+     linking times.
+
+ - Feedback directed optimization improvements:
+
+   - Profiling of programs using C++ inline functions is now more reliable.
+
+   - New time profiling determines typical order in which functions are
+     executed.
+
+   - A new function reordering pass (controlled by -freorder-functions)
+     significantly reduces startup time of large applications.  Until binutils
+     support is completed, it is effective only with link-time optimization.
+
+   - Feedback driven indirect call removal and devirtualization now handle
+     cross-module calls when link-time optimization is enabled.
 
 
 New Languages and Language specific improvements
 ================================================
 
+ - Version 4.0 of the OpenMP specification is now supported for the C
+   and C++ compilers.  The new -fopenmp-simd option can be used to
+   enable OpenMP's SIMD directives, while ignoring other OpenMP
+   directives. The new -fsimd-cost-model= option permits to tune the
+   vectorization cost model for loops annotated with OpenMP and Cilk
+   Plus simd directives; -Wopenmp-simd warns when the current
+   costmodel overrides simd directives set by the user.
+
+ - The -Wdate-time option has been added for the C, C++ and Fortran
+   compilers, which warns when the __DATE__, __TIME__ or __TIMESTAMP__
+   macros are used.  Those macros might prevent bit-wise-identical
+   reproducible compilations.
+
+
+Ada
+---
+
+ - GNAT switched to Ada 2012 instead of Ada 2005 by default.
+
 
 C family
 --------
 
- - Each diagnostic emitted now includes the original source line and a caret
-   '^' indicating the column. The option -fno-diagnostics-show-caret suppresses
-   this information.
+ - Support for colorizing diagnostics emitted by GCC has been added.
+   The -fdiagnostics-color=auto will enable it when outputting to
+   terminals, -fdiagnostics-color=always unconditionally.  The
+   GCC_COLORS environment variable can be used to customize the colors
+   or disable coloring.  If GCC_COLORS variable is present in the
+   environment, the default is -fdiagnostics-color=auto, otherwise
+   -fdiagnostics-color=never.  Sample diagnostics output:
 
- - The option -ftrack-macro-expansion=2 is now enabled by default. This allows
-   the compiler to display the macro expansion stack in diagnostics. Combined
-   with the caret information, an example diagnostic showing these two features
-   is:
+     $ g++ -fdiagnostics-color=always -S -Wall test.C
+     test.C: In function &lsquo;int foo()&rsquo;:
+     test.C:1:14: warning: no return statement in function returning non-void [-Wreturn-type]
+      int foo () { }
+                   ^
+     test.C:2:46: error: template instantiation depth exceeds maximum of 900 (use -ftemplate-depth= to increase the maximum) instantiating `struct X<100>';
+      template <int N> struct X { static const int value = X<N-1>::value; }; template struct X<1000>;
+                                                   ^
+     test.C:2:46:   recursively required from `const int X<999>::value'
+     test.C:2:46:   required from `const int X<1000>::value'
+     test.C:2:88:   required from here
 
-     t.c:1:94: error: invalid operands to binary < (have ‘struct mystruct’ and ‘float’)
-     #define MYMAX(A,B)    __extension__ ({ __typeof__(A) __a = (A);
-                                            __typeof__(B) __b = (B);
-                                             __a < __b ? __b : __a; })
-                                                 ^
-     t.c:7:7: note: in expansion of macro 'MYMAX'
-        X = MYMAX(P, F);
-            ^
+    test.C:2:46: error: incomplete type `X<100>' used in nested name specifier
 
- - A new -Wsizeof-pointer-memaccess warning has been added (also enabled by
-   -Wall) to warn about suspicious length parameters to certain string and
-   memory built-in functions if the argument uses sizeof. This warning warns
-   e.g. about memset (ptr, 0, sizeof (ptr)); if ptr is not an array, but a
-   pointer, and suggests a possible fix, or about
-   memcpy (&foo, ptr, sizeof (&foo));.
+ - With the new #pragma GCC ivdep, the user can assert that there are
+   no loop-carried dependencies which would prevent concurrent
+   execution of consecutive iterations using SIMD (single instruction
+   multiple data) instructions.
 
- - The new option -Wpedantic is an alias for -pedantic, which is now
-   deprecated. The forms -Wno-pedantic, -Werror=pedantic, and -Wno-
-   error=pedantic work in the same way as for any other -W option. One caveat
-   is that -Werror=pedantic is not equivalent to -pedantic-errors, since the
-   latter makes into errors some warnings that are not controlled by
-   -Wpedantic, and the former only affects diagnostics that are disabled when
-   using -Wno-pedantic.
+ - Support for Cilk Plus has been added and can be enabled with the
+   -fcilkplus option.  Cilk Plus is an extension to the C and C++
+   languages to support data and task parallelism.  The present
+   implementation follows ABI version 1.2; all features but _Cilk_for
+   have been implemented.
 
- - The option -Wshadow no longer warns if a declaration shadows a function
-   declaration, unless the former declares a function or pointer to function,
-   because this is a_common_and_valid_case_in_real-world_code.
+
+C
+-
+
+ - ISO C11 atomics (the _Atomic type specifier and qualifier and the
+   <stdatomic.h> header) are now supported.
+
+ - ISO C11 generic selections (_Generic keyword) are now supported.
+
+ - ISO C11 thread-local storage (_Thread_local, similar to GNU C
+   __thread) is now supported.
+
+ - ISO C11 support is now at a similar level of completeness to ISO
+   C99 support: substantially complete modulo bugs, extended
+   identifiers (supported except for corner cases when
+   -fextended-identifiers is used), floating-point issues (mainly but
+   not entirely relating to optional C99 features from Annexes F and
+   G) and the optional Annexes K (Bounds-checking interfaces) and L
+   (Analyzability).
+
+ - A new C extension __auto_type provides a subset of the
+   functionality of C++11 auto in GNU C.
 
 
 C++
 ---
 
- - G++ now implements the C++11 thread_local keyword; this differs from the GNU
-   __thread keyword primarily in that it allows dynamic initialization and
-   destruction semantics. Unfortunately, this support requires a run-time
-   penalty for references to non-function-local thread_local variables defined
-   in a different translation unit even if they don't need dynamic
-   initialization, so users may want to continue to use __thread for TLS
-   variables with static initialization semantics.
+ - The G++ implementation of C++1y return type deduction for normal
+   functions has been updated to conform to N3638, the proposal
+   accepted into the working paper.  Most notably, it adds
+   decltype(auto) for getting decltype semantics rather than the
+   template argument deduction semantics of plain auto:
 
-   If the programmer can be sure that no use of the variable in a non-defining
-   TU needs to trigger dynamic initialization (either because the variable is
-   statically initialized, or a use of the variable in the defining TU will be
-   executed before any uses in another TU), they can avoid this overhead with
-   the -fno-extern-tls-init option.
+     int& f();
+              auto  i1 = f(); // int
+     decltype(auto) i2 = f(); // int&
 
-   OpenMP threadprivate variables now also support dynamic initialization and
-   destruction by the same mechanism.
+ - G++ supports C++1y lambda capture initializers:
 
- - G++ now implements the C++11 attribute syntax, e.g.
+     [x = 42]{ ... };
 
-     [[noreturn]] void f();
+   Actually, they have been accepted since GCC 4.5, but now the
+   compiler doesn't warn about them with -std=c++1y, and supports
+   parenthesized and brace-enclosed initializers as well.
 
-   and also the alignment specifier, e.g.
+ - G++ supports C++1y variable length arrays.  G++ has supported
+   GNU/C99-style VLAs for a long time, but now additionally supports
+   initializers and lambda capture by reference.  In C++1y mode G++
+   will complain about VLA uses that are not permitted by the draft
+   standard, such as forming a pointer to VLA type or applying sizeof
+   to a VLA variable.  Note that it now appears that VLAs will not be
+   part of C++14, but will be part of a separate document and then
+   perhaps C++17.
 
-     alignas(double) int i;
+    void f(int n) {
+      int a[n] = { 1, 2, 3 }; // throws std::bad_array_length if n < 3
+      [&a]{ for (int i : a) { cout << i << endl; } }();
+      &a; // error, taking address of VLA
+    }
 
- - G++ now implements C++11 inheriting constructors, e.g.
+ - G++ supports the C++1y [[deprecated]] attribute modulo bugs in the
+   underlying [[gnu::deprecated]] attribute.  Classes and functions
+   can be marked deprecated and a diagnostic message added:
 
-     struct A { A(int); };
-     struct B: A { using A::A; }; // defines B::B(int)
-     B b(42); // OK
+     class A;
+     int bar(int n);
+     #if __cplusplus > 201103
+     class [[deprecated("A is deprecated in C++14; Use B instead")]] A;
+     [[deprecated("bar is unsafe; use foo() instead")]]
+     int bar(int n);
 
- - As of GCC 4.8.1, G++ implements the change to decltype semantics from N3276.
+     int foo(int n);
+     class B;
+     #endif
+     A aa; // warning: 'A' is deprecated : A is deprecated in C++14; Use B instead
+     int j = bar(2); // warning: 'int bar(int)' is deprecated : bar is unsafe; use foo() instead
 
-     struct A f();
-     decltype(f()) g();    // OK, return type of f() is not required
-     to be complete.
+ - G++ supports C++1y digit separators.  Long numeric literals can be
+   subdivided with a single quote ' to enhance readability:
 
- - G++ now supports a -std=c++1y option for experimentation with features
-   proposed for the next revision of the standard, expected around 2017.
-   Currently the only difference from -std=c++11 is support for return type
-   deduction in normal functions, as proposed in N3386.
+     int i = 1048576;
+     int j = 1'048'576;
+     int k = 0x10'0000;
+     int m = 0'004'000'000;
+     int n = 0b0001'0000'0000'0000'0000'0000;
 
- - The G++ namespace association extension, __attribute ((strong)), has been
-   deprecated. Inline namespaces should be used instead.
+     double x = 1.602'176'565e-19;
+     double y = 1.602'176'565e-1'9;
 
- - G++ now supports a -fext-numeric-literal option to control whether GNU
-   numeric literal suffixes are accepted as extensions or processed as C++11
-   user-defined numeric literal suffixes. The flag is on (use suffixes for GNU
-   literals) by default for -std=gnu++*, and -std=c++98. The flag is off (use
-   suffixes for user-defined literals) by default for -std=c++11 and later.
+ - G++ supports C++1y polymorphic lambdas.
+
+     // a functional object that will increment any type
+     auto incr = [](auto x) { return x++; };
 
 
 Runtime Library (libstdc++)
 ---------------------------
 
- - Improved_experimental_support_for_the_new_ISO_C++_standard,_C++11,
+ - Improved support for C++11, including:
+
+   - support for <regex>;
+
+   - The associative containers in <map> and <set> and the unordered
+     associative containers in <unordered_map> and <unordered_set>
+     meet the allocator-aware container requirements;
+
+ - Improved experimental support for the upcoming ISO C++ standard, C++14,
    including:
 
-   - forward_list meets the allocator-aware container requirements;
+   - fixing constexpr member functions without const;
+   - implementation of the std::exchange() utility function;
+   - addressing tuples by type;
+   - implemention of std::make_unique;
+   - implemention of std::shared_lock;
+   - making std::result_of SFINAE-friendly;
+   - adding operator() to integral_constant;
+   - adding user-defined literals for standard library types std::basic_string,
+     std::chrono::duration, and std::complex;
+   - adding two range overloads to non-modifying sequence oprations
+     std::equal and std::mismatch;
+   - adding IO manipulators for quoted strings;
+   - adding constexpr members to <utility>, <complex>, <chrono>,
+     and some containers;
+   - adding compile-time std::integer_sequence;
+   - adding cleaner transformation traits;
+   - making <functional>s operator functors easier to use and more generic;
 
-   - this_thread::sleep_for(), this_thread::sleep_until() and this_thread::
-     yield() are defined without requiring the configure option
-     --enable-libstdcxx-time;
+ - An implementation of std::experimental::optional.
 
- - Improvements to <random>:
+ - An implementation of std::experimental::string_view.
 
-   - SSE optimized normal_distribution.
-
-   - Use of hardware RNG instruction for random_device on new x86 processors
-     (requires the assembler to support the instruction.)
-
-   and <ext/random>:
-
-   - New random number engine simd_fast_mersenne_twister_engine with an
-     optimized SSE implementation.
-
-   - New random number distributions beta_distribution, normal_mv_distribution,
-     rice_distribution, nakagami_distribution, pareto_distribution,
-     k_distribution, arcsine_distribution, hoyt_distribution.
-
- - Added --disable-libstdcxx-verbose configure option to disable diagnostic
-   messages issued when a process terminates abnormally. This may be useful for
-   embedded systems to reduce the size of executables that link statically to
-   the library.
+ - The non-standard function std::copy_exception has been deprecated
+   and will be removed in a future version. std::make_exception_ptr
+   should be used instead.
 
 
 Fortran
@@ -256,483 +292,353 @@ Fortran
 
  - Compatibility notice:
 
-   - Module files: The version of module files (.mod) has been incremented.
-     Fortran MODULEs compiled by earlier GCC versions have to be recompiled,
-     when they are USEd by files compiled with GCC 4.8. GCC 4.8 is not able to
-     read .mod files created by earlier versions; attempting to do so gives an
-     error message.
-     Note: The ABI of the produced assembler data itself has not changed;
-     object files and libraries are fully compatible with older versions except
-     as noted below.
+   - Module files: The version of the module files (.mod) has been
+     incremented; additionally, module files are now compressed.
+     Fortran MODULEs compiled by earlier GCC versions have to be
+     recompiled, when they are USEd by files compiled with GCC 4.9,
+     because GCC 4.9 is not able to read .mod files of earlier GCC
+     versions; attempting to do so gives an error message. Note: The
+     ABI of the produced assembler data itself has not changed: object
+     files and libraries are fully compatible to older
+     versions. (Except for the next items.)
 
-   - ABI: Some internal names (used in the assembler/object file) have changed
-     for symbols declared in the specification part of a module. If an affected
-     module - or a file using it via use association - is recompiled, the
-     module and all files which directly use such symbols have to be recompiled
-     as well. This change only affects the following kind of module symbols:
+   - ABI changes:
 
-     - Procedure pointers. Note: C-interoperable function pointers (type
-       (c_funptr)) are not affected nor are procedure-pointer components.
-     - Deferred-length character strings.
+     - Note that the argument passing ABI has changed for scalar dummy
+       arguments of type INTEGER, REAL, COMPLEX and LOGICAL, which
+       have both the VALUE and the OPTIONAL attribute.
 
- - The BACKTRACE intrinsic subroutine has been added. It shows a backtrace at
-   an arbitrary place in user code; program execution continues normally
-   afterwards.
+     - Due to the support of finalization, the virtual table
+       associated with polymorphic variables has changed. Therefore,
+       code containing CLASS should be recompiled, including all files
+       which define derived types involved in the type definition used
+       by polymorphic variables. (Note: Due to the incremented module
+       version, trying to mix old code with new code will usually give
+       an error message.)
 
- - The -Wc-binding-type warning option has been added (disabled by default). It
-   warns if the a variable might not be C interoperable; in particular, if the
-   variable has been declared using an intrinsic type with default kind instead
-   of using a kind parameter defined for C interoperability in the intrinsic
-   ISO_C_Binding module. Before, this warning was always printed. The
-   -Wc-binding-type option is enabled by -Wall.
+   - GNU Fortran no longer deallocates allocatable variables or
+     allocatable components of variables declared in the main
+     program. Since Fortran 2008, the standard explicitly states that
+     variables declared in the Fortran main program automatically have
+     the SAVE attribute.
 
- - The -Wrealloc-lhs and -Wrealloc-lhs-all warning command-line options have
-   been added, which diagnose when code to is inserted for automatic
-   (re)allocation of a variable during assignment. This option can be used to
-   decide whether it is safe to use -fno-realloc-lhs. Additionally, it can be
-   used to find automatic (re)allocation in hot loops. (For arrays, replacing
-   var= by var(:)= disables the automatic reallocation.)
+   - When opening files, the close-on-exec flag is set if the system
+     supports such a feature. This is generally considered good
+     practice these days, but if there is a need to pass file
+     descriptors to child processes the parent process must now
+     remember to clear the close-on-exec flag by calling fcntl(),
+     e.g. via ISO_C_BINDING, before executing the child process.
 
- - The -Wcompare-reals command-line option has been added. When this is set,
-   warnings are issued when comparing REAL or COMPLEX types for equality and
-   inequality; consider replacing a == b by abs(a-b) < eps with a suitable eps.
-   -Wcompare-reals is enabled by -Wextra.
+   - The deprecated command-line option -fno-whole-file has been
+     removed. (-fwhole-file is the default since GCC 4.6.)
+     -fwhole-file/-fno-whole-file continue to be accepted but do not
+     influence the code generation.
 
- - The -Wtarget-lifetime command-line option has been added (enabled with
-   -Wall), which warns if the pointer in a pointer assignment might outlive its
-   target.
+   - The compiler no longer unconditionally warns about DO loops with
+     zero iterations.  This warning is now controlled by the
+     -Wzerotrips option, which is implied by -Wall.
 
- - Reading floating point numbers which use q for the exponential (such as
-   4.0q0) is now supported as vendor extension for better compatibility with
-   old data files. It is strongly recommended to use for I/O the equivalent but
-   standard conforming e (such as 4.0e0).
-   (For Fortran source code, consider replacing the q in floating-point
-   literals by a kind parameter (e.g. 4.0e0_qp with a suitable qp). Note that -
-   in Fortran source code - replacing q by a simple e is not equivalent.)
+   - The new NO_ARG_CHECK attribute of the !GCC$ directive can be used
+     to disable the type-kind-rank (TKR) argument check for a dummy
+     argument. The feature is similar to ISO/IEC TS 29133:2012's
+     TYPE(*), except that it additionally also disables the rank
+     check. Variables with NO_ARG_CHECK have to be dummy arguments and
+     may only be used as argument to ISO_C_BINDING's C_LOC and as
+     actual argument to another NO_ARG_CHECK dummy argument; also the
+     other constraints of TYPE(*) apply.  The dummy arguments should
+     be declared as scalar or assumed-size variable of type type(*)
+     (recommended) &ndash; or of type integer, real, complex or
+     logical. With NO_ARG_CHECK, a pointer to the data without further
+     type or shape information is passed, similar to C's void*. Note
+     that also TS 29113's type(*),dimension(..) accepts arguments of
+     any type and rank; contrary to NO_ARG_CHECK assumed-rank
+     arguments pass an array descriptor which contains the array shape
+     and stride of the argument.
 
- - The GFORTRAN_TMPDIR environment variable for specifying a non-default
-   directory for files opened with STATUS="SCRATCH", is not used anymore.
-   Instead gfortran checks the POSIX/GNU standard TMPDIR environment variable.
-   If TMPDIR is not defined, gfortran falls back to other methods to determine
-   the directory for temporary files as documented in the user_manual.
+   - Fortran 2003:
 
- - Fortran_2003:
+     - Finalization is now supported. Note that finalization is
+       currently only done for a subset of the situations in which it
+       should occur.
 
-   - Support for unlimited polymorphic variables (CLASS(*)) has been added.
-     Nonconstant character lengths are not yet supported.
+     - Experimental support for scalar character components with
+       deferred length (i.e. allocatable string length) in derived
+       types has been added. (Deferred-length character variables are
+       supported since GCC 4.6.)
 
- - TS_29113:
+   - Fortran 2008:
 
-   - Assumed types (TYPE(*)) are now supported.
+     - When STOP or ERROR STOP is used to terminate the execution and
+       any exception (but inexact) is signaling, a warning is printed
+       to ERROR_UNIT, indicating which exceptions are signaling. The
+       -ffpe-summary= command-line option can be used to fine-tune for
+       which exception the warning should be shown.
 
-   - Experimental support for assumed-rank arrays (dimension(..)) has been
-     added. Note that currently gfortran's own array descriptor is used, which
-     is different from the one defined in TS29113, see gfortran's_header_file
-     or use the Chasm_Language_Interoperability_Tools.
+     - Rounding on input (READ) is now handled on systems where strtod
+       honours the rounding mode. (For output, rounding is supported
+       since GCC 4.5.) Note that for input, the compatible rounding
+       mode is handled as nearest (i.e., for a tie, rounding to an
+       even last significant [cf. IEC 60559:1989] &ndash; while
+       compatible rounds away from zero for a tie).
 
 
 Go
 --
 
- - GCC 4.8.0 implements a preliminary version of the upcoming Go 1.1 release.
-   The library support is not quite complete, due to release timing.
-
- - Go has been tested on GNU/Linux and Solaris platforms for various processors
-   including x86, x86_64, PowerPC, SPARC, and Alpha. It may work on other
-   platforms as well.
+ - GCC 4.9 provides a complete implementation of the Go 1.2.1 release.
 
 
 New Targets and Target Specific Improvements
 ============================================
 
-
 AArch64
 -------
 
- - A new port has been added to support AArch64, the new 64-bit architecture
-   from ARM. Note that this is a separate port from the existing 32-bit ARM
-   port.
- - The port provides initial support for the Cortex-A53 and the Cortex-A57
-   processors with the command line options -mcpu=cortex-a53 and
-   -mcpu=cortex-a57.
+ - The ARMv8-A crypto and CRC instructions are now supported through
+   intrinsics. These are enabled when the architecture supports these
+   and are available through the -march=armv8-a+crc and
+   -march=armv8-a+crypto options.
+
+ - Initial support for ILP32 has now been added to the compiler. This
+   is now available through the command line option
+   -mabi=ilp32. Support for ILP32 is considered experimental as the
+   ABI specification is still beta.
+
+ - Coverage of more of the ISA including the SIMD extensions has been
+   added. The Advanced SIMD intrinsics have also been improved.
+
+ - The new local register allocator (LRA) is now on by default for the
+   AArch64 backend.
+
+ - The REE (Redundant extension elimination) pass has now been enabled
+   by default for the AArch64 backend.
+
+ - Tuning for the Cortex-A53 and Cortex-A57 has been improved.
+
+ - Initial big.LITTLE tuning support for the combination of Cortex-A57
+   and Cortex-A53 was added through the -mcpu=cortex-a57.cortex-a53
+   option.
+
+ - A number of structural changes have been made to both the ARM
+   and AArch64 backends to facilitate improved code-generation.
 
 
 ARM
 ---
 
- - Initial support has been added for the AArch32 extensions defined in the
-   ARMv8 architecture.
+ - Use of Advanced SIMD (Neon) for 64-bit scalar computations has been
+   disabled by default. This was found to generate better code in only
+   a small number of cases. It can be turned back on with the
+   -mneon-for-64bits option.
 
- - Code generation improvements for the Cortex-A7 and Cortex-A15 CPUs.
+ -  Further support for the ARMv8-A architecture, notably implementing
+   the restriction around IT blocks in the Thumb32 instruction set has
+   been added. The -mrestrict-it option can be used with
+   -march=armv7-a or the -march=armv7ve options to make code
+   generation fully compatible with the deprecated instructions in
+   ARMv8-A.
 
- - A new option, -mcpu=marvell-pj4, has been added to generate code for the
-   Marvell PJ4 processor.
+ - Support has now been added for the ARMv7ve variant of the
+   architecture. This can be used by the -march=armv7ve option.
 
- - The compiler can now automatically generate the VFMA, VFMS, REVSH and REV16
-   instructions.
+ - The ARMv8-A crypto and CRC instructions are now supported through
+   intrinsics and are available through the -march=armv8-a+crc
+   and mfpu=crypto-neon-fp-armv8 options.
 
- - A new vectorizer cost model for Advanced SIMD configurations to improve the
-   auto-vectorization strategies used.
+ - LRA is now on by default for the ARM target. This can be turned off
+   using the -mno-lra option. This option is purely
+   transitionary command line option and will be removed in a future
+   release. We are interested in any bug reports regarding functional and
+   performance regressions with LRA.
 
- - The scheduler now takes into account the number of live registers to reduce
-   the amount of spilling that can occur. This should improve code performance
-   in large functions. The limit can be removed by using the option -fno-sched-
-   pressure.
+ - A new option -mslow-flash-data to improve performance of programs
+   fetching data on slow flash memory has now been introduced for the
+   ARMv7-M profile cores.
 
- - Improvements have been made to the Marvell iWMMX code generation and support
-   for the iWMMX2 SIMD unit has been added. The option -mcpu=iwmmxt2 can be
-   used to enable code generation for the latter.
+ - A new option -mpic-data-is-text-relative for targets that allows
+   data segments to be relative to text segments has been added. This
+   is on by default for all targets except VxWorks RTP.
 
- - A number of code generation improvements for Thumb2 to reduce code size when
-   compiling for the M-profile processors.
+ - A number of infrastructural changes have been made to both the ARM
+   and AArch64 backends to facilitate improved code-generation.
 
- - The RTEMS (arm-rtems) port has been updated to use the EABI.
+ - GCC now supports Cortex-A12 and the Cortex-R7 through the
+   -mcpu=cortex-a12 and -mcpu=cortex-r7 options.
 
- - Code generation support for the old FPA and Maverick floating-point
-   architectures has been removed. Ports that previously relied on these
-   features have also been removed. This includes the targets:
+ - GCC now has tuning for the Cortex-A57 and Cortex-A53 through the
+   -mcpu=cortex-a57 and -mcpu=cortex-a53 options.
 
-   - arm*-*-linux-gnu (use arm*-*-linux-gnueabi)
-   - arm*-*-elf (use arm*-*-eabi)
-   - arm*-*-uclinux* (use arm*-*-uclinux*eabi)
-   - arm*-*-ecos-elf (no alternative)
-   - arm*-*-freebsd (no alternative)
-   - arm*-wince-pe* (no alternative).
+ - Initial big.LITTLE tuning support for the combination of Cortex-A57
+   and Cortex-A53 was added through the -mcpu=cortex-a57.cortex-a53
+   option. Similar support was added for the combination of Cortex-A15
+   and Cortex-A7 through the -mcpu=cortex-a15.cortex-a7 option.
 
+ - Further performance optimizations for the Cortex-A15 and the
+   Cortex-M4 have been added.
 
-AVR
----
-
- - Support for the "Embedded C" fixed-point has been added. For details, see
-   the GCC_wiki and the user_manual. The support is not complete.
- - A new print modifier %r for register operands in inline assembler is
-   supported. It will print the raw register number without the register prefix
-   'r':
-
-     /* Return the most significant byte of 'val', a 64-bit value.  */
-
-     unsigned char msb (long long val)
-       {
-         unsigned char c;
-         __asm__ ("mov %0, %r1+7" : "=r" (c) : "r" (val));
-         return c;
-       }
-
-   The inline assembler in this example will generate code like
-
-     mov r24, 8+7
-
-   provided c is allocated to R24 and val is allocated to R8...R15. This works
-   because the GNU assembler accepts plain register numbers without register
-   prefix.
-
- - Static initializers with 3-byte symbols are supported now:
-
-     extern const __memx char foo;
-     const __memx void *pfoo = &foo;
-
-   This requires at least Binutils 2.23.
+ - A number of code generation improvements for Thumb2 to reduce code
+   size when compiling for the M-profile processors.
 
 
 IA-32/x86-64
 ------------
 
- - Allow -mpreferred-stack-boundary=3 for the x86-64 architecture with SSE
-   extensions disabled. Since the x86-64 ABI requires 16 byte stack alignment,
-   this is ABI incompatible and intended to be used in controlled environments
-   where stack space is an important limitation. This option will lead to wrong
-   code when functions compiled with 16 byte stack alignment (such as functions
-   from a standard library) are called with misaligned stack. In this case, SSE
-   instructions may lead to misaligned memory access traps. In addition,
-   variable arguments will be handled incorrectly for 16 byte aligned objects
-   (including x87 long double and __int128), leading to wrong results. You must
-   build all modules with -mpreferred-stack-boundary=3, including any
-   libraries. This includes the system libraries and startup modules.
+ - -mfpmath=sse is now implied by -ffast-math on all targets where
+   SSE2 is supported.
 
- - Support for the new Intel processor codename Broadwell with RDSEED, ADCX,
-   ADOX, PREFETCHW is available through -madx, -mprfchw, -mrdseed command-line
-   options.
+ - Intel AVX-512 support was added to GCC.  That includes inline
+   assembly support, new registers and extending existing ones, new
+   intrinsics (covered by corresponding testsuite), and basic
+   autovectorization.  AVX-512 instructions are available via the
+   following GCC switches: AVX-512 foundation instructions: -mavx512f,
+   AVX-512 prefetch instructions: -mavx512pf, AVX-512 exponential and
+   reciprocal instructions: -mavx512er, AVX-512 conflict detection
+   instructions: -mavx512cd.
 
- - Support for the Intel RTM and HLE intrinsics, built-in functions and code
-   generation is available via -mrtm and -mhle.
+ - It is now possible to call x86 intrinsics from select functions in
+   a file that are tagged with the corresponding target attribute
+   without having to compile the entire file with the -mxxx option.
+   This improves the usability of x86 intrinsics and is particularly
+   useful when doing Function Multiversioning.
 
- - Support for the Intel FXSR, XSAVE and XSAVEOPT instruction sets. Intrinsics
-   and built-in functions are available via -mfxsr, -mxsave and -mxsaveopt
-   respectively.
+ - GCC now supports the new Intel microarchitecture named Silvermont
+   through -march=silvermont.
 
- - New -maddress-mode=[short|long] options for x32. -maddress-mode=short
-   overrides default 64-bit addresses to 32-bit by emitting the 0x67 address-
-   size override prefix. This is the default address mode for x32.
+ - GCC now supports the new Intel microarchitecture named Broadwell
+   through -march=broadwell.
 
- - New built-in functions to detect run-time CPU type and ISA:
+ - Optimizing for other Intel microarchitectures have been renamed to
+   -march=nehalem, westmere, sandybridge, ivybridge, haswell, bonnell.
 
-   - A built-in function __builtin_cpu_is has been added to detect if the run-
-     time CPU is of a particular type. It returns a positive integer on a match
-     and zero otherwise. It accepts one string literal argument, the CPU name.
-     For example, __builtin_cpu_is("westmere") returns a positive integer if
-     the run-time CPU is an Intel Core i7 Westmere processor. Please refer to
-     the user_manual for the list of valid CPU names recognized.
+ - -march=generic has been retuned for better support of Intel core
+   and AMD Bulldozer architectures.  Performance of AMD K7, K8, Intel
+   Pentium-M, and Pentium4 based CPUs is no longer considered
+   important for generic.
 
-   - A built-in function __builtin_cpu_supports has been added to detect if the
-     run-time CPU supports a particular ISA feature. It returns a positive
-     integer on a match and zero otherwise. It accepts one string literal
-     argument, the ISA feature. For example, __builtin_cpu_supports("ssse3")
-     returns a positive integer if the run-time CPU supports SSSE3
-     instructions. Please refer to the user_manual for the list of valid ISA
-     names recognized.
+ - -mtune=intel can now be used to generate code running well on the
+   most current Intel processors, which are Haswell and Silvermont for
+   GCC 4.9.
 
-   Caveat: If these built-in functions are called before any static
-   constructors are invoked, like during IFUNC initialization, then the CPU
-   detection initialization must be explicitly run using this newly provided
-   built-in function, __builtin_cpu_init. The initialization needs to be done
-   only once. For example, this is how the invocation would look like inside an
-   IFUNC initializer:
+ - Support to encode 32-bit assembly instructions in 16-bit format is
+   now available through the -m16 command-line option.
 
-        static void (*some_ifunc_resolver(void))(void)
-        {
-          __builtin_cpu_init();
-          if (__builtin_cpu_is("amdfam10h") ...
-          if (__builtin_cpu_supports("popcnt") ...
-        }
+ - Better inlining of memcpy and memset that is aware of value ranges
+   and produces shorter alignment prologues.
 
- - Function Multiversioning Support with G++:
-   It is now possible to create multiple function versions each targeting a
-   specific processor and/or ISA. Function versions have the same signature but
-   different target attributes. For example, here is a program with function
-   versions:
+ - -mno-accumulate-outgoing-args is now honored when unwind
+   information is output.  Argument accumulation is also now turned
+   off for portions of programs optimized for size.
 
-     __attribute__ ((target ("default")))
-     int foo(void)
-       {
-         return 1;
-       }
-
-     __attribute__ ((target ("sse4.2")))
-     int foo(void)
-       {
-         return 2;
-       }
-
-     int main (void)
-     {
-       int (*p) = &foo;
-       assert ((*p)() == foo());
-       return 0;
-     }
-
-   Please refer to this wiki for more information.
-
- - The x86 backend has been improved to allow option -fschedule-insns to work
-   reliably. This option can be used to schedule instructions better and leads
-   to improved performace in certain cases.
-
- - Windows MinGW-w64 targets (*-w64-mingw*) require at least r5437 from the
-   Mingw-w64 trunk.
-
- - Support for new AMD family 15h processors (Steamroller core) is now
-   available through the -march=bdver3 and -mtune=bdver3 options.
-
- - Support for new AMD family 16h processors (Jaguar core) is now available
-   through the -march=btver2 and -mtune=btver2 options.
+ - Support for new AMD family 15h processors (Excavator core) is now
+   available through the -march=bdver4 and -mtune=bdver4 options.
 
 
-FRV
----
+MSP430
+------
 
- - This target now supports the -fstack-usage command-line option.
+ - A new command-line option -mcpu= has been added to the MSP430
+   backend.  This option is used to specify the ISA to be used.
+   Accepted values are msp430 (the default), msp430x and msp430xv2.
+   The ISA is no longer deduced from the -mmcu= option as there are
+   far too many different MCU names.  The -mmcu= option is still
+   supported, and this is still used to select linker scripts and
+   generate a C preprocessor symbol that will be recognised by the
+   msp430.h header file.
 
 
-MIPS
-----
+NDS32
+-----
 
- - GCC can now generate code specifically for the R4700, Broadcom XLP and MIPS
-   34kn processors. The associated -march options are -march=r4700, -march=xlp
-   and -march=34kn respectively.
+ - A new nds32 port supports the 32-bit architecture from Andes
+   Technology Corporation.
 
- - GCC now generates better DSP code for MIPS 74k cores thanks to further
-   scheduling optimizations.
+ - The port provides initial support for the V2, V3, V3m instruction
+   set architectures.
 
- - The MIPS port now supports the -fstack-check option.
 
- - GCC now passes the -mmcu and -mno-mcu options to the assembler.
+Nios II
+-------
 
- - Previous versions of GCC would silently accept -fpic and -fPIC for
-   -mno-abicalls targets like mips*-elf. This combination was not intended or
-   supported, and did not generate position-independent code. GCC 4.8 now
-   reports an error when this combination is used.
+ - A port for the Altera Nios II has been contributed by Mentor Graphics.
 
 
 PowerPC / PowerPC64 / RS6000
 ----------------------------
 
- - SVR4 configurations (GNU/Linux, FreeBSD, NetBSD) no longer save, restore or
-   update the VRSAVE register by default. The respective operating systems
-   manage the VRSAVE register directly.
+ - GCC now supports Power ISA 2.07, which includes support for
+   Hardware Transactional Memory (HTM), Quadword atomics and several
+   VMX and VSX additions, including Crypto, 64-bit integer, 128-bit
+   integer and decimal integer operations.
 
- - Large TOC support has been added for AIX through the command line option
-   -mcmodel=large.
+ - Support for the POWER8 processor is now available through the
+   -mcpu=power8 and -mtune=power8 options.  The libitm library has
+   been modified to add a HTM fastpath that automatically uses POWER's
+   HTM hardware instructions when it is executing on a HTM enabled
+   processor.
 
- - Native Thread-Local Storage support has been added for AIX.
-
- - VMX (Altivec) and VSX instruction sets now are enabled implicitly when
-   targetting processors that support those hardware features on AIX 6.1 and
-   above.
-
-
-RX
---
-
- - This target will now issue a warning message whenever multiple fast
-   interrupt handlers are found in the same cpmpilation unit. This feature can
-   be turned off by the new -mno-warn-multiple-fast-interrupts command-line
-   option.
+ - Support for the new powerpc64le-linux platform has been added.  It
+   defaults to generating code that conforms to the ELFV2 ABI.
 
 
 S/390, System z
 ---------------
 
- - Support for the IBM zEnterprise zEC12 processor has been added. When using
-   the -march=zEC12 option, the compiler will generate code making use of the
-   following new instructions:
+ - Support for the Transactional Execution Facility included with the
+   IBM zEnterprise zEC12 processor has been added.  A set of GCC style
+   builtins as well as XLC style builtins are provided.  The builtins
+   are enabled by default when using the -march=zEC12 option but can
+   explicitly be disabled with -mno-htm.  Using the GCC builtins also
+   libitm supports hardware transactions on S/390.
 
-   - load and trap instructions
-   - 2 new compare and trap instructions
-   - rotate and insert selected bits - without CC clobber
+ - The hotpatch features allows to prepare functions for hotpatching.
+   A certain amount of bytes is reserved before the function entry
+   label plus a NOP is inserted at its very beginning to implement a
+   backward jump when applying a patch.  The feature can either be
+   enabled via command line option -mhotpatch for a compilation unit
+   or can be enabled per function using the hotpatch attribute.
 
-   The -mtune=zEC12 option enables zEC12 specific instruction scheduling
-   without making use of new instructions.
+ - The shrink wrap optimization is now supported on S/390 and
+   enabled by default.
 
- - Register pressure sensitive instruction scheduling is enabled by default.
+ - A major rework of the routines to determine which registers need to
+   be saved and restored in function prologue/epilogue now allow to
+   use floating point registers as save slots.  This will happen for
+   certain leaf function with -march=z10 or higher.
 
- - The ifunc function attribute is enabled by default.
+ - The LRA rtl pass replaces reload by default on S/390.
 
- - memcpy and memcmp invokations on big memory chunks or with run time lengths
-   are not generated inline anymore when tuning for z10 or higher. The purpose
-   is to make use of the IFUNC optimized versions in Glibc.
+
+RX
+--
+
+ - The port now allows to specify the RX100, RX200, and RX600
+   processors with the command line options -mcpu=rx100, -mcpu=rx200
+   and -mcpu=rx600.
 
 
 SH
 --
 
- - The default alignment settings have been reduced to be less aggressive. This
-   results in more compact code for optimization levels other than -Os.
+ - Minor improvements to code generated for integer arithmetic and code
+   that involves the T bit.
 
- - Improved support for the __atomic built-in functions:
+ - Added support for the SH2A clips and clipu instructions.  The
+   compiler will now try to utilize them for min/max expressions such
+   as max (-128, min (127, x)).
 
-   - A new option -matomic-model=model selects the model for the generated
-     atomic sequences. The following models are supported:
+ - Added support for the cmp/str instruction through built-in
+   functions such as __builtin_strlen.  When not optimizing for size,
+   the compiler will now expand calls to e.g. strlen as an inlined
+   sequences which utilize the cmp/str instruction.
 
-     soft-gusa
-         Software gUSA sequences (SH3* and SH4* only). On SH4A targets this
-         will now also partially utilize the movco.l and movli.l
-         instructions. This is the default when the target is sh3*-*-linux*
-         or sh4*-*-linux*.
-     hard-llcs
-         Hardware movco.l / movli.l sequences (SH4A only).
-     soft-tcb
-         Software thread control block sequences.
-     soft-imask
-         Software interrupt flipping sequences (privileged mode only). This
-         is the default when the target is sh1*-*-linux* or sh2*-*-linux*.
-     none
-         Generates function calls to the respective __atomic built-in
-         functions. This is the default for SH64 targets or when the target
-         is not sh*-*-linux*.
+ - Improved code generated around volatile memory loads and stores.
 
-   - The option -msoft-atomic has been deprecated. It is now an alias for
-     -matomic-model=soft-gusa.
+ - The option -mcbranchdi has been deprecated.  Specifying it
+   will result in a warning and will not influence code generation.
 
-   - A new option -mtas makes the compiler generate the tas.b instruction for
-     the __atomic_test_and_set built-in function regardless of the selected
-     atomic model.
+ - The option -mcmpeqdi has been deprecated.  Specifying it
+   will result in a warning and will not influence code generation.
 
-   - The __sync functions in libgcc now reflect the selected atomic model when
-     building the toolchain.
-
- - Added support for the mov.b and mov.w instructions with displacement
-   addressing.
-
- - Added support for the SH2A instructions movu.b and movu.w.
-
- - Various improvements to code generated for integer arithmetic.
-
- - Improvements to conditional branches and code that involves the T bit. A new
-   option -mzdcbranch tells the compiler to favor zero-displacement branches.
-   This is enabled by default for SH4* targets.
-
- - The pref instruction will now be emitted by the __builtin_prefetch built-in
-   function for SH3* targets.
-
- - The fmac instruction will now be emitted by the fmaf standard function and
-   the __builtin_fmaf built-in function.
-
- - The -mfused-madd option has been deprecated in favor of the machine-
-   independent -ffp-contract option. Notice that the fmac instruction will now
-   be generated by default for expressions like a * b + c. This is due to the
-   compiler default setting -ffp-contract=fast.
-
- - Added new options -mfsrra and -mfsca to allow the compiler using the fsrra
-   and fsca instructions on targets other than SH4A (where they are already
-   enabled by default).
-
- - Added support for the __builtin_bswap32 built-in function. It is now
-   expanded as a sequence of swap.b and swap.w instructions instead of a
-   library function call.
-
- - The behavior of the -mieee option has been fixed and the negative form
-   -mno-ieee has been added to control the IEEE conformance of floating point
-   comparisons. By default -mieee is now enabled and the option -ffinite-math-
-   only implicitly sets -mno-ieee.
-
- - Added support for the built-in functions __builtin_thread_pointer and
-   __builtin_set_thread_pointer. This assumes that GBR is used to hold the
-   thread pointer of the current thread. Memory loads and stores relative to
-   the address returned by __builtin_thread_pointer will now also utilize GBR
-   based displacement address modes.
-
-
-SPARC
------
-
- - Added optimized instruction scheduling for Niagara4.
-
-
-TILE-Gx
--------
-
- - Added support for the -mcmodel=MODEL command-line option. The models
-   supported are small and large.
-
-
-V850
-----
-
- - This target now supports the E3V5 architecture via the use of the new
-   -mv850e3v5 command-line option. It also has experimental support for the e3v5
-   LOOP instruction which can be enabled via the new -mloop command-line
-   option.
-
-
-XStormy16
----------
-
- - This target now supports the -fstack-usage command-line option.
-
-
-Operating Systems
-=================
-
-
-Windows (Cygwin)
-----------------
-
- - Executables are now linked against shared libgcc by default. The previous
-   default was to link statically, which can still be done by explicitly
-   specifying -static or -static-libgcc on the command line. However it is
-   strongly advised against, as it will cause problems for any application that
-   makes use of DLLs compiled by GCC. It should be alright for a monolithic
-   stand-alone application that only links against the Windows OS DLLs, but
-   offers little or no benefit.
 
 
 For questions related to the use of GCC, please consult these web
@@ -748,4 +654,4 @@ permitted in any medium, provided this notice is preserved.
 
 These pages are maintained by the GCC team.
 
-Last modified 2013-03-23.
+Last modified 2014-04-22.

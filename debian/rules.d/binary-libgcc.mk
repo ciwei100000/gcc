@@ -51,8 +51,9 @@ header_files = \
 		    {,a,b,e,i,n,p,s,t,w,x}mmintrin.h mmintrin-common.h \
 		    {abm,adx,avx,avx2,bmi,bmi2,f16c,fma,fma4,fxsr,ia32,}intrin.h \
 		    {lwp,lzcnt,popcnt,prfchw,rdseed,rtm,tbm,x86,xop,xsave{,opt},xtest,}intrin.h \
-		    {htm,htmxl}intrin.h \
-		    {cross-stdarg,syslimits,unwind,unwind-arm-common,varargs}.h; \
+		    {htm,htmxl,sha}intrin.h avx512{er,cd,f,pf}intrin.h \
+		    {arm_acle,unwind-arm-common,s390intrin}.h \
+		    {cross-stdarg,syslimits,unwind,varargs}.h; \
 		do \
 		  test -e $(d)/$(gcc_lib_dir)/include/$$h \
 		    && echo $(gcc_lib_dir)/include/$$h; \
@@ -60,7 +61,7 @@ header_files = \
 		    && echo $(gcc_lib_dir)/include-fixed/$$h; \
 		done) \
 	$(shell for d in \
-		  asm bits gnu linux $(TARGET_ALIAS) \
+		  asm bits cilk gnu linux sanitizer $(TARGET_ALIAS) \
 		  $(subst $(DEB_TARGET_GNU_CPU),$(biarch_cpu),$(TARGET_ALIAS)); \
 		do \
 		  test -e $(d)/$(gcc_lib_dir)/include/$$d \
@@ -179,14 +180,14 @@ define __do_gcc_devels2
 		if [ -h $(4)/libgcc_s.so ]; then \
 		  rm -f $(4)/libgcc_s.so; \
 		  dh_link -p$(2) /$(libgcc_dir$(1))/libgcc_s.so.$(GCC_SONAME) \
-		    $(3)/libgcc_s.so; \
+		    /$(3)/libgcc_s.so; \
 		else \
 		  mv $(4)/libgcc_s.so $(d)/$(3)/libgcc_s.so; \
 		  dh_link -p$(2) /$(libgcc_dir$(1))/libgcc_s.so.$(GCC_SONAME) \
-		    $(3)/libgcc_s.so.$(GCC_SONAME); \
+		    /$(3)/libgcc_s.so.$(GCC_SONAME); \
 		fi; \
 		$(if $(1), dh_link -p$(2) /$(3)/libgcc_s.so \
-		    $(gcc_lib_dir)/libgcc_s_$(1).so;)
+		    /$(gcc_lib_dir)/libgcc_s_$(1).so;)
 	)
 	$(dh_compat2) dh_movefiles -p$(2) \
 		$(3)/{libgcc*,libgcov.a,*.o} \
@@ -239,9 +240,21 @@ define __do_gcc_devels2
 		$(call install_gcc_lib,libasan,$(ASAN_SONAME),$(1),$(2))
 		mv $(4)/libasan_preinit.o debian/$(2)/$(3)/;
 	)
+	$(if $(1),,$(if $(filter yes, $(with_lsan)),
+		$(call install_gcc_lib,liblsan,$(LSAN_SONAME),$(1),$(2))
+	))
 	$(if $(1),,$(if $(filter yes, $(with_tsan)),
 		$(call install_gcc_lib,libtsan,$(TSAN_SONAME),$(1),$(2))
 	))
+	$(if $(filter yes, $(with_ubsan)),
+		$(call install_gcc_lib,libubsan,$(UBSAN_SONAME),$(1),$(2))
+	)
+	)
+	$(if $(filter yes, $(with_vtv)),
+		$(call install_gcc_lib,libvtv,$(VTV_SONAME),$(1),$(2))
+	)
+	$(if $(filter yes, $(with_cilkrts)),
+		$(call install_gcc_lib,libcilkrts,$(CILKRTS_SONAME),$(1),$(2))
 	)
 	$(if $(filter yes, $(with_qmath)),
 		$(call install_gcc_lib,libquadmath,$(QUADMATH_SONAME),$(1),$(2))

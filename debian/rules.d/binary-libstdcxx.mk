@@ -183,12 +183,12 @@ define __do_libstdcxx
 		$(usr_lib$(2)) \
 		$(PF)/share/gdb/auto-load/$(usr_lib$(2))
 
-	$(if $(2),,
+	$(if $(DEB_CROSS),,$(if $(2),,
 	dh_installdirs -p$(p_l) \
 		$(PF)/share/gcc-$(BASE_VERSION)/python
 	$(dh_compat2) dh_movefiles -p$(p_l) \
 		$(PF)/share/gcc-$(BASE_VERSION)/python/libstdcxx
-	)
+	))
 	cp -p $(d)/$(usr_lib$(2))/libstdc++.so.*.py \
 		$(d_l)/$(PF)/share/gdb/auto-load/$(usr_lib$(2))/.
 	sed -i -e "/^libdir *=/s,=.*,= '/$(usr_lib$(2))'," \
@@ -204,7 +204,12 @@ define __do_libstdcxx
 	dh_compress -p$(p_l)
 	dh_fixperms -p$(p_l)
 
-	$(cross_makeshlibs) dh_makeshlibs -p$(p_l) || echo 'FIXME: libstdc++ symbols file'
+	$(if $(filter $(DEB_TARGET_ARCH), armel hppa sparc64), \
+	  -$(cross_makeshlibs) dh_makeshlibs -p$(p_l) \
+	  @echo "FIXME: libstdc++ not feature complete (https://gcc.gnu.org/ml/gcc/2014-07/msg00000.html)", \
+	  $(cross_makeshlibs) dh_makeshlibs -p$(p_l) \
+	)
+
 	$(call cross_mangle_shlibs,$(p_l))
 	$(ignshld)DIRNAME=$(subst n,,$(2)) $(cross_shlibdeps) dh_shlibdeps -p$(p_l) \
 		$(call shlibdirs_to_search,$(subst stdc++$(CXX_SONAME),gcc$(GCC_SONAME),$(p_l)),$(2)) \
@@ -408,6 +413,11 @@ endif
 		/$(usr_lib)/libstdc++.so.$(CXX_SONAME) \
 		/$(gcc_lib_dir)/libstdc++.so \
 		/$(cxx_inc_dir) /$(PFL)/include/c++/$(GCC_VERSION)
+ifeq ($(with_multiarch_cxxheaders),yes)
+	dh_link -p$(p_dev) \
+		/$(PFL)/include/$(DEB_TARGET_MULTIARCH)/c++/$(BASE_VERSION) \
+		/$(PFL)/include/$(DEB_TARGET_MULTIARCH)/c++/$(GCC_VERSION)
+endif
 
 	debian/dh_doclink -p$(p_dev) $(p_base)
 	debian/dh_doclink -p$(p_pic) $(p_base)
@@ -430,6 +440,7 @@ endif
 		$(d_dbg)/$(PF)/share/gdb/auto-load/$(usr_lib)/debug/.
 	sed -i -e "/^libdir *=/s,=.*,= '/$(usr_lib)'," \
 		$(d_dbg)/$(PF)/share/gdb/auto-load/$(usr_lib)/debug/libstdc++.so.*.py
+
 ifeq ($(with_libcxx),yes)
 	cp -a $(d)/$(usr_lib)/libstdc++.so.*[0-9] \
 		$(d_dbg)/$(usr_lib)/

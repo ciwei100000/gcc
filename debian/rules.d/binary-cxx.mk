@@ -86,7 +86,8 @@ ifeq ($(with_check),yes)
 	done
   endif
 	if which xz 2>&1 >/dev/null; then \
-		xz -7v $(d_cxx)/$(docdir)/$(p_xbase)/test-summaries/*; \
+	  echo -n $(d_cxx)/$(docdir)/$(p_xbase)/test-summaries/* \
+	    | xargs -d ' ' -L 1 -P $(USE_CPUS)	xz -7v; \
 	fi
 else
 	echo "Nothing to compare (testsuite not run)"

@@ -13,31 +13,6 @@
 	* config/s390/t-linux64: Set MULTIARCH_DIRNAME.
 	* config/sparc/t-linux64: Set MULTIARCH_DIRNAME.
 
-Index: b/src/libstdc++-v3/python/hook.in
-===================================================================
---- a/src/libstdc++-v3/python/hook.in
-+++ b/src/libstdc++-v3/python/hook.in
-@@ -47,14 +47,16 @@ if gdb.current_objfile () is not None:
-     libdir = libdir[len (prefix):]
- 
-     # Compute the ".."s needed to get from libdir to the prefix.
--    dotdots = ('..' + os.sep) * len (libdir.split (os.sep))
-+    backdirs = len (libdir.split (os.sep))
-+    dotdots = ('..' + os.sep) * backdirs
- 
-     objfile = gdb.current_objfile ().filename
-     dir_ = os.path.join (os.path.dirname (objfile), dotdots, pythondir)
- 
--    if not dir_ in sys.path:
-+    if not objfile.startswith('/usr/lib/debug/') and not dir_ in sys.path:
-         sys.path.insert(0, dir_)
- 
- # Load the pretty-printers.
--from libstdcxx.v6.printers import register_libstdcxx_printers
--register_libstdcxx_printers (gdb.current_objfile ())
-+if gdb.current_objfile () is None or not gdb.current_objfile ().filename.startswith ('/usr/lib/debug/'):
-+    from libstdcxx.v6.printers import register_libstdcxx_printers
-+    register_libstdcxx_printers (gdb.current_objfile ())
 Index: b/src/gcc/config/sh/t-linux
 ===================================================================
 --- a/src/gcc/config/sh/t-linux
@@ -68,29 +43,19 @@ Index: b/src/gcc/config/s390/t-linux64
  MULTILIB_OSDIRNAMES += $(if $(wildcard $(shell echo $(SYSTEM_HEADER_DIR))/../../usr/lib32),../lib32,../lib)$(call if_multiarch,:s390-linux-gnu)
 +
 +MULTIARCH_DIRNAME = $(call if_multiarch,s390$(if $(findstring s390x,$(target)),x)-linux-gnu)
-Index: b/src/gcc/config/rs6000/t-linux
-===================================================================
---- a/src/gcc/config/rs6000/t-linux
-+++ b/src/gcc/config/rs6000/t-linux
-@@ -5,7 +5,7 @@ ifneq (,$(findstring powerpc64,$(target)
- MULTILIB_OSDIRNAMES := .=../lib64$(call if_multiarch,:powerpc64-linux-gnu)
- else
- ifneq (,$(findstring spe,$(target)))
--MULTIARCH_DIRNAME := powerpc-linux-gnuspe$(if $(findstring rs6000/e500-double.h, $(tm_file_list)),,v1)
-+MULTIARCH_DIRNAME = powerpc-linux-gnuspe$(if $(findstring 8548,$(with_cpu)),,v1)
- else
- MULTIARCH_DIRNAME := powerpc-linux-gnu
- endif
 Index: b/src/gcc/config/rs6000/t-linux64
 ===================================================================
 --- a/src/gcc/config/rs6000/t-linux64
 +++ b/src/gcc/config/rs6000/t-linux64
-@@ -30,3 +30,5 @@ MULTILIB_DIRNAMES   := 64 32
- MULTILIB_EXTRA_OPTS := 
+@@ -31,6 +31,8 @@ MULTILIB_EXTRA_OPTS :=
  MULTILIB_OSDIRNAMES := m64=../lib64$(call if_multiarch,:powerpc64-linux-gnu)
  MULTILIB_OSDIRNAMES += m32=$(if $(wildcard $(shell echo $(SYSTEM_HEADER_DIR))/../../usr/lib32),../lib32,../lib)$(call if_multiarch,:powerpc-linux-gnu)
-+
+ 
 +MULTIARCH_DIRNAME = $(call if_multiarch,powerpc$(if $(findstring 64,$(target)),64)-linux-gnu)
++
+ rs6000-linux.o: $(srcdir)/config/rs6000/rs6000-linux.c
+ 	$(COMPILE) $<
+ 	$(POSTCOMPILE)
 Index: b/src/gcc/config/i386/t-linux64
 ===================================================================
 --- a/src/gcc/config/i386/t-linux64
@@ -124,13 +89,31 @@ Index: b/src/gcc/config/i386/t-kfreebsd
  MULTILIB_OSDIRNAMES := $(filter-out mx32=%,$(subst linux,$(KFREEBSD_OS),$(MULTILIB_OSDIRNAMES)))
 +
 +MULTIARCH_DIRNAME := $(subst linux,$(KFREEBSD_OS),$(MULTIARCH_DIRNAME))
+Index: b/src/gcc/config/mips/t-linux64
+===================================================================
+--- a/src/gcc/config/mips/t-linux64
++++ b/src/gcc/config/mips/t-linux64
+@@ -24,3 +24,13 @@ MULTILIB_OSDIRNAMES = \
+ 	../lib32$(call if_multiarch,:mips64$(MIPS_EL)-linux-gnuabin32$(MIPS_SOFT)) \
+ 	../lib$(call if_multiarch,:mips$(MIPS_EL)-linux-gnu$(MIPS_SOFT)) \
+ 	../lib64$(call if_multiarch,:mips64$(MIPS_EL)-linux-gnuabi64$(MIPS_SOFT))
++
++ifneq (,$(findstring abin32,$(target)))
++MULTIARCH_DIRNAME = $(call if_multiarch,mips64$(MIPS_EL)-linux-gnuabin32$(MIPS_SOFT))
++else
++ifneq (,$(findstring abi64,$(target)))
++MULTIARCH_DIRNAME = $(call if_multiarch,mips64$(MIPS_EL)-linux-gnuabi64$(MIPS_SOFT))
++else
++MULTIARCH_DIRNAME = $(call if_multiarch,mips$(MIPS_EL)-linux-gnu$(MIPS_SOFT))
++endif
++endif
 Index: b/src/gcc/config.gcc
 ===================================================================
 --- a/src/gcc/config.gcc
 +++ b/src/gcc/config.gcc
-@@ -1806,8 +1806,11 @@ mips*-mti-linux*)
- mips64*-*-linux* | mipsisa64*-*-linux*)
- 	tm_file="dbxelf.h elfos.h gnu-user.h linux.h glibc-stdint.h ${tm_file} mips/gnu-user.h mips/gnu-user64.h mips/linux64.h mips/linux-common.h"
+@@ -1963,8 +1963,11 @@ mips64*-*-linux* | mipsisa64*-*-linux*)
+ 	tm_file="dbxelf.h elfos.h gnu-user.h linux.h linux-android.h glibc-stdint.h ${tm_file} mips/gnu-user.h mips/gnu-user64.h mips/linux64.h mips/linux-common.h"
+ 	extra_options="${extra_options} linux-android.opt"
  	tmake_file="${tmake_file} mips/t-linux64"
 -	tm_defines="${tm_defines} MIPS_ABI_DEFAULT=ABI_N32"
 +	tm_defines="${tm_defines} MIPS_ABI_DEFAULT=ABI_64"
@@ -141,7 +124,7 @@ Index: b/src/gcc/config.gcc
  		mips64el-st-linux-gnu)
  			tm_file="${tm_file} mips/st.h"
  			tmake_file="${tmake_file} mips/t-st"
-@@ -3762,7 +3765,7 @@ case ${target} in
+@@ -4121,7 +4124,7 @@ case ${target} in
  	i[34567]86-*-darwin* | x86_64-*-darwin*)
  		;;
  	i[34567]86-*-linux* | x86_64-*-linux*)
@@ -150,26 +133,29 @@ Index: b/src/gcc/config.gcc
  		;;
  	i[34567]86-*-kfreebsd*-gnu | x86_64-*-kfreebsd*-gnu)
  		tmake_file="$tmake_file i386/t-kfreebsd"
-Index: b/src/gcc/java/jvspec.c
-===================================================================
---- a/src/gcc/java/jvspec.c
-+++ b/src/gcc/java/jvspec.c
-@@ -59,7 +59,7 @@ static const char jvgenmain_spec[] =
-   "jvgenmain %{findirect-dispatch} %{D*} %b %m.i |\n\
-    cc1 %m.i %1 \
- 		   %{!Q:-quiet} -dumpbase %b.c %{d*} %{m*}\
--		   %{g*} %{O*} \
-+		   %{g*} %{O*} %I \
- 		   %{v:-version} %{pg:-p} %{p}\
- 		   %<fbounds-check %<fno-bounds-check\
- 		   %<fassume-compiled* %<fno-assume-compiled*\
 Index: b/src/gcc/config/aarch64/t-aarch64-linux
 ===================================================================
 --- a/src/gcc/config/aarch64/t-aarch64-linux
 +++ b/src/gcc/config/aarch64/t-aarch64-linux
-@@ -22,4 +22,4 @@ LIB1ASMSRC   = aarch64/lib1funcs.asm
+@@ -22,7 +22,7 @@ LIB1ASMSRC   = aarch64/lib1funcs.asm
  LIB1ASMFUNCS = _aarch64_sync_cache_range
  
  AARCH_BE = $(if $(findstring TARGET_BIG_ENDIAN_DEFAULT=1, $(tm_defines)),_be)
 -MULTILIB_OSDIRNAMES = .=../lib64$(call if_multiarch,:aarch64$(AARCH_BE)-linux-gnu)
 +MULTILIB_OSDIRNAMES = .=../lib$(call if_multiarch,:aarch64$(AARCH_BE)-linux-gnu)
+ MULTIARCH_DIRNAME = $(call if_multiarch,aarch64$(AARCH_BE)-linux-gnu)
+ 
+ # Disable the multilib for linux-gnu targets for the time being; focus
+Index: b/src/gcc/config/rs6000/t-linux
+===================================================================
+--- a/src/gcc/config/rs6000/t-linux
++++ b/src/gcc/config/rs6000/t-linux
+@@ -2,7 +2,7 @@
+ # or soft-float.
+ ifeq (,$(filter $(with_cpu),$(SOFT_FLOAT_CPUS))$(findstring soft,$(with_float)))
+ ifneq (,$(findstring powerpc64,$(target)))
+-MULTILIB_OSDIRNAMES := .=../lib64$(call if_multiarch,:powerpc64-linux-gnu)
++MULTILIB_OSDIRNAMES := .=../lib$(call if_multiarch,:powerpc64-linux-gnu)
+ else
+ ifneq (,$(findstring spe,$(target)))
+ MULTIARCH_DIRNAME := powerpc-linux-gnuspe$(if $(findstring 8548,$(with_cpu)),,v1)

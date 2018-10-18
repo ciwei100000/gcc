@@ -1,6 +1,8 @@
 # DP: In gnatlink, pass the options and libraries after objects to the
 # DP: linker to avoid link failures with --as-needed. Closes: #680292.
 
+Index: b/src/gcc/ada/mlib-tgt-specific-linux.adb
+===================================================================
 --- a/src/gcc/ada/mlib-tgt-specific-linux.adb
 +++ b/src/gcc/ada/mlib-tgt-specific-linux.adb
 @@ -81,19 +81,54 @@
@@ -60,12 +62,13 @@
  
        else
           declare
-@@ -111,18 +146,18 @@
+@@ -111,18 +146,20 @@
                 Utl.Gcc
                   (Output_File => Lib_Version,
                    Objects     => Ofiles,
 -                  Options     => Options & Version_Arg,
-+		  Options     => N_Options (N_Options'First .. Options_Last) & Version_Arg,
++                  Options     => N_Options (N_Options'First .. Options_Last)
++                                 & Version_Arg,
                    Driver_Name => Driver_Name,
 -                  Options_2   => No_Argument_List);
 +                  Options_2   => Real_Options_2 (1 .. Real_Options_2_Last));
@@ -76,7 +79,8 @@
                   (Output_File => Lib_Dir & Directory_Separator & Lib_Version,
                    Objects     => Ofiles,
 -                  Options     => Options & Version_Arg,
-+		  Options     => N_Options (N_Options'First .. Options_Last) & Version_Arg,
++                  Options     => N_Options (N_Options'First .. Options_Last)
++                                 & Version_Arg,
                    Driver_Name => Driver_Name,
 -                  Options_2   => No_Argument_List);
 +                  Options_2   => Real_Options_2 (1 .. Real_Options_2_Last));

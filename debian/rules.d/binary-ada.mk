@@ -45,7 +45,7 @@ GNAT_TOOLS = gnat gnatbind gnatchop gnatclean gnatfind gnatkr gnatlink \
              gnatls gnatmake gnatname gnatprep gnatxref gnathtml
 
 dirs_gnat = \
-	$(docdir)/$(p_xbase) \
+	$(docdir)/$(p_gbase) \
 	$(PF)/bin \
 	$(PF)/share/man/man1 \
 	$(gcc_lib_dir) \
@@ -54,12 +54,9 @@ dirs_gnat = \
 files_gnat = \
 	$(gcc_lexec_dir)/gnat1 \
 	$(gcc_lib_dir)/{adalib,adainclude} \
-	$(foreach i,$(GNAT_TOOLS),$(PF)/bin/$(cmd_prefix)$(i))
-ifeq ($(with_gnat_zcx)-$(with_gnat_sjlj),yes-yes)
-  files_gnat += \
+	$(foreach i,$(GNAT_TOOLS),$(PF)/bin/$(cmd_prefix)$(i)) \
 	$(gcc_lib_dir)/rts-native
 # rts-sjlj moved to a separate package
-endif
 
 dirs_lgnat = \
 	$(docdir) \
@@ -71,11 +68,7 @@ $(binary_stamp)-gnatbase: $(install_stamp)
 	dh_testdir
 	dh_testroot
 	dh_installdocs -p$(p_gbase) debian/README.gnat debian/README.maintainers
-ifeq ($(PKGSOURCE),gnat-$(BASE_VERSION))
-  ifeq ($(with_check),yes)
-	dh_installdocs -p$(p_gbase) test-summary
-  endif
-endif
+	: # $(p_gbase)
 ifeq ($(PKGSOURCE),gnat-$(BASE_VERSION))
 	mkdir -p $(d_gbase)/$(docdir)/$(p_xbase)
 	ln -sf ../$(p_gbase) $(d_gbase)/$(docdir)/$(p_xbase)/Ada
@@ -261,17 +254,17 @@ $(binary_stamp)-ada: $(binary_stamp)-libgnatprj
 else
 $(binary_stamp)-ada: $(install_stamp)
 endif
+$(binary_stamp)-ada: $(binary_stamp)-gnatbase
 	dh_testdir
 	dh_testroot
 	mv $(install_stamp) $(install_stamp)-tmp
-	: # gnat
+	: # $(p_gnat)
 	rm -rf $(d_gnat)
 	dh_installdirs -p$(p_gnat) $(dirs_gnat)
 	# Upstream does not install gnathtml.
 	cp src/gcc/ada/gnathtml.pl debian/tmp/$(PF)/bin/$(cmd_prefix)gnathtml
 	chmod 755 debian/tmp/$(PF)/bin/$(cmd_prefix)gnathtml
 	dh_movefiles -p$(p_gnat) $(files_gnat)
-ifeq ($(with_gnat_zcx)-$(with_gnat_sjlj),yes-yes)
 	dh_installdirs -p$(p_gnsjlj) $(gcc_lib_dir)
 	dh_movefiles -p$(p_gnsjlj) $(gcc_lib_dir)/rts-sjlj
 	dh_link -p$(p_gnsjlj) \
@@ -282,24 +275,6 @@ ifeq ($(with_gnat_zcx)-$(with_gnat_sjlj),yes-yes)
 	dh_link -p$(p_gnsjlj) \
 	   $(gcc_lib_dir)/rts-sjlj/adalib/libgnarl.a \
 	   $(gcc_lib_dir)/rts-sjlj/adalib/libgnarl-$(GNAT_VERSION).a
-else
-	dh_link -p$(p_gnat) \
-	   $(gcc_lib_dir)/adalib/libgnarl.a \
-	   $(gcc_lib_dir)/adalib/libgnarl-$(GNAT_VERSION).a
-endif
-
-ifeq (0,1)
-ifeq ($(PKGSOURCE),gnat-$(BASE_VERSION))
-	mkdir -p $(d_gnat)/$(libexecdir)/gcc/$(TARGET_ALIAS)/$(BASE_VERSION)
-	ln -sf ../$(GCC_VERSION)/gnat1 \
-	  $(d_gnat)/$(libexecdir)/gcc/$(TARGET_ALIAS)/$(BASE_VERSION)/gnat1
-	mkdir -p $(d_gnat)/$(PF)/$(libdir)/gcc/$(TARGET_ALIAS)/$(BASE_VERSION)
-	ln -sf ../$(GCC_VERSION)/adalib \
-	  $(d_gnat)/$(PF)/$(libdir)/gcc/$(TARGET_ALIAS)/$(BASE_VERSION)/adalib
-	ln -sf ../$(GCC_VERSION)/adainclude \
-	  $(d_gnat)/$(PF)/$(libdir)/gcc/$(TARGET_ALIAS)/$(BASE_VERSION)/adainclude
-endif
-endif
 
 ifeq ($(with_libgnat),yes)
 	for lib in lib{gnat,gnarl}; do \
@@ -308,28 +283,29 @@ ifeq ($(with_libgnat),yes)
 	    /$(PF)/$(libdir)/$$vlib.so.1 /$(PF)/$(libdir)/$$vlib.so \
 	    /$(PF)/$(libdir)/$$vlib.so.1 /$(PF)/$(libdir)/$$lib.so; \
 	done
-  ifeq ($(with_gnat_zcx)-$(with_gnat_sjlj),yes-yes)
 	for lib in lib{gnat,gnarl}; do \
 	  vlib=$$lib-$(GNAT_SONAME); \
 	  dh_link -p$(p_gnat) \
 	    /$(PF)/$(libdir)/$$vlib.so.1 $(gcc_lib_dir)/rts-native/adalib/$$lib.so; \
 	done
-  else
-	for lib in lib{gnat,gnarl}; do \
-	  vlib=$$lib-$(GNAT_SONAME); \
-	  dh_link -p$(p_gnat) \
-	    /$(PF)/$(libdir)/$$vlib.so.1 $(gcc_lib_dir)/adalib/$$lib.so; \
-	done
-  endif
 endif
 	debian/dh_doclink -p$(p_gnat)      $(p_gbase)
 	debian/dh_doclink -p$(p_gnsjlj) $(p_gbase)
+ifeq ($(PKGSOURCE),gnat-$(BASE_VERSION))
+  ifeq ($(with_check),yes)
+	cp -p test-summary $(d_gnat)/$(docdir)/$(p_gbase)/.
+  endif
+endif
 	for i in $(GNAT_TOOLS); do \
 	  case "$$i" in \
 	    gnat) cp -p debian/gnat.1 $(d_gnat)/$(PF)/share/man/man1/$(cmd_prefix)gnat.1 ;; \
 	    *) ln -sf gnat.1 $(d_gnat)/$(PF)/share/man/man1/$(cmd_prefix)$$i.1; \
 	  esac; \
 	done
+
+	dh_install -p$(p_gnat) debian/ada/debian_packaging.mk usr/share/ada
+	dh_link -p$(p_gnat) usr/bin/gcc-$(GNAT_VERSION) usr/bin/gnatgcc
+	dh_link -p$(p_gnat) usr/share/man/man1/gnat.1.gz usr/share/man/man1/gnatgcc.1.gz
 
 	debian/dh_rmemptydirs -p$(p_gnat)
 
@@ -344,7 +320,7 @@ endif
 	dh_md5sums -p$(p_gnat)
 	dh_builddeb -p$(p_gnat)
 
-ifeq ($(with_libgnat)-$(with_gnat_zcx)-$(with_gnat_sjlj),yes-yes-yes)
+ifeq ($(with_libgnat),yes)
 	dh_strip -p$(p_gnsjlj)
 	dh_compress -p$(p_gnsjlj)
 	dh_fixperms -p$(p_gnsjlj)

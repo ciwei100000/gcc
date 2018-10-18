@@ -1,10 +1,10 @@
 # DP: Fix the location of target's libs in cross-build for biarch
 
----
-
---- a/src/config-ml.in	2010-08-24 01:48:38.000000000 -0400
-+++ b/src/config-ml.in	2010-08-24 03:56:12.000000000 -0400
-@@ -540,7 +540,12 @@
+Index: b/src/config-ml.in
+===================================================================
+--- a/src/config-ml.in
++++ b/src/config-ml.in
+@@ -514,7 +514,12 @@ multi-do:
  	    else \
  	      if [ -d ../$${dir}/$${lib} ]; then \
  		flags=`echo $$i | sed -e 's/^[^;]*;//' -e 's/@/ -/g'`; \
@@ -18,9 +18,9 @@
  				CFLAGS="$(CFLAGS) $${flags}" \
  				CCASFLAGS="$(CCASFLAGS) $${flags}" \
  				FCFLAGS="$(FCFLAGS) $${flags}" \
-@@ -791,6 +796,13 @@
- 	GCJ_=$GCJ' '
- 	GFORTRAN_=$GFORTRAN' '
+@@ -798,6 +803,13 @@ if [ -n "${multidirs}" ] && [ -z "${ml_n
+ 	GOC_=$GOC' '
+ 	GDC_=$GDC' '
      else
 +	if [ "${ml_dir}" = "." ]; then
 +		FILTER_="s!X\\(.*\\)!\\1!p"
@@ -32,7 +32,7 @@
  	# Create a regular expression that matches any string as long
  	# as ML_POPDIR.
  	popdir_rx=`echo "${ML_POPDIR}" | sed 's,.,.,g'`
-@@ -799,6 +811,8 @@
+@@ -806,6 +818,8 @@ if [ -n "${multidirs}" ] && [ -z "${ml_n
  	  case $arg in
  	  -[BIL]"${ML_POPDIR}"/*)
  	    CC_="${CC_}"`echo "X${arg}" | sed -n "s/X\\(-[BIL]${popdir_rx}\\).*/\\1/p"`/${ml_dir}`echo "X${arg}" | sed -n "s/X-[BIL]${popdir_rx}\\(.*\\)/\1/p"`' ' ;;
@@ -41,7 +41,7 @@
  	  "${ML_POPDIR}"/*)
  	    CC_="${CC_}"`echo "X${arg}" | sed -n "s/X\\(${popdir_rx}\\).*/\\1/p"`/${ml_dir}`echo "X${arg}" | sed -n "s/X${popdir_rx}\\(.*\\)/\\1/p"`' ' ;;
  	  *)
-@@ -811,6 +825,8 @@
+@@ -818,6 +832,8 @@ if [ -n "${multidirs}" ] && [ -z "${ml_n
  	  case $arg in
  	  -[BIL]"${ML_POPDIR}"/*)
  	    CXX_="${CXX_}"`echo "X${arg}" | sed -n "s/X\\(-[BIL]${popdir_rx}\\).*/\\1/p"`/${ml_dir}`echo "X${arg}" | sed -n "s/X-[BIL]${popdir_rx}\\(.*\\)/\\1/p"`' ' ;;
@@ -50,7 +50,7 @@
  	  "${ML_POPDIR}"/*)
  	    CXX_="${CXX_}"`echo "X${arg}" | sed -n "s/X\\(${popdir_rx}\\).*/\\1/p"`/${ml_dir}`echo "X${arg}" | sed -n "s/X${popdir_rx}\\(.*\\)/\\1/p"`' ' ;;
  	  *)
-@@ -823,6 +839,8 @@
+@@ -830,6 +846,8 @@ if [ -n "${multidirs}" ] && [ -z "${ml_n
  	  case $arg in
  	  -[BIL]"${ML_POPDIR}"/*)
  	    F77_="${F77_}"`echo "X${arg}" | sed -n "s/X\\(-[BIL]${popdir_rx}\\).*/\\1/p"`/${ml_dir}`echo "X${arg}" | sed -n "s/X-[BIL]${popdir_rx}\\(.*\\)/\\1/p"`' ' ;;
@@ -59,7 +59,7 @@
  	  "${ML_POPDIR}"/*)
  	    F77_="${F77_}"`echo "X${arg}" | sed -n "s/X\\(${popdir_rx}\\).*/\\1/p"`/${ml_dir}`echo "X${arg}" | sed -n "s/X${popdir_rx}\\(.*\\)/\\1/p"`' ' ;;
  	  *)
-@@ -835,6 +853,8 @@
+@@ -842,6 +860,8 @@ if [ -n "${multidirs}" ] && [ -z "${ml_n
  	  case $arg in
  	  -[BIL]"${ML_POPDIR}"/*)
  	    GCJ_="${GCJ_}"`echo "X${arg}" | sed -n "s/X\\(-[BIL]${popdir_rx}\\).*/\\1/p"`/${ml_dir}`echo "X${arg}" | sed -n "s/X-[BIL]${popdir_rx}\\(.*\\)/\\1/p"`' ' ;;
@@ -68,7 +68,7 @@
  	  "${ML_POPDIR}"/*)
  	    GCJ_="${GCJ_}"`echo "X${arg}" | sed -n "s/X\\(${popdir_rx}\\).*/\\1/p"`/${ml_dir}`echo "X${arg}" | sed -n "s/X${popdir_rx}\\(.*\\)/\\1/p"`' ' ;;
  	  *)
-@@ -847,6 +867,8 @@
+@@ -854,6 +874,8 @@ if [ -n "${multidirs}" ] && [ -z "${ml_n
  	  case $arg in
  	  -[BIL]"${ML_POPDIR}"/*)
  	    GFORTRAN_="${GFORTRAN_}"`echo "X${arg}" | sed -n "s/X\\(-[BIL]${popdir_rx}\\).*/\\1/p"`/${ml_dir}`echo "X${arg}" | sed -n "s/X-[BIL]${popdir_rx}\\(.*\\)/\\1/p"`' ' ;;
@@ -76,4 +76,13 @@
 +	    GFORTRAN_="${GFORTRAN_}"`echo "X${arg}" | sed -n "$FILTER_"`' ' ;;
  	  "${ML_POPDIR}"/*)
  	    GFORTRAN_="${GFORTRAN_}"`echo "X${arg}" | sed -n "s/X\\(${popdir_rx}\\).*/\\1/p"`/${ml_dir}`echo "X${arg}" | sed -n "s/X${popdir_rx}\\(.*\\)/\\1/p"`' ' ;;
+ 	  *)
+@@ -866,6 +888,8 @@ if [ -n "${multidirs}" ] && [ -z "${ml_n
+ 	  case $arg in
+ 	  -[BIL]"${ML_POPDIR}"/*)
+ 	    GOC_="${GOC_}"`echo "X${arg}" | sed -n "s/X\\(-[BIL]${popdir_rx}\\).*/\\1/p"`/${ml_dir}`echo "X${arg}" | sed -n "s/X-[BIL]${popdir_rx}\\(.*\\)/\\1/p"`' ' ;;
++	  -B*/lib/)
++	    GOC_="${GOC_}"`echo "X${arg}" | sed -n "$FILTER_"`' ' ;;
+ 	  "${ML_POPDIR}"/*)
+ 	    GOC_="${GOC_}"`echo "X${arg}" | sed -n "s/X\\(${popdir_rx}\\).*/\\1/p"`/${ml_dir}`echo "X${arg}" | sed -n "s/X${popdir_rx}\\(.*\\)/\\1/p"`' ' ;;
  	  *)

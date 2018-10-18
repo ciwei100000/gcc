@@ -8,7 +8,7 @@ Index: b/src/gcc/ada/terminals.c
  /* On some system termio is either absent or including it will disable termios
     (HP-UX) */
  #if ! defined (__hpux__) && ! defined (FREEBSD) && \
-+    ! defined (__FreeBSD_kernel__) && \
++    ! defined (__FreeBSD_kernel__) && ! defined (__GNU__) && \
      ! defined (__APPLE__) && ! defined(__rtems__)
  #   include <termio.h>
  #endif
@@ -179,7 +179,7 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
 ===================================================================
 --- a/src/gcc/ada/gcc-interface/Makefile.in
 +++ b/src/gcc/ada/gcc-interface/Makefile.in
-@@ -1221,7 +1221,7 @@ ifeq ($(strip $(filter-out %86 kfreebsd%
+@@ -1272,7 +1272,7 @@ ifeq ($(strip $(filter-out %86 kfreebsd%
    a-intnam.ads<a-intnam-freebsd.ads \
    s-inmaop.adb<s-inmaop-posix.adb \
    s-intman.adb<s-intman-posix.adb \
@@ -188,7 +188,7 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
    s-osinte.ads<s-osinte-kfreebsd-gnu.ads \
    s-osprim.adb<s-osprim-posix.adb \
    s-taprop.adb<s-taprop-posix.adb \
-@@ -1252,7 +1252,7 @@ ifeq ($(strip $(filter-out x86_64 kfreeb
+@@ -1332,7 +1332,7 @@ ifeq ($(strip $(filter-out x86_64 kfreeb
    a-numaux.ads<a-numaux-x86.ads \
    s-inmaop.adb<s-inmaop-posix.adb \
    s-intman.adb<s-intman-posix.adb \
@@ -220,39 +220,7 @@ Index: b/src/gcc/ada/s-osinte-kfreebsd-gnu.ads
  
     function clock_gettime
       (clock_id : clockid_t;
-@@ -252,6 +251,16 @@ package System.OS_Interface is
-    function getpid return pid_t;
-    pragma Import (C, getpid, "getpid");
- 
-+   ---------
-+   -- LWP --
-+   ---------
-+
-+   function lwp_self return System.Address;
-+   --  lwp_self does not exist on this thread library, revert to pthread_self
-+   --  which is the closest approximation (with getpid). This function is
-+   --  needed to share 7staprop.adb across POSIX-like targets.
-+   pragma Import (C, lwp_self, "pthread_self");
-+
-    -------------
-    -- Threads --
-    -------------
-@@ -282,6 +291,14 @@ package System.OS_Interface is
-    PTHREAD_SCOPE_PROCESS : constant := 0;
-    PTHREAD_SCOPE_SYSTEM  : constant := 2;
- 
-+   --  Read/Write lock not supported on freebsd. To add support both types
-+   --  pthread_rwlock_t and pthread_rwlockattr_t must properly be defined
-+   --  with the associated routines pthread_rwlock_[init/destroy] and
-+   --  pthread_rwlock_[rdlock/wrlock/unlock].
-+
-+   subtype pthread_rwlock_t     is pthread_mutex_t;
-+   subtype pthread_rwlockattr_t is pthread_mutexattr_t;
-+
-    -----------
-    -- Stack --
-    -----------
-@@ -419,31 +436,25 @@ package System.OS_Interface is
+@@ -437,31 +436,25 @@ package System.OS_Interface is
     PTHREAD_PRIO_PROTECT : constant := 2;
     PTHREAD_PRIO_INHERIT : constant := 1;
  
@@ -288,7 +256,7 @@ Index: b/src/gcc/ada/s-osinte-kfreebsd-gnu.ads
  
     type struct_sched_param is record
        sched_priority : int;  --  scheduling priority
-@@ -570,8 +581,8 @@ private
+@@ -588,8 +581,8 @@ private
     --  #define sa_handler __sigaction_u._handler
     --  #define sa_sigaction __sigaction_u._sigaction
  
@@ -299,7 +267,7 @@ Index: b/src/gcc/ada/s-osinte-kfreebsd-gnu.ads
     --  sigcontext type is opaque, so it is architecturally neutral.
     --  It is always passed as an access type, so define it as an empty record
     --  since the contents are not used anywhere.
-@@ -588,9 +599,6 @@ private
+@@ -606,9 +599,6 @@ private
     end record;
     pragma Convention (C, timespec);
  
@@ -326,12 +294,12 @@ Index: b/src/gcc/ada/s-oscons-tmplt.c
 ===================================================================
 --- a/src/gcc/ada/s-oscons-tmplt.c
 +++ b/src/gcc/ada/s-oscons-tmplt.c
-@@ -1414,7 +1414,7 @@ CND(CLOCK_THREAD_CPUTIME_ID, "Thread CPU
- /* There's no clock_gettime or clock_id's on Darwin, generate a dummy value */
- # define CLOCK_RT_Ada "-1"
+@@ -1420,7 +1420,7 @@ CND(CLOCK_FASTEST, "Fastest clock")
+ #endif
+ CND(CLOCK_THREAD_CPUTIME_ID, "Thread CPU clock")
  
--#elif defined(__FreeBSD__) || defined(_AIX)
-+#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(_AIX)
+-#if defined(__FreeBSD__) || (defined(_AIX) && defined(_AIXVERSION_530))
++#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || (defined(_AIX) && defined(_AIXVERSION_530))
  /** On these platforms use system provided monotonic clock instead of
   ** the default CLOCK_REALTIME. We then need to set up cond var attributes
   ** appropriately (see thread.c).

@@ -5,7 +5,7 @@ Index: b/src/config-ml.in
 ===================================================================
 --- a/src/config-ml.in
 +++ b/src/config-ml.in
-@@ -467,6 +467,25 @@
+@@ -467,6 +467,25 @@ powerpc*-*-* | rs6000*-*-*)
  	;;
  esac
  
@@ -31,43 +31,7 @@ Index: b/src/config-ml.in
  # Remove extraneous blanks from multidirs.
  # Tests like `if [ -n "$multidirs" ]' require it.
  multidirs=`echo "$multidirs" | sed -e 's/^[ ][ ]*//' -e 's/[ ][ ]*$//' -e 's/[ ][ ]*/ /g'`
-@@ -654,6 +673,35 @@
- 
-   for ml_dir in ${multidirs}; do
- 
-+    # a native build fails if the running kernel doesn't support the multilib
-+    # variant; force cross compilation for these cases.
-+    ml_host_arg=
-+    case "${host}" in
-+    i[34567]86-*-linux*)
-+        case "${ml_dir}" in
-+	  64) ml_host_arg="--host=x86_64-linux-gnu";;
-+	  x32) ml_host_arg="--host=x86_64-linux-gnux32";;
-+	esac
-+	;;
-+    powerpc-*-linux*)
-+	case "${ml_dir}" in
-+	  64) ml_host_arg="--host=powerpc64-linux-gnu"
-+	esac
-+	;;
-+    s390-*-linux*)
-+	case "${ml_dir}" in
-+	  64) ml_host_arg="--host=s390x-linux-gnu"
-+	esac
-+	;;
-+    x86_64-*-linux*)
-+	case "${ml_dir}" in
-+	  x32) ml_host_arg="--host=x86_64-linux-gnux32"
-+	esac
-+    esac
-+    if [ -n "${ml_host_arg}" ]; then
-+       ml_host_arg="${ml_host_arg} --with-default-host-alias=${host_alias}"
-+    fi
-+
-     if [ "${ml_verbose}" = --verbose ]; then
-       echo "Running configure in multilib subdir ${ml_dir}"
-       echo "pwd: `${PWDCMD-pwd}`"
-@@ -858,9 +906,20 @@
+@@ -872,9 +891,20 @@ if [ -n "${multidirs}" ] && [ -z "${ml_n
  	fi
      fi
  
@@ -93,7 +57,7 @@ Index: b/src/libstdc++-v3/include/Makefile.am
 ===================================================================
 --- a/src/libstdc++-v3/include/Makefile.am
 +++ b/src/libstdc++-v3/include/Makefile.am
-@@ -826,8 +826,9 @@
+@@ -844,8 +844,9 @@ c_compatibility_headers_extra =
  endif
  
  host_srcdir = ${glibcxx_srcdir}/$(OS_INC_SRCDIR)
@@ -105,7 +69,7 @@ Index: b/src/libstdc++-v3/include/Makefile.am
  host_headers = \
  	${host_srcdir}/ctype_base.h \
  	${host_srcdir}/ctype_inline.h \
-@@ -1048,6 +1049,7 @@
+@@ -1071,6 +1072,7 @@ stamp-profile-impl: ${profile_impl_heade
  stamp-${host_alias}:
  	@-mkdir -p ${host_builddir}
  	@-mkdir -p ${host_builddir}/../ext
@@ -117,7 +81,7 @@ Index: b/src/libstdc++-v3/include/Makefile.in
 ===================================================================
 --- a/src/libstdc++-v3/include/Makefile.in
 +++ b/src/libstdc++-v3/include/Makefile.in
-@@ -202,6 +202,7 @@
+@@ -205,6 +205,7 @@ builddir = @builddir@
  check_msgfmt = @check_msgfmt@
  datadir = @datadir@
  datarootdir = @datarootdir@
@@ -125,7 +89,7 @@ Index: b/src/libstdc++-v3/include/Makefile.in
  docdir = @docdir@
  dvidir = @dvidir@
  enable_shared = @enable_shared@
-@@ -1081,8 +1082,8 @@
+@@ -1105,8 +1106,8 @@ profile_impl_headers = \
  # For --enable-cheaders=c_std
  @GLIBCXX_C_HEADERS_COMPATIBILITY_TRUE@c_compatibility_headers_extra = ${c_compatibility_headers}
  host_srcdir = ${glibcxx_srcdir}/$(OS_INC_SRCDIR)
@@ -136,7 +100,7 @@ Index: b/src/libstdc++-v3/include/Makefile.in
  host_headers = \
  	${host_srcdir}/ctype_base.h \
  	${host_srcdir}/ctype_inline.h \
-@@ -1461,6 +1462,7 @@
+@@ -1490,6 +1491,7 @@ stamp-profile-impl: ${profile_impl_heade
  stamp-${host_alias}:
  	@-mkdir -p ${host_builddir}
  	@-mkdir -p ${host_builddir}/../ext
@@ -148,7 +112,7 @@ Index: b/src/libstdc++-v3/configure.ac
 ===================================================================
 --- a/src/libstdc++-v3/configure.ac
 +++ b/src/libstdc++-v3/configure.ac
-@@ -461,6 +461,16 @@
+@@ -477,6 +477,16 @@ else
    multilib_arg=
  fi
  

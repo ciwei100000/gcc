@@ -42,18 +42,9 @@ ifneq ($(DEB_CROSS),yes)
 	ln -sf cpp$(pkg_ver).1 \
 	    $(d_cpp)/$(PF)/share/man/man1/$(TARGET_ALIAS)-cpp$(pkg_ver).1
   endif
-else
-  ifeq ($(with_deps_on_target_arch_pkgs),yes)
-    # Copy docs (including copyright) that would be included in gcc-4.7-base
-	dh_installdocs -p$(p_xbase) debian/README.Debian.$(DEB_TARGET_ARCH)
-	rm -f $(d_xbase)/usr/share/doc/$(p_xbase)/README.Debian
-	dh_installchangelogs -p$(p_xbase)
-  endif
 endif
 
-  ifneq ($(DEB_CROSS)-$(with_deps_on_target_arch_pkgs),yes-yes)
 	debian/dh_doclink -p$(p_cpp) $(p_xbase)
-  endif
 	debian/dh_rmemptydirs -p$(p_cpp)
 
 	dh_strip -p$(p_cpp)

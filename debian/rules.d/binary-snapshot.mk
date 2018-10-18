@@ -153,9 +153,18 @@ endif
 
 ifeq ($(with_check),yes)
 	dh_installdocs -p$(p_snap) test-summary
-  ifeq ($(with_pascal),yes)
-	cp -p gpc-test-summary $(d_snap)/$(docdir)/$(p_snap)/
+# more than one libgo.sum, avoid it 
+	mkdir -p $(d_snap)/$(docdir)/$(p_snap)/test-summaries
+	cp -p $$(find $(builddir)/gcc/testsuite -maxdepth 2 \( -name '*.sum' -o -name '*.log' \)) \
+	      $$(find $(buildlibdir)/*/testsuite -maxdepth 1 \( -name '*.sum'  -o -name '*.log' \) ! -name 'libgo.*') \
+		$(d_snap)/$(docdir)/$(p_snap)/test-summaries/
+  ifeq ($(with_go),yes)
+	cp -p $(buildlibdir)/libgo/libgo.sum \
+		$(d_snap)/$(docdir)/$(p_snap)/test-summaries/
   endif
+	if which xz 2>&1 >/dev/null; then \
+		xz -7v $(d_snap)/$(docdir)/$(p_snap)/test-summaries/*; \
+	fi
 else
 	dh_installdocs -p$(p_snap)
 endif
@@ -174,7 +183,7 @@ ifeq ($(DEB_TARGET_ARCH),hppa)
 else
 	dh_strip -p$(p_snap) -Xdebug
 endif
-	dh_compress -p$(p_snap) -X README.Bugs
+	dh_compress -p$(p_snap) -X README.Bugs -X.log.xz -X.sum.xz
 	-find $(d_snap) -type d ! -perm 755 -exec chmod 755 {} \;
 	dh_fixperms -p$(p_snap)
 ifeq ($(with_ada),yes)

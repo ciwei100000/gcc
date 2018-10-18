@@ -30,25 +30,35 @@ ifeq (,$(wildcard debian/soname-cache))
 	v=`awk -F= '/^libtool_VERSION/ {split($$2,v,":"); print v[1]}' \
 		$(srcdir)/libgomp/configure.ac`; \
 	echo GOMP_SONAME=$$v >> $$cache; \
-	v=`tail -1 $(srcdir)/libsanitizer/libtool-version | cut -d: -f1`; \
+	v=`tail -1 $(srcdir)/libsanitizer/asan/libtool-version | cut -d: -f1`; \
 	echo ASAN_SONAME=$$v >> $$cache; \
+	v=`tail -1 $(srcdir)/libsanitizer/lsan/libtool-version | cut -d: -f1`; \
+	echo LSAN_SONAME=$$v >> $$cache; \
 	v=`tail -1 $(srcdir)/libsanitizer/tsan/libtool-version | cut -d: -f1`; \
 	echo TSAN_SONAME=$$v >> $$cache; \
+	v=`tail -1 $(srcdir)/libsanitizer/ubsan/libtool-version | cut -d: -f1`; \
+	echo UBSAN_SONAME=$$v >> $$cache; \
 	v=`awk -F= '/^libtool_VERSION/ {split($$2,v,":"); print v[1]}' \
 		$(srcdir)/libatomic/configure.ac`; \
+        v=1; \
 	echo ATOMIC_SONAME=$$v >> $$cache; \
 	v=`awk -F= '/^libtool_VERSION/ {split($$2,v,":"); print v[1]}' \
 		$(srcdir)/libbacktrace/configure.ac`; \
 	echo BTRACE_SONAME=$$v >> $$cache; \
 	v=`tail -1 $(srcdir)/libquadmath/libtool-version | cut -d: -f1`; \
-	echo QUADMATH_SONAME=$$v >> $$cache; \
+	  echo QUADMATH_SONAME=$$v >> $$cache; \
 	v=`grep '[^_]Library_Version.*:' $(srcdir)/gcc/ada/gnatvsn.ads \
 		| sed -e 's/.*"\([^"]*\)".*/\1/'`; \
 	echo GNAT_SONAME=$$v >> $$cache; \
 	v=`awk -F= '/^libtool_VERSION/ {split($$2,v,":"); print v[1]}' \
 		$(srcdir)/libgo/configure.ac`; \
-	  echo GO_SONAME=$$v >> $$cache; \
+	echo GO_SONAME=$$v >> $$cache; \
 	echo ITM_SONAME=1 >> $$cache; \
+	v=`awk -F= '/^libtool_VERSION/ {split($$2,v,":"); print v[1]}' \
+		$(srcdir)/libvtv/configure.ac`; \
+	v=0; \
+	echo VTV_SONAME=$$v >> $$cache; \
+	echo CILKRTS_SONAME=5 >> $$cache; \
 	cat $$cache)
 else
   SONAME_VARS := $(shell cat debian/soname-cache)
@@ -65,7 +75,11 @@ GOMP_SONAME	= $(call vafilt,$(SONAME_VARS),GOMP_SONAME)
 ATOMIC_SONAME	= $(call vafilt,$(SONAME_VARS),ATOMIC_SONAME)
 BTRACE_SONAME	= $(call vafilt,$(SONAME_VARS),BTRACE_SONAME)
 ASAN_SONAME	= $(call vafilt,$(SONAME_VARS),ASAN_SONAME)
+LSAN_SONAME	= $(call vafilt,$(SONAME_VARS),LSAN_SONAME)
 TSAN_SONAME	= $(call vafilt,$(SONAME_VARS),TSAN_SONAME)
+UBSAN_SONAME	= $(call vafilt,$(SONAME_VARS),UBSAN_SONAME)
+VTV_SONAME	= $(call vafilt,$(SONAME_VARS),VTV_SONAME)
+CILKRTS_SONAME	= $(call vafilt,$(SONAME_VARS),CILKRTS_SONAME)
 QUADMATH_SONAME	= $(call vafilt,$(SONAME_VARS),QUADMATH_SONAME)
 GNAT_SONAME	= $(call vafilt,$(SONAME_VARS),GNAT_SONAME)
 GO_SONAME	= $(call vafilt,$(SONAME_VARS),GO_SONAME)

@@ -10,8 +10,8 @@ Index: b/src/gcc/intl.c
  
 -  (void) bindtextdomain ("gcc", LOCALEDIR);
 -  (void) textdomain ("gcc");
-+  (void) bindtextdomain ("gcc-4.8", LOCALEDIR);
-+  (void) textdomain ("gcc-4.8");
++  (void) bindtextdomain ("gcc-4.9", LOCALEDIR);
++  (void) textdomain ("gcc-4.9");
  
    /* Opening quotation mark.  */
    open_quote = _("`");
@@ -19,14 +19,14 @@ Index: b/src/gcc/Makefile.in
 ===================================================================
 --- a/src/gcc/Makefile.in
 +++ b/src/gcc/Makefile.in
-@@ -5261,8 +5261,8 @@ install-po:
+@@ -3790,8 +3790,8 @@ install-po:
  	  dir=$(localedir)/$$lang/LC_MESSAGES; \
  	  echo $(mkinstalldirs) $(DESTDIR)$$dir; \
  	  $(mkinstalldirs) $(DESTDIR)$$dir || exit 1; \
 -	  echo $(INSTALL_DATA) $$cat $(DESTDIR)$$dir/gcc.mo; \
 -	  $(INSTALL_DATA) $$cat $(DESTDIR)$$dir/gcc.mo; \
-+	  echo $(INSTALL_DATA) $$cat $(DESTDIR)$$dir/gcc-4.8.mo; \
-+	  $(INSTALL_DATA) $$cat $(DESTDIR)$$dir/gcc-4.8.mo; \
++	  echo $(INSTALL_DATA) $$cat $(DESTDIR)$$dir/gcc-4.9.mo; \
++	  $(INSTALL_DATA) $$cat $(DESTDIR)$$dir/gcc-4.9.mo; \
  	done
  
  # Rule for regenerating the message template (gcc.pot).
@@ -34,7 +34,7 @@ Index: b/src/libcpp/init.c
 ===================================================================
 --- a/src/libcpp/init.c
 +++ b/src/libcpp/init.c
-@@ -144,7 +144,7 @@ init_library (void)
+@@ -152,7 +152,7 @@ init_library (void)
        init_trigraph_map ();
  
  #ifdef ENABLE_NLS
@@ -64,25 +64,26 @@ Index: b/src/libcpp/Makefile.in
  LIBICONV = @LIBICONV@
  LIBINTL = @LIBINTL@
  PACKAGE = @PACKAGE@
-+PACKAGE_SUFFIX = -4.8
++PACKAGE_SUFFIX = -4.9
  RANLIB = @RANLIB@
  SHELL = @SHELL@
  USED_CATALOGS = @USED_CATALOGS@
-@@ -71,10 +72,11 @@ depcomp = $(SHELL) $(srcdir)/../depcomp
+@@ -72,10 +73,12 @@ depcomp = $(SHELL) $(srcdir)/../depcomp
  
  INCLUDES = -I$(srcdir) -I. -I$(srcdir)/../include @INCINTL@ \
  	-I$(srcdir)/include
 +DEBCPPFLAGS += -DPACKAGE_SUFFIX=\"$(strip $(PACKAGE_SUFFIX))\"
  
--ALL_CFLAGS = $(CFLAGS) $(WARN_CFLAGS) $(INCLUDES) $(CPPFLAGS)
-+ALL_CFLAGS = $(CFLAGS) $(WARN_CFLAGS) $(INCLUDES) $(CPPFLAGS) $(DEBCPPFLAGS)
+-ALL_CFLAGS = $(CFLAGS) $(WARN_CFLAGS) $(INCLUDES) $(CPPFLAGS) $(PICFLAG)
++ALL_CFLAGS = $(CFLAGS) $(WARN_CFLAGS) $(INCLUDES) $(CPPFLAGS) $(PICFLAG) \
++	$(DEBCPPFLAGS)
  ALL_CXXFLAGS = $(CXXFLAGS) $(WARN_CXXFLAGS) $(NOEXCEPTION_FLAGS) $(INCLUDES) \
--	$(CPPFLAGS)
-+	$(CPPFLAGS) $(DEBCPPFLAGS)
+-	$(CPPFLAGS) $(PICFLAG)
++	$(CPPFLAGS) $(PICFLAG) $(DEBCPPFLAGS)
  
  # The name of the compiler to use.
  COMPILER = $(CXX)
-@@ -163,8 +165,8 @@ install-strip install: all installdirs
+@@ -164,8 +167,8 @@ install-strip install: all installdirs
  	  else continue; \
  	  fi; \
  	  dir=$(localedir)/$$lang/LC_MESSAGES; \
