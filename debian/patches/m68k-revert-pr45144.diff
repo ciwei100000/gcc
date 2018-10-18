@@ -1,0 +1,20 @@
+[revert the minor PR45144 missed-optimization fix because it
+ results in miscompilation of gnat on m68k with gcc-4.6 and 4.5;
+ with gcc-4.7 other changes mask the issue <mikpe@it.uu.se>]
+
+	PR ada/48835
+
+Index: gcc-4.6-4.6.3/src/gcc/tree-sra.c
+===================================================================
+--- gcc-4.6-4.6.3.orig/src/gcc/tree-sra.c	2012-01-05 22:24:45.000000000 +0000
++++ gcc-4.6-4.6.3/src/gcc/tree-sra.c	2012-03-04 16:01:53.000000000 +0000
+@@ -854,9 +854,6 @@
+       {
+ 	tree ft = TREE_TYPE (fld);
+ 
+-	if (DECL_BIT_FIELD (fld))
+-	  return false;
+-
+ 	if (!is_gimple_reg_type (ft)
+ 	    && !type_consists_of_records_p (ft))
+ 	  return false;

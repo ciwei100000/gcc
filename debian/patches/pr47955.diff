@@ -1,0 +1,17 @@
+# DP: Backport m68k bugfix from gcc-4.7/trunk
+
+Index: gcc-4.6-4.6.3/src/gcc/config/m68k/m68k.c
+===================================================================
+--- gcc-4.6-4.6.3.orig/src/gcc/config/m68k/m68k.c	2011-07-31 15:09:25.000000000 +0000
++++ gcc-4.6-4.6.3/src/gcc/config/m68k/m68k.c	2012-03-04 15:55:43.000000000 +0000
+@@ -1074,6 +1074,10 @@
+ 
+   m68k_compute_frame_layout ();
+ 
++  if (flag_stack_usage)
++    current_function_static_stack_size
++      = current_frame.size + current_frame.offset;
++
+   /* If the stack limit is a symbol, we can check it here,
+      before actually allocating the space.  */
+   if (crtl->limit_stack

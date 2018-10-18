@@ -1,0 +1,118 @@
+[backport proposed and approved but not yet applied fix for a
+ wrong-code bug in m68k fp compares with zero <mikpe@it.uu.se>]
+
+Date: Wed, 19 Oct 2011 22:29:36 +0100
+From: Julian Brown <julian at codesourcery dot com>
+Subject: [PATCH, m68k] Fix floating-point comparisons with zero
+List-Archive: <http://gcc.gnu.org/ml/gcc-patches/>
+
+Hi,
+
+It appears that m68k floating-point comparisons may have been
+subtly broken since 2007 when the following patch was applied:
+
+  http://gcc.gnu.org/ml/gcc-patches/2007-09/msg01570.html
+
+The bug shows with our internal 4.6-based branch, but appears to be
+latent on mainline (generated code is perturbed by r171236, an
+apparently-unrelated change -- if that commit alone is reverted, the bug
+reappears on current trunk). The discussion below was written wrt. the
+previously-mentioned 4.6 branch, so details may be slightly different on
+mainline, but the outcome is the same.
+
+The trouble is the code introduced in m68k.c:notice_update_cc, intended
+to reverse the sense of comparisons for one particular
+*cmp<mode>_68881/*cmp<mode>_cf alternative, inadvertently also inverts
+the sense for tst<mode>_68881/tst<mode>_cf (FP comparisons against
+zero).
+
+For the test case gcc.c-torture/execute/ieee/20010114-2.c, the
+badness only triggers when -freorder-blocks is in effect (-O2 and
+above). Two comparisons (of the same variable) against zero are munged
+into one in final.c after basic-block reordering makes them
+consecutive, and we get:
+
+	ftst.s %d0	| x
+	fjgt .L13	|
+(final.c omits a redundant "ftst.s %d0" here)
+	fjngt .L2	|
+
+when we ought to have got:
+
+	ftst.s %d0	| x
+	fjgt .L13	|
+	fjnlt .L2	|
+
+The bug only triggers due to the omission of the test, else it would
+happen (far) more often: if the ftst is actually emitted, the flags get
+reset before any harm can be done:
+
+(define_insn "tst<mode>_68881"
+  [(set (cc0)
+	(compare (match_operand:FP 0 "general_operand" "f<FP:dreg>m")
+		 (match_operand:FP 1 "const0_operand" "H")))]
+  "TARGET_68881"
+{
+  cc_status.flags = CC_IN_68881;  /* unsets CC_REVERSED & other flags */
+  ...
+
+but, when final.c decides the second ftst is redundant, nothing unsets
+CC_REVERSED, so we actually (incorrectly) treat the comparison as
+having been done with reversed operands.
+
+We can fix this by never setting CC_REVERSED for ftst instructions in
+the first place. The problem is that the test (in notice_update_cc),
+
+  if (cc_status.value2 && GET_CODE (cc_status.value2) == COMPARE
+      && GET_MODE_CLASS (GET_MODE (XEXP (cc_status.value2, 0))) == MODE_FLOAT)
+    {
+      cc_status.flags = CC_IN_68881;
+      if (!FP_REG_P (XEXP (cc_status.value2, 0)))
+	cc_status.flags |= CC_REVERSED;
+    }
+
+is not strict enough, and triggers for ftst instructions (even elided
+ones), as well as for the intended third alternative of fcmp.
+
+So, the fix is to tighten up the inner condition to not trigger for
+ftst. The attached patch does that, and we get the following test result
+delta (as well as some noise in libstdc++ results, but I think those
+are environment-related):
+
+FAIL -> PASS: gcc.c-torture/execute/ieee/20010114-2.c execution,  -O2 
+FAIL -> PASS: gcc.c-torture/execute/ieee/20010114-2.c execution,  -O3 -fomit-frame-pointer 
+FAIL -> PASS: gcc.c-torture/execute/ieee/20010114-2.c execution,  -O3 -g 
+FAIL -> PASS: gcc.c-torture/execute/ieee/20030331-1.c execution,  -O2 
+FAIL -> PASS: gcc.c-torture/execute/ieee/20030331-1.c execution,  -O3 -fomit-frame-pointer 
+FAIL -> PASS: gcc.c-torture/execute/ieee/20030331-1.c execution,  -O3 -g 
+
+These results are against mainline *with r171236 reverted*, cross to
+ColdFire Linux -- otherwise results are the same before/after. I believe
+the patch is still needed regardless though.
+
+OK to apply?
+
+Thanks,
+
+Julian
+
+ChangeLog
+
+    gcc/
+    * config/m68k/m68k.c (notice_update_cc): Tighten condition for
+    setting CC_REVERSED for FP comparisons.
+
+Index: gcc-4.6-4.6.3/src/gcc/config/m68k/m68k.c
+===================================================================
+--- gcc-4.6-4.6.3.orig/src/gcc/config/m68k/m68k.c	2012-03-04 15:55:43.000000000 +0000
++++ gcc-4.6-4.6.3/src/gcc/config/m68k/m68k.c	2012-03-04 15:59:23.000000000 +0000
+@@ -4306,7 +4306,8 @@
+       && GET_MODE_CLASS (GET_MODE (XEXP (cc_status.value2, 0))) == MODE_FLOAT)
+     {
+       cc_status.flags = CC_IN_68881;
+-      if (!FP_REG_P (XEXP (cc_status.value2, 0)))
++      if (!FP_REG_P (XEXP (cc_status.value2, 0))
++	  && FP_REG_P (XEXP (cc_status.value2, 1)))
+ 	cc_status.flags |= CC_REVERSED;
+     }
+ }

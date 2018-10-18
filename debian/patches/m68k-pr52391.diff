@@ -1,0 +1,151 @@
+# DP: speed up genattrtab (2/3)
+
+[backport from gcc-4.8/trunk r187234 <mikpe@it.uu.se>]
+
+Date: Sun, 6 May 2012 23:49:19 +0200
+Subject: [patch][m68k] Remove sched_branch_type, reduce genattrtab run time to reasonable numbers
+From: Steven Bosscher <stevenb dot gcc at gmail dot com>
+List-Archive: <http://gcc.gnu.org/ml/gcc-patches/>
+
+Hello,
+
+Since around trunk r135033, m68k has some scheduler attributes that
+are computed by C functions in m68k.c. Together with Richard
+Sandiford's improvements to genattrtab optimizations, the run time for
+genattrtab for m68k is >9 minutes on a fast machine (gcc110).
+
+With the attached patch, genattrtab goes down to less than 2 minutes.
+
+But the only thing the patch does, is remove a write-only array,
+sched_branch_type! This array was apparently introduced to compute the
+best type-attribute for four branch instructions, with a FIXME that
+someone should implement the actual computations for the best type.
+However, exactly four years have passed since this code was added, and
+nobody has bothered to actually implement this better type attribute
+assignment.To me, it makes no sense to keep this code around, given
+the problems it creates for genattrtab.
+
+Tested by building a cross to m68k-linux. OK for trunk?
+
+Ciao!
+Steven
+gcc/
+
+2012-05-07  Steven Bosscher  <steven@gcc.gnu.org>
+
+	* config/m68k/m68k.c (m68k_sched_branch_type): Remove.
+	(sched_branch_type): Remove.
+	(m68k_sched_md_init_global): Don't allocate it.
+	(m68k_sched_md_finish_global): Don't free it.
+	* config/m68k/m68k.h (m68k_sched_branch_type): Remove prototype.
+	* config/m68k/m68k.md: Set the type of insns using m68k_sched_branch_type
+	to bcc directly.
+
+--- a/src/gcc/config/m68k/m68k-protos.h
++++ b/src/gcc/config/m68k/m68k-protos.h
+@@ -81,7 +81,6 @@ extern enum attr_opx_type m68k_sched_att
+ extern enum attr_opy_type m68k_sched_attr_opy_type (rtx, int);
+ extern enum attr_size m68k_sched_attr_size (rtx);
+ extern enum attr_op_mem m68k_sched_attr_op_mem (rtx);
+-extern enum attr_type m68k_sched_branch_type (rtx);
+ #endif /* HAVE_ATTR_cpu */
+ 
+ #endif /* RTX_CODE */
+--- a/src/gcc/config/m68k/m68k.c
++++ b/src/gcc/config/m68k/m68k.c
+@@ -5974,26 +5974,6 @@ m68k_sched_attr_op_mem (rtx insn)
+   return OP_MEM_I1;
+ }
+ 
+-/* Jump instructions types.  Indexed by INSN_UID.
+-   The same rtl insn can be expanded into different asm instructions
+-   depending on the cc0_status.  To properly determine type of jump
+-   instructions we scan instruction stream and map jumps types to this
+-   array.  */
+-static enum attr_type *sched_branch_type;
+-
+-/* Return the type of the jump insn.  */
+-enum attr_type
+-m68k_sched_branch_type (rtx insn)
+-{
+-  enum attr_type type;
+-
+-  type = sched_branch_type[INSN_UID (insn)];
+-
+-  gcc_assert (type != 0);
+-
+-  return type;
+-}
+-
+ /* Data for ColdFire V4 index bypass.
+    Producer modifies register that is used as index in consumer with
+    specified scale.  */
+@@ -6210,20 +6190,6 @@ m68k_sched_md_init_global (FILE *sched_d
+ 			   int sched_verbose ATTRIBUTE_UNUSED,
+ 			   int n_insns ATTRIBUTE_UNUSED)
+ {
+-  /* Init branch types.  */
+-  {
+-    rtx insn;
+-
+-    sched_branch_type = XCNEWVEC (enum attr_type, get_max_uid () + 1);
+-
+-    for (insn = get_insns (); insn != NULL_RTX; insn = NEXT_INSN (insn))
+-      {
+-	if (JUMP_P (insn))
+-	  /* !!! FIXME: Implement real scan here.  */
+-	  sched_branch_type[INSN_UID (insn)] = TYPE_BCC;
+-      }
+-  }
+-
+ #ifdef ENABLE_CHECKING
+   /* Check that all instructions have DFA reservations and
+      that all instructions can be issued from a clean state.  */
+@@ -6305,9 +6271,6 @@ m68k_sched_md_finish_global (FILE *dump
+   sched_ib.records.adjust = NULL;
+   sched_ib.records.n_insns = 0;
+   max_insn_size = 0;
+-
+-  free (sched_branch_type);
+-  sched_branch_type = NULL;
+ }
+ 
+ /* Implementation of targetm.sched.init () hook.
+--- a/src/gcc/config/m68k/m68k.md
++++ b/src/gcc/config/m68k/m68k.md
+@@ -6323,7 +6323,7 @@
+ {
+   OUTPUT_JUMP ("jeq %l0", "fjeq %l0", "jeq %l0");
+ }
+-  [(set (attr "type") (symbol_ref "m68k_sched_branch_type (insn)"))])
++  [(set_attr "type" "bcc")])
+ 
+ (define_insn "bne"
+   [(set (pc)
+@@ -6335,7 +6335,7 @@
+ {
+   OUTPUT_JUMP ("jne %l0", "fjne %l0", "jne %l0");
+ }
+-  [(set (attr "type") (symbol_ref "m68k_sched_branch_type (insn)"))])
++  [(set_attr "type" "bcc")])
+ 
+ (define_insn "bgt"
+   [(set (pc)
+@@ -6353,7 +6353,7 @@
+ 
+   OUTPUT_JUMP ("jgt %l0", "fjgt %l0", 0);
+ }
+-  [(set (attr "type") (symbol_ref "m68k_sched_branch_type (insn)"))])
++  [(set_attr "type" "bcc")])
+ 
+ (define_insn "bgtu"
+   [(set (pc)
+@@ -6389,7 +6389,7 @@
+ 
+   OUTPUT_JUMP ("jlt %l0", "fjlt %l0", "jmi %l0");
+ }
+-  [(set (attr "type") (symbol_ref "m68k_sched_branch_type (insn)"))])
++  [(set_attr "type" "bcc")])
+ 
+ (define_insn "bltu"
+   [(set (pc)

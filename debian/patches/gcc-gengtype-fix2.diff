@@ -1,0 +1,16 @@
+# DP: Write gengtype output to a temporary file before using it
+
+--- a/src/gcc/Makefile.in
++++ b/src/gcc/Makefile.in
+@@ -3780,9 +3780,10 @@
+ 	 gtyp-input.list
+ # First, parse all files and save a state file.
+ 	$(RUN_GEN) build/gengtype$(build_exeext) $(GENGTYPE_FLAGS) \
+-                    -S $(srcdir) -I gtyp-input.list -w gtype.state
++                    -S $(srcdir) -I gtyp-input.list -w tmp-gtype.state
+ # Second, read the state file and generate all files.  This ensure that
+ # gtype.state is correctly read:
++	$(SHELL) $(srcdir)/../move-if-change tmp-gtype.state gtype.state
+ 	$(RUN_GEN) build/gengtype$(build_exeext) $(GENGTYPE_FLAGS) \
+                     -r gtype.state
+ 	$(STAMP) s-gtype
