@@ -654,6 +654,10 @@ ifeq ($(java_no_cross)-$(DEB_CROSS),yes-yes)
 endif
 with_java := $(call envfilt, java, , c++, $(with_java))
 
+ifeq (,$(filter $(distrelease),squeeze wheezy jessie stretch precise trusty xenial yakkety zesty artful))
+  with_java := disabled for recent distro releases
+endif
+
 ifeq ($(with_java)-$(with_separate_libgcj),yes-yes)
   ifneq (,$(findstring gcj, $(PKGSOURCE)))
     languages := c c++
@@ -1680,10 +1684,13 @@ ifeq ($(DEB_CROSS),yes)
   ifneq ($(with_deps_on_target_arch_pkgs),yes)
     define cross_mangle_shlibs
 	if [ -f debian/$(1)/DEBIAN/shlibs ]; then \
-	  sed -i s/$(cross_lib_arch)//g debian/$(1)/DEBIAN/shlibs; \
+	  sed -i s/$(cross_lib_arch)/:$(DEB_TARGET_ARCH)/g debian/$(1)/DEBIAN/shlibs; \
 	fi
     endef
     define cross_mangle_substvars
+	if [ -f debian/$(1).substvars ]; then \
+	  sed -i 's/:$(DEB_TARGET_ARCH)/$(cross_lib_arch)/g' debian/$(1).substvars; \
+	fi
     endef
   else
     define cross_mangle_shlibs

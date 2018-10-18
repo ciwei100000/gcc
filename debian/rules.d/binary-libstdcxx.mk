@@ -183,12 +183,12 @@ define __do_libstdcxx
 		$(usr_lib$(2)) \
 		$(PF)/share/gdb/auto-load/$(usr_lib$(2))
 
-	$(if $(2),,
+	$(if $(DEB_CROSS),,$(if $(2),,
 	dh_installdirs -p$(p_l) \
 		$(PF)/share/gcc-$(BASE_VERSION)/python
 	$(dh_compat2) dh_movefiles -p$(p_l) \
 		$(PF)/share/gcc-$(BASE_VERSION)/python/libstdcxx
-	)
+	))
 	cp -p $(d)/$(usr_lib$(2))/libstdc++.so.*.py \
 		$(d_l)/$(PF)/share/gdb/auto-load/$(usr_lib$(2))/.
 	sed -i -e "/^libdir *=/s,=.*,= '/$(usr_lib$(2))'," \

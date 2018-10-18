@@ -52,18 +52,18 @@ Uploaders: Iain Buclaw <ibuclaw@ubuntu.com>, Matthias Klose <doko@debian.org>
 ', `dnl
 Uploaders: Matthias Klose <doko@debian.org>
 ')dnl SRCNAME
-Standards-Version: 3.9.6
+Standards-Version: 4.1.3
 ifdef(`TARGET',`dnl cross
-Build-Depends: debhelper (>= 5.0.62), DPKG_BUILD_DEP
+Build-Depends: debhelper (>= 9), DPKG_BUILD_DEP
   LIBC_BUILD_DEP, LIBC_BIARCH_BUILD_DEP
   LIBUNWIND_BUILD_DEP LIBATOMIC_OPS_BUILD_DEP AUTOGEN_BUILD_DEP AUTO_BUILD_DEP
   SOURCE_BUILD_DEP CROSS_BUILD_DEP
   CLOOG_BUILD_DEP MPC_BUILD_DEP MPFR_BUILD_DEP GMP_BUILD_DEP,
   gawk, lzma, xz-utils, patchutils,
   zlib1g-dev, SDT_BUILD_DEP
-  bison (>= 1:2.3), flex, realpath (>= 1.9.12), lsb-release, quilt
+  bison (>= 1:2.3), flex, coreutils (>= 2.26) | realpath (>= 1.9.12), lsb-release, quilt
 ',`dnl native
-Build-Depends: debhelper (>= 5.0.62), DPKG_BUILD_DEP GCC_MULTILIB_BUILD_DEP
+Build-Depends: debhelper (>= 9), DPKG_BUILD_DEP GCC_MULTILIB_BUILD_DEP
   LIBC_BUILD_DEP, LIBC_BIARCH_BUILD_DEP LIBC_DBG_DEP
   kfreebsd-kernel-headers (>= 0.84) [kfreebsd-any],
   AUTO_BUILD_DEP AUTOGEN_BUILD_DEP BASE_BUILD_DEP
@@ -75,7 +75,7 @@ Build-Depends: debhelper (>= 5.0.62), DPKG_BUILD_DEP GCC_MULTILIB_BUILD_DEP
   texinfo (>= 4.3), locales, sharutils,
   procps, FORTRAN_BUILD_DEP JAVA_BUILD_DEP GNAT_BUILD_DEP GO_BUILD_DEP GDC_BUILD_DEP
   CLOOG_BUILD_DEP MPC_BUILD_DEP MPFR_BUILD_DEP GMP_BUILD_DEP
-  CHECK_BUILD_DEP realpath (>= 1.9.12), chrpath, lsb-release, quilt
+  CHECK_BUILD_DEP coreutils (>= 2.26) | realpath (>= 1.9.12), chrpath, lsb-release, quilt
 Build-Depends-Indep: LIBSTDCXX_BUILD_INDEP JAVA_BUILD_INDEP
 ')dnl
 ifelse(regexp(SRCNAME, `gnat'),0,`dnl

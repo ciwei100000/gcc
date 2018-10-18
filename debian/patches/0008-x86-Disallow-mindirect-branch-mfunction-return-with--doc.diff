@@ -1,0 +1,96 @@
+From 76f1ffbbb6cd9f6ecde6c82cd16e20a27242e890 Mon Sep 17 00:00:00 2001
+From: "H.J. Lu" <hjl.tools@gmail.com>
+Date: Sat, 13 Jan 2018 18:01:54 -0800
+Subject: [PATCH 8/9] x86: Disallow -mindirect-branch=/-mfunction-return= with
+ -mcmodel=large
+
+Since the thunk function may not be reachable in large code model,
+-mcmodel=large is incompatible with -mindirect-branch=thunk,
+-mindirect-branch=thunk-extern, -mfunction-return=thunk and
+-mfunction-return=thunk-extern.  Issue an error when they are used with
+-mcmodel=large.
+
+gcc/
+
+	Backport from mainline
+	2018-01-14  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* config/i386/i386.c (ix86_set_indirect_branch_type): Disallow
+	-mcmodel=large with -mindirect-branch=thunk,
+	-mindirect-branch=thunk-extern, -mfunction-return=thunk and
+	-mfunction-return=thunk-extern.
+	* doc/invoke.texi: Document -mcmodel=large is incompatible with
+	-mindirect-branch=thunk, -mindirect-branch=thunk-extern,
+	-mfunction-return=thunk and -mfunction-return=thunk-extern.
+
+gcc/testsuite/
+
+	Backport from mainline
+	2018-01-14  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* gcc.target/i386/indirect-thunk-10.c: New test.
+	* gcc.target/i386/indirect-thunk-8.c: Likewise.
+	* gcc.target/i386/indirect-thunk-9.c: Likewise.
+	* gcc.target/i386/indirect-thunk-attr-10.c: Likewise.
+	* gcc.target/i386/indirect-thunk-attr-11.c: Likewise.
+	* gcc.target/i386/indirect-thunk-attr-9.c: Likewise.
+	* gcc.target/i386/ret-thunk-17.c: Likewise.
+	* gcc.target/i386/ret-thunk-18.c: Likewise.
+	* gcc.target/i386/ret-thunk-19.c: Likewise.
+	* gcc.target/i386/ret-thunk-20.c: Likewise.
+	* gcc.target/i386/ret-thunk-21.c: Likewise.
+---
+ gcc/config/i386/i386.c                             | 26 ++++++++++++++++++++++
+ gcc/doc/invoke.texi                                | 10 +++++++++
+ gcc/testsuite/gcc.target/i386/indirect-thunk-10.c  |  7 ++++++
+ gcc/testsuite/gcc.target/i386/indirect-thunk-8.c   |  7 ++++++
+ gcc/testsuite/gcc.target/i386/indirect-thunk-9.c   |  7 ++++++
+ .../gcc.target/i386/indirect-thunk-attr-10.c       |  9 ++++++++
+ .../gcc.target/i386/indirect-thunk-attr-11.c       |  9 ++++++++
+ .../gcc.target/i386/indirect-thunk-attr-9.c        |  9 ++++++++
+ gcc/testsuite/gcc.target/i386/ret-thunk-17.c       |  7 ++++++
+ gcc/testsuite/gcc.target/i386/ret-thunk-18.c       |  8 +++++++
+ gcc/testsuite/gcc.target/i386/ret-thunk-19.c       |  8 +++++++
+ gcc/testsuite/gcc.target/i386/ret-thunk-20.c       |  9 ++++++++
+ gcc/testsuite/gcc.target/i386/ret-thunk-21.c       |  9 ++++++++
+ 13 files changed, 125 insertions(+)
+ create mode 100644 gcc/testsuite/gcc.target/i386/indirect-thunk-10.c
+ create mode 100644 gcc/testsuite/gcc.target/i386/indirect-thunk-8.c
+ create mode 100644 gcc/testsuite/gcc.target/i386/indirect-thunk-9.c
+ create mode 100644 gcc/testsuite/gcc.target/i386/indirect-thunk-attr-10.c
+ create mode 100644 gcc/testsuite/gcc.target/i386/indirect-thunk-attr-11.c
+ create mode 100644 gcc/testsuite/gcc.target/i386/indirect-thunk-attr-9.c
+ create mode 100644 gcc/testsuite/gcc.target/i386/ret-thunk-17.c
+ create mode 100644 gcc/testsuite/gcc.target/i386/ret-thunk-18.c
+ create mode 100644 gcc/testsuite/gcc.target/i386/ret-thunk-19.c
+ create mode 100644 gcc/testsuite/gcc.target/i386/ret-thunk-20.c
+ create mode 100644 gcc/testsuite/gcc.target/i386/ret-thunk-21.c
+
+diff --git a/gcc/doc/invoke.texi b/gcc/doc/invoke.texi
+index 4ed1644..d1e31d3 100644
+--- a/src/gcc/doc/invoke.texi
++++ b/src/gcc/doc/invoke.texi
+@@ -15725,6 +15725,11 @@ to external call and return thunk provided in a separate object file.
+ You can control this behavior for a specific function by using the
+ function attribute @code{indirect_branch}.  @xref{Function Attributes}.
+ 
++Note that @option{-mcmodel=large} is incompatible with
++@option{-mindirect-branch=thunk} nor
++@option{-mindirect-branch=thunk-extern} since the thunk function may
++not be reachable in large code model.
++
+ @item -mfunction-return=@var{choice}
+ @opindex -mfunction-return
+ Convert function return with @var{choice}.  The default is @samp{keep},
+@@ -15736,6 +15741,11 @@ object file.  You can control this behavior for a specific function by
+ using the function attribute @code{function_return}.
+ @xref{Function Attributes}.
+ 
++Note that @option{-mcmodel=large} is incompatible with
++@option{-mfunction-return=thunk} nor
++@option{-mfunction-return=thunk-extern} since the thunk function may
++not be reachable in large code model.
++
+ @item -mindirect-branch-register
+ @opindex -mindirect-branch-register
+ Force indirect call and jump via register.

@@ -1,0 +1,40 @@
+# DP; Fix PR sanitizer/81066, taken from the gcc-7-branch.
+
+libsanitizer/
+
+2017-07-17  Jakub Jelinek  <jakub@redhat.com>
+
+	Backported from mainline
+	2017-07-14  Jakub Jelinek  <jakub@redhat.com>
+
+	PR sanitizer/81066
+	* sanitizer_common/sanitizer_linux.h: Cherry-pick upstream r307969.
+	* sanitizer_common/sanitizer_linux.cc: Likewise.
+	* sanitizer_common/sanitizer_stoptheworld_linux_libcdep.cc: Likewise.
+	* tsan/tsan_platform_linux.cc: Likewise.
+
+Index: b/src/libsanitizer/tsan/tsan_platform_linux.cc
+===================================================================
+--- a/src/libsanitizer/tsan/tsan_platform_linux.cc
++++ b/src/libsanitizer/tsan/tsan_platform_linux.cc
+@@ -292,7 +292,7 @@ bool IsGlobalVar(uptr addr) {
+ #ifndef TSAN_GO
+ int ExtractResolvFDs(void *state, int *fds, int nfd) {
+   int cnt = 0;
+-  __res_state *statp = (__res_state*)state;
++  struct __res_state *statp = (struct __res_state*)state;
+   for (int i = 0; i < MAXNS && cnt < nfd; i++) {
+     if (statp->_u._ext.nsaddrs[i] && statp->_u._ext.nssocks[i] != -1)
+       fds[cnt++] = statp->_u._ext.nssocks[i];
+Index: b/src/libsanitizer/asan/asan_linux.cc
+===================================================================
+--- a/src/libsanitizer/asan/asan_linux.cc
++++ b/src/libsanitizer/asan/asan_linux.cc
+@@ -25,6 +25,7 @@
+ #include <sys/types.h>
+ #include <fcntl.h>
+ #include <pthread.h>
++#include <signal.h>
+ #include <stdio.h>
+ #include <unistd.h>
+ #include <unwind.h>
