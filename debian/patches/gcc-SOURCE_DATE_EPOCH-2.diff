@@ -58,7 +58,7 @@ Index: b/src/gcc/c-family/c-common.c
 ===================================================================
 --- a/src/gcc/c-family/c-common.c
 +++ b/src/gcc/c-family/c-common.c
-@@ -12333,8 +12333,9 @@ pointer_to_zero_sized_aggr_p (tree t)
+@@ -12753,8 +12753,9 @@ valid_array_size_p (location_t loc, tree
  /* Read SOURCE_DATE_EPOCH from environment to have a deterministic
     timestamp to replace embedded current dates to get reproducible
     results.  Returns -1 if SOURCE_DATE_EPOCH is not defined.  */
@@ -69,7 +69,7 @@ Index: b/src/gcc/c-family/c-common.c
  {
    char *source_date_epoch;
    long long epoch;
-@@ -12346,19 +12347,14 @@ get_source_date_epoch ()
+@@ -12766,19 +12767,14 @@ get_source_date_epoch ()
  
    errno = 0;
    epoch = strtoll (source_date_epoch, &endptr, 10);
@@ -101,7 +101,7 @@ Index: b/src/gcc/c-family/c-common.h
 ===================================================================
 --- a/src/gcc/c-family/c-common.h
 +++ b/src/gcc/c-family/c-common.h
-@@ -1063,6 +1063,16 @@ extern vec<tree, va_gc> *make_tree_vecto
+@@ -1084,6 +1084,16 @@ extern vec<tree, va_gc> *make_tree_vecto
     c_register_builtin_type.  */
  extern GTY(()) tree registered_builtin_types;
  
@@ -118,9 +118,9 @@ Index: b/src/gcc/c-family/c-common.h
  /* In c-gimplify.c  */
  extern void c_genericize (tree);
  extern int c_gimplify_expr (tree *, gimple_seq *, gimple_seq *);
-@@ -1438,9 +1448,4 @@ extern tree cilk_for_number_of_iteration
- extern bool check_no_cilk (tree, const char *, const char *,
- 		           location_t loc = UNKNOWN_LOCATION);
+@@ -1467,9 +1477,4 @@ extern bool reject_gcc_builtin (const_tr
+ extern void warn_duplicated_cond_add_or_warn (location_t, tree, vec<tree> **);
+ extern bool valid_array_size_p (location_t, tree, tree);
  
 -/* Read SOURCE_DATE_EPOCH from environment to have a deterministic
 -   timestamp to replace embedded current dates to get reproducible
@@ -132,7 +132,7 @@ Index: b/src/gcc/c-family/c-lex.c
 ===================================================================
 --- a/src/gcc/c-family/c-lex.c
 +++ b/src/gcc/c-family/c-lex.c
-@@ -97,6 +97,7 @@ init_c_lex (void)
+@@ -80,6 +80,7 @@ init_c_lex (void)
    cb->valid_pch = c_common_valid_pch;
    cb->read_pch = c_common_read_pch;
    cb->has_attribute = c_common_has_attribute;
@@ -140,7 +140,7 @@ Index: b/src/gcc/c-family/c-lex.c
  
    /* Set the debug callbacks if we can use them.  */
    if ((debug_info_level == DINFO_LEVEL_VERBOSE
-@@ -402,9 +403,6 @@ c_lex_with_flags (tree *value, location_
+@@ -385,9 +386,6 @@ c_lex_with_flags (tree *value, location_
    enum cpp_ttype type;
    unsigned char add_flags = 0;
    enum overflow_type overflow = OT_NONE;
@@ -154,7 +154,7 @@ Index: b/src/gcc/gcc.c
 ===================================================================
 --- a/src/gcc/gcc.c
 +++ b/src/gcc/gcc.c
-@@ -3377,6 +3377,29 @@ save_switch (const char *opt, size_t n_a
+@@ -3542,6 +3542,29 @@ save_switch (const char *opt, size_t n_a
    n_switches++;
  }
  
@@ -184,7 +184,7 @@ Index: b/src/gcc/gcc.c
  /* Handle an option DECODED that is unknown to the option-processing
     machinery.  */
  
-@@ -3677,6 +3700,7 @@ driver_handle_option (struct gcc_options
+@@ -3841,6 +3864,7 @@ driver_handle_option (struct gcc_options
        else
  	compare_debug_opt = arg;
        save_switch (compare_debug_replacement_opt, 0, NULL, validated, true);
@@ -229,7 +229,7 @@ Index: b/src/gcc/testsuite/lib/gcc-dg.exp
 ===================================================================
 --- a/src/gcc/testsuite/lib/gcc-dg.exp
 +++ b/src/gcc/testsuite/lib/gcc-dg.exp
-@@ -324,6 +324,38 @@ proc restore-target-env-var { } {
+@@ -450,6 +450,38 @@ proc restore-target-env-var { } {
      }
  }
  
@@ -268,18 +268,18 @@ Index: b/src/gcc/testsuite/lib/gcc-dg.exp
  # Utility routines.
  
  #
-@@ -760,6 +792,8 @@ if { [info procs saved-dg-test] == [list
+@@ -862,6 +894,8 @@ if { [info procs saved-dg-test] == [list
  	global shouldfail
  	global testname_with_flags
  	global set_target_env_var
 +	global set_compiler_env_var
 +	global saved_compiler_env_var
+ 	global keep_saved_temps_suffixes
+ 	global multiline_expected_outputs
  
- 	if { [ catch { eval saved-dg-test $args } errmsg ] } {
- 	    set saved_info $errorInfo
-@@ -785,6 +819,11 @@ if { [info procs saved-dg-test] == [list
- 	if [info exists set_target_env_var] {
- 	    unset set_target_env_var
+@@ -876,6 +910,11 @@ if { [info procs saved-dg-test] == [list
+ 	if [info exists keep_saved_temps_suffixes] {
+ 	    unset keep_saved_temps_suffixes
  	}
 +	if [info exists set_compiler_env_var] {
 +	    restore-compiler-env-var
@@ -293,7 +293,7 @@ Index: b/src/libcpp/include/cpplib.h
 ===================================================================
 --- a/src/libcpp/include/cpplib.h
 +++ b/src/libcpp/include/cpplib.h
-@@ -585,6 +585,9 @@ struct cpp_callbacks
+@@ -594,6 +594,9 @@ struct cpp_callbacks
  
    /* Callback that can change a user builtin into normal macro.  */
    bool (*user_builtin_macro) (cpp_reader *, cpp_hashnode *);
@@ -303,7 +303,7 @@ Index: b/src/libcpp/include/cpplib.h
  };
  
  #ifdef VMS
-@@ -775,9 +778,6 @@ extern void cpp_init_special_builtins (c
+@@ -784,9 +787,6 @@ extern void cpp_init_special_builtins (c
  /* Set up built-ins like __FILE__.  */
  extern void cpp_init_builtins (cpp_reader *, int);
  
@@ -317,7 +317,7 @@ Index: b/src/libcpp/init.c
 ===================================================================
 --- a/src/libcpp/init.c
 +++ b/src/libcpp/init.c
-@@ -254,6 +254,9 @@ cpp_create_reader (enum c_lang lang, cpp
+@@ -257,6 +257,9 @@ cpp_create_reader (enum c_lang lang, cpp
    /* Do not force token locations by default.  */
    pfile->forced_token_location_p = NULL;
  
@@ -327,7 +327,7 @@ Index: b/src/libcpp/init.c
    /* The expression parser stack.  */
    _cpp_expand_op_stack (pfile);
  
-@@ -530,13 +533,6 @@ cpp_init_builtins (cpp_reader *pfile, in
+@@ -533,13 +536,6 @@ cpp_init_builtins (cpp_reader *pfile, in
      _cpp_define_builtin (pfile, "__OBJC__ 1");
  }
  
@@ -339,8 +339,8 @@ Index: b/src/libcpp/init.c
 -}
 -
  /* Sanity-checks are dependent on command-line options, so it is
-    called as a subroutine of cpp_read_main_file ().  */
- #if ENABLE_CHECKING
+    called as a subroutine of cpp_read_main_file.  */
+ #if CHECKING_P
 Index: b/src/libcpp/internal.h
 ===================================================================
 --- a/src/libcpp/internal.h
@@ -359,7 +359,7 @@ Index: b/src/libcpp/macro.c
 ===================================================================
 --- a/src/libcpp/macro.c
 +++ b/src/libcpp/macro.c
-@@ -351,9 +351,13 @@ _cpp_builtin_macro_text (cpp_reader *pfi
+@@ -358,9 +358,13 @@ _cpp_builtin_macro_text (cpp_reader *pfi
  	  struct tm *tb = NULL;
  
  	  /* Set a reproducible timestamp for __DATE__ and __TIME__ macro

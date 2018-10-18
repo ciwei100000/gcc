@@ -61,7 +61,10 @@ ifeq (,$(wildcard debian/soname-cache))
 	echo CILKRTS_SONAME=5 >> $$cache; \
 	echo CC1_SONAME=0 >> $$cache; \
 	echo GCCJIT_SONAME=0 >> $$cache; \
-	echo MPX_SONAME=0 >> $$cache; \
+	v=`tail -1 $(srcdir)/libmpx/mpxrt/libtool-version | cut -d: -f1`; \
+	echo MPX_SONAME=$$v >> $$cache; \
+	echo GPHOBOS_SONAME=68 >> $$cache; \
+	echo GDRUNTIME_SONAME=68 >> $$cache; \
 	cat $$cache)
 else
   SONAME_VARS := $(shell cat debian/soname-cache)
@@ -90,6 +93,8 @@ ITM_SONAME	= $(call vafilt,$(SONAME_VARS),ITM_SONAME)
 CC1_SONAME	= $(call vafilt,$(SONAME_VARS),CC1_SONAME)
 GCCJIT_SONAME	= $(call vafilt,$(SONAME_VARS),GCCJIT_SONAME)
 MPX_SONAME	= $(call vafilt,$(SONAME_VARS),MPX_SONAME)
+GPHOBOS_SONAME	= $(call vafilt,$(SONAME_VARS),GPHOBOS_SONAME)
+GDRUNTIME_SONAME= $(call vafilt,$(SONAME_VARS),GDRUNTIME_SONAME)
 
 # alias
 GFORTRAN_SONAME = $(FORTRAN_SONAME)

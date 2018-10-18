@@ -56,15 +56,16 @@ Uploaders: Iain Buclaw <ibuclaw@ubuntu.com>, Matthias Klose <doko@debian.org>
 ', `dnl
 Uploaders: Matthias Klose <doko@debian.org>
 ')dnl SRCNAME
-Standards-Version: 4.1.4
+Standards-Version: 4.2.1
 ifdef(`TARGET',`dnl cross
 Build-Depends: DEBHELPER_BUILD_DEP DPKG_BUILD_DEP
   LIBC_BUILD_DEP, LIBC_BIARCH_BUILD_DEP
   kfreebsd-kernel-headers (>= 0.84) [kfreebsd-any], linux-libc-dev [m68k],
   LIBUNWIND_BUILD_DEP LIBATOMIC_OPS_BUILD_DEP AUTO_BUILD_DEP
   SOURCE_BUILD_DEP CROSS_BUILD_DEP
-  ISL_BUILD_DEP MPC_BUILD_DEP MPFR_BUILD_DEP GMP_BUILD_DEP,
+  ISL_BUILD_DEP MPC_BUILD_DEP MPFR_BUILD_DEP GMP_BUILD_DEP
   autogen, zlib1g-dev, gawk, lzma, xz-utils, patchutils,
+  pkg-config, libgc-dev,
   zlib1g-dev, SDT_BUILD_DEP
   bison (>= 1:2.3), flex, coreutils (>= 2.26) | realpath (>= 1.9.12), lsb-release, quilt
 ',`dnl native
@@ -73,7 +74,7 @@ Build-Depends: DEBHELPER_BUILD_DEP DPKG_BUILD_DEP
   LIBC_BUILD_DEP, LIBC_BIARCH_BUILD_DEP LIBC_DBG_DEP
   kfreebsd-kernel-headers (>= 0.84) [kfreebsd-any], linux-libc-dev [m68k],
   AUTO_BUILD_DEP BASE_BUILD_DEP
-  libunwind7-dev (>= 0.98.5-6) [ia64], libatomic-ops-dev [ia64],
+  libunwind8-dev [ia64], libatomic-ops-dev [ia64],
   autogen, gawk, lzma, xz-utils, patchutils,
   zlib1g-dev, SDT_BUILD_DEP
   BINUTILS_BUILD_DEP,
@@ -81,8 +82,9 @@ Build-Depends: DEBHELPER_BUILD_DEP DPKG_BUILD_DEP
   gdb`'NT,
   texinfo (>= 4.3), locales, sharutils,
   procps, FORTRAN_BUILD_DEP JAVA_BUILD_DEP GNAT_BUILD_DEP GO_BUILD_DEP GDC_BUILD_DEP
-  ISL_BUILD_DEP MPC_BUILD_DEP MPFR_BUILD_DEP GMP_BUILD_DEP
+  ISL_BUILD_DEP MPC_BUILD_DEP MPFR_BUILD_DEP GMP_BUILD_DEP PHOBOS_BUILD_DEP
   CHECK_BUILD_DEP coreutils (>= 2.26) | realpath (>= 1.9.12), chrpath, lsb-release, quilt,
+  pkg-config, libgc-dev,
   TARGET_TOOL_BUILD_DEP
 Build-Depends-Indep: LIBSTDCXX_BUILD_INDEP JAVA_BUILD_INDEP
 ')dnl
@@ -95,6 +97,7 @@ Homepage: http://gcc.gnu.org/
 ')dnl SRCNAME
 Vcs-Browser: http://svn.debian.org/viewsvn/gcccvs/branches/sid/gcc`'PV/
 Vcs-Svn: svn://anonscm.debian.org/gcccvs/branches/sid/gcc`'PV
+XS-Testsuite: autopkgtest
 
 ifelse(regexp(SRCNAME, `gcc-snapshot'),0,`dnl
 Package: gcc-snapshot`'TS
@@ -106,7 +109,7 @@ Recommends: ${snap:recommends}
 Suggests: ${dep:gold}
 Provides: c++-compiler`'TS`'ifdef(`TARGET',`',`, c++abi2-dev')
 BUILT_USING`'dnl
-Description: A SNAPSHOT of the GNU Compiler Collection
+Description: SNAPSHOT of the GNU Compiler Collection
  This package contains a recent development SNAPSHOT of all files
  contained in the GNU Compiler Collection (GCC).
  .
@@ -124,8 +127,8 @@ define(`BASEDEP', `gcc`'PV`'TS-base (= ${gcc:Version})')
 define(`SOFTBASEDEP', `gcc`'PV`'TS-base (>= ${gcc:SoftVersion})')
 
 ifdef(`TARGET',`
-define(`BASELDEP', `gcc`'PV-cross-base`'GCC_PORTS_BUILD (= ${gcc:Version})')
-define(`SOFTBASELDEP', `gcc`'PV-cross-base`'GCC_PORTS_BUILD (>= ${gcc:SoftVersion})')
+define(`BASELDEP', `gcc`'PV`'ifelse(CROSS_ARCH,`all',`-cross')-base`'GCC_PORTS_BUILD (= ${gcc:Version})')
+define(`SOFTBASELDEP', `gcc`'PV`'ifelse(CROSS_ARCH, `all',`-cross')-base`'GCC_PORTS_BUILD (>= ${gcc:SoftVersion})')
 ',`dnl
 define(`BASELDEP', `BASEDEP')
 define(`SOFTBASELDEP', `SOFTBASEDEP')
@@ -323,7 +326,7 @@ Depends: BASELDEP, ${dep:libgcc}, ${dep:libssp}, ${dep:libgomp}, ${dep:libitm},
  ${dep:libqmath}, ${dep:libunwinddev}, ${shlibs:Depends}, ${misc:Depends}
 ifdef(`MULTIARCH', `Multi-Arch: same
 ')`'dnl
-Replaces: gccgo-5 (<< ${gcc:Version})
+Replaces: gccgo-6 (<< ${gcc:Version})
 BUILT_USING`'dnl
 Description: GCC support library (development files)
  This package contains the headers and static library files necessary for
@@ -413,7 +416,7 @@ Depends: BASELDEP, ${dep:libgccbiarch}, ${dep:libsspbiarch},
  ${dep:libtsanbiarch}, ${dep:libubsanbiarch},
  ${dep:libvtvbiarch}, ${dep:libcilkrtsbiarch}, ${dep:libmpxbiarch},
  ${dep:libqmathbiarch}, ${shlibs:Depends}, ${misc:Depends}
-Replaces: gccgo-5-multilib (<< ${gcc:Version})
+Replaces: gccgo-6-multilib (<< ${gcc:Version})
 BUILT_USING`'dnl
 Description: GCC support library (64bit development files)
  This package contains the headers and static library files necessary for
@@ -467,7 +470,7 @@ Depends: BASELDEP, ${dep:libgccbiarch}, ${dep:libsspbiarch},
  ${dep:libtsanbiarch}, ${dep:libubsanbiarch},
  ${dep:libvtvbiarch}, ${dep:libcilkrtsbiarch}, ${dep:libmpxbiarch},
  ${dep:libqmathbiarch}, ${shlibs:Depends}, ${misc:Depends}
-Replaces: gccgo-5-multilib (<< ${gcc:Version})
+Replaces: gccgo-6-multilib (<< ${gcc:Version})
 BUILT_USING`'dnl
 Description: GCC support library (32 bit development files)
  This package contains the headers and static library files necessary for
@@ -539,7 +542,7 @@ Depends: BASELDEP, ${dep:libgccbiarch}, ${dep:libsspbiarch},
  ${dep:libtsanbiarch}, ${dep:libubsanbiarch},
  ${dep:libvtvbiarch}, ${dep:libcilkrtsbiarch}, ${dep:libmpxbiarch},
  ${dep:libqmathbiarch}, ${shlibs:Depends}, ${misc:Depends}
-Replaces: gccgo-5-multilib (<< ${gcc:Version})
+Replaces: gccgo-6-multilib (<< ${gcc:Version})
 BUILT_USING`'dnl
 Description: GCC support library (hard float ABI development files)
  This package contains the headers and static library files necessary for
@@ -596,7 +599,7 @@ Depends: BASELDEP, ${dep:libgccbiarch}, ${dep:libsspbiarch},
  ${dep:libtsanbiarch}, ${dep:libubsanbiarch},
  ${dep:libvtvbiarch}, ${dep:libcilkrtsbiarch}, ${dep:libmpxbiarch},
  ${dep:libqmathbiarch}, ${shlibs:Depends}, ${misc:Depends}
-Replaces: gccgo-5-multilib (<< ${gcc:Version})
+Replaces: gccgo-6-multilib (<< ${gcc:Version})
 BUILT_USING`'dnl
 Description: GCC support library (soft float ABI development files)
  This package contains the headers and static library files necessary for
@@ -651,7 +654,7 @@ Depends: BASELDEP, ${dep:libgccbiarch}, ${dep:libsspbiarch},
  ${dep:libtsanbiarch}, ${dep:libubsanbiarch},
  ${dep:libvtvbiarch}, ${dep:libcilkrtsbiarch}, ${dep:libmpxbiarch},
  ${dep:libqmathbiarch}, ${shlibs:Depends}, ${misc:Depends}
-Replaces: gccgo-5-multilib (<< ${gcc:Version})
+Replaces: gccgo-6-multilib (<< ${gcc:Version})
 BUILT_USING`'dnl
 Description: GCC support library (n32 development files)
  This package contains the headers and static library files necessary for
@@ -705,7 +708,7 @@ Depends: BASELDEP, ${dep:libgccbiarch}, ${dep:libsspbiarch},
  ${dep:libtsanbiarch}, ${dep:libubsanbiarch},
  ${dep:libvtvbiarch}, ${dep:libcilkrtsbiarch}, ${dep:libmpxbiarch},
  ${dep:libqmathbiarch}, ${shlibs:Depends}, ${misc:Depends}
-Replaces: gccgo-5-multilib (<< ${gcc:Version})
+Replaces: gccgo-6-multilib (<< ${gcc:Version})
 BUILT_USING`'dnl
 Description: GCC support library (x32 development files)
  This package contains the headers and static library files necessary for
@@ -726,8 +729,7 @@ Depends: cpp`'PV`'TS (= ${gcc:Version}),ifenabled(`gccbase',` BASEDEP,')
   binutils`'TS (>= ${binutils:Version}),
   ${dep:libgccdev}, ${shlibs:Depends}, ${misc:Depends}
 Recommends: ${dep:libcdev}
-Replaces: gccgo-5 (<< ${gcc:Version}), gcc`'PV-plugin-dev`'TS (<< 5-20150321-1),
-  gcc-5-base (<< 5-20150329-1)
+Replaces: gccgo-6 (<< ${gcc:Version}), cpp`'PV`'TS (<< 6.3.0-21)
 Suggests: ${gcc:multilib}, gcc`'PV-doc (>= ${gcc:SoftVersion}),
  gcc`'PV-locales (>= ${gcc:SoftVersion}),
  libdbgdep(gcc`'GCC_SO-dbg,,>=,${libgcc:Version}),
@@ -810,9 +812,6 @@ Priority: PRI(optional)
 Depends: BASEDEP, gcc`'PV`'TS (= ${gcc:Version}),
   binutils-hppa64-linux-gnu | binutils-hppa64,
   ${shlibs:Depends}, ${misc:Depends}
-Replaces: gcc-5-hppa64 (<< 5.2.1-22)
-Provides: gcc-5-hppa64
-Conflicts: gcc-3.3-hppa64 (<= 1:3.3.4-5), gcc-3.4-hppa64 (<= 3.4.1-3), gcc-4.7-hppa64 (<< 4.7.3-13), gcc-4.8-hppa64 (<< 4.8.2-22), gcc-4.9-hppa64 (<< 4.9.3-1)
 BUILT_USING`'dnl
 Description: GNU C compiler (cross compiler for hppa64)
  This is the GNU C compiler, a fairly portable optimizing compiler for C.
@@ -827,7 +826,8 @@ Section: ifdef(`TARGET',`devel',`interpreters')
 Priority: optional
 Depends: BASEDEP, ${shlibs:Depends}, ${misc:Depends}
 Suggests: gcc`'PV-locales (>= ${gcc:SoftVersion})
-Replaces: gccgo-5 (<< ${gcc:Version})
+Replaces: gccgo-6 (<< ${gcc:Version})
+Breaks: libmagics++-dev (<< 2.28.0-4)ifdef(`TARGET',`',`, hardening-wrapper (<< 2.8+nmu3)')
 BUILT_USING`'dnl
 Description: GNU C preprocessor
  A macro processor that is used automatically by the GNU C compiler
@@ -2660,6 +2660,7 @@ Pre-Depends: ${misc:Pre-Depends}
 ')`'dnl
 Priority: optional
 Depends: BASELDEP, ${shlibs:Depends}, ${misc:Depends}
+Replaces: libmpx0 (<< 6-20160120-1)
 BUILT_USING`'dnl
 Description: Intel memory protection extensions (runtime)
  Intel MPX is a set of processor features which, with compiler,
@@ -2690,6 +2691,7 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
 Priority: optional
 Depends: BASELDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
 Conflicts: ${confl:lib32}
+Replaces: lib32mpx0 (<< 6-20160120-1)
 BUILT_USING`'dnl
 Description: Intel memory protection extensions (32bit)
  Intel MPX is a set of processor features which, with compiler,
@@ -2716,6 +2718,7 @@ Section: ifdef(`TARGET',`devel',`libs')
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
 Priority: optional
 Depends: BASELDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
+Replaces: lib64mpx0 (<< 6-20160120-1)
 BUILT_USING`'dnl
 Description: Intel memory protection extensions (64bit)
  Intel MPX is a set of processor features which, with compiler,
@@ -3209,7 +3212,7 @@ Description: GCC just-in-time compilation (shared library)
  libgccjit provides an embeddable shared library with an API for adding
  compilation to existing programs using GCC.
 
-Package: libgccjit`'PV-dbg
+Package: libgccjit`'GCCJIT_SO-dbg
 Section: debug
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
 ifdef(`MULTIARCH', `Multi-Arch: same
@@ -3218,6 +3221,8 @@ Pre-Depends: ${misc:Pre-Depends}
 Priority: optional
 Depends: BASEDEP, libgccjit`'GCCJIT_SO (= ${gcc:Version}),
  ${shlibs:Depends}, ${misc:Depends}
+Breaks: libgccjit-5-dbg, libgccjit-6-dbg
+Replaces: libgccjit-5-dbg, libgccjit-6-dbg
 BUILT_USING`'dnl
 Description: GCC just-in-time compilation (debug information)
  libgccjit provides an embeddable shared library with an API for adding
@@ -3230,6 +3235,7 @@ Section: doc
 Architecture: all
 Priority: optional
 Depends: BASEDEP, ${misc:Depends}
+Conflicts: libgccjit-5-doc
 Description: GCC just-in-time compilation (documentation)
  libgccjit provides an embeddable shared library with an API for adding
  compilation to existing programs using GCC.
@@ -3577,7 +3583,9 @@ ifdef(`TARGET',`Multi-Arch: foreign
 Priority: optional
 Depends: BASEDEP, gcc`'PV`'TS (= ${gcc:Version}), libidevdep(gfortran`'PV-dev,,=), ${dep:libcdev}, ${shlibs:Depends}, ${misc:Depends}
 Provides: fortran95-compiler, ${fortran:mod-version}
-Suggests: ${gfortran:multilib}, gfortran`'PV-doc, libdbgdep(gfortran`'FORTRAN_SO-dbg,)
+Suggests: ${gfortran:multilib}, gfortran`'PV-doc,
+ libdbgdep(gfortran`'FORTRAN_SO-dbg,),
+ libcoarrays-dev
 BUILT_USING`'dnl
 Description: GNU Fortran compiler
  This is the GNU Fortran compiler, which compiles
@@ -3890,8 +3898,8 @@ Depends: BASEDEP, ifdef(`STANDALONEGO',`${dep:libcc1}, ',`gcc`'PV`'TS (= ${gcc:V
 Provides: go-compiler
 Suggests: ${go:multilib}, gccgo`'PV-doc, libdbgdep(go`'GO_SO-dbg,)
 Conflicts: ${golang:Conflicts}
-Breaks: libgo`'GO_SO`'LS (<< 5.5.0-6)
-Replaces: libgo`'GO_SO`'LS (<< 5.5.0-6)
+Breaks: libgo`'GO_SO`'LS (<< 6.4.0-12)
+Replaces: libgo`'GO_SO`'LS (<< 6.4.0-12)
 BUILT_USING`'dnl
 Description: GNU Go compiler
  This is the GNU Go compiler, which compiles Go on platforms supported
@@ -3906,14 +3914,14 @@ Section: devel
 Priority: optional
 Depends: BASEDEP, gccgo`'PV`'TS (= ${gcc:Version}), ifdef(`STANDALONEGO',,`gcc`'PV-multilib`'TS (= ${gcc:Version}), ')${dep:libgobiarch}, ${shlibs:Depends}, ${misc:Depends}
 Suggests: ${dep:libgobiarchdbg}
-Breaks: lib32go`'GO_SO`'LS (<< 5.5.0-6),
-  libn32go`'GO_SO`'LS (<< 5.5.0-6),
-  libx32go`'GO_SO`'LS (<< 5.5.0-6),
-  lib64go`'GO_SO`'LS (<< 5.5.0-6)
-Replaces: lib32go`'GO_SO`'LS (<< 5.5.0-6),
-  libn32go`'GO_SO`'LS (<< 5.5.0-6),
-  libx32go`'GO_SO`'LS (<< 5.5.0-6),
-  lib64go`'GO_SO`'LS (<< 5.5.0-6)
+Breaks: lib32go`'GO_SO`'LS (<< 6.4.0-12),
+  libn32go`'GO_SO`'LS (<< 6.4.0-12),
+  libx32go`'GO_SO`'LS (<< 6.4.0-12),
+  lib64go`'GO_SO`'LS (<< 6.4.0-12)
+Replaces: lib32go`'GO_SO`'LS (<< 6.4.0-12),
+  libn32go`'GO_SO`'LS (<< 6.4.0-12),
+  libx32go`'GO_SO`'LS (<< 6.4.0-12),
+  lib64go`'GO_SO`'LS (<< 6.4.0-12)
 BUILT_USING`'dnl
 Description: GNU Go compiler (multilib support)`'ifdef(`TARGET)',` (cross compiler for TARGET architecture)', `')
  This is the GNU Go compiler, which compiles Go on platforms supported
@@ -3946,7 +3954,7 @@ Pre-Depends: ${misc:Pre-Depends}
 ')`'dnl
 Priority: optional
 Depends: BASELDEP, ${shlibs:Depends}, ${misc:Depends}
-Replaces: libgo3`'LS
+Replaces: libgo3`'LS, libgo8`'LS
 BUILT_USING`'dnl
 Description: Runtime library for GNU Go applications
  Library needed for GNU Go applications linked against the
@@ -3974,7 +3982,7 @@ Section: ifdef(`TARGET',`devel',`libs')
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
 Priority: optional
 Depends: BASELDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
-Replaces: lib64go3`'LS
+Replaces: lib64go3`'LS, lib64go8`'LS
 BUILT_USING`'dnl
 Description: Runtime library for GNU Go applications (64bit)
  Library needed for GNU Go applications linked against the
@@ -3999,7 +4007,7 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
 Priority: optional
 Depends: BASELDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
 Conflicts: ${confl:lib32}
-Replaces: lib32go3`'LS
+Replaces: lib32go3`'LS, lib32go8`'LS
 BUILT_USING`'dnl
 Description: Runtime library for GNU Go applications (32bit)
  Library needed for GNU Go applications linked against the
@@ -4023,7 +4031,7 @@ Section: ifdef(`TARGET',`devel',`libs')
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
 Priority: optional
 Depends: BASELDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
-Replaces: libn32go3`'LS
+Replaces: libn32go3`'LS, libn32go8`'LS
 BUILT_USING`'dnl
 Description: Runtime library for GNU Go applications (n32)
  Library needed for GNU Go applications linked against the
@@ -4047,7 +4055,7 @@ Section: ifdef(`TARGET',`devel',`libs')
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
 Priority: optional
 Depends: BASELDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
-Replaces: libx32go3`'LS
+Replaces: libx32go3`'LS, libx32go8`'LS
 BUILT_USING`'dnl
 Description: Runtime library for GNU Go applications (x32)
  Library needed for GNU Go applications linked against the
@@ -4555,7 +4563,7 @@ Conflicts: libstdc++5-dbg`'LS, libstdc++5-3.3-dbg`'LS, libstdc++6-dbg`'LS,
  libstdc++6-4.0-dbg`'LS, libstdc++6-4.1-dbg`'LS, libstdc++6-4.2-dbg`'LS,
  libstdc++6-4.3-dbg`'LS, libstdc++6-4.4-dbg`'LS, libstdc++6-4.5-dbg`'LS,
  libstdc++6-4.6-dbg`'LS, libstdc++6-4.7-dbg`'LS, libstdc++6-4.8-dbg`'LS,
- libstdc++6-4.9-dbg`'LS
+ libstdc++6-4.9-dbg`'LS, libstdc++6-5-dbg`'LS
 BUILT_USING`'dnl
 Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET)',` (TARGET)', `')
  This package contains the shared library of libstdc++ compiled with
@@ -4598,7 +4606,8 @@ ifdef(`TARGET',`Provides: lib32stdc++CXX_SO-dbg-TARGET-dcv1
 Conflicts: lib32stdc++6-dbg`'LS, lib32stdc++6-4.0-dbg`'LS,
  lib32stdc++6-4.1-dbg`'LS, lib32stdc++6-4.2-dbg`'LS, lib32stdc++6-4.3-dbg`'LS,
  lib32stdc++6-4.4-dbg`'LS, lib32stdc++6-4.5-dbg`'LS, lib32stdc++6-4.6-dbg`'LS,
- lib32stdc++6-4.7-dbg`'LS, lib32stdc++6-4.8-dbg`'LS, lib32stdc++6-4.9-dbg`'LS
+ lib32stdc++6-4.7-dbg`'LS, lib32stdc++6-4.8-dbg`'LS, lib32stdc++6-4.9-dbg`'LS,
+ lib32stdc++6-5-dbg`'LS
 BUILT_USING`'dnl
 Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET)',` (TARGET)', `')
  This package contains the shared library of libstdc++ compiled with
@@ -4641,7 +4650,8 @@ ifdef(`TARGET',`Provides: lib64stdc++CXX_SO-dbg-TARGET-dcv1
 Conflicts: lib64stdc++6-dbg`'LS, lib64stdc++6-4.0-dbg`'LS,
  lib64stdc++6-4.1-dbg`'LS, lib64stdc++6-4.2-dbg`'LS, lib64stdc++6-4.3-dbg`'LS,
  lib64stdc++6-4.4-dbg`'LS, lib64stdc++6-4.5-dbg`'LS, lib64stdc++6-4.6-dbg`'LS,
- lib64stdc++6-4.7-dbg`'LS, lib64stdc++6-4.8-dbg`'LS, lib64stdc++6-4.9-dbg`'LS
+ lib64stdc++6-4.7-dbg`'LS, lib64stdc++6-4.8-dbg`'LS, lib64stdc++6-4.9-dbg`'LS,
+ lib64stdc++6-5-dbg`'LS
 BUILT_USING`'dnl
 Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET)',` (TARGET)', `')
  This package contains the shared library of libstdc++ compiled with
@@ -4684,7 +4694,8 @@ ifdef(`TARGET',`Provides: libn32stdc++CXX_SO-dbg-TARGET-dcv1
 Conflicts: libn32stdc++6-dbg`'LS, libn32stdc++6-4.0-dbg`'LS,
  libn32stdc++6-4.1-dbg`'LS, libn32stdc++6-4.2-dbg`'LS, libn32stdc++6-4.3-dbg`'LS,
  libn32stdc++6-4.4-dbg`'LS, libn32stdc++6-4.5-dbg`'LS, libn32stdc++6-4.6-dbg`'LS,
- libn32stdc++6-4.7-dbg`'LS, libn32stdc++6-4.8-dbg`'LS, libn32stdc++6-4.9-dbg`'LS
+ libn32stdc++6-4.7-dbg`'LS, libn32stdc++6-4.8-dbg`'LS, libn32stdc++6-4.9-dbg`'LS,
+ libn32stdc++6-5-dbg`'LS
 BUILT_USING`'dnl
 Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET)',` (TARGET)', `')
  This package contains the shared library of libstdc++ compiled with
@@ -4728,7 +4739,8 @@ Depends: BASELDEP, libdep(stdc++CXX_SO,x32),
 ifdef(`TARGET',`Provides: libx32stdc++CXX_SO-dbg-TARGET-dcv1
 ',`')`'dnl
 Conflicts: libx32stdc++6-dbg`'LS, libx32stdc++6-4.6-dbg`'LS,
- libx32stdc++6-4.7-dbg`'LS, libx32stdc++6-4.8-dbg`'LS, libx32stdc++6-4.9-dbg`'LS
+ libx32stdc++6-4.7-dbg`'LS, libx32stdc++6-4.8-dbg`'LS, libx32stdc++6-4.9-dbg`'LS,
+ libx32stdc++6-5-dbg`'LS
 BUILT_USING`'dnl
 Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET)',` (TARGET)', `')
  This package contains the shared library of libstdc++ compiled with
@@ -4770,7 +4782,7 @@ Depends: BASELDEP, libdep(stdc++CXX_SO,hf),
  ${shlibs:Depends}, ${misc:Depends}
 ifdef(`TARGET',`Provides: libhfstdc++CXX_SO-dbg-TARGET-dcv1
 ',`')`'dnl
-ifdef(`TARGET',`dnl',`Conflicts: libhfstdc++6-dbg`'LS, libhfstdc++6-4.3-dbg`'LS, libhfstdc++6-4.4-dbg`'LS, libhfstdc++6-4.5-dbg`'LS, libhfstdc++6-4.6-dbg`'LS, libhfstdc++6-4.7-dbg`'LS, libhfstdc++6-4.8-dbg`'LS, libhfstdc++6-4.9-dbg`'LS, libstdc++'CXX_SO`-armhf [biarchhf_archs]')
+ifdef(`TARGET',`dnl',`Conflicts: libhfstdc++6-dbg`'LS, libhfstdc++6-4.3-dbg`'LS, libhfstdc++6-4.4-dbg`'LS, libhfstdc++6-4.5-dbg`'LS, libhfstdc++6-4.6-dbg`'LS, libhfstdc++6-4.7-dbg`'LS, libhfstdc++6-4.8-dbg`'LS, libhfstdc++6-4.9-dbg`'LS, libhfstdc++6-5-dbg`'LS, libstdc++'CXX_SO`-armhf [biarchhf_archs]')
 BUILT_USING`'dnl
 Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET)',` (TARGET)', `')
  This package contains the shared library of libstdc++ compiled with
@@ -4812,7 +4824,7 @@ Depends: BASELDEP, libdep(stdc++CXX_SO,sf),
  ${shlibs:Depends}, ${misc:Depends}
 ifdef(`TARGET',`Provides: libsfstdc++CXX_SO-dbg-TARGET-dcv1
 ',`')`'dnl
-ifdef(`TARGET',`dnl',`Conflicts: libsfstdc++6-dbg`'LS, libsfstdc++6-4.3-dbg`'LS, libsfstdc++6-4.4-dbg`'LS, libsfstdc++6-4.5-dbg`'LS, libsfstdc++6-4.6-dbg`'LS, libsfstdc++6-4.7-dbg`'LS, libsfstdc++6-4.8-dbg`'LS, libsfstdc++6-4.9-dbg`'LS, libstdc++'CXX_SO`-armel [biarchsf_archs]')
+ifdef(`TARGET',`dnl',`Conflicts: libsfstdc++6-dbg`'LS, libsfstdc++6-4.3-dbg`'LS, libsfstdc++6-4.4-dbg`'LS, libsfstdc++6-4.5-dbg`'LS, libsfstdc++6-4.6-dbg`'LS, libsfstdc++6-4.7-dbg`'LS, libsfstdc++6-4.8-dbg`'LS, libsfstdc++6-4.9-dbg`'LS, libsfstdc++6-5-dbg`'LS, libstdc++'CXX_SO`-armel [biarchsf_archs]')
 BUILT_USING`'dnl
 Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET)',` (TARGET)', `')
  This package contains the shared library of libstdc++ compiled with
@@ -4833,7 +4845,7 @@ Depends: gcc`'PV-base (>= ${gcc:SoftVersion}), ${misc:Depends}
 Conflicts: libstdc++5-doc, libstdc++5-3.3-doc, libstdc++6-doc,
  libstdc++6-4.0-doc, libstdc++6-4.1-doc, libstdc++6-4.2-doc, libstdc++6-4.3-doc,
  libstdc++6-4.4-doc, libstdc++6-4.5-doc, libstdc++6-4.6-doc, libstdc++6-4.7-doc,
- libstdc++-4.8-doc, libstdc++-4.9-doc
+ libstdc++-4.8-doc, libstdc++-4.9-doc, libstdc++-5-doc
 Description: GNU Standard C++ Library v3 (documentation files)
  This package contains documentation files for the GNU stdc++ library.
  .
@@ -4865,7 +4877,7 @@ Replaces: gnat (<< 4.6.1), dh-ada-library (<< 6.0), gnat-4.6-base (= 4.6.4-2),
 # Newer versions of gnat and dh-ada-library will not provide these files.
 Conflicts: gnat (<< 4.1), gnat-3.1, gnat-3.2, gnat-3.3, gnat-3.4, gnat-3.5,
  gnat-4.0, gnat-4.1, gnat-4.2, gnat-4.3, gnat-4.4, gnat-4.6, gnat-4.7, gnat-4.8,
- gnat-4.9
+ gnat-4.9, gnat-5`'TS
 # These other packages will continue to provide /usr/bin/gnatmake and
 # other files.
 BUILT_USING`'dnl
@@ -4936,11 +4948,14 @@ Package: libgnatvsn`'GNAT_V-dev`'LS
 Section: libdevel
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
 Priority: optional
-Depends: BASELDEP, ifdef(`TARGET',`', `gnat`'PV`'TS (ifdef(`TARGET',`>= ${gnat:SoftVersion}',`= ${gnat:Version}')),')
+Depends: BASELDEP, ifdef(`TARGET',`',`gnat`'PV`'TS (ifdef(`TARGET',`>= ${gnat:SoftVersion}',`= ${gnat:Version}')),')
  libgnatvsn`'GNAT_V`'LS (= ${gnat:Version}), ${misc:Depends}
+ifdef(`TARGET',`Recommends: gnat`'PV`'TS (>= ${gnat:SoftVersion})
+')`'dnl
 Conflicts: libgnatvsn-dev (<< `'GNAT_V),
  libgnatvsn4.1-dev, libgnatvsn4.3-dev, libgnatvsn4.4-dev,
  libgnatvsn4.5-dev, libgnatvsn4.6-dev, libgnatvsn4.9-dev,
+ libgnatvsn5-dev`'LS,
 BUILT_USING`'dnl
 Description: GNU Ada compiler selected components (development files)
  GNAT is a compiler for the Ada programming language. It produces optimized
@@ -4996,12 +5011,15 @@ Package: libgnatprj`'GNAT_V-dev`'LS
 Section: libdevel
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
 Priority: optional
-Depends: BASELDEP, ifdef(`TARGET',`', `gnat`'PV`'TS (ifdef(`TARGET',`>= ${gnat:SoftVersion}',`= ${gnat:Version}')),')
+Depends: BASELDEP, ifdef(`TARGET',`',`gnat`'PV`'TS (ifdef(`TARGET',`>= ${gnat:SoftVersion}',`= ${gnat:Version}')),')
  libgnatprj`'GNAT_V`'LS (= ${gnat:Version}),
  libgnatvsn`'GNAT_V-dev`'LS (= ${gnat:Version}), ${misc:Depends}
+ifdef(`TARGET',`Recommends: gnat`'PV`'TS (>= ${gnat:SoftVersion})
+')`'dnl
 Conflicts: libgnatprj-dev (<< `'GNAT_V),
  libgnatprj4.1-dev, libgnatprj4.3-dev, libgnatprj4.4-dev,
  libgnatprj4.5-dev, libgnatprj4.6-dev, libgnatprj4.9-dev,
+ libgnatprj5-dev`'LS,
 BUILT_USING`'dnl
 Description: GNU Ada compiler Project Manager (development files)
  GNAT is a compiler for the Ada programming language. It produces optimized
@@ -5090,7 +5108,8 @@ Depends: dpkg (>= 1.15.4) | install-info, ${misc:Depends}
 Suggests: gnat`'PV
 Conflicts: gnat-4.1-doc, gnat-4.2-doc,
   gnat-4.3-doc, gnat-4.4-doc,
-  gnat-4.6-doc, gnat-4.9-doc
+  gnat-4.6-doc, gnat-4.9-doc,
+  gnat-5-doc,
 BUILT_USING`'dnl
 Description: GNU Ada compiler (documentation)
  GNAT is a compiler for the Ada programming language. It produces optimized
@@ -5111,8 +5130,7 @@ ifdef(`TARGET',`Multi-Arch: foreign
 Priority: optional
 Depends: SOFTBASEDEP, g++`'PV`'TS (>= ${gcc:SoftVersion}), ${dep:gdccross}, ${dep:phobosdev}, ${shlibs:Depends}, ${misc:Depends}
 Provides: gdc, d-compiler, d-v2-compiler
-Replaces: gdc (<< 4.4.6-5),
-  libphobos`'PV-dev`'LS (<< 5.4.0-1~)
+Replaces: gdc (<< 4.4.6-5)
 BUILT_USING`'dnl
 Description: GNU D compiler (version 2)`'ifdef(`TARGET)',` (cross compiler for TARGET architecture)', `')
  This is the GNU D compiler, which compiles D on platforms supported by gcc.
@@ -5128,12 +5146,6 @@ ifdef(`TARGET',`Multi-Arch: foreign
 Priority: optional
 Depends: SOFTBASEDEP, gdc`'PV`'TS (= ${gcc:Version}), gcc`'PV-multilib`'TS (= ${gcc:Version}), ${dep:libphobosbiarchdev}${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
-Replaces: lib32phobos`'PV-dev`'LS (<< 5.4.0-1~),
-  lib64phobos`'PV-dev`'LS (<< 5.4.0-1~),
-  libx32phobos`'PV-dev`'LS (<< 5.4.0-1~),
-  libhfphobos`'PV-dev`'LS (<< 5.4.0-1~),
-  libsfphobos`'PV-dev`'LS (<< 5.4.0-1~),
-  libn32phobos`'PV-dev`'LS (<< 5.4.0-1~),
 Description: GNU D compiler (version 2, multilib support)`'ifdef(`TARGET)',` (cross compiler for TARGET architecture)', `')
  This is the GNU D compiler, which compiles D on platforms supported by gcc.
  It uses the gcc backend to generate optimised code.
@@ -5143,96 +5155,258 @@ Description: GNU D compiler (version 2, multilib support)`'ifdef(`TARGET)',` (cr
 ')`'dnl multilib
 
 ifenabled(`libphobos',`
-Package: libphobos`'PV-dev`'LS
+Package: libgphobos`'PV-dev`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`libphobos_archs')
+ifdef(`MULTIARCH', `Multi-Arch: same
+')`'dnl
 Section: libdevel
 Priority: optional
-Depends: BASELDEP, zlib1g-dev, ${shlibs:Depends}, ${misc:Depends}
+Depends: BASELDEP, libgphobos`'PHOBOS_V`'LS (>= ${gdc:Version}),
+  zlib1g-dev, ${shlibs:Depends}, ${misc:Depends}
+Replaces: libphobos`'PV-dev`'LS
 BUILT_USING`'dnl
 Description: Phobos D standard library
  This is the Phobos standard library that comes with the D2 compiler.
  .
  For more information check http://www.dlang.org/phobos/
 
-#Package: libphobos`'PHOBOS_V`'PV`'TS-dbg
-#Section: debug
-#Architecture: ifdef(`TARGET',`CROSS_ARCH',`libphobos_archs')
-#Priority: optional
-#Depends: BASELDEP, libphobos`'PHOBOS_V`'PV-dev (= ${gdc:Version}), ${misc:Depends}
-#Provides: libphobos`'PHOBOS_V`'TS-dbg
-#BUILT_USING`'dnl
-#Description: The Phobos D standard library (debug symbols)
-# This is the Phobos standard library that comes with the D2 compiler.
-# .
-# For more information check http://www.dlang.org/phobos/
+Package: libgphobos`'PHOBOS_V`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`libphobos_archs')
+ifdef(`MULTIARCH', `Multi-Arch: same
+')`'dnl
+Priority: optional
+Depends: BASELDEP, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: Phobos D standard library (runtime library)
+ This is the Phobos standard library that comes with the D2 compiler.
+ .
+ For more information check http://www.dlang.org/phobos/
 
-Package: lib64phobos`'PV-dev`'LS
+Package: libgphobos`'PHOBOS_V-dbg`'LS
+Section: debug
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`libphobos_archs')
+ifdef(`MULTIARCH', `Multi-Arch: same
+')`'dnl
+Priority: optional
+Depends: BASELDEP, libgphobos`'PHOBOS_V`'LS (= ${gdc:Version}), ${misc:Depends}
+BUILT_USING`'dnl
+Description: Phobos D standard library (debug symbols)
+ This is the Phobos standard library that comes with the D2 compiler.
+ .
+ For more information check http://www.dlang.org/phobos/
+
+Package: lib64gphobos`'PV-dev`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
 Section: libdevel
 Priority: optional
-Depends: BASELDEP, libdevdep(gcc`'PV-dev,64), ifdef(`TARGET',`',`lib64z1-dev,') ${shlibs:Depends}, ${misc:Depends}
+Depends: BASELDEP, lib64gphobos`'PHOBOS_V`'LS (>= ${gdc:Version}),
+  libdevdep(gcc`'PV-dev,64), ifdef(`TARGET',`',`lib64z1-dev,') ${shlibs:Depends}, ${misc:Depends}
+Replaces: lib64phobos`'PV-dev`'LS
 BUILT_USING`'dnl
 Description: Phobos D standard library (64bit development files)
  This is the Phobos standard library that comes with the D2 compiler.
  .
  For more information check http://www.dlang.org/phobos/
 
-Package: lib32phobos`'PV-dev`'LS
+Package: lib64gphobos`'PHOBOS_V`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
+Priority: optional
+Depends: BASELDEP, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: Phobos D standard library (runtime library)
+ This is the Phobos standard library that comes with the D2 compiler.
+ .
+ For more information check http://www.dlang.org/phobos/
+
+Package: lib64gphobos`'PHOBOS_V-dbg`'LS
+Section: debug
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
+Priority: optional
+Depends: BASELDEP, lib64gphobos`'PHOBOS_V`'LS (= ${gdc:Version}), ${misc:Depends}
+BUILT_USING`'dnl
+Description: Phobos D standard library (debug symbols)
+ This is the Phobos standard library that comes with the D2 compiler.
+ .
+ For more information check http://www.dlang.org/phobos/
+
+Package: lib32gphobos`'PV-dev`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
 Section: libdevel
 Priority: optional
-Depends: BASELDEP, libdevdep(gcc`'PV-dev,32), ifdef(`TARGET',`',`lib32z1-dev,') ${shlibs:Depends}, ${misc:Depends}
+Depends: BASELDEP, lib32gphobos`'PHOBOS_V`'LS (>= ${gdc:Version}),
+  libdevdep(gcc`'PV-dev,32), ifdef(`TARGET',`',`lib32z1-dev,') ${shlibs:Depends}, ${misc:Depends}
+Replaces: lib32phobos`'PV-dev`'LS
 BUILT_USING`'dnl
-Description: Phobos D standard library (64bit development files)
+Description: Phobos D standard library (32bit development files)
+ This is the Phobos standard library that comes with the D2 compiler.
+ .
+ For more information check http://www.dlang.org/phobos/
+
+Package: lib32gphobos`'PHOBOS_V`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
+Priority: optional
+Depends: BASELDEP, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: Phobos D standard library (runtime library)
+ This is the Phobos standard library that comes with the D2 compiler.
+ .
+ For more information check http://www.dlang.org/phobos/
+
+Package: lib32gphobos`'PHOBOS_V-dbg`'LS
+Section: debug
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
+Priority: optional
+Depends: BASELDEP, lib32gphobos`'PHOBOS_V`'LS (= ${gdc:Version}), ${misc:Depends}
+BUILT_USING`'dnl
+Description: Phobos D standard library (debug symbols)
  This is the Phobos standard library that comes with the D2 compiler.
  .
  For more information check http://www.dlang.org/phobos/
 
 ifenabled(`libn32phobos',`
-Package: libn32phobos`'PV-dev`'LS
+Package: libn32gphobos`'PV-dev`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
 Section: libdevel
 Priority: optional
-Depends: BASELDEP, libdevdep(gcc`'PV-dev,n32), ifdef(`TARGET',`',`libn32z1-dev,') ${shlibs:Depends}, ${misc:Depends}
+Depends: BASELDEP, libn32gphobos`'PHOBOS_V`'LS (>= ${gdc:Version}),
+  libdevdep(gcc`'PV-dev,n32), ifdef(`TARGET',`',`libn32z1-dev,') ${shlibs:Depends}, ${misc:Depends}
+Replaces: libn32phobos`'PV-dev`'LS
 BUILT_USING`'dnl
 Description: Phobos D standard library (n32 development files)
+ This is the Phobos standard library that comes with the D2 compiler.
+ .
+ For more information check http://www.dlang.org/phobos/
+
+Package: libn32gphobos`'PHOBOS_V`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
+Priority: optional
+Depends: BASELDEP, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: Phobos D standard library (runtime library)
+ This is the Phobos standard library that comes with the D2 compiler.
+ .
+ For more information check http://www.dlang.org/phobos/
+
+Package: libn32gphobos`'PHOBOS_V-dbg`'LS
+Section: debug
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
+Priority: optional
+Depends: BASELDEP, libn32gphobos`'PHOBOS_V`'LS (= ${gdc:Version}), ${misc:Depends}
+BUILT_USING`'dnl
+Description: Phobos D standard library (debug symbols)
  This is the Phobos standard library that comes with the D2 compiler.
  .
  For more information check http://www.dlang.org/phobos/
 ')`'dnl libn32phobos
 
 ifenabled(`libx32phobos',`
-Package: libx32phobos`'PV-dev`'LS
+Package: libx32gphobos`'PV-dev`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
 Section: libdevel
 Priority: optional
-Depends: BASELDEP, libdevdep(gcc`'PV-dev,x32), ifdef(`TARGET',`',`${dep:libx32z},') ${shlibs:Depends}, ${misc:Depends}
+Depends: BASELDEP, libx32gphobos`'PHOBOS_V`'LS (>= ${gdc:Version}),
+  libdevdep(gcc`'PV-dev,x32), ifdef(`TARGET',`',`${dep:libx32z},') ${shlibs:Depends}, ${misc:Depends}
+Replaces: libx32gphobos`'PV-dev`'LS
 BUILT_USING`'dnl
 Description: Phobos D standard library (x32 development files)
+ This is the Phobos standard library that comes with the D2 compiler.
+ .
+ For more information check http://www.dlang.org/phobos/
+
+Package: libx32gphobos`'PHOBOS_V`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
+Priority: optional
+Depends: BASELDEP, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: Phobos D standard library (runtime library)
+ This is the Phobos standard library that comes with the D2 compiler.
+ .
+ For more information check http://www.dlang.org/phobos/
+
+Package: libx32gphobos`'PHOBOS_V-dbg`'LS
+Section: debug
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
+Priority: optional
+Depends: BASELDEP, libx32gphobos`'PHOBOS_V`'LS (= ${gdc:Version}), ${misc:Depends}
+BUILT_USING`'dnl
+Description: Phobos D standard library (debug symbols)
  This is the Phobos standard library that comes with the D2 compiler.
  .
  For more information check http://www.dlang.org/phobos/
 ')`'dnl libx32phobos
 
 ifenabled(`armml',`
-Package: libhfphobos`'PV-dev`'LS
+Package: libhfgphobos`'PV-dev`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
 Section: libdevel
 Priority: optional
-Depends: BASELDEP, libdevdep(gcc`'PV-dev,hf), ${shlibs:Depends}, ${misc:Depends}
+Depends: BASELDEP, libhfgphobos`'PHOBOS_V`'LS (>= ${gdc:Version}),
+  libdevdep(gcc`'PV-dev,hf), ${shlibs:Depends}, ${misc:Depends}
+Replaces: libhfphobos`'PV-dev`'LS
 BUILT_USING`'dnl
 Description: Phobos D standard library (hard float ABI development files)
  This is the Phobos standard library that comes with the D2 compiler.
  .
  For more information check http://www.dlang.org/phobos/
 
-Package: libsfphobos`'PV-dev`'LS
+Package: libhfgphobos`'PHOBOS_V`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
+Priority: optional
+Depends: BASELDEP, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: Phobos D standard library (runtime library)
+ This is the Phobos standard library that comes with the D2 compiler.
+ .
+ For more information check http://www.dlang.org/phobos/
+
+Package: libhfgphobos`'PHOBOS_V-dbg`'LS
+Section: debug
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
+Priority: optional
+Depends: BASELDEP, libhfgphobos`'PHOBOS_V`'LS (= ${gdc:Version}), ${misc:Depends}
+BUILT_USING`'dnl
+Description: Phobos D standard library (debug symbols)
+ This is the Phobos standard library that comes with the D2 compiler.
+ .
+ For more information check http://www.dlang.org/phobos/
+
+Package: libsfgphobos`'PV-dev`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
 Section: libdevel
 Priority: optional
-Depends: BASELDEP, libdevdep(gcc`'PV-dev,sf), ${shlibs:Depends}, ${misc:Depends}
+Depends: BASELDEP, libsfgphobos`'PHOBOS_V`'LS (>= ${gdc:Version}),
+  libdevdep(gcc`'PV-dev,sf), ${shlibs:Depends}, ${misc:Depends}
+Replaces: libsfphobos`'PV-dev`'LS
 BUILT_USING`'dnl
 Description: Phobos D standard library (soft float ABI development files)
+ This is the Phobos standard library that comes with the D2 compiler.
+ .
+ For more information check http://www.dlang.org/phobos/
+
+Package: libsfgphobos`'PHOBOS_V`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
+Priority: optional
+Depends: BASELDEP, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: Phobos D standard library (runtime library)
+ This is the Phobos standard library that comes with the D2 compiler.
+ .
+ For more information check http://www.dlang.org/phobos/
+
+Package: libsfgphobos`'PHOBOS_V-dbg`'LS
+Section: debug
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
+Priority: optional
+Depends: BASELDEP, libsfgphobos`'PHOBOS_V`'LS (= ${gdc:Version}), ${misc:Depends}
+BUILT_USING`'dnl
+Description: Phobos D standard library (debug symbols)
  This is the Phobos standard library that comes with the D2 compiler.
  .
  For more information check http://www.dlang.org/phobos/
@@ -5305,7 +5479,7 @@ ifenabled(`source',`
 Package: gcc`'PV-source
 Architecture: all
 Priority: PRI(optional)
-Depends: make, autoconf2.64, quilt, patchutils, gawk, ${misc:Depends}
+Depends: make, autoconf2.64, quilt, patchutils, sharutils, gawk, ${misc:Depends}
 Description: Source of the GNU Compiler Collection
  This package contains the sources and patches which are needed to
  build the GNU Compiler Collection (GCC).

@@ -18,15 +18,9 @@ Index: b/src/libgfortran/Makefile.in
 ===================================================================
 --- a/src/libgfortran/Makefile.in
 +++ b/src/libgfortran/Makefile.in
-@@ -608,17 +608,17 @@ libgfortran_la_LDFLAGS = -version-info `
+@@ -604,12 +604,12 @@ libgfortran_la_LDFLAGS = -version-info `
  
  libgfortran_la_DEPENDENCIES = $(version_dep) libgfortran.spec $(LIBQUADLIB_DEP)
- myexeclib_LTLIBRARIES = libgfortranbegin.la
--myexeclibdir = $(libdir)/gcc/$(target_alias)/$(gcc_version)$(MULTISUBDIR)
-+myexeclibdir = $(libdir)/gcc-cross/$(target_alias)/$(gcc_version)$(MULTISUBDIR)
- libgfortranbegin_la_SOURCES = fmain.c
- libgfortranbegin_la_LDFLAGS = -static
- libgfortranbegin_la_LINK = $(LINK) $(libgfortranbegin_la_LDFLAGS)
  cafexeclib_LTLIBRARIES = libcaf_single.la
 -cafexeclibdir = $(libdir)/gcc/$(target_alias)/$(gcc_version)$(MULTISUBDIR)
 +cafexeclibdir = $(libdir)/gcc-cross/$(target_alias)/$(gcc_version)$(MULTISUBDIR)
@@ -43,15 +37,8 @@ Index: b/src/libgfortran/Makefile.am
 ===================================================================
 --- a/src/libgfortran/Makefile.am
 +++ b/src/libgfortran/Makefile.am
-@@ -42,20 +42,20 @@ libgfortran_la_LDFLAGS = -version-info `
+@@ -43,14 +43,14 @@ libgfortran_la_LDFLAGS = -version-info `
  libgfortran_la_DEPENDENCIES = $(version_dep) libgfortran.spec $(LIBQUADLIB_DEP)
- 
- myexeclib_LTLIBRARIES = libgfortranbegin.la
--myexeclibdir = $(libdir)/gcc/$(target_alias)/$(gcc_version)$(MULTISUBDIR)
-+myexeclibdir = $(libdir)/gcc-cross/$(target_alias)/$(gcc_version)$(MULTISUBDIR)
- libgfortranbegin_la_SOURCES = fmain.c
- libgfortranbegin_la_LDFLAGS = -static
- libgfortranbegin_la_LINK = $(LINK) $(libgfortranbegin_la_LDFLAGS)
  
  cafexeclib_LTLIBRARIES = libcaf_single.la
 -cafexeclibdir = $(libdir)/gcc/$(target_alias)/$(gcc_version)$(MULTISUBDIR)
@@ -71,7 +58,7 @@ Index: b/src/lto-plugin/Makefile.in
 ===================================================================
 --- a/src/lto-plugin/Makefile.in
 +++ b/src/lto-plugin/Makefile.in
-@@ -229,7 +229,7 @@ with_libiberty = @with_libiberty@
+@@ -255,7 +255,7 @@ with_libiberty = @with_libiberty@
  ACLOCAL_AMFLAGS = -I .. -I ../config
  AUTOMAKE_OPTIONS = no-dependencies
  gcc_version := $(shell cat $(top_srcdir)/../gcc/BASE-VER)
@@ -97,7 +84,7 @@ Index: b/src/libitm/Makefile.in
 ===================================================================
 --- a/src/libitm/Makefile.in
 +++ b/src/libitm/Makefile.in
-@@ -306,8 +306,8 @@ SUBDIRS = testsuite
+@@ -334,8 +334,8 @@ SUBDIRS = testsuite
  gcc_version := $(shell cat $(top_srcdir)/../gcc/BASE-VER)
  abi_version = -fabi-version=4
  search_path = $(addprefix $(top_srcdir)/config/, $(config_path)) $(top_srcdir)
@@ -127,7 +114,7 @@ Index: b/src/gcc/gcc.c
 ===================================================================
 --- a/src/gcc/gcc.c
 +++ b/src/gcc/gcc.c
-@@ -3970,7 +3970,7 @@ process_command (unsigned int decoded_op
+@@ -4179,7 +4179,7 @@ process_command (unsigned int decoded_op
  	 GCC_EXEC_PREFIX is typically a directory name with a trailing
  	 / (which is ignored by make_relative_prefix), so append a
  	 program name.  */
@@ -136,7 +123,7 @@ Index: b/src/gcc/gcc.c
        gcc_libexec_prefix = get_relative_prefix (tmp_prefix,
  						standard_exec_prefix,
  						standard_libexec_prefix);
-@@ -3996,15 +3996,15 @@ process_command (unsigned int decoded_op
+@@ -4205,15 +4205,15 @@ process_command (unsigned int decoded_op
      {
        int len = strlen (gcc_exec_prefix);
  
@@ -160,7 +147,7 @@ Index: b/src/gcc/Makefile.in
 ===================================================================
 --- a/src/gcc/Makefile.in
 +++ b/src/gcc/Makefile.in
-@@ -581,9 +581,9 @@ libexecdir = @libexecdir@
+@@ -592,9 +592,9 @@ libexecdir = @libexecdir@
  # --------
  
  # Directory in which the compiler finds libraries etc.
@@ -172,7 +159,7 @@ Index: b/src/gcc/Makefile.in
  # Directory in which all plugin resources are installed
  plugin_resourcesdir = $(libsubdir)/plugin
   # Directory in which plugin headers are installed
-@@ -1971,8 +1971,8 @@ prefix.o: $(FULLVER)
+@@ -2017,8 +2017,8 @@ prefix.o: $(FULLVER)
  
  DRIVER_DEFINES = \
    -DSTANDARD_STARTFILE_PREFIX=\"$(unlibsubdir)/\" \
@@ -183,7 +170,7 @@ Index: b/src/gcc/Makefile.in
    -DDEFAULT_TARGET_VERSION=\"$(BASEVER_c)\" \
    -DDEFAULT_TARGET_FULL_VERSION=\"$(FULLVER_c)\" \
    -DDEFAULT_REAL_TARGET_MACHINE=\"$(real_target_noncanonical)\" \
-@@ -2594,7 +2594,7 @@ PREPROCESSOR_DEFINES = \
+@@ -2671,7 +2671,7 @@ PREPROCESSOR_DEFINES = \
    -DTOOL_INCLUDE_DIR=\"$(gcc_tooldir)/include\" \
    -DNATIVE_SYSTEM_HEADER_DIR=\"$(NATIVE_SYSTEM_HEADER_DIR)\" \
    -DPREFIX=\"$(prefix)/\" \
@@ -196,7 +183,7 @@ Index: b/src/libssp/Makefile.in
 ===================================================================
 --- a/src/libssp/Makefile.in
 +++ b/src/libssp/Makefile.in
-@@ -259,7 +259,7 @@ gcc_version := $(shell cat $(top_srcdir)
+@@ -287,7 +287,7 @@ gcc_version := $(shell cat $(top_srcdir)
  @LIBSSP_USE_SYMVER_SUN_TRUE@@LIBSSP_USE_SYMVER_TRUE@version_dep = ssp.map-sun
  AM_CFLAGS = -Wall
  toolexeclib_LTLIBRARIES = libssp.la libssp_nonshared.la
@@ -222,7 +209,7 @@ Index: b/src/libquadmath/Makefile.in
 ===================================================================
 --- a/src/libquadmath/Makefile.in
 +++ b/src/libquadmath/Makefile.in
-@@ -325,7 +325,7 @@ AUTOMAKE_OPTIONS = 1.8 foreign
+@@ -354,7 +354,7 @@ AUTOMAKE_OPTIONS = 1.8 foreign
  
  @BUILD_LIBQUADMATH_TRUE@libquadmath_la_DEPENDENCIES = $(version_dep) $(libquadmath_la_LIBADD)
  @BUILD_LIBQUADMATH_TRUE@nodist_libsubinclude_HEADERS = quadmath.h quadmath_weak.h
@@ -274,7 +261,7 @@ Index: b/src/libgomp/Makefile.in
 ===================================================================
 --- a/src/libgomp/Makefile.in
 +++ b/src/libgomp/Makefile.in
-@@ -368,8 +368,8 @@ gcc_version := $(shell cat $(top_srcdir)
+@@ -386,8 +386,8 @@ gcc_version := $(shell cat $(top_srcdir)
  search_path = $(addprefix $(top_srcdir)/config/, $(config_path)) $(top_srcdir) \
  	      $(top_srcdir)/../include
  
@@ -304,12 +291,12 @@ Index: b/src/libgcc/Makefile.in
 ===================================================================
 --- a/src/libgcc/Makefile.in
 +++ b/src/libgcc/Makefile.in
-@@ -185,7 +185,7 @@ STRIP = @STRIP@
+@@ -186,7 +186,7 @@ STRIP = @STRIP@
  STRIP_FOR_TARGET = $(STRIP)
  
  # Directory in which the compiler finds libraries etc.
--libsubdir = $(libdir)/gcc/$(host_noncanonical)/$(version)@accel_dir_suffix@
-+libsubdir = $(libdir)/gcc-cross/$(host_noncanonical)/$(version)@accel_dir_suffix@
+-libsubdir = $(libdir)/gcc/$(real_host_noncanonical)/$(version)@accel_dir_suffix@
++libsubdir = $(libdir)/gcc-cross/$(real_host_noncanonical)/$(version)@accel_dir_suffix@
  # Used to install the shared libgcc.
  slibdir = @slibdir@
  # Maybe used for DLLs on Windows targets.
@@ -317,7 +304,7 @@ Index: b/src/libjava/Makefile.in
 ===================================================================
 --- a/src/libjava/Makefile.in
 +++ b/src/libjava/Makefile.in
-@@ -797,8 +797,8 @@ write_entries_to_file = $(shell rm -f $(
+@@ -825,8 +825,8 @@ write_entries_to_file = $(shell rm -f $(
  
  
  # This is required by TL_AC_GXX_INCLUDE_DIR.
@@ -360,7 +347,7 @@ Index: b/src/libffi/include/Makefile.in
 ===================================================================
 --- a/src/libffi/include/Makefile.in
 +++ b/src/libffi/include/Makefile.in
-@@ -223,7 +223,7 @@ EXTRA_DIST = ffi.h.in
+@@ -251,7 +251,7 @@ EXTRA_DIST = ffi.h.in
  
  # Where generated headers like ffitarget.h get installed.
  gcc_version := $(shell cat $(top_srcdir)/../gcc/BASE-VER)
@@ -386,7 +373,7 @@ Index: b/src/libcc1/Makefile.in
 ===================================================================
 --- a/src/libcc1/Makefile.in
 +++ b/src/libcc1/Makefile.in
-@@ -262,7 +262,7 @@ libiberty = $(if $(wildcard $(libiberty_
+@@ -290,7 +290,7 @@ libiberty = $(if $(wildcard $(libiberty_
  	    $(Wc)$(libiberty_normal)))
  
  libiberty_dep = $(patsubst $(Wc)%,%,$(libiberty))
@@ -411,7 +398,7 @@ Index: b/src/libsanitizer/Makefile.in
 ===================================================================
 --- a/src/libsanitizer/Makefile.in
 +++ b/src/libsanitizer/Makefile.in
-@@ -255,7 +255,7 @@ top_build_prefix = @top_build_prefix@
+@@ -285,7 +285,7 @@ top_build_prefix = @top_build_prefix@
  top_builddir = @top_builddir@
  top_srcdir = @top_srcdir@
  ACLOCAL_AMFLAGS = -I .. -I ../config

@@ -48,6 +48,8 @@ $(stampdir)/ecj_binaries: $(install_snap_stamp)
 	  python $(builddir)/aot/aot-compile \
 	    --gcj=$(CURDIR)/$(d)/$(PF)/bin/gcj \
 	    --dbtool=$(CURDIR)/$(d)/$(PF)/bin/gcj-dbtool \
+	    --makeflags="$(NJOBS)" \
+	    --ldflags="$(LDFLAGS)" \
 	    $(builddir)/aot/jar $(builddir)/aot/bin
 	touch $@
 

@@ -93,7 +93,7 @@ Index: b/src/gcc/Makefile.in
 ===================================================================
 --- a/src/gcc/Makefile.in
 +++ b/src/gcc/Makefile.in
-@@ -2881,8 +2881,32 @@ install-no-fixedincludes:
+@@ -2961,8 +2961,33 @@ install-no-fixedincludes:
  
  doc: $(BUILD_INFO) $(GENERATED_MANPAGES)
  
@@ -118,6 +118,7 @@ Index: b/src/gcc/Makefile.in
 +               -D 'fngcc $(INFO_GCC_NAME)' \
 +               -D 'fngcov $(INFO_GCC_NAME)' \
 +               -D 'fngcovtool $(INFO_GCC_NAME)' \
++               -D 'fngcovdump $(INFO_GCC_NAME)' \
 +               -D 'fngxx $(INFO_GXX_NAME)' \
 +               -D 'fngccint $(INFO_GCCINT_NAME)' \
 +               -D 'fngccinstall $(INFO_GCCINSTALL_NAME)' \
@@ -128,7 +129,7 @@ Index: b/src/gcc/Makefile.in
  
  info: $(INFOFILES) lang.info @GENINSRC@ srcinfo lang.srcinfo
  
-@@ -2929,7 +2953,19 @@ gcc-vers.texi: $(BASEVER) $(DEVPHASE)
+@@ -3009,7 +3034,21 @@ gcc-vers.texi: $(BASEVER) $(DEVPHASE)
  	if [ -n "$(PKGVERSION)" ]; then \
  	  echo "@set VERSION_PACKAGE $(PKGVERSION)" >> $@T; \
  	fi
@@ -138,6 +139,8 @@ Index: b/src/gcc/Makefile.in
 +	  echo '@set fncpp $(INFO_CPP_NAME)'; \
 +	  echo '@set fngcc $(INFO_GCC_NAME)'; \
 +	  echo '@set fngcov $(INFO_GCC_NAME)'; \
++	  echo '@set fngcovtool $(INFO_GCC_NAME)'; \
++	  echo '@set fngcovdump $(INFO_GCC_NAME)'; \
 +	  echo '@set fngxx $(INFO_GXX_NAME)'; \
 +	  echo '@set fngccint $(INFO_GCCINT_NAME)'; \
 +	  echo '@set fngccinstall $(INFO_GCCINSTALL_NAME)'; \
@@ -149,7 +152,7 @@ Index: b/src/gcc/Makefile.in
  	mv -f $@T $@
  
  
-@@ -2937,21 +2973,41 @@ gcc-vers.texi: $(BASEVER) $(DEVPHASE)
+@@ -3017,21 +3056,41 @@ gcc-vers.texi: $(BASEVER) $(DEVPHASE)
  # patterns.  To use them, put each of the specific targets with its
  # specific dependencies but no build commands.
  
@@ -198,7 +201,7 @@ Index: b/src/gcc/Makefile.in
  			-I $(gcc_docdir)/include -o $@ $<; \
  	fi
  
-@@ -3356,11 +3412,11 @@ install-driver: installdirs xgcc$(exeext
+@@ -3443,11 +3502,11 @@ install-driver: installdirs xgcc$(exeext
  # $(INSTALL_DATA) might be a relative pathname, so we can't cd into srcdir
  # to do the install.
  install-info:: doc installdirs \
@@ -215,7 +218,7 @@ Index: b/src/gcc/Makefile.in
  	lang.install-info
  
  $(DESTDIR)$(infodir)/%.info: doc/%.info installdirs
-@@ -3581,8 +3637,11 @@ uninstall: lang.uninstall
+@@ -3668,8 +3727,11 @@ uninstall: lang.uninstall
  	-rm -rf $(DESTDIR)$(bindir)/$(GCOV_INSTALL_NAME)$(exeext)
  	-rm -rf $(DESTDIR)$(man1dir)/$(GCC_INSTALL_NAME)$(man1ext)
  	-rm -rf $(DESTDIR)$(man1dir)/cpp$(man1ext)
@@ -326,7 +329,7 @@ Index: b/src/gcc/ada/gnat-style.texi
  @dircategory Software development
  @direntry
 -* gnat-style: (gnat-style).      GNAT Coding Style
-+* gnat-style: (gnat-style-5).      GNAT Coding Style
++* gnat-style: (gnat-style-6).      GNAT Coding Style
  @end direntry
  
  @macro syntax{element}
@@ -339,7 +342,7 @@ Index: b/src/gcc/ada/gnat_rm.texi
  @dircategory GNU Ada Tools 
  @direntry
 -* gnat_rm: (gnat_rm.info). gnat_rm
-+* GNAT Reference Manual: (gnat_rm-5).  Reference Manual for GNU Ada tools.
++* GNAT Reference Manual: (gnat_rm-6).  Reference Manual for GNU Ada tools.
  @end direntry
  
  @definfoenclose strong,`,'
@@ -347,7 +350,7 @@ Index: b/src/gcc/doc/invoke.texi
 ===================================================================
 --- a/src/gcc/doc/invoke.texi
 +++ b/src/gcc/doc/invoke.texi
-@@ -11208,7 +11208,7 @@ One of the standard libraries bypassed b
+@@ -10585,7 +10585,7 @@ One of the standard libraries bypassed b
  @option{-nodefaultlibs} is @file{libgcc.a}, a library of internal subroutines
  which GCC uses to overcome shortcomings of particular machines, or special
  needs for some languages.
@@ -356,7 +359,7 @@ Index: b/src/gcc/doc/invoke.texi
  Collection (GCC) Internals},
  for more discussion of @file{libgcc.a}.)
  In most cases, you need @file{libgcc.a} even when you want to avoid
-@@ -11217,7 +11217,7 @@ or @option{-nodefaultlibs} you should us
+@@ -10594,7 +10594,7 @@ or @option{-nodefaultlibs} you should us
  This ensures that you have no unresolved references to internal GCC
  library subroutines.
  (An example of such an internal subroutine is @code{__main}, used to ensure C++
@@ -365,7 +368,7 @@ Index: b/src/gcc/doc/invoke.texi
  GNU Compiler Collection (GCC) Internals}.)
  
  @item -pie
-@@ -24022,7 +24022,7 @@ Note that you can also specify places to
+@@ -25102,7 +25102,7 @@ Note that you can also specify places to
  @option{-B}, @option{-I} and @option{-L} (@pxref{Directory Options}).  These
  take precedence over places specified using environment variables, which
  in turn take precedence over those specified by the configuration of GCC@.
@@ -374,7 +377,7 @@ Index: b/src/gcc/doc/invoke.texi
  GNU Compiler Collection (GCC) Internals}.
  
  @table @env
-@@ -24182,7 +24182,7 @@ the headers it contains change.
+@@ -25262,7 +25262,7 @@ the headers it contains change.
  
  A precompiled header file is searched for when @code{#include} is
  seen in the compilation.  As it searches for the included file
@@ -387,7 +390,7 @@ Index: b/src/gcc/doc/extend.texi
 ===================================================================
 --- a/src/gcc/doc/extend.texi
 +++ b/src/gcc/doc/extend.texi
-@@ -18397,7 +18397,7 @@ want to write code that checks whether t
+@@ -20136,7 +20136,7 @@ want to write code that checks whether t
  test for the GNU compiler the same way as for C programs: check for a
  predefined macro @code{__GNUC__}.  You can also use @code{__GNUG__} to
  test specifically for GNU C++ (@pxref{Common Predefined Macros,,
@@ -400,7 +403,7 @@ Index: b/src/gcc/doc/standards.texi
 ===================================================================
 --- a/src/gcc/doc/standards.texi
 +++ b/src/gcc/doc/standards.texi
-@@ -286,8 +286,8 @@ described at @uref{http://golang.org/doc
+@@ -313,8 +313,8 @@ described at @uref{http://golang.org/doc
  GNAT Reference Manual}, for information on standard
  conformance and compatibility of the Ada compiler.
  
@@ -545,7 +548,7 @@ Index: b/src/libgomp/Makefile.in
 ===================================================================
 --- a/src/libgomp/Makefile.in
 +++ b/src/libgomp/Makefile.in
-@@ -445,7 +445,8 @@ info_TEXINFOS = libgomp.texi
+@@ -484,7 +484,8 @@ info_TEXINFOS = libgomp.texi
  
  # AM_CONDITIONAL on configure check ACX_CHECK_PROG_VER([MAKEINFO])
  @BUILD_INFO_TRUE@STAMP_BUILD_INFO = stamp-build-info
@@ -555,7 +558,7 @@ Index: b/src/libgomp/Makefile.in
  MAINTAINERCLEANFILES = $(srcdir)/libgomp.info
  all: config.h
  	$(MAKE) $(AM_MAKEFLAGS) all-recursive
-@@ -1235,15 +1236,16 @@ env.lo: libgomp_f.h
+@@ -1296,15 +1297,16 @@ env.lo: libgomp_f.h
  env.o: libgomp_f.h
  
  all-local: $(STAMP_GENINSRC)
@@ -649,7 +652,7 @@ Index: b/src/libitm/Makefile.in
 ===================================================================
 --- a/src/libitm/Makefile.in
 +++ b/src/libitm/Makefile.in
-@@ -1057,14 +1057,17 @@ vpath % $(strip $(search_path))
+@@ -1103,14 +1103,17 @@ vpath % $(strip $(search_path))
  
  all-local: $(STAMP_GENINSRC)
  
@@ -675,7 +678,7 @@ Index: b/src/gcc/go/Make-lang.in
 ===================================================================
 --- a/src/gcc/go/Make-lang.in
 +++ b/src/gcc/go/Make-lang.in
-@@ -85,10 +85,11 @@ GO_TEXI_FILES = \
+@@ -86,10 +86,11 @@ GO_TEXI_FILES = \
  	$(gcc_docdir)/include/gcc-common.texi \
  	gcc-vers.texi
  
@@ -690,7 +693,7 @@ Index: b/src/gcc/go/Make-lang.in
  		-I $(gcc_docdir)/include -o $@ $<; \
  	else true; fi
  
-@@ -114,7 +115,7 @@ gccgo.pod: go/gccgo.texi
+@@ -115,7 +116,7 @@ gccgo.pod: go/gccgo.texi
  go.all.cross: gccgo-cross$(exeext)
  go.start.encap: gccgo$(exeext)
  go.rest.encap:
@@ -699,7 +702,7 @@ Index: b/src/gcc/go/Make-lang.in
  go.dvi: doc/gccgo.dvi
  go.pdf: doc/gccgo.pdf
  go.html: $(build_htmldir)/go/index.html
-@@ -150,7 +151,7 @@ go.install-common: installdirs
+@@ -151,7 +152,7 @@ go.install-common: installdirs
  
  go.install-plugin:
  
@@ -708,7 +711,7 @@ Index: b/src/gcc/go/Make-lang.in
  
  go.install-pdf: doc/gccgo.pdf
  	@$(NORMAL_INSTALL)
-@@ -190,7 +191,7 @@ go.uninstall:
+@@ -191,7 +192,7 @@ go.uninstall:
  	rm -rf $(DESTDIR)$(bindir)/$(GCCGO_INSTALL_NAME)$(exeext)
  	rm -rf $(DESTDIR)$(man1dir)/$(GCCGO_INSTALL_NAME)$(man1ext)
  	rm -rf $(DESTDIR)$(bindir)/$(GCCGO_TARGET_INSTALL_NAME)$(exeext)
@@ -791,7 +794,7 @@ Index: b/src/libquadmath/Makefile.in
 ===================================================================
 --- a/src/libquadmath/Makefile.in
 +++ b/src/libquadmath/Makefile.in
-@@ -169,7 +169,8 @@ MULTIDIRS =
+@@ -193,7 +193,8 @@ MULTIDIRS =
  MULTISUBDIR = 
  MULTIDO = true
  MULTICLEAN = true
@@ -801,7 +804,7 @@ Index: b/src/libquadmath/Makefile.in
  am__TEXINFO_TEX_DIR = $(srcdir)/../gcc/doc/include
  DVIS = libquadmath.dvi
  PDFS = libquadmath.pdf
-@@ -406,8 +407,8 @@ AUTOMAKE_OPTIONS = 1.8 foreign
+@@ -435,8 +436,8 @@ AUTOMAKE_OPTIONS = 1.8 foreign
  
  # AM_CONDITIONAL on configure check ACX_CHECK_PROG_VER([MAKEINFO])
  @BUILD_INFO_TRUE@@BUILD_LIBQUADMATH_TRUE@STAMP_BUILD_INFO = stamp-build-info
@@ -812,7 +815,7 @@ Index: b/src/libquadmath/Makefile.in
  
  # Automake Documentation:
  # If your package has Texinfo files in many directories, you can use the
-@@ -1466,17 +1467,17 @@ uninstall-am: uninstall-dvi-am uninstall
+@@ -1517,17 +1518,17 @@ uninstall-am: uninstall-dvi-am uninstall
  
  @BUILD_LIBQUADMATH_TRUE@all-local: $(STAMP_GENINSRC)
  

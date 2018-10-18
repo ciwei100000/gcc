@@ -108,8 +108,8 @@ dirs_jdk = \
 	$(jvm_dir)/bin
 
 files_jdk = \
-	$(PF)/bin/{gappletviewer,gjdoc,gc-analyze,gjar,gjarsigner,gcjh,gjavah,gnative2ascii,grmic,gserialver,jv-convert,jcf-dump}$(pkg_ver) \
-	$(PF)/share/man/man1/{gappletviewer,gjdoc,gjar,gjarsigner,gcjh,gjavah,gnative2ascii,gserialver}$(pkg_ver).1 \
+	$(PF)/bin/$(cmd_prefix){gappletviewer,gjdoc,gc-analyze,gjar,gjarsigner,gcjh,gjavah,gnative2ascii,grmic,gserialver,jv-convert,jcf-dump}$(pkg_ver) \
+	$(PF)/share/man/man1/$(cmd_prefix){gappletviewer,gjdoc,gjar,gjarsigner,gcjh,gjavah,gnative2ascii,gserialver}$(pkg_ver).1 \
 	$(gcc_lib_dir)/include/{jni.h,jni_md.h,jvmpi.h} \
 	$(gcc_lib_dir)/include/{jawt.h,jawt_md.h} \
 	$(gcc_lib_dir)/include/gcj/libgcj-config.h \
@@ -121,7 +121,7 @@ files_jdk = \
 ifneq ($(GFDL_INVARIANT_FREE),yes)
   files_jdk += \
 	$(PF)/share/info/gcj* \
-	$(PF)/share/man/man1/{gc-analyze,grmic,jv-convert,jcf-dump}$(pkg_ver).1
+	$(PF)/share/man/man1/$(cmd_prefix){gc-analyze,grmic,jv-convert,jcf-dump}$(pkg_ver).1
 endif
 
 dirs_jrehl = \
@@ -134,8 +134,8 @@ dirs_jrehl = \
 	var/lib/gcj$(pkg_ver)
 
 files_jrehl = \
-	$(PF)/bin/{gij,gcj-dbtool,gorbd,grmid,grmiregistry,gkeytool,gtnameserv}$(pkg_ver) \
-	$(PF)/share/man/man1/{gorbd,grmid,grmiregistry,gkeytool,gtnameserv}$(pkg_ver).1 \
+	$(PF)/bin/$(cmd_prefix){gij,gcj-dbtool,gorbd,grmid,grmiregistry,gkeytool,gtnameserv}$(pkg_ver) \
+	$(PF)/share/man/man1/$(cmd_prefix){gorbd,grmid,grmiregistry,gkeytool,gtnameserv}$(pkg_ver).1 \
 	$(jvm_dir)/jre/bin \
 	$(jvm_dir)/bin/{java,keytool,orbd,rmid,rmiregistry,tnameserv} \
 	$(jvm_dir)/jre/lib/rt.jar \
@@ -144,7 +144,7 @@ files_jrehl = \
 
 ifneq ($(GFDL_INVARIANT_FREE),yes)
   files_jrehl += \
-	$(PF)/share/man/man1/{gij,gcj-dbtool}$(pkg_ver).1
+	$(PF)/share/man/man1/$(cmd_prefix){gij,gcj-dbtool}$(pkg_ver).1
 endif
 
 dirs_jre = \
@@ -226,7 +226,7 @@ ifeq ($(with_standalone_gcj),yes)
 
 # XXX: what about triarch mapping?
   files_gcj += \
-	$(PF)/bin/{cpp,gcc,gcov}$(pkg_ver) \
+	$(PF)/bin/$(cmd_prefix){cpp,gcc,gcov}$(pkg_ver) \
 	$(gcc_lexec_dir)/{collect2,lto1,lto-wrapper} \
 	$(gcc_lexec_dir)/liblto_plugin.so{,.0,.0.0.0} \
 	$(gcc_lib_dir)/{libgcc*,libgcov.a,*.o} \
@@ -236,7 +236,7 @@ ifeq ($(with_standalone_gcj),yes)
 
   ifneq ($(GFDL_INVARIANT_FREE),yes)
     files_gcj += \
-	$(PF)/share/man/man1/{cpp,gcc,gcov}$(pkg_ver).1
+	$(PF)/share/man/man1/$(cmd_prefix){cpp,gcc,gcov}$(pkg_ver).1
   endif
 
   ifeq ($(biarch64),yes)
@@ -287,12 +287,12 @@ ifeq ($(with_external_ecj1),yes)
 	dh_link -p$(p_gcj) \
 		/$(PF)/lib/$(DEB_HOST_MULTIARCH)/gcc/ecj1 /$(gcc_lexec_dir)/ecj1
 endif
-ifneq ($(DEB_CROSS),yes)
-	ln -sf gcj$(pkg_ver) \
-	    $(d_gcj)/$(PF)/bin/$(TARGET_ALIAS)-gcj$(pkg_ver)
+ifeq ($(unprefixed_names),yes)
+	ln -sf $(cmd_prefix)gcj$(pkg_ver) \
+	    $(d_gcj)/$(PF)/bin/gcj$(pkg_ver)
   ifneq ($(GFDL_INVARIANT_FREE),yes)
-	ln -sf gcj$(pkg_ver).1 \
-	    $(d_gcj)/$(PF)/share/man/man1/$(TARGET_ALIAS)-gcj$(pkg_ver).1
+	ln -sf $(cmd_prefix)gcj$(pkg_ver).1.gz \
+	    $(d_gcj)/$(PF)/share/man/man1/gcj$(pkg_ver).1.gz
   endif
 endif
 
@@ -427,22 +427,39 @@ $(binary_stamp)-java: $(install_stamp)
 #	$(dh_compat2) dh_movefiles -p$(p_jqt) $(files_jqt)
 #endif
 
+ifeq ($(unprefixed_names),yes)
+	for i in gij gcj-dbtool gorbd grmid grmiregistry gkeytool gtnameserv; do \
+	  ln -sf $(cmd_prefix)$$i$(pkg_ver) \
+	    $(d_jrehl)/$(PF)/bin/$$i$(pkg_ver); \
+	done
+	for i in gorbd grmid grmiregistry gkeytool gtnameserv; do \
+	  ln -sf $(cmd_prefix)$$i$(pkg_ver).1.gz \
+	    $(d_jrehl)/$(PF)/share/man/man1/$$i$(pkg_ver).1.gz; \
+	done
+  ifneq ($(GFDL_INVARIANT_FREE),yes)
+	for i in gij gcj-dbtool; do \
+	  ln -sf $(cmd_prefix)$$i$(pkg_ver).1.gz \
+	    $(d_jrehl)/$(PF)/share/man/man1/$$i$(pkg_ver).1.gz; \
+	done
+  endif
+endif
+
 	dh_link -p$(p_jrehl) \
 	  $(jvm_dir) $(PF)/lib/jvm/java-gcj$(pkg_ver) \
-	  $(PF)/bin/gij$(pkg_ver) $(jvm_dir)/bin/gij \
-	  $(PF)/bin/gij$(pkg_ver) $(jvm_dir)/jre/bin/gij \
-	  $(PF)/bin/gcj-dbtool$(pkg_ver) $(jvm_dir)/bin/gcj-dbtool \
-	  $(PF)/bin/gcj-dbtool$(pkg_ver) $(jvm_dir)/jre/bin/gcj-dbtool \
-	  $(PF)/share/man/man1/gkeytool$(pkg_ver).1 $(jvm_dir)/man/man1/keytool.1 \
-	  $(PF)/share/man/man1/gorbd$(pkg_ver).1 $(jvm_dir)/man/man1/orbd.1 \
-	  $(PF)/share/man/man1/grmid$(pkg_ver).1 $(jvm_dir)/man/man1/rmid.1 \
-	  $(PF)/share/man/man1/grmiregistry$(pkg_ver).1 $(jvm_dir)/man/man1/rmiregistry.1 \
-	  $(PF)/share/man/man1/gtnameserv$(pkg_ver).1 $(jvm_dir)/man/man1/tnameserv.1 \
+	  $(PF)/bin/$(cmd_prefix)gij$(pkg_ver) $(jvm_dir)/bin/gij \
+	  $(PF)/bin/$(cmd_prefix)gij$(pkg_ver) $(jvm_dir)/jre/bin/gij \
+	  $(PF)/bin/$(cmd_prefix)gcj-dbtool$(pkg_ver) $(jvm_dir)/bin/gcj-dbtool \
+	  $(PF)/bin/$(cmd_prefix)gcj-dbtool$(pkg_ver) $(jvm_dir)/jre/bin/gcj-dbtool \
+	  $(PF)/share/man/man1/$(cmd_prefix)gkeytool$(pkg_ver).1 $(jvm_dir)/man/man1/keytool.1 \
+	  $(PF)/share/man/man1/$(cmd_prefix)gorbd$(pkg_ver).1 $(jvm_dir)/man/man1/orbd.1 \
+	  $(PF)/share/man/man1/$(cmd_prefix)grmid$(pkg_ver).1 $(jvm_dir)/man/man1/rmid.1 \
+	  $(PF)/share/man/man1/$(cmd_prefix)grmiregistry$(pkg_ver).1 $(jvm_dir)/man/man1/rmiregistry.1 \
+	  $(PF)/share/man/man1/$(cmd_prefix)gtnameserv$(pkg_ver).1 $(jvm_dir)/man/man1/tnameserv.1 \
 
 ifneq ($(GFDL_INVARIANT_FREE),yes)
 	dh_link -p$(p_jrehl) \
-	  $(PF)/share/man/man1/gij$(pkg_ver).1 $(jvm_dir)/man/man1/java.1 \
-	  $(PF)/share/man/man1/grmic$(pkg_ver).1 $(jvm_dir)/man/man1/rmiregistry.1
+	  $(PF)/share/man/man1/$(cmd_prefix)gij$(pkg_ver).1 $(jvm_dir)/man/man1/java.1 \
+	  $(PF)/share/man/man1/$(cmd_prefix)grmic$(pkg_ver).1 $(jvm_dir)/man/man1/rmiregistry.1
 endif
 
 ifneq ($(DEB_TARGET_ARCH_CPU),$(java_cpu))
@@ -462,9 +479,15 @@ endif
 	  $(foreach i, jawt, $(gcj_vlibdir)/lib$(i).so $(jvm_dir)/lib/lib$(i).so)
 
 ifeq ($(DEB_HOST_ARCH),hppa)
-	mv $(d_jrehl)/$(PF)/bin/gij$(pkg_ver) \
-		$(d_jrehl)/$(PF)/bin/gij$(pkg_ver).bin
-	install -m755 debian/gij-hppa $(d_jrehl)/$(PF)/bin/gij$(pkg_ver)
+	mv $(d_jrehl)/$(PF)/bin/$(cmd_prefix)gij$(pkg_ver) \
+		$(d_jrehl)/$(PF)/bin/$(cmd_prefix)gij$(pkg_ver).bin
+	install -m755 debian/gij-hppa $(d_jrehl)/$(PF)/bin/$(cmd_prefix)gij$(pkg_ver)
+  ifeq ($(unprefixed_names),yes)
+	ln -sf $(cmd_prefix)gij$(pkg_ver) \
+	    $(d_jrehl)/$(PF)/bin/gij$(pkg_ver)
+	ln -sf $(cmd_prefix)gij$(pkg_ver).bin \
+	    $(d_jrehl)/$(PF)/bin/gij$(pkg_ver).bin
+  endif
 endif
 
 	ln -s ../libgcj.so.$(GCJ_SONAME) \
@@ -614,13 +637,30 @@ endif
 	  $(PF)/share/man/man1/ecj.1.gz $(jvm_dir)/man/man1/javac.1.gz \
 	  $(PF)/share/man/man1/fastjar.1.gz $(jvm_dir)/man/man1/jar.1.gz
 
+ifeq ($(unprefixed_names),yes)
+	for i in gappletviewer gjdoc gc-analyze gjar gjarsigner gcjh gjavah gnative2ascii grmic gserialver jv-convert jcf-dump; do \
+	  ln -sf $(cmd_prefix)$$i$(pkg_ver) \
+	    $(d_jdk)/$(PF)/bin/$$i$(pkg_ver); \
+	done
+	for i in gappletviewer gjdoc gjar gjarsigner gcjh gjavah gnative2ascii gserialver; do \
+	  ln -sf $(cmd_prefix)$$i$(pkg_ver).1.gz \
+	    $(d_jdk)/$(PF)/share/man/man1/$$i$(pkg_ver).1.gz; \
+	done
+  ifneq ($(GFDL_INVARIANT_FREE),yes)
+	for i in gc-analyze gnative2ascii grmic jv-convert jcf-dump; do \
+	  ln -sf $(cmd_prefix)$$i$(pkg_ver).1.gz \
+	    $(d_jdk)/$(PF)/share/man/man1/$$i$(pkg_ver).1.gz; \
+	done
+  endif
+endif
+
 	dh_link -p$(p_jdk) \
-	  $(PF)/bin/gcj$(pkg_ver) $(jvm_dir)/bin/gcj \
-	  $(PF)/share/man/man1/gjarsigner$(pkg_ver).1 $(jvm_dir)/man/man1/jarsigner.1 \
-	  $(PF)/share/man/man1/gjdoc$(pkg_ver).1 $(jvm_dir)/man/man1/javadoc.1 \
-	  $(PF)/share/man/man1/gjavah$(pkg_ver).1 $(jvm_dir)/man/man1/javah.1 \
-	  $(PF)/share/man/man1/gserialver$(pkg_ver).1 $(jvm_dir)/man/man1/serialver.1 \
-	  $(PF)/share/man/man1/gappletviewer$(pkg_ver).1 $(jvm_dir)/man/man1/appletviewer.1
+	  $(PF)/bin/$(cmd_prefix)gcj$(pkg_ver) $(jvm_dir)/bin/gcj \
+	  $(PF)/share/man/man1/$(cmd_prefix)gjarsigner$(pkg_ver).1 $(jvm_dir)/man/man1/jarsigner.1 \
+	  $(PF)/share/man/man1/$(cmd_prefix)gjdoc$(pkg_ver).1 $(jvm_dir)/man/man1/javadoc.1 \
+	  $(PF)/share/man/man1/$(cmd_prefix)gjavah$(pkg_ver).1 $(jvm_dir)/man/man1/javah.1 \
+	  $(PF)/share/man/man1/$(cmd_prefix)gserialver$(pkg_ver).1 $(jvm_dir)/man/man1/serialver.1 \
+	  $(PF)/share/man/man1/$(cmd_prefix)gappletviewer$(pkg_ver).1 $(jvm_dir)/man/man1/appletviewer.1
 
 ifneq ($(GFDL_INVARIANT_FREE),yes)
 	cp -p html/gcj.html $(d_jdk)/$(docdir)/$(p_jbase)/
@@ -629,9 +669,17 @@ endif
 
 	cp -p debian/FAQ.gcj $(d_jdk)/$(docdir)/$(p_jbase)/
 
-	cp -p debian/gcj-wrapper$(pkg_ver) $(d_jdk)/$(PF)/bin/
-	chmod 755 $(d_jdk)/$(PF)/bin/gcj-wrapper$(pkg_ver)
-	cp -p debian/gcj-wrapper$(pkg_ver).1 $(d_jdk)/$(PF)/share/man/man1/
+	cp -p debian/gcj-wrapper$(pkg_ver) \
+		$(d_jdk)/$(PF)/bin/$(cmd_prefix)gcj-wrapper$(pkg_ver)
+	chmod 755 $(d_jdk)/$(PF)/bin/$(cmd_prefix)gcj-wrapper$(pkg_ver)
+	cp -p debian/gcj-wrapper$(pkg_ver).1 \
+		$(d_jdk)/$(PF)/share/man/man1/$(cmd_prefix)gcj-wrapper$(pkg_ver).1
+ifeq ($(unprefixed_names),yes)
+	ln -sf $(cmd_prefix)gcj-wrapper$(pkg_ver) \
+	    $(d_jdk)/$(PF)/bin/gcj-wrapper$(pkg_ver)
+	  ln -sf $(cmd_prefix)gcj-wrapper$(pkg_ver).1.gz \
+	    $(d_jdk)/$(PF)/share/man/man1/gcj-wrapper$(pkg_ver).1.gz
+endif
 
 	debian/dh_rmemptydirs -p$(p_jdk)
 

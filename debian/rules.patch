@@ -13,11 +13,12 @@ series_file	?= $(patchdir)/series
 # which patches should be applied?
 
 debian_patches = \
+	svn-updates \
+	libiberty-updates \
 	$(if $(with_linaro_branch),gcc-linaro) \
 	$(if $(with_linaro_branch),gcc-linaro-no-macros) \
-	$(if $(with_linaro_branch),mpc-relative-literal-loads-rename) \
+	pr79041$(if $(with_linaro_branch),-linaro) \
 
-#	$(if $(with_linaro_branch),gcc-linaro-revert-r236444) \
 #	svn-updates \
 
 ifeq ($(with_java),yes)
@@ -28,12 +29,11 @@ endif
 ifneq ($(GFDL_INVARIANT_FREE),yes)
   debian_patches += \
 	$(if $(with_linaro_branch),gcc-linaro-doc) \
-	$(if $(with_linaro_branch),vulcan-cpu-doc) \
-	$(if $(with_linaro_branch),vulcan-to-thunderx2t99-doc) \
 	rename-info-files \
-	gcc-configure-pie-doc \
 	gcc-SOURCE_DATE_EPOCH-doc \
 	gcc-SOURCE_DATE_EPOCH-2-doc \
+	$(if $(with_linaro_branch),,vulcan-cpu-doc) \
+	gcc-fuse-ld-lld-doc \
 
 #	svn-doc-updates \
 #	$(if $(with_linaro_branch),,svn-doc-updates) \
@@ -53,14 +53,6 @@ ifneq (,$(filter $(distrelease),etch lenny squeeze wheezy dapper hardy intrepid 
   debian_patches += gcc-hash-style-both
 else
   debian_patches += gcc-hash-style-gnu
-endif
-
-ifneq (,$(filter $(distrelease),wily xenial))
-  debian_patches += libstdc++-random-incl
-endif
-
-ifeq (,$(filter $(distrelease),etch lenny squeeze wheezy hardy lucid precise trusty xenial))
-  debian_patches += gcc-abi_tag-backport
 endif
 
 debian_patches += \
@@ -85,71 +77,51 @@ debian_patches += \
 	libgo-setcontext-config \
 	gcc-auto-build \
 	kfreebsd-unwind \
-	kfreebsd-boehm-gc \
-	hurd-boehm-gc \
-	hurd-gprof \
 	libitm-no-fortify-source \
 	sparc64-biarch-long-double-128 \
 	gcc-ia64-bootstrap-ignore \
 	gotools-configury \
 	pr66368 \
-	pr67508 \
 	pr67590 \
-	gcc-configure-pie \
 	ada-gnattools-ldflags \
 	libjit-ldflags \
-	pr69144 \
-	pr66904 \
-	pr68273 \
-	pr70218 \
-	pr69148 \
 	gcc-SOURCE_DATE_EPOCH \
-	gcc-SOURCE_DATE_EPOCH-2$(if $(with_linaro_branch),-linaro) \
-	pr70192 \
-	gcc-ignore-fdebug-prefix-map-in-producer-string \
-	$(if $(with_linaro_branch),vulcan-cpu-linaro) \
-	$(if $(with_linaro_branch),vulcan-costs) \
-	sparc64-cpu32-support \
+	gcc-SOURCE_DATE_EPOCH-2 \
+	cmd-go-combine-gccgo-s-ld-and-ldShared-methods \
 	libjava-mips64el \
+	gccgo-issue16780 \
+	$(if $(with_linaro_branch),,vulcan-cpu) \
+	$(if $(with_linaro_branch),,vulcan-costs) \
 	libffi-pax \
 	libffi-race-condition \
+	libgo-add-getrandom-mips-sparc \
+	libgo-fix-getrandom-clone-sparc64 \
+	libgo-rawClone-no_split_stack \
+	libgo-rawClone-no-pt_regs \
+	libgo-elf-relocations-sparc64 \
+	libobjc-system-gc \
+	compress-debug-check \
 	pr77267 \
-	pr71183 \
+	pr78774 \
+	CVE-2016-9840 \
+	CVE-2016-9841 \
+	CVE-2016-9842 \
+	CVE-2016-9843 \
+	libcc1-compiler-name \
+	mips-pr78176-add-mlxc1-sxc1 \
+	mips-loongson3a-use-fused-madd.d \
+	mips-madd4 \
+	gcc-fuse-ld-lld \
+	pr72813 \
+	pr70909 \
+	pr77857 \
+	pr80533 \
 	sanitizer-Fix-a-crash-in-SizeClassAllocator32-with-a \
 	asan-Enable-48-bit-VMA-support-on-aarch64 \
-	$(if $(with_linaro_branch),vulcan-to-thunderx2t99) \
-	$(if $(with_linaro_branch),thunderx2t99-improve-cost-table) \
-	$(if $(with_linaro_branch),thunderx2t99-scheduler) \
-	$(if $(with_linaro_branch),thunderx2t99p1) \
-	0001-i386-Move-struct-ix86_frame-to-machine_function \
-	0002-i386-Use-reference-of-struct-ix86_frame-to-avoid-cop \
-	0003-i386-More-use-reference-of-struct-ix86_frame-to-avoi \
-	0004-i386-Don-t-use-reference-of-struct-ix86_frame \
-	0005-x86-Add-mindirect-branch \
-	0006-x86-Add-mfunction-return \
-	0007-x86-Add-mindirect-branch-register \
-	0008-x86-Add-V-register-operand-modifier \
-	0009-x86-Disallow-mindirect-branch-mfunction-return-with- \
-	gcc-spectre-s390 \
+	libffi-mipsen-r6 \
 	gcc-force-cross-layout \
-
-ifneq ($(GFDL_INVARIANT_FREE),yes)
-  debian_patches += \
-	0005-x86-Add-mindirect-branch-doc \
-	0006-x86-Add-mfunction-return-doc \
-	0007-x86-Add-mindirect-branch-register-doc \
-	0008-x86-Add-V-register-operand-modifier-doc \
-	0009-x86-Disallow-mindirect-branch-mfunction-return-with-doc
-endif
-
-# this is still needed on powerpc, e.g. firefox and insighttoolkit4 will ftbfs.
-ifneq (,$(filter $(DEB_TARGET_ARCH),powerpc))
-  debian_patches += pr65913-workaround
-endif
-
-ifeq ($(libstdcxx_abi),new)
-  debian_patches += libstdc++-functexcept
-endif
+	pr86139 \
+	r235876-backport-ppc64el \
 
 #	$(if $(filter yes, $(DEB_CROSS)),,gcc-print-file-name) \
 #	libstdc++-nothumb-check \
@@ -172,8 +144,8 @@ ifeq ($(with_ssp)-$(with_ssp_default),yes-yes)
     hardening_patches += gcc-default-ssp-strong
   endif
 endif
-ifeq ($(distribution),Ubuntu)
-  ifneq (,$(findstring gcc-5, $(PKGSOURCE)))
+ifneq (,$(filter $(derivative),Ubuntu))
+  ifneq (,$(findstring gcc-6, $(PKGSOURCE)))
     hardening_patches += \
 	gcc-default-fortify-source \
 	gcc-default-relro \
@@ -183,8 +155,18 @@ ifeq ($(distribution),Ubuntu)
 	testsuite-glibc-warnings
     ifeq ($(with_pie),yes)
       hardening_patches += \
-	bind_now_when_pie-ubuntu
+	bind_now_when_pie
+#    else
+#      hardening_patches += \
+#	ignore-pie-specs-when-not-enabled
     endif
+  endif
+else ifneq (,$(filter $(derivative),Debian))
+  ifneq (,$(findstring gcc-6, $(PKGSOURCE)))
+#    ifneq ($(with_pie),yes)
+#      hardening_patches += \
+#	ignore-pie-specs-when-not-enabled
+#    endif
   endif
 endif
 
@@ -194,14 +176,14 @@ ifneq (,$(findstring 4.4, $(PKGSOURCE)))
 endif
 
 debian_patches += ada-arm
-debian_patches += ada-hurd
 debian_patches += ada-kfreebsd
 debian_patches += ada-revert-pr63225
 
-ifeq ($(with_ada),yes)
+ifeq (,$(DEB_STAGE))
+# there should be no harm to always apply these, except for new GCC versions
+#ifeq ($(with_ada),yes)
   debian_patches += \
 	ada-driver-check \
-	ada-gcc-name \
 	ada-default-project-path \
 	ada-library-project-files-soname
 
@@ -213,7 +195,7 @@ ifeq ($(with_ada),yes)
 	ada-nobiarch-check
   endif
 
-  ifeq ($(with_libgnat),yes)
+  #ifeq ($(with_libgnat),yes)
     debian_patches += \
 	ada-link-lib \
 	ada-libgnatvsn \
@@ -225,28 +207,31 @@ ifeq ($(with_ada),yes)
       debian_patches += \
 	libgnatprj-link
     endif
-  endif
-  ifeq ($(with_gnatsjlj),yes)
+  #endif
+  #ifeq ($(with_gnatsjlj),yes)
     debian_patches += \
 	ada-sjlj
-  endif
+  #endif
 
   debian_patches += ada-link-shlib
-endif
+  debian_patches += ada-gcc-name
+#endif
+endif # DEB_STAGE
+
 
 ifeq ($(with_d),yes)
   debian_patches += \
-	gdc-5 \
+	gdc-6 \
+	gdc-updates \
+	libphobos-zlib \
 	gdc-versym-cpu \
 	gdc-versym-os \
 	gdc-frontend-posix \
 	gdc-base-version \
 	gdc-profiledbuild \
-	gdc-libphobos-link
-#	gdc-updates
 #	gdc-multiarch
   ifneq ($(GFDL_INVARIANT_FREE),yes)
-    debian_patches += gdc-5-doc
+    debian_patches += gdc-6-doc
   else
     debian_patches += gdc-texinfo
   endif
@@ -269,6 +254,13 @@ ifeq ($(DEB_TARGET_ARCH),alpha)
   endif
 endif
 
+ifeq (,$(filter $(derivative),Ubuntu))
+  debian_patches += pr64735-headers
+  ifeq ($(DEB_TARGET_ARCH),armel)
+    debian_patches += pr64735
+  endif
+endif
+
 ifneq (,$(findstring $(DEB_TARGET_ARCH),arm armel armhf))
   debian_patches += libjava-armel-unwind
 endif
@@ -279,6 +271,10 @@ else ifeq ($(DEB_TARGET_ARCH),armel)
   ifneq (,$(filter $(distrelease),lucid maverick natty oneiric precise))
     debian_patches += gcj-arm-mode
   endif
+endif
+
+ifneq (,$(findstring mips, $(DEB_TARGET_ARCH)))
+  debian_patches += pr65618
 endif
 
 ifeq ($(DEB_TARGET_ARCH),powerpcspe)
@@ -294,16 +290,12 @@ ifeq ($(single_package),yes)
   debian_patches =
 endif
 
-debian_patches += $(if $(with_linaro_branch),,gcc-sysroot)
 debian_patches += \
 	sys-auxv-header \
 	libcilkrts-targets \
 
 ifeq ($(with_ibm_branch),yes)
   debian_patches += ibm-branch
-  debian_patches += ppc-add-mspeculate-indirect-jumps
-else
-  debian_patches += go-use-gold
 endif
 
 ifeq ($(with_softfloat),yes)
@@ -327,6 +319,28 @@ endif
 
 ifeq ($(DEB_TARGET_ARCH_OS),hurd)
   debian_patches += hurd-changes
+  debian_patches += \
+		src_gcc_config_i386_gnu.h \
+		src_libgo_configure.ac \
+		src_libgo_runtime_go-caller.c \
+		src_libgo_go_net_sendfile_gnu.go \
+		src_libgo_go_net_sock_gnu.go \
+		src_libgo_go_net_sockopt_gnu.go \
+		src_libgo_go_net_sockoptip_gnu.go \
+		src_libgo_go_syscall_libcall_gnu_386.go \
+		src_libgo_go_syscall_libcall_gnu.go \
+		src_libgo_go_syscall_libcall_posix-1.go \
+		src_libgo_go_syscall_socket_gnu.go \
+		src_libgo_go_syscall_wait.c \
+		src_libgo_Makefile.am \
+		src_libgo_Makefile.in \
+		src_libgo_mksysinfo.sh \
+		src_libgo_runtime_getncpu-gnu.c \
+		src_libgo_runtime_netpoll.goc \
+		src_libgo_go_os_os_test.go \
+		src_libgo_go_syscall_syscall_gnu_test.go \
+		src_libgo_testsuite_gotest \
+		add-gnu-to-libgo-headers
 endif
 
 debian_patches += gcc-ice-dump
@@ -334,6 +348,7 @@ debian_patches += gcc-ice-apport
 debian_patches += skip-bootstrap-multilib
 debian_patches += libjava-fixed-symlinks
 debian_patches += libffi-ro-eh_frame_sect
+debian_patches += libffi-mips
 
 debian_patches += gcc-multiarch
 ifeq ($(with_multiarch_lib),yes)
@@ -371,13 +386,10 @@ endif
 
 debian_patches += libgomp-kfreebsd-testsuite
 debian_patches += go-testsuite
-# FIXME: Still relevant?
-#debian_patches += pr61106
 
 # Ada patches needed for both the stable package and snapshot builds
 debian_patches += ada-749574
 debian_patches += ada-mips
-debian_patches += ada-bootstrap-compare
 ifeq ($(DEB_TARGET_ARCH),m68k)
   debian_patches += ada-m68k
   ifeq ($(with_ada),yes)

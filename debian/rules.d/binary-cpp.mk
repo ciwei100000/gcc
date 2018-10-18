@@ -15,8 +15,7 @@ dirs_cpp = \
 
 files_cpp = \
 	$(PF)/bin/$(cmd_prefix)cpp$(pkg_ver) \
-	$(gcc_lexec_dir)/cc1 \
-	$(gcc_lexec_dir)/liblto_plugin.so{,.0,.0.0.0}
+	$(gcc_lexec_dir)/cc1
 
 ifneq ($(GFDL_INVARIANT_FREE),yes)
   files_cpp += \
@@ -33,16 +32,12 @@ $(binary_stamp)-cpp: $(install_stamp)
 	dh_installdirs -p$(p_cpp) $(dirs_cpp)
 	$(dh_compat2) dh_movefiles -p$(p_cpp) $(files_cpp)
 
-ifneq ($(DEB_CROSS),yes)
-	ln -sf cpp$(pkg_ver) \
-	    $(d_cpp)/$(PF)/bin/$(DEB_TARGET_GNU_TYPE)-cpp$(pkg_ver)
-	ln -sf cpp$(pkg_ver) \
-	    $(d_cpp)/$(PF)/bin/$(TARGET_ALIAS)-cpp$(pkg_ver)
+ifeq ($(unprefixed_names),yes)
+	ln -sf $(cmd_prefix)cpp$(pkg_ver) \
+	    $(d_cpp)/$(PF)/bin/cpp$(pkg_ver)
   ifneq ($(GFDL_INVARIANT_FREE),yes)
-	ln -sf cpp$(pkg_ver).1 \
-	    $(d_cpp)/$(PF)/share/man/man1/$(DEB_TARGET_GNU_TYPE)-cpp$(pkg_ver).1
-	ln -sf cpp$(pkg_ver).1 \
-	    $(d_cpp)/$(PF)/share/man/man1/$(TARGET_ALIAS)-cpp$(pkg_ver).1
+	ln -sf $(cmd_prefix)cpp$(pkg_ver).1 \
+	    $(d_cpp)/$(PF)/share/man/man1/cpp$(pkg_ver).1
   endif
 endif
 

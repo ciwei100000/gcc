@@ -6,6 +6,7 @@ ifneq ($(DEB_STAGE),rtlibs)
 
   ifeq ($(with_libphobos),yes)
     $(lib_binaries) += libphobos-dev
+    $(lib_binaries) += libphobos
   endif
 
   ifeq ($(with_lib64phobosdev),yes)
@@ -27,7 +28,6 @@ ifneq ($(DEB_STAGE),rtlibs)
     $(lib_binaries)	+= libsfphobos-dev
   endif
 
-  ifeq (0,1)
   ifeq ($(with_lib64phobos),yes)
     $(lib_binaries)	+= lib64phobos
   endif
@@ -46,16 +46,17 @@ ifneq ($(DEB_STAGE),rtlibs)
   ifeq ($(with_libsfphobos),yes)
     $(lib_binaries)	+= libsfphobos
   endif
-  endif
 endif
 
 p_gdc           = gdc$(pkg_ver)$(cross_bin_arch)
 p_gdc_m		= gdc$(pkg_ver)-multilib$(cross_bin_arch)
-p_libphobos     = libphobos$(pkg_ver)-dev
+p_libphobos     = libgphobos$(GPHOBOS_SONAME)
+p_libphobosdev  = libgphobos$(pkg_ver)-dev
 
 d_gdc           = debian/$(p_gdc)
 d_gdc_m		= debian/$(p_gdc_m)
 d_libphobos     = debian/$(p_libphobos)
+d_libphobosdev  = debian/$(p_libphobosdev)
 
 ifeq ($(DEB_CROSS),yes)
   gdc_include_dir := $(gcc_lib_dir)/include/d
@@ -100,16 +101,16 @@ $(binary_stamp)-gdc: $(install_stamp)
 
 	$(dh_compat2) dh_movefiles -p$(p_gdc) -X/zlib/ $(files_gdc)
 
-ifneq ($(DEB_CROSS),yes)
-	ln -sf gdc$(pkg_ver) \
-	    $(d_gdc)/$(PF)/bin/$(DEB_TARGET_GNU_TYPE)-gdc$(pkg_ver)
-	ln -sf gdc$(pkg_ver) \
-	    $(d_gdc)/$(PF)/bin/$(TARGET_ALIAS)-gdc$(pkg_ver)
+ifeq ($(with_libphobos),yes)
+	mv $(d)/$(usr_lib)/libgphobos.spec $(d_gdc)/$(gcc_lib_dir)/
+endif
+
+ifeq ($(unprefixed_names),yes)
+	ln -sf $(cmd_prefix)gdc$(pkg_ver) \
+	    $(d_gdc)/$(PF)/bin/gdc$(pkg_ver)
   ifneq ($(GFDL_INVARIANT_FREE),yes-now-pure-gfdl)
-	ln -sf gdc$(pkg_ver).1 \
-	    $(d_gdc)/$(PF)/share/man/man1/$(DEB_TARGET_GNU_TYPE)-gdc$(pkg_ver).1
-	ln -sf gdc$(pkg_ver).1 \
-	    $(d_gdc)/$(PF)/share/man/man1/$(TARGET_ALIAS)-gdc$(pkg_ver).1
+	ln -sf $(cmd_prefix)gdc$(pkg_ver).1 \
+	    $(d_gdc)/$(PF)/share/man/man1/gdc$(pkg_ver).1
   endif
 endif
 
@@ -158,35 +159,38 @@ $(binary_stamp)-gdc-multi: $(install_stamp)
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 
-$(binary_stamp)-libphobos: $(install_stamp)
+define __do_libphobos
 	dh_testdir
 	dh_testroot
 	mv $(install_stamp) $(install_stamp)-tmp
 
-	rm -rf $(d_libphobos)
-	dh_installdirs -p$(p_libphobos) $(dirs_libphobos)
+	rm -rf $(d_l) $(d_d)
+	dh_installdirs -p$(p_l) \
+		$(usr_lib$(2))
+	$(dh_compat2) dh_movefiles -p$(p_l) \
+		$(usr_lib$(2))/libgphobos.so.* \
+		$(usr_lib$(2))/libgdruntime.so.*
 
-	mv $(d)/$(usr_lib)/libg{druntime,phobos2}.a \
-		$(d)/$(gcc_lib_dir)/.
-	$(dh_compat2) dh_movefiles -p$(p_libphobos) \
-		$(gcc_lib_dir)/libg{druntime,phobos2}.a
+	debian/dh_doclink -p$(p_l) $(p_lbase)
+	debian/dh_doclink -p$(p_d) $(p_lbase)
 
-	# included in gdc package
-	rm -f $(d_libphobos)/$(gdc_include_dir)/__entrypoint.di
-
-ifeq ($(with_separate_gdc),yes)
-	debian/dh_doclink -p$(p_libphobos) $(p_gdc)
-else
-	debian/dh_doclink -p$(p_libphobos) $(p_lbase)
-endif
-
-	dh_strip -p$(p_libphobos)
-	dh_shlibdeps -p$(p_libphobos)
-	echo $(p_libphobos) >> debian/arch_binaries
-
-	find $(d_libphobos) -type d -empty -delete
+	dh_strip -p$(p_l) --dbg-package=$(p_d)
+	ln -sf libgphobos.symbols debian/$(p_l).symbols
+	$(cross_makeshlibs) dh_makeshlibs $(ldconfig_arg) -p$(p_l) \
+		-- -a$(call mlib_to_arch,$(2)) || echo XXXXXXXXXXX ERROR $(p_l)
+	rm -f debian/$(p_l).symbols
+	$(call cross_mangle_shlibs,$(p_l))
+	$(ignshld)DIRNAME=$(subst n,,$(2)) $(cross_shlibdeps) dh_shlibdeps -p$(p_l) \
+		$(call shlibdirs_to_search, \
+			$(subst gphobos$(GPHOBOS_SONAME),gcc$(GCC_SONAME),$(p_l)) \
+		,$(2)) \
+		$(if $(filter yes, $(with_common_libs)),,-- -Ldebian/shlibs.common$(2))
+	$(call cross_mangle_substvars,$(p_l))
+	dh_lintian -p$(p_l)
+	echo $(p_l) $(p_d) >> debian/$(lib_binaries)
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
+endef
 
 define __do_libphobos_dev
 	dh_testdir
@@ -196,10 +200,10 @@ define __do_libphobos_dev
 	rm -rf $(d_l)
 	dh_installdirs -p$(p_l) \
 		$(gcc_lib_dir$(2))
-	mv $(d)/$(usr_lib$(2))/libg{druntime,phobos2}.a \
-		$(d)/$(gcc_lib_dir$(2))/.
-	$(dh_compat2) dh_movefiles -p$(p_l) \
-		$(gcc_lib_dir$(2))/libg{druntime,phobos2}.a
+
+	$(call install_gcc_lib,libgdruntime,$(GDRUNTIME_SONAME),$(2),$(p_l))
+	$(call install_gcc_lib,libgphobos,$(GPHOBOS_SONAME),$(2),$(p_l))
+
 	$(if $(2),,
 	$(dh_compat2) dh_movefiles -p$(p_l) \
 		$(gdc_include_dir)
@@ -218,7 +222,30 @@ endef
 # don't put this as a comment within define/endef
 #	$(call install_gcc_lib,libphobos,$(PHOBOS_SONAME),$(2),$(p_l))
 
-do_libphobos_dev = $(call __do_libphobos_dev,lib$(1)phobos-$(BASE_VERSION)-dev,$(1))
+do_libphobos = $(call __do_libphobos,lib$(1)gphobos$(GPHOBOS_SONAME),$(1))
+do_libphobos_dev = $(call __do_libphobos_dev,lib$(1)gphobos-$(BASE_VERSION)-dev,$(1))
+
+$(binary_stamp)-libphobos: $(install_stamp)
+	$(call do_libphobos,)
+
+$(binary_stamp)-lib64phobos: $(install_stamp)
+	$(call do_libphobos,64)
+
+$(binary_stamp)-lib32phobos: $(install_stamp)
+	$(call do_libphobos,32)
+
+$(binary_stamp)-libn32phobos: $(install_stamp)
+	$(call do_libphobos,n32)
+
+$(binary_stamp)-libx32phobos: $(install_stamp)
+	$(call do_libphobos,x32)
+
+$(binary_stamp)-libhfphobos: $(install_stamp)
+	$(call do_libphobos,hf)
+
+$(binary_stamp)-libsfphobos: $(install_stamp)
+	$(call do_libphobos,sf)
+
 
 $(binary_stamp)-libphobos-dev: $(install_stamp)
 	$(call do_libphobos_dev,)

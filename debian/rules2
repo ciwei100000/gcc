@@ -61,12 +61,18 @@ endef
 $(foreach v, CPPFLAGS CFLAGS CXXFLAGS DFLAGS FFLAGS FCFLAGS LDFLAGS OBJCFLAGS OBJCXXFLAGS GCJFLAGS, $(if $(filter environment,$(origin $(v))),$(eval $(call unsetenv, $(v)))))
 
 CC = $(notdir $(firstword $(wildcard \
-	/usr/bin/$(DEB_HOST_GNU_TYPE)-gcc-5 /usr/bin/$(DEB_HOST_GNU_TYPE)-gcc)))
+	/usr/bin/$(DEB_HOST_GNU_TYPE)-gcc-6 \
+	/usr/bin/$(DEB_HOST_GNU_TYPE)-gcc-5 \
+	/usr/bin/$(DEB_HOST_GNU_TYPE)-gcc)))
 CXX = $(notdir $(firstword $(wildcard \
-	/usr/bin/$(DEB_HOST_GNU_TYPE)-g++-5 /usr/bin/$(DEB_HOST_GNU_TYPE)-g++)))
+	/usr/bin/$(DEB_HOST_GNU_TYPE)-g++-6 \
+	/usr/bin/$(DEB_HOST_GNU_TYPE)-g++-5 \
+	/usr/bin/$(DEB_HOST_GNU_TYPE)-g++)))
 ifeq ($(with_ada),yes)
   GNAT = $(notdir $(firstword $(wildcard \
-	/usr/bin/$(DEB_HOST_GNU_TYPE)-gnat-5 /usr/bin/$(DEB_HOST_GNU_TYPE)-gnat /usr/bin/gnatgcc)))
+	/usr/bin/$(DEB_HOST_GNU_TYPE)-gnat-6 \
+	/usr/bin/$(DEB_HOST_GNU_TYPE)-gnat-5 \
+	/usr/bin/$(DEB_HOST_GNU_TYPE)-gnat /usr/bin/gnatgcc)))
   ifeq ($(GNAT),gnatgcc)
     CC := $(shell readlink /usr/bin/gnatgcc)
   else ifneq (,$(GNAT))
@@ -195,23 +201,36 @@ LDFLAGS_FOR_TARGET_TO_PASS = \
 
 docdir		= usr/share/doc
 
+binutils_prefix = /usr/bin
+ifneq (,$(with_build_sysroot))
+  #ifneq ($(DEB_HOST_ARCH),$(DEB_TARGET_ARCH))
+    binutils_prefix = $(with_build_sysroot)/usr/bin
+  #endif
+endif
+
 CONFARGS = -v \
 	--with-pkgversion='$(distribution)$(if $(with_linaro_branch),/Linaro)$(if $(with_ibm_branch),/IBM)___$(DEB_VERSION)' \
 	--with-bugurl='file:///usr/share/doc/$(subst gcj,gcc,$(PKGSOURCE))/README.Bugs'
 
 CONFARGS += \
 	--enable-languages=$(subst $(SPACE),$(COMMA),$(enabled_languages)) \
-	--prefix=/$(PF)
+	--prefix=/$(PF) \
+	--with-as=$(binutils_prefix)/$(DEB_TARGET_GNU_TYPE)-as \
+	--with-ld=$(binutils_prefix)/$(DEB_TARGET_GNU_TYPE)-ld
 
 ifeq ($(versioned_packages),yes)
   CONFARGS += --program-suffix=-$(BASE_VERSION)
+endif
+ifeq ($(build_type),build-native)
+  CONFARGS += --program-prefix=$(cmd_prefix)
 endif
 
 ifneq (,$(filter $(DEB_STAGE),stage1 stage2))
   CONFARGS += \
 	--disable-decimal-float \
-	--disable-libatomic  \
-	--disable-libgomp  \
+	--disable-libatomic \
+	--disable-libgomp \
+	--disable-libmpx \
 	--disable-libssp \
 	--disable-libquadmath \
 	--disable-libsanitizer \
@@ -386,8 +405,12 @@ ifeq ($(with_gcj),yes)
   endif
 endif
 
+ifeq ($(with_libphobos),yes)
+  CONFARGS += --with-target-system-zlib
+endif
+
 ifeq ($(with_objc)-$(with_objc_gc),yes-yes)
-  CONFARGS += --enable-objc-gc
+  CONFARGS += --enable-objc-gc=auto
 endif
 
 ifneq (,$(filter $(DEB_TARGET_GNU_TYPE), i486-linux-gnu i586-linux-gnu i686-linux-gnu))
@@ -482,7 +505,7 @@ ifneq (,$(findstring arm, $(DEB_TARGET_GNU_CPU)))
   CONFARGS += --disable-sjlj-exceptions
   # FIXME: libjava is not ported for thumb, this hack only works for
   # separate gcj builds
-  ifneq (,$(filter armhf,$(DEB_TARGET_ARCH)))
+  ifneq (,$(filter %armhf,$(DEB_TARGET_ARCH)))
     ifeq ($(distribution),Raspbian)
       with_arm_arch = armv6
       with_arm_fpu = vfp
@@ -533,6 +556,9 @@ endif
 ifneq (,$(findstring sparc-linux,$(DEB_TARGET_GNU_TYPE)))
   ifeq ($(biarch64),yes)
     CONFARGS += --enable-targets=all
+    CONFARGS += --with-cpu-32=ultrasparc
+  else
+    CONFARGS += --with-cpu=ultrasparc
   endif
 endif
 
@@ -555,9 +581,15 @@ ifneq (,$(findstring m68k-linux,$(DEB_TARGET_GNU_TYPE)))
   CONFARGS += --disable-multilib
 endif
 
-ifeq ($(derivative),Ubuntu)
-  ifneq (,$(findstring s390x-linux,$(DEB_TARGET_GNU_TYPE)))
+ifneq (,$(filter tilegx,$(DEB_TARGET_GNU_CPU)))
+  CONFARGS += --disable-multilib
+endif
+
+ifneq (,$(findstring s390x-linux,$(DEB_TARGET_GNU_TYPE)))
+  ifeq ($(derivative),Ubuntu)
     CONFARGS += --with-arch=zEC12
+  else # Debian
+    CONFARGS += --with-arch=z196
   endif
 endif
 
@@ -616,6 +648,7 @@ endif
 
 ifneq (,$(findstring mips-linux,$(DEB_TARGET_GNU_TYPE)))
   CONFARGS += --with-arch-32=mips32r2 --with-fp-32=xx
+  CONFARGS += --with-lxc1-sxc1=no
   ifeq ($(multilib),yes)
     ifeq ($(biarchn32)-$(biarch64),yes-yes)
       CONFARGS += --enable-targets=all
@@ -625,17 +658,20 @@ ifneq (,$(findstring mips-linux,$(DEB_TARGET_GNU_TYPE)))
 endif
 
 ifneq (,$(findstring mipsel-linux,$(DEB_TARGET_GNU_TYPE)))
-  CONFARGS += --with-arch-32=mips2 --with-tune-32=mips32r2 --with-fp-32=xx
+  CONFARGS += --with-arch-32=mips32r2 --with-fp-32=xx
+  CONFARGS += --with-madd4=no
+  CONFARGS += --with-lxc1-sxc1=no
   ifeq ($(multilib),yes)
     ifeq ($(biarchn32)-$(biarch64),yes-yes)
       CONFARGS += --enable-targets=all
-      CONFARGS += --with-arch-64=mips3 --with-tune-64=mips64r2
+      CONFARGS += --with-arch-64=mips64r2
     endif
   endif
 endif
 
 #FIXME: howto for mipsn32?
 ifneq (,$(findstring mips64el-linux-gnuabin32,$(DEB_TARGET_GNU_TYPE)))
+  CONFARGS += --with-madd4=no
   ifeq ($(multilib),yes)
     ifeq ($(biarch64)-$(biarch32),yes-yes)
       CONFARGS += --enable-targets=all
@@ -658,6 +694,7 @@ endif
 ifneq (,$(findstring mips64el-linux-gnuabi64,$(DEB_TARGET_GNU_TYPE)))
   CONFARGS += --with-mips-plt
   CONFARGS += --with-arch-64=mips64r2
+  CONFARGS += --with-madd4=no
   ifeq ($(multilib),yes)
     ifeq ($(biarchn32)-$(biarch32),yes-yes)
       CONFARGS += --enable-targets=all
@@ -703,19 +740,19 @@ ifneq (,$(findstring mipsisa64r6el-linux-gnuabin32,$(DEB_TARGET_GNU_TYPE)))
   ifeq ($(multilib),yes)
     ifeq ($(biarch64)-$(biarch32),yes-yes)
       CONFARGS += --enable-targets=all
-      CONFARGS += --with-arch-64=mips64r6
-      CONFARGS += --with-arch-32=mips32r6
+      CONFARGS += --with-arch-64=mips64r6 --with-tune-64=mips64r6
+      CONFARGS += --with-arch-32=mips32r6 --with-tune-32=mips32r6
     endif
   endif
 endif
-
+ 
 ifneq (,$(findstring mipsisa64r6-linux-gnuabin32,$(DEB_TARGET_GNU_TYPE)))
   CONFARGS += --with-mips-plt
   ifeq ($(multilib),yes)
     ifeq ($(biarch64)-$(biarch32),yes-yes)
       CONFARGS += --enable-targets=all
-      CONFARGS += --with-arch-64=mips64r6
-      CONFARGS += --with-arch-32=mips32r6
+      CONFARGS += --with-arch-64=mips64r6 --with-tune-64=mips64r6
+      CONFARGS += --with-arch-32=mips32r6 --with-tune-32=mips32r6
     endif
   endif
 endif
@@ -795,7 +832,7 @@ else ifeq ($(with_bootstrap),)
   ifeq (,$(filter $(DEB_TARGET_ARCH),$(no_profiled_bs_archs)))
     bootstrap_target = profiledbootstrap
   endif
-  ifneq (, $(filter $(PKGSOURCE),gcj-$(BASE_VERSION) gnat-$(BASE_VERSION) gcc-snapshot))
+  ifneq (, $(filter $(PKGSOURCE),gcc-$(BASE_VERSION) gcj-$(BASE_VERSION) gnat-$(BASE_VERSION) gcc-snapshot))
     bootstrap_target = bootstrap
   endif
   ifneq (,$(DEB_STAGE))
@@ -825,7 +862,9 @@ endif
 DEJAGNU_TIMEOUT=300
 # Increase the timeout for one testrun on slow architectures
 ifeq ($(derivative),Debian)
-  ifneq (,$(findstring $(DEB_TARGET_ARCH),arm arm64 armel armhf hppa m68k sparc))
+  ifneq (,$(findstring $(DEB_TARGET_ARCH),arm64))
+    DEJAGNU_TIMEOUT=240
+  else ifneq (,$(findstring $(DEB_TARGET_ARCH),arm armel armhf hppa m68k sparc))
     DEJAGNU_TIMEOUT=600
   else ifneq (,$(findstring $(DEB_TARGET_GNU_CPU),amd64 i386 i486 i686 lpia))
     DEJAGNU_TIMEOUT=180
@@ -834,7 +873,9 @@ ifeq ($(derivative),Debian)
     DEJAGNU_TIMEOUT=900
   endif
 else ifeq ($(derivative),Ubuntu)
-  ifneq (,$(findstring $(DEB_TARGET_ARCH),arm64 armel armhf hppa ia64 sparc))
+  ifneq (,$(findstring $(DEB_TARGET_ARCH),arm64))
+    DEJAGNU_TIMEOUT=240
+  else ifneq (,$(findstring $(DEB_TARGET_ARCH),armel armhf hppa ia64 sparc))
     DEJAGNU_TIMEOUT=600
   else ifneq (,$(findstring $(DEB_TARGET_GNU_CPU),amd64 i386 i486 i686 lpia))
     DEJAGNU_TIMEOUT=180
@@ -1102,11 +1143,7 @@ ifeq ($(biarchn32)-$(biarch64),yes-yes)
 else ifeq ($(biarchn32)-$(biarch32),yes-yes)
 	@echo "Will build the triarch compilers (o32/n32/64, defaulting to 64)"
 else ifeq ($(biarch64)-$(biarch32),yes-yes)
-  ifneq (,$(findstring mips,$(DEB_TARGET_GNU_TYPE)))
-	@echo "Will build the triarch compilers (n32/64/32, defaulting to n32)"
-  else 
 	@echo "Will build the triarch compilers (x32/64/32, defaulting to x32)"
-  endif
 else ifeq ($(biarch64)-$(biarchx32),yes-yes)
 	@echo "Will build the triarch compilers (32/64/x32, defaulting to 32bit)"
 else ifeq ($(biarch32)-$(biarchx32),yes-yes)
@@ -1277,13 +1314,13 @@ ifeq ($(build_type),build-native)
     ifeq ($(with_java_maintainer_mode),yes)
 	( \
 	  echo '#!/bin/sh'; \
-	  echo 'exec gij-5 -cp /usr/share/java/ecj.jar org.eclipse.jdt.internal.compiler.batch.GCCMain "$$@"'; \
+	  echo 'exec gij-6 -cp /usr/share/java/ecj.jar org.eclipse.jdt.internal.compiler.batch.GCCMain "$$@"'; \
 	) > bin/ecj1
 	chmod +x bin/ecj1
 	: # If we don't have gjavah in PATH, try to build it with the old gij
 	mkdir -p bin
-	if [ -x /usr/bin/gjavah-5 ]; then \
-	  ln -sf /usr/bin/gjavah-5 bin/gjavah; \
+	if [ -x /usr/bin/gjavah-6 ]; then \
+	  ln -sf /usr/bin/gjavah-6 bin/gjavah; \
 	elif [ -x bin/gjavah ]; then \
 	  : ; \
 	else \
@@ -1296,10 +1333,10 @@ ifeq ($(build_type),build-native)
 	  cp -a $(srcdir)/libjava/classpath/tools/resource/gnu/classpath/tools/common/Messages.properties \
 	    gnu/classpath/tools/common; \
 	  cd external/asm; \
-	  for i in `find . -name \*.java`; do gcj-5 --encoding ISO-8859-1 -C $$i -I.; done; \
+	  for i in `find . -name \*.java`; do gcj-6 --encoding ISO-8859-1 -C $$i -I.; done; \
 	  cd ../..; \
-	  for i in `find gnu -name \*.java`; do gcj-5 -C $$i -I. -Iexternal/asm/; done; \
-	  gcj-5 -findirect-dispatch -O2 -fmain=gnu.classpath.tools.javah.Main \
+	  for i in `find gnu -name \*.java`; do gcj-6 -C $$i -I. -Iexternal/asm/; done; \
+	  gcj-6 -findirect-dispatch -O2 -fmain=gnu.classpath.tools.javah.Main \
 	    -I. -Iexternal/asm/ `find . -name \*.class` -o $(CURDIR)/bin/gjavah.real; \
 	  ( \
 	    echo '#!/bin/sh'; \
@@ -1318,7 +1355,6 @@ ifeq ($(build_type),build-native)
 	  $(SET_LOCPATH) \
 	    $(MAKE) -C $(builddir) $(bootstrap_target) \
 		CC="$(CC)" \
-		CXX="$(CXX)" \
 		$(STAGE1_CFLAGS_TO_PASS) \
 		$(STAGE1_LDFLAGS_TO_PASS) \
 		$(BOOT_CFLAGS_TO_PASS) \
@@ -1388,12 +1424,11 @@ else
 endif
 
 CONFARGS_JIT := \
-	$(filter-out --enable-languages=%, $(CONFARGS)) \
+	$(filter-out --enable-languages=% \
+		--enable-libstdcxx-debug %bootstrap,\
+	  $(CONFARGS)) \
 	--enable-languages=c++,jit \
-	--enable-host-shared
-
-CONFARGS_JIT := \
-	$(filter-out %bootstrap, $(CONFARGS_JIT)) \
+	--enable-host-shared \
 	--disable-bootstrap
 
 $(configure_jit_stamp): $(build_stamp)
@@ -1408,7 +1443,7 @@ $(configure_jit_stamp): $(build_stamp)
 	  $(SET_SHELL) \
 	  CC="$(BUILT_CC)" \
 	  CXX="$(BUILT_CXX)" \
-	     ../src/configure $(CONFARGS_JIT)
+	     ../src/configure $(subst ___, ,$(CONFARGS_JIT))
 	touch $(configure_jit_stamp)
 
 $(build_jit_stamp): $(configure_jit_stamp)
@@ -1598,7 +1633,7 @@ $(stampdir)/05-build-html-nosplit: $(build_stamp)
 	touch $@
 
 # start the script only on architectures known to have slow autobuilders ...
-logwatch_archs := alpha arm m68k mips mipsel sparc
+logwatch_archs := alpha arm m68k mips mipsel mips64el sparc
 ifeq ($(DEB_HOST_GNU_CPU), $(findstring $(DEB_HOST_GNU_CPU),$(logwatch_archs)))
   start_logwatch = yes
 endif
@@ -2147,9 +2182,9 @@ ifeq ($(with_hppa64),yes)
 
 	ls -l $(d)/$(PF)/bin
 	if [ ! -x $(d)/$(PF)/bin/hppa64-linux-gnu-gcc ]; then \
-	  mv $(d)/$(PF)/bin/hppa64-linux-gnu-gcc-5* $(d)/$(PF)/bin/hppa64-linux-gnu-gcc; \
+	  mv $(d)/$(PF)/bin/hppa64-linux-gnu-gcc-6* $(d)/$(PF)/bin/hppa64-linux-gnu-gcc; \
 	else \
-	  rm -f $(d)/$(PF)/bin/hppa64-linux-gnu-gcc-5*; \
+	  rm -f $(d)/$(PF)/bin/hppa64-linux-gnu-gcc-6*; \
 	fi
 
 	for i in ar nm ranlib; do \
@@ -2200,9 +2235,9 @@ endif
 	done
 
 	if [ ! -x $(d)/$(PF)/bin/$(TARGET_ALIAS)-gcc ]; then \
-	  mv $(d)/$(PF)/bin/$(TARGET_ALIAS)-gcc-5* $(d)/$(PF)/bin/$(TARGET_ALIAS)-gcc; \
+	  mv $(d)/$(PF)/bin/$(TARGET_ALIAS)-gcc-6* $(d)/$(PF)/bin/$(TARGET_ALIAS)-gcc; \
 	else \
-	  rm -f $(d)/$(PF)/bin/$(TARGET_ALIAS)-gcc-5*; \
+	  rm -f $(d)/$(PF)/bin/$(TARGET_ALIAS)-gcc-6*; \
 	fi
 	set -e; \
 	  cd $(d)/$(gcc_lib_dir)/include-fixed; \
@@ -2330,6 +2365,13 @@ else
   endif
 endif
 
+ifneq (,$(cmd_prefix))
+	for i in $(d)/$(PF)/share/info/$(cmd_prefix)*; do \
+	  [ -f "$$i" ] || continue; \
+	  mv $$i $$(echo $$i | sed 's/$(cmd_prefix)//'); \
+	done
+endif
+
 ifeq ($(with_libcxxdbg),yes)
 	: # FIXME: the libstdc++ gdb.py file is installed with a wrong name
 	for i in $$(find $(d)/$(PF) -name libstdc++_pic.a-gdb.py); do \
@@ -2444,6 +2486,8 @@ ifneq ($(with_common_libs),yes)
 endif
 
 	@echo XXXXX `date -R`
+	find $(d) ! -type d -print
+	@echo XXXXX
 	touch $(install_stamp)
 
 $(install_jit_stamp): $(build_jit_stamp) $(install_stamp)

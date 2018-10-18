@@ -5,7 +5,7 @@ Index: b/src/gcc/gcc.c
 ===================================================================
 --- a/src/gcc/gcc.c
 +++ b/src/gcc/gcc.c
-@@ -550,8 +550,11 @@ proper position among the other output f
+@@ -681,8 +681,11 @@ proper position among the other output f
  #ifdef LIBASAN_EARLY_SPEC
  #define LIBASAN_SPEC STATIC_LIBASAN_LIBS
  #elif defined(HAVE_LD_STATIC_DYNAMIC)
@@ -19,7 +19,7 @@ Index: b/src/gcc/gcc.c
  		     STATIC_LIBASAN_LIBS
  #else
  #define LIBASAN_SPEC "-lasan" STATIC_LIBASAN_LIBS
-@@ -568,8 +571,11 @@ proper position among the other output f
+@@ -699,8 +702,11 @@ proper position among the other output f
  #ifdef LIBTSAN_EARLY_SPEC
  #define LIBTSAN_SPEC STATIC_LIBTSAN_LIBS
  #elif defined(HAVE_LD_STATIC_DYNAMIC)
@@ -33,7 +33,7 @@ Index: b/src/gcc/gcc.c
  		     STATIC_LIBTSAN_LIBS
  #else
  #define LIBTSAN_SPEC "-ltsan" STATIC_LIBTSAN_LIBS
-@@ -586,8 +592,11 @@ proper position among the other output f
+@@ -717,8 +723,11 @@ proper position among the other output f
  #ifdef LIBLSAN_EARLY_SPEC
  #define LIBLSAN_SPEC STATIC_LIBLSAN_LIBS
  #elif defined(HAVE_LD_STATIC_DYNAMIC)
@@ -47,7 +47,7 @@ Index: b/src/gcc/gcc.c
  		     STATIC_LIBLSAN_LIBS
  #else
  #define LIBLSAN_SPEC "-llsan" STATIC_LIBLSAN_LIBS
-@@ -602,8 +611,11 @@ proper position among the other output f
+@@ -733,8 +742,11 @@ proper position among the other output f
  #define STATIC_LIBUBSAN_LIBS \
    " %{static-libubsan:%:include(libsanitizer.spec)%(link_libubsan)}"
  #ifdef HAVE_LD_STATIC_DYNAMIC
@@ -65,7 +65,7 @@ Index: b/src/gcc/config/gnu-user.h
 ===================================================================
 --- a/src/gcc/config/gnu-user.h
 +++ b/src/gcc/config/gnu-user.h
-@@ -124,13 +124,13 @@ see the files COPYING3 and COPYING.RUNTI
+@@ -159,13 +159,13 @@ see the files COPYING3 and COPYING.RUNTI
  #define LIBASAN_EARLY_SPEC "%{!shared:libasan_preinit%O%s} " \
    "%{static-libasan:%{!shared:" \
    LD_STATIC_OPTION " --whole-archive -lasan --no-whole-archive " \
@@ -86,7 +86,7 @@ Index: b/src/gcc/config/aarch64/aarch64-linux.h
 ===================================================================
 --- a/src/gcc/config/aarch64/aarch64-linux.h
 +++ b/src/gcc/config/aarch64/aarch64-linux.h
-@@ -33,6 +33,7 @@
+@@ -36,6 +36,7 @@
  
  #define LINUX_TARGET_LINK_SPEC  "%{h*}		\
     --hash-style=gnu				\
@@ -137,27 +137,28 @@ Index: b/src/gcc/config/rs6000/linux64.h
 ===================================================================
 --- a/src/gcc/config/rs6000/linux64.h
 +++ b/src/gcc/config/rs6000/linux64.h
-@@ -407,11 +407,11 @@ extern int dot_symbols;
+@@ -480,12 +480,12 @@ extern int dot_symbols;
  					   " -m elf64ppc")
  #endif
  
 -#define LINK_OS_LINUX_SPEC32 LINK_OS_LINUX_EMUL32 " --hash-style=gnu %{!shared: %{!static: \
 +#define LINK_OS_LINUX_SPEC32 LINK_OS_LINUX_EMUL32 " --hash-style=gnu --as-needed %{!shared: %{!static: \
    %{rdynamic:-export-dynamic} \
-   -dynamic-linker " GNU_USER_DYNAMIC_LINKER32 "}}"
+   -dynamic-linker " GNU_USER_DYNAMIC_LINKER32 "}} \
+   %(link_os_extra_spec32)"
  
 -#define LINK_OS_LINUX_SPEC64 LINK_OS_LINUX_EMUL64 " --hash-style=gnu %{!shared: %{!static: \
 +#define LINK_OS_LINUX_SPEC64 LINK_OS_LINUX_EMUL64 " --hash-style=gnu --as-needed %{!shared: %{!static: \
    %{rdynamic:-export-dynamic} \
-   -dynamic-linker " GNU_USER_DYNAMIC_LINKER64 "}}"
- 
+   -dynamic-linker " GNU_USER_DYNAMIC_LINKER64 "}} \
+   %(link_os_extra_spec64)"
 Index: b/src/gcc/config/rs6000/sysv4.h
 ===================================================================
 --- a/src/gcc/config/rs6000/sysv4.h
 +++ b/src/gcc/config/rs6000/sysv4.h
-@@ -769,7 +769,7 @@ ENDIAN_SELECT(" -mbig", " -mlittle", DEF
- #define GNU_USER_DYNAMIC_LINKER \
-   CHOOSE_DYNAMIC_LINKER (GLIBC_DYNAMIC_LINKER, UCLIBC_DYNAMIC_LINKER)
+@@ -805,7 +805,7 @@ ENDIAN_SELECT(" -mbig", " -mlittle", DEF
+   CHOOSE_DYNAMIC_LINKER (GLIBC_DYNAMIC_LINKER, UCLIBC_DYNAMIC_LINKER, \
+ 			 MUSL_DYNAMIC_LINKER)
  
 -#define LINK_OS_LINUX_SPEC "-m elf32ppclinux --hash-style=gnu %{!shared: %{!static: \
 +#define LINK_OS_LINUX_SPEC "-m elf32ppclinux --hash-style=gnu --as-needed %{!shared: %{!static: \

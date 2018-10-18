@@ -125,7 +125,6 @@ define __do_libgfortran_dev
 	dh_installdirs -p$(p_l) $(gcc_lib_dir$(2))
 
 	$(dh_compat2) dh_movefiles -p$(p_l) \
-		$(gcc_lib_dir$(2))/libgfortranbegin.a \
 		$(gcc_lib_dir$(2))/libcaf_single.a
 	$(call install_gcc_lib,libgfortran,$(FORTRAN_SONAME),$(2),$(p_l))
 
@@ -177,17 +176,13 @@ $(binary_stamp)-fdev: $(install_stamp)
 
 	mv $(d)/$(usr_lib)/libgfortran.spec $(d_g95)/$(gcc_lib_dir)/
 
-ifneq ($(DEB_CROSS),yes)
-	ln -sf gfortran$(pkg_ver) \
-	    $(d_g95)/$(PF)/bin/$(DEB_TARGET_GNU_TYPE)-gfortran$(pkg_ver)
-	ln -sf gfortran$(pkg_ver) \
-	    $(d_g95)/$(PF)/bin/$(TARGET_ALIAS)-gfortran$(pkg_ver)
-ifneq ($(GFDL_INVARIANT_FREE),yes)
-	ln -sf gfortran$(pkg_ver).1 \
-	    $(d_g95)/$(PF)/share/man/man1/$(DEB_TARGET_GNU_TYPE)-gfortran$(pkg_ver).1
-	ln -sf gfortran$(pkg_ver).1 \
-	    $(d_g95)/$(PF)/share/man/man1/$(TARGET_ALIAS)-gfortran$(pkg_ver).1
-endif
+ifeq ($(unprefixed_names),yes)
+	ln -sf $(cmd_prefix)gfortran$(pkg_ver) \
+	    $(d_g95)/$(PF)/bin/gfortran$(pkg_ver)
+  ifneq ($(GFDL_INVARIANT_FREE),yes)
+	ln -sf $(cmd_prefix)gfortran$(pkg_ver).1 \
+	    $(d_g95)/$(PF)/share/man/man1/gfortran$(pkg_ver).1
+  endif
 endif
 
 	mkdir -p $(d_g95)/usr/share/lintian/overrides

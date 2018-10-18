@@ -42,10 +42,13 @@ files_gcc = \
 	$(shell test -e $(d)/$(gcc_lib_dir)/SYSCALLS.c.X \
 		&& echo $(gcc_lib_dir)/SYSCALLS.c.X)
 
-ifeq ($(with_cc1),yes)
+ifeq ($(with_libcc1_plugin),yes)
     files_gcc += \
 	$(gcc_lib_dir)/plugin/libcc1plugin.so{,.0,.0.0.0}
 endif
+
+files_gcc += \
+	$(gcc_lexec_dir)/liblto_plugin.so{,.0,.0.0.0}
 
 ifeq ($(DEB_STAGE),stage1)
     files_gcc += \
@@ -60,7 +63,8 @@ endif
 
 ifneq ($(GFDL_INVARIANT_FREE),yes)
     files_gcc += \
-	$(PF)/share/man/man1/$(cmd_prefix){gcc,gcov}$(pkg_ver).1
+	$(PF)/share/man/man1/$(cmd_prefix){gcc,gcov}$(pkg_ver).1 \
+	$(PF)/share/man/man1/$(cmd_prefix)gcov-{dump,tool}$(pkg_ver).1
 endif
 
 usr_doc_files = debian/README.Bugs \
@@ -127,30 +131,29 @@ ifeq ($(with_mpx),yes)
 		$(d_gcc)/$(docdir)/$(p_xbase)/mpx/changelog
 endif
 ifeq ($(with_cc1),yes)
-	rm -f $(d)/$(usr_lib)/libcc1.so
 	rm -f $(d)/$(PF)/lib/$(DEB_HOST_MULTIARCH)/libcc1.so
 	dh_link -p$(p_gcc) \
-	  /$(PF)/lib/$(DEB_HOST_MULTIARCH)/libcc1.so.$(CC1_SONAME) \
-	  /$(gcc_lib_dir)/libcc1.so
+	    /$(PF)/lib/$(DEB_HOST_MULTIARCH)/libcc1.so.$(CC1_SONAME) \
+	    /$(gcc_lib_dir)/libcc1.so
 endif
 
 	$(dh_compat2) dh_movefiles -p$(p_gcc) $(files_gcc)
 
-ifneq ($(DEB_CROSS),yes)
+ifeq ($(unprefixed_names),yes)
 	for i in gcc gcov gcov-dump gcov-tool gcc-ar gcc-nm gcc-ranlib; do \
-	  ln -sf $$i$(pkg_ver) \
-	    $(d_gcc)/$(PF)/bin/$(DEB_TARGET_GNU_TYPE)-$$i$(pkg_ver); \
-	  ln -sf $$i$(pkg_ver) \
-	    $(d_gcc)/$(PF)/bin/$(TARGET_ALIAS)-$$i$(pkg_ver); \
+	  ln -sf $(cmd_prefix)$$i$(pkg_ver) \
+	    $(d_gcc)/$(PF)/bin/$$i$(pkg_ver); \
 	done
-ifneq ($(GFDL_INVARIANT_FREE),yes)
-	for i in gcc gcov gcc-ar gcc-nm gcc-ranlib; do \
-	  ln -sf gcc$(pkg_ver).1 \
-	    $(d_gcc)/$(PF)/share/man/man1/$(DEB_TARGET_GNU_TYPE)-$$i$(pkg_ver).1; \
-	  ln -sf $$i$(pkg_ver).1 \
-	    $(d_gcc)/$(PF)/share/man/man1/$(TARGET_ALIAS)-$$i$(pkg_ver).1; \
+  ifneq ($(GFDL_INVARIANT_FREE),yes)
+	for i in gcc gcov gcov-dump gcov-tool; do \
+	  ln -sf $(cmd_prefix)$$i$(pkg_ver).1.gz \
+	    $(d_gcc)/$(PF)/share/man/man1/$$i$(pkg_ver).1.gz; \
 	done
-endif
+  endif
+	for i in gcc-ar gcc-nm gcc-ranlib; do \
+	  ln -sf $(cmd_prefix)$$i$(pkg_ver).1.gz \
+	    $(d_gcc)/$(PF)/share/man/man1/$$i$(pkg_ver).1.gz; \
+	done
 endif
 
 #	dh_installdebconf
@@ -186,7 +189,7 @@ endif
 
 	debian/dh_rmemptydirs -p$(p_gcc)
 	dh_strip -p$(p_gcc) \
-	  # save some disk space $(if $(unstripped_exe),-X/lto1)
+	  $(if $(unstripped_exe),-X/lto1)
 	dh_shlibdeps -p$(p_gcc)
 	echo $(p_gcc) >> debian/arch_binaries
 
@@ -225,18 +228,6 @@ $(binary_stamp)-gcc-plugindev: $(install_dependencies)
 		$(gcc_lib_dir)/plugin/include \
 		$(gcc_lib_dir)/plugin/gtype.state \
 		$(gcc_lexec_dir)/plugin/gengtype
-
-# files missing in upstream installation
-ifeq ($(DEB_TARGET_ARCH),m68k)
-	cp -p $(srcdir)/gcc/config/m68k/m68k-{devices,microarchs}.def \
-		$(d_pld)/$(gcc_lib_dir)/plugin/include/config/m68k/.
-endif
-ifeq ($(DEB_TARGET_ARCH),arm64)
-  ifeq ($(with_linaro_branch),yes)
-	cp -p $(srcdir)/gcc/config/aarch64/aarch64-arches.def \
-		$(d_pld)/$(gcc_lib_dir)/plugin/include/config/aarch64/.
-  endif
-endif
 
 	debian/dh_doclink -p$(p_pld) $(p_xbase)
 	debian/dh_rmemptydirs -p$(p_pld)
@@ -349,12 +340,14 @@ $(binary_stamp)-gcc-doc: $(build_html_stamp) $(install_stamp)
 
 ifeq ($(with_gomp),yes)
 	$(MAKE) -C $(buildlibdir)/libgomp stamp-build-info
-	cp -p $(buildlibdir)/libgomp/libgomp$(pkg_ver).info $(d_doc)/$(PF)/share/info/
+	cp -p $(buildlibdir)/libgomp/$(cmd_prefix)libgomp$(pkg_ver).info \
+		$(d_doc)/$(PF)/share/info/libgomp$(pkg_ver).info
 endif
 ifeq ($(with_itm),yes)
 	-$(MAKE) -C $(buildlibdir)/libitm stamp-build-info
 	if [ -f $(buildlibdir)/libitm/libitm$(pkg_ver).info ]; then \
-	  cp -p $(buildlibdir)/libitm/libitm$(pkg_ver).info $(d_doc)/$(PF)/share/info/; \
+	  cp -p $(buildlibdir)/libitm/$(cmd_prefix)libitm$(pkg_ver).info \
+		$(d_doc)/$(PF)/share/info/; \
 	fi
 endif
 

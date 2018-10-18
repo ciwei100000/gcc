@@ -49,9 +49,9 @@ files_go = \
 
 ifneq (,$(filter $(build_type), build-native cross-build-native))
   files_go += \
-	$(PF)/bin/{go,gofmt}$(pkg_ver) \
+	$(PF)/bin/$(cmd_prefix){go,gofmt}$(pkg_ver) \
 	$(gcc_lexec_dir)/cgo \
-	$(PF)/share/man/man1/{go,gofmt}$(pkg_ver).1
+	$(PF)/share/man/man1/$(cmd_prefix){go,gofmt}$(pkg_ver).1
 endif
 
 ifneq ($(GFDL_INVARIANT_FREE),yes)
@@ -67,7 +67,7 @@ ifeq ($(with_standalone_go),yes)
 
 # XXX: what about triarch mapping?
   files_go += \
-	$(PF)/bin/{cpp,gcc,gcov}$(pkg_ver) \
+	$(PF)/bin/$(cmd_prefix){cpp,gcc,gcov,gcov-tool}$(pkg_ver) \
 	$(PF)/bin/$(cmd_prefix)gcc-{ar,ranlib,nm}$(pkg_ver) \
 	$(PF)/share/man/man1/$(cmd_prefix)gcc-{ar,nm,ranlib}$(pkg_ver).1 \
 	$(gcc_lexec_dir)/{cc1,collect2,lto1,lto-wrapper} \
@@ -84,7 +84,7 @@ ifeq ($(with_standalone_go),yes)
 
   ifneq ($(GFDL_INVARIANT_FREE),yes)
     files_go += \
-	$(PF)/share/man/man1/{cpp,gcc,gcov}$(pkg_ver).1
+	$(PF)/share/man/man1/$(cmd_prefix){cpp,gcc,gcov,gcov-tool}$(pkg_ver).1
   endif
 
   ifeq ($(biarch64),yes)
@@ -109,7 +109,7 @@ define __do_gccgo
 
 	rm -rf $(d_l) $(d_d)
 	dh_installdirs -p$(p_l) $(usr_lib$(2))
-	$(dh_compat2) dh_movefiles -p$(p_l) \
+	$(dh_compat2) dh_movefiles -v -p$(p_l) \
 		$(usr_lib$(2))/libgo.so.*
 
 	debian/dh_doclink -p$(p_l) $(p_lbase)
@@ -139,7 +139,9 @@ do_gccgo = $(call __do_gccgo,lib$(1)go$(GO_SONAME),$(1))
 
 define install_gccgo_lib
 	mv $(d)/$(usr_lib$(3))/$(1).a debian/$(4)/$(gcc_lib_dir$(3))/
-	mv $(d)/$(usr_lib$(3))/$(1)libbegin.a debian/$(4)/$(gcc_lib_dir$(3))/
+	if [ -f $(d)/$(usr_lib$(3))/$(1)libbegin.a ]; then \
+	  mv $(d)/$(usr_lib$(3))/$(1)libbegin.a debian/$(4)/$(gcc_lib_dir$(3))/; \
+	fi
 	rm -f $(d)/$(usr_lib$(3))/$(1)*.{la,so}
 	dh_link -p$(4) \
 	  /$(usr_lib$(3))/$(1).so.$(2) /$(gcc_lib_dir$(3))/$(1).so
@@ -166,9 +168,11 @@ endef
 
 define do_go_dev
 	dh_installdirs -p$(2) $(gcc_lib_dir$(1)) $(usr_lib$(1))
-	$(dh_compat2) dh_movefiles -p$(2) \
+	$(dh_compat2) dh_movefiles -v -p$(2) \
 		$(gcc_lib_dir$(1))/{libgobegin,libnetgo}.a \
 		$(usr_lib$(1))/go
+	: # See https://launchpad.net/bugs/1783930
+	ln -sf $(BASE_VERSION) debian/$(2)/$(usr_lib$(1))/go/$(GCC_VERSION)
 	$(if $(filter yes, $(with_standalone_go)), \
 	  $(call install_gccgo_lib,libgomp,$(GOMP_SONAME),$(1),$(2)))
 	$(call install_gccgo_lib,libgo,$(GO_SONAME),$(1),$(2))
@@ -227,33 +231,33 @@ ifneq (,$(findstring gccgo,$(PKGSOURCE)))
 	rm -rf $(d_go)/$(gcc_lib_dir)/include/openacc.h
 endif
 
-ifneq ($(DEB_CROSS),yes)
-	ln -sf gccgo$(pkg_ver) \
-	    $(d_go)/$(PF)/bin/$(DEB_TARGET_GNU_TYPE)-gccgo$(pkg_ver)
-	ln -sf gccgo$(pkg_ver) \
-	    $(d_go)/$(PF)/bin/$(TARGET_ALIAS)-gccgo$(pkg_ver)
-ifneq ($(GFDL_INVARIANT_FREE),yes)
-	ln -sf gccgo$(pkg_ver).1 \
-	    $(d_go)/$(PF)/share/man/man1/$(DEB_TARGET_GNU_TYPE)-gccgo$(pkg_ver).1
-	ln -sf gccgo$(pkg_ver).1 \
-	    $(d_go)/$(PF)/share/man/man1/$(TARGET_ALIAS)-gccgo$(pkg_ver).1
-endif
+ifeq ($(unprefixed_names),yes)
+	ln -sf $(cmd_prefix)gccgo$(pkg_ver) \
+	    $(d_go)/$(PF)/bin/gccgo$(pkg_ver)
+	ln -sf $(cmd_prefix)go$(pkg_ver) \
+	    $(d_go)/$(PF)/bin/go$(pkg_ver)
+	ln -sf $(cmd_prefix)gofmt$(pkg_ver) \
+	    $(d_go)/$(PF)/bin/gofmt$(pkg_ver)
+  ifneq ($(GFDL_INVARIANT_FREE),yes)
+	ln -sf $(cmd_prefix)gccgo$(pkg_ver).1 \
+	    $(d_go)/$(PF)/share/man/man1/gccgo$(pkg_ver).1
+  endif
+	ln -sf $(cmd_prefix)go$(pkg_ver).1 \
+	    $(d_go)/$(PF)/share/man/man1/go$(pkg_ver).1
+	ln -sf $(cmd_prefix)gofmt$(pkg_ver).1 \
+	    $(d_go)/$(PF)/share/man/man1/gofmt$(pkg_ver).1
 endif
 
 ifeq ($(with_standalone_go),yes)
-  ifneq ($(DEB_CROSS),yes)
-	for i in gcc gcov gcc-ar gcc-nm gcc-ranlib; do \
-	  ln -sf $$i$(pkg_ver) \
-	    $(d_go)/$(PF)/bin/$(DEB_TARGET_GNU_TYPE)-$$i$(pkg_ver); \
-	  ln -sf $$i$(pkg_ver) \
-	    $(d_go)/$(PF)/bin/$(TARGET_ALIAS)-$$i$(pkg_ver); \
+  ifeq ($(unprefixed_names),yes)
+	for i in gcc gcov gcov-tool gcc-ar gcc-nm gcc-ranlib; do \
+	  ln -sf $(cmd_prefix)$$i$(pkg_ver) \
+	    $(d_go)/$(PF)/bin/$$i$(pkg_ver); \
 	done
     ifneq ($(GFDL_INVARIANT_FREE),yes)
-	for i in gcc gcov gcc-ar gcc-nm gcc-ranlib; do \
-	  ln -sf gcc$(pkg_ver).1 \
-	    $(d_go)/$(PF)/share/man/man1/$(DEB_TARGET_GNU_TYPE)-$$i$(pkg_ver).1; \
-	  ln -sf $$i$(pkg_ver).1 \
-	    $(d_go)/$(PF)/share/man/man1/$(TARGET_ALIAS)-$$i$(pkg_ver).1; \
+	for i in gcc gcov gcov-tool gcc-ar gcc-nm gcc-ranlib; do \
+	  ln -sf $(cmd_prefix)gcc$(pkg_ver).1 \
+	    $(d_go)/$(PF)/share/man/man1/$$i$(pkg_ver).1; \
 	done
     endif
   endif

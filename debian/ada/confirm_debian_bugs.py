@@ -14,13 +14,16 @@ os.environ ['LC_ALL'] = 'C'
 # If == new_version, "reassign" -> "found" and "retitle" -> "fixed".
 # Once the bug tracking system is informed,
 # please update this number.
-old_version = "4.8"
+old_version = "5"
 
 # The current version.
-new_version = "4.9"
-deb_version = \
-    subprocess.check_output (("dpkg", "--status", "gnat-" + new_version)) \
-    .split ("\n") [7] [len ("Version: "):]
+new_version = "6"
+
+for line in subprocess.check_output (("dpkg", "--status", "gnat-" + new_version)).split ("\n"):
+    if line.startswith ("Version: "):
+        deb_version = line [len ("Version: "):]
+        break
+# Will cause an error later if deb_version is not defined.
 
 # Each bug has its own subdirectory in WORKSPACE.
 # Every bug subdir is removed if the bug is confirmed,
@@ -97,12 +100,7 @@ def check_produces_a_faulty_executable (bug, make, sources, regex, trigger):
         else:
             report_and_retitle (bug, "output of the trigger changed (bug fixed?)", output)
 
-def print_skipped (bug, message):
-    print ("# {} skipped: {}".format (bug, message))
-
 ######################################################################
-
-print_skipped (182360, "cannot be reproduced automatically.")
 
 check_reports_an_error_but_should_not (
     bug = 244936,
@@ -144,7 +142,7 @@ end pak5;
 check_reports_an_error_but_should_not (
     bug = 246187,
     make = ("gnatmake", "test_43"),
-    regex = "Error detected at system.ads:152:5",
+    regex = "Error detected at system.ads:156:5",
     sources = (
         ("test_43.ads", """package Test_43 is
   type T1 is private;
@@ -228,32 +226,6 @@ check_compiles_but_should_not (
 begin
    p1;
 end Test_61;
-"""),))
-
-check_reports_an_error_but_should_not (
-    bug = 247564,
-    make = ("gnatmake", "test_70"),
-    regex = "in gnat_to_gnu_entity, at ada/gcc-interface/decl\.c:568",
-    sources = (
-        ("test_70.adb", """procedure Test_70 is
-
-   package pak2 is
-      type t2(b2: boolean) is private;
-   private
-      type t2(b2: boolean) is null record;
-   end pak2;
-
-   package pak1 is
-      type T1(b1 : boolean) is private;
-   private
-      type T1(b1 : boolean) is new pak2.t2(b1);
-   end pak1;
-
-   x: pak1.t1(false);
-   b: boolean;
-begin
-   b := x.b1;
-end Test_70;
 """),))
 
 check_produces_a_faulty_executable (
@@ -505,22 +477,6 @@ procedure main is
 begin
    null;
 end;
-"""),))
-
-check_reports_an_error_but_should_not (
-    bug = 251265,
-    make = ("gnatmake", "test_106"),
-    regex = "in Case_Statement_to_gnu, at ada/gcc-interface/trans.c:2366",
-    sources = (
-        ("test_106.adb", """pragma Ada_83;
-procedure Test_106(x: integer) is
-begin
-   case x is
-      when integer'last +1 => null;
-      when 0               => null; -- line 5
-      when others          => null;
-   end case;
-end Test_106;
 """),))
 
 check_reports_an_error_but_should_not (
@@ -864,7 +820,7 @@ check_reports_an_error_but_should_not (
     bug = 427108,
     make = ("gnatmake", "test1"),
 #     regex = "FAILED",
-    regex = "Program_Error exp_disp.adb:8462 explicit raise",
+    regex = "Program_Error exp_disp.adb:7842 explicit raise",
     sources = (
         ("test1.adb", """-- "For the execution of a call on an inherited subprogram,
 -- a call on the corresponding primitive subprogram of the
@@ -895,10 +851,6 @@ begin
    end if;
 end Test1;
 """),))
-
-print_skipped (559447, "not handled by this script")
-
-print_skipped (569343, "not handled by this script")
 
 check_reports_an_error_but_should_not (
     bug = 660698,

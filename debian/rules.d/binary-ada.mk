@@ -297,52 +297,38 @@ ifneq (,$(filter $(build_type), build-native cross-build-native))
 endif
 
 ifneq (,$(filter $(build_type), build-native cross-build-native))
-	: # ship the versioned prefixed names in the gnat package.
-	for i in $(GNAT_TOOLS); do \
-	  ln -sf $$i$(pkg_ver) \
-	    $(d_gnat)/$(PF)/bin/$(DEB_TARGET_GNU_TYPE)-$$i$(pkg_ver); \
-	  ln -sf $$i$(pkg_ver) \
-	    $(d_gnat)/$(PF)/bin/$(TARGET_ALIAS)-$$i$(pkg_ver); \
-	  ln -sf gnat$(pkg_ver).1 \
-	    $(d_gnat)/$(PF)/share/man/man1/$(DEB_TARGET_GNU_TYPE)-$$i$(pkg_ver).1; \
-	  ln -sf $$i$(pkg_ver).1 \
-	    $(d_gnat)/$(PF)/share/man/man1/$(TARGET_ALIAS)-$$i$(pkg_ver).1; \
-	done
-
-	: # still ship the unversioned names in the gnat package.
-	for i in $(GNAT_TOOLS); do \
-	  ln -sf $$i$(pkg_ver) \
-	    $(d_gnat)/$(PF)/bin/$$i; \
-	  ln -sf $$i$(pkg_ver) \
-	    $(d_gnat)/$(PF)/bin/$$i; \
-	  ln -sf gnat$(pkg_ver).1 \
-	    $(d_gnat)/$(PF)/share/man/man1/$$i.1; \
-	  ln -sf $$i$(pkg_ver).1 \
-	    $(d_gnat)/$(PF)/share/man/man1/$$i.1; \
-	done
-
 	: # still ship the unversioned prefixed names in the gnat package.
 	for i in $(GNAT_TOOLS); do \
-	  ln -sf $$i$(pkg_ver) \
-	    $(d_gnat)/$(PF)/bin/$(DEB_TARGET_GNU_TYPE)-$$i; \
-	  ln -sf $$i$(pkg_ver) \
-	    $(d_gnat)/$(PF)/bin/$(TARGET_ALIAS)-$$i; \
-	  ln -sf gnat$(pkg_ver).1 \
-	    $(d_gnat)/$(PF)/share/man/man1/$(DEB_TARGET_GNU_TYPE)-$$i.1; \
-	  ln -sf $$i$(pkg_ver).1 \
-	    $(d_gnat)/$(PF)/share/man/man1/$(TARGET_ALIAS)-$$i.1; \
+	  ln -sf $(cmd_prefix)$$i$(pkg_ver) \
+	    $(d_gnat)/$(PF)/bin/$(cmd_prefix)$$i; \
+	  ln -sf $(cmd_prefix)gnat$(pkg_ver).1.gz \
+	    $(d_gnat)/$(PF)/share/man/man1/$(cmd_prefix)$$i.1.gz; \
 	done
-else
+  ifeq ($(unprefixed_names),yes)
+	: # ship the versioned prefixed names in the gnat package.
+	for i in $(GNAT_TOOLS); do \
+	  ln -sf $(cmd_prefix)$$i$(pkg_ver) \
+	    $(d_gnat)/$(PF)/bin/$$i$(pkg_ver); \
+	  ln -sf $(cmd_prefix)gnat$(pkg_ver).1.gz \
+	    $(d_gnat)/$(PF)/share/man/man1/$$i$(pkg_ver).1.gz; \
+	done
+
 	: # still ship the unversioned names in the gnat package.
 	for i in $(GNAT_TOOLS); do \
-	  ln -sf $(DEB_TARGET_GNU_TYPE)-$$i$(pkg_ver) \
-	    $(d_gnat)/$(PF)/bin/$(DEB_TARGET_GNU_TYPE)-$$i; \
-	  ln -sf $(DEB_TARGET_GNU_TYPE)-$$i$(pkg_ver) \
-	    $(d_gnat)/$(PF)/bin/$(TARGET_ALIAS)-$$i; \
-	  ln -sf $(DEB_TARGET_GNU_TYPE)-gnat$(pkg_ver).1 \
-	    $(d_gnat)/$(PF)/share/man/man1/$(DEB_TARGET_GNU_TYPE)-$$i.1; \
-	  ln -sf $(DEB_TARGET_GNU_TYPE)-$$i$(pkg_ver).1 \
-	    $(d_gnat)/$(PF)/share/man/man1/$(TARGET_ALIAS)-$$i.1; \
+	  ln -sf $$i$(pkg_ver) \
+	    $(d_gnat)/$(PF)/bin/$$i; \
+	  ln -sf gnat$(pkg_ver).1.gz \
+	    $(d_gnat)/$(PF)/share/man/man1/$$i.1.gz; \
+	done
+
+  endif
+else
+	: # still ship the unversioned prefixed names in the gnat package.
+	for i in $(GNAT_TOOLS); do \
+	  ln -sf $(cmd_prefix)$$i$(pkg_ver) \
+	    $(d_gnat)/$(PF)/bin/$(cmd_prefix)$$i; \
+	  ln -sf $(cmd_prefix)gnat$(pkg_ver).1.gz \
+	    $(d_gnat)/$(PF)/share/man/man1/$(cmd_prefix)$$i.1.gz; \
 	done
 endif
 
@@ -352,9 +338,21 @@ ifneq (,$(filter $(build_type), build-native cross-build-native))
 	    $(d_gnat)/usr/share/ada/debian_packaging-$(GNAT_VERSION).mk
 endif
 	: # keep this one unversioned, see Debian #802838.
-	dh_link -p$(p_gnat) usr/bin/$(cmd_prefix)gcc$(pkg_ver) usr/bin/$(cmd_prefix)gnatgcc
+	dh_link -p$(p_gnat) \
+		usr/bin/$(cmd_prefix)gcc$(pkg_ver) usr/bin/$(cmd_prefix)gnatgcc
 ifneq ($(GFDL_INVARIANT_FREE),yes)
-	dh_link -p$(p_gnat) usr/share/man/man1/$(cmd_prefix)gcc$(pkg_ver).1.gz usr/share/man/man1/$(cmd_prefix)gnatgcc.1.gz
+	dh_link -p$(p_gnat) \
+		usr/share/man/man1/$(cmd_prefix)gcc$(pkg_ver).1.gz \
+		usr/share/man/man1/$(cmd_prefix)gnatgcc.1.gz
+endif
+ifeq ($(unprefixed_names),yes)
+	dh_link -p$(p_gnat) \
+		usr/bin/$(cmd_prefix)gcc$(pkg_ver) usr/bin/gnatgcc
+  ifneq ($(GFDL_INVARIANT_FREE),yes)
+	dh_link -p$(p_gnat) \
+		usr/share/man/man1/$(cmd_prefix)gcc$(pkg_ver).1.gz \
+		usr/share/man/man1/gnatgcc.1.gz
+  endif
 endif
 	debian/dh_rmemptydirs -p$(p_gnat)
 

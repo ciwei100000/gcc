@@ -53,10 +53,11 @@ header_files = \
 		    {,a,b,e,i,n,p,s,t,w,x}mmintrin.h mmintrin-common.h \
 		    {abm,adx,avx,avx2,bmi,bmi2,f16c,fma,fma4,fxsr,ia32,}intrin.h \
 		    {lwp,lzcnt,popcnt,prfchw,rdseed,rtm,tbm,x86,xop,xsave{,opt},xtest,}intrin.h \
-		    {htm,htmxl,mwaitx,sha,vec}intrin.h \
+		    {htm,htmxl,mwaitx,pku,sha,vec}intrin.h \
 		    avx512{bw,er,cd,dq,f,ifma,ifmavl,pf,vlbw,vbmi,vldq,vbmivl,vl}intrin.h \
-		    {clflushopt,clwb,pcommit,xsavec,xsaves}intrin.h \
+		    {clflushopt,clwb,clzero,pcommit,xsavec,xsaves}intrin.h \
 		    {arm_acle,unwind-arm-common,s390intrin}.h \
+		    msa.h \
 		    {cross-stdarg,syslimits,unwind,varargs}.h; \
 		do \
 		  test -e $(d)/$(gcc_lib_dir)/include/$$h \
@@ -94,6 +95,10 @@ endif
 
 ifeq ($(DEB_TARGET_ARCH),$(findstring $(DEB_TARGET_ARCH),powerpc ppc64 ppc64el powerpcspe))
     header_files += $(gcc_lib_dir)/include/{altivec.h,ppc-asm.h,spe.h}
+endif
+
+ifeq ($(DEB_TARGET_ARCH),tilegx)
+    header_files += $(gcc_lib_dir)/include/feedback.h
 endif
 
 p_lgcc		= libgcc$(GCC_SONAME)$(cross_lib_arch)
@@ -299,7 +304,7 @@ define __do_libgcc
 		ln -sf libgcc.symbols debian/$(p_l).symbols \
 		)
 		$(cross_makeshlibs) dh_makeshlibs $(ldconfig_arg) -p$(p_l) -p$(p_d) \
-			-- -v$(DEB_LIBGCC_VERSION)
+			-- -v$(DEB_LIBGCC_VERSION) -a$(call mlib_to_arch,$(2)) || echo XXXXXXXXXXXXXX ERROR $(p_l)
 		$(call cross_mangle_shlibs,$(p_l))
 		$(if $(filter arm-linux-gnueabi%,$(DEB_TARGET_GNU_TYPE)),
 			if head -1 $(d_l)/DEBIAN/symbols 2>/dev/null | grep -q '^lib'; then \

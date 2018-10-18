@@ -9,8 +9,8 @@ ifneq ($(DEB_CROSS),yes)
 endif
 
 p_jitlib	= libgccjit$(GCCJIT_SONAME)
+p_jitdbg	= libgccjit$(GCCJIT_SONAME)-dbg
 p_jitdev	= libgccjit$(pkg_ver)-dev
-p_jitdbg	= libgccjit$(pkg_ver)-dbg
 p_jitdoc	= libgccjit$(pkg_ver)-doc
 
 d_jitlib	= debian/$(p_jitlib)

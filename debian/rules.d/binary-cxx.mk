@@ -33,23 +33,12 @@ $(binary_stamp)-cxx: $(install_stamp)
 	dh_installdirs -p$(p_cxx) $(dirs_cxx)
 	$(dh_compat2) dh_movefiles -p$(p_cxx) $(files_cxx)
 
-ifneq ($(DEB_CROSS),yes)
-	ln -sf g++$(pkg_ver) \
-	    $(d_cxx)/$(PF)/bin/$(DEB_TARGET_GNU_TYPE)-g++$(pkg_ver)
-	ln -sf g++$(pkg_ver) \
-	    $(d_cxx)/$(PF)/bin/$(TARGET_ALIAS)-g++$(pkg_ver)
-endif
-
-ifneq ($(GFDL_INVARIANT_FREE),yes)
-# g++ man page is a .so link
-	rm -f $(d_cxx)/$(PF)/share/man/man1/$(cmd_prefix)g++$(pkg_ver).1
-	ln -sf $(cmd_prefix)gcc$(pkg_ver).1.gz \
-		$(d_cxx)/$(PF)/share/man/man1/$(cmd_prefix)g++$(pkg_ver).1.gz
-  ifneq ($(DEB_CROSS),yes)
-	ln -sf g++$(pkg_ver).1.gz \
-	    $(d_cxx)/$(PF)/share/man/man1/$(DEB_TARGET_GNU_TYPE)-g++$(pkg_ver).1.gz
-	ln -sf g++$(pkg_ver).1.gz \
-	    $(d_cxx)/$(PF)/share/man/man1/$(TARGET_ALIAS)-g++$(pkg_ver).1.gz
+ifeq ($(unprefixed_names),yes)
+	ln -sf $(cmd_prefix)g++$(pkg_ver) \
+	    $(d_cxx)/$(PF)/bin/g++$(pkg_ver)
+  ifneq ($(GFDL_INVARIANT_FREE),yes)
+	ln -sf $(cmd_prefix)g++$(pkg_ver).1.gz \
+	    $(d_cxx)/$(PF)/share/man/man1/g++$(pkg_ver).1.gz
   endif
 endif
 

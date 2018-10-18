@@ -64,27 +64,28 @@ Index: b/src/gcc/config/rs6000/linux64.h
 ===================================================================
 --- a/src/gcc/config/rs6000/linux64.h
 +++ b/src/gcc/config/rs6000/linux64.h
-@@ -396,11 +396,11 @@ extern int dot_symbols;
+@@ -469,12 +469,12 @@ extern int dot_symbols;
  					   " -m elf64ppc")
  #endif
  
 -#define LINK_OS_LINUX_SPEC32 LINK_OS_LINUX_EMUL32 " %{!shared: %{!static: \
 +#define LINK_OS_LINUX_SPEC32 LINK_OS_LINUX_EMUL32 " --hash-style=gnu %{!shared: %{!static: \
    %{rdynamic:-export-dynamic} \
-   -dynamic-linker " GNU_USER_DYNAMIC_LINKER32 "}}"
+   -dynamic-linker " GNU_USER_DYNAMIC_LINKER32 "}} \
+   %(link_os_extra_spec32)"
  
 -#define LINK_OS_LINUX_SPEC64 LINK_OS_LINUX_EMUL64 " %{!shared: %{!static: \
 +#define LINK_OS_LINUX_SPEC64 LINK_OS_LINUX_EMUL64 " --hash-style=gnu %{!shared: %{!static: \
    %{rdynamic:-export-dynamic} \
-   -dynamic-linker " GNU_USER_DYNAMIC_LINKER64 "}}"
- 
+   -dynamic-linker " GNU_USER_DYNAMIC_LINKER64 "}} \
+   %(link_os_extra_spec64)"
 Index: b/src/gcc/config/rs6000/sysv4.h
 ===================================================================
 --- a/src/gcc/config/rs6000/sysv4.h
 +++ b/src/gcc/config/rs6000/sysv4.h
-@@ -769,7 +769,7 @@ ENDIAN_SELECT(" -mbig", " -mlittle", DEF
- #define GNU_USER_DYNAMIC_LINKER \
-   CHOOSE_DYNAMIC_LINKER (GLIBC_DYNAMIC_LINKER, UCLIBC_DYNAMIC_LINKER)
+@@ -795,7 +795,7 @@ ENDIAN_SELECT(" -mbig", " -mlittle", DEF
+   CHOOSE_DYNAMIC_LINKER (GLIBC_DYNAMIC_LINKER, UCLIBC_DYNAMIC_LINKER, \
+ 			 MUSL_DYNAMIC_LINKER)
  
 -#define LINK_OS_LINUX_SPEC "-m elf32ppclinux %{!shared: %{!static: \
 +#define LINK_OS_LINUX_SPEC "-m elf32ppclinux --hash-style=gnu %{!shared: %{!static: \
@@ -158,7 +159,7 @@ Index: b/src/gcc/config/aarch64/aarch64-linux.h
 ===================================================================
 --- a/src/gcc/config/aarch64/aarch64-linux.h
 +++ b/src/gcc/config/aarch64/aarch64-linux.h
-@@ -32,6 +32,7 @@
+@@ -35,6 +35,7 @@
  #define CPP_SPEC "%{pthread:-D_REENTRANT}"
  
  #define LINUX_TARGET_LINK_SPEC  "%{h*}		\
