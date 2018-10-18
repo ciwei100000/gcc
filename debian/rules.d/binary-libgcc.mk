@@ -47,14 +47,15 @@ endif
 header_files = \
 	$(gcc_lib_dir)/include/std*.h \
 	$(shell for h in \
-		    README features.h arm_fp16.h arm_neon.h loongson.h \
-		    {cpuid,decfloat,float,iso646,limits,mm3dnow,mm_malloc}.h \
+		    README features.h arm_fp16.h arm_neon.h arm_cmse.h loongson.h \
+		    {cpuid,decfloat,float,gcov,iso646,limits,mm3dnow,mm_malloc}.h \
 		    {ppu_intrinsics,paired,spu2vmx,vec_types,si2vmx}.h \
 		    {,a,b,e,i,n,p,s,t,w,x}mmintrin.h mmintrin-common.h \
 		    {abm,adx,avx,avx2,bmi,bmi2,f16c,fma,fma4,fxsr,ia32,}intrin.h \
 		    {lwp,lzcnt,popcnt,prfchw,rdseed,rtm,tbm,x86,xop,xsave{,opt},xtest,}intrin.h \
-		    {htm,htmxl,mwaitx,pku,sha,vec}intrin.h \
+		    {htm,htmxl,mwaitx,pku,sha,vec,sgx}intrin.h \
 		    avx512{bw,er,cd,dq,f,ifma,ifmavl,pf,vlbw,vbmi,vldq,vbmivl,vl}intrin.h \
+		    avx512{4fmaps,4vnniw,vpopcntdq}intrin.h \
 		    {clflushopt,clwb,clzero,pcommit,xsavec,xsaves}intrin.h \
 		    {arm_acle,unwind-arm-common,s390intrin}.h \
 		    msa.h \
@@ -290,6 +291,11 @@ define __do_libgcc
 			$(d_l)/$(libgcc_dir$(2))/.
 	)
 
+	$(if $(filter yes, $(with_internal_libunwind)),
+		mv $(d)/$(usr_lib$(2))/libunwind.* \
+			$(d_l)/$(libgcc_dir$(2))/.
+	)
+
 	debian/dh_doclink -p$(p_l) $(if $(3),$(3),$(p_lbase))
 	debian/dh_doclink -p$(p_d) $(if $(3),$(3),$(p_lbase))
 	debian/dh_rmemptydirs -p$(p_l)
@@ -336,11 +342,7 @@ do_libgcc = $(call __do_libgcc,lib$(1)gcc$(GCC_SONAME),$(1),$(2))
 # ----------------------------------------------------------------------
 
 $(binary_stamp)-libgcc: $(install_dependencies)
-ifeq ($(with_standalone_gcj),yes)
-	$(call do_libgcc,,$(p_jbase))
-else
 	$(call do_libgcc,,)
-endif
 
 $(binary_stamp)-lib64gcc: $(install_dependencies)
 	$(call do_libgcc,64,)

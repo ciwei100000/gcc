@@ -1,0 +1,99 @@
+From c536feb42f56afd6397697f9ee9e5d8d918bef1b Mon Sep 17 00:00:00 2001
+From: ian <ian@138bc75d-0d04-0410-961f-82ee72b054a4>
+Date: Wed, 31 May 2017 21:36:42 +0000
+Subject: [PATCH]     libgo: support for sparc64 GNU/Linux
+
+    Fix lfstack code to work with sparc64 GNU/Linux address map.
+
+    Force alignment of epollevent.  To make this work reliably, pass
+    GOARCH explicitly to mkrsysinfo.sh.
+
+    Patch by Vladimir Mezentsev.
+
+    Reviewed-on: https://go-review.googlesource.com/44494
+
+
+git-svn-id: svn+ssh://gcc.gnu.org/svn/gcc/trunk@248765 138bc75d-0d04-0410-961f-82ee72b054a4
+---
+[gcc/go/gofrontend/MERGE           |  2 +-]
+ libgo/Makefile.am                 |  2 +-
+ libgo/Makefile.in                 |  2 +-
+ libgo/go/runtime/lfstack_64bit.go | 12 ++++++++++++
+ libgo/mkrsysinfo.sh               |  6 +++++-
+ 5 files changed, 20 insertions(+), 4 deletions(-)
+
+Index: b/src/libgo/Makefile.am
+===================================================================
+--- a/src/libgo/Makefile.am
++++ b/src/libgo/Makefile.am
+@@ -551,7 +551,7 @@ s-version: Makefile
+ 
+ runtime_sysinfo.go: s-runtime_sysinfo; @true
+ s-runtime_sysinfo: $(srcdir)/mkrsysinfo.sh gen-sysinfo.go
+-	$(SHELL) $(srcdir)/mkrsysinfo.sh
++	GOARCH=$(GOARCH) GOOS=$(GOOS) $(SHELL) $(srcdir)/mkrsysinfo.sh
+ 	$(SHELL) $(srcdir)/mvifdiff.sh tmp-runtime_sysinfo.go runtime_sysinfo.go
+ 	$(STAMP) $@
+ 
+Index: b/src/libgo/Makefile.in
+===================================================================
+--- a/src/libgo/Makefile.in
++++ b/src/libgo/Makefile.in
+@@ -3199,7 +3199,7 @@ s-version: Makefile
+ 
+ runtime_sysinfo.go: s-runtime_sysinfo; @true
+ s-runtime_sysinfo: $(srcdir)/mkrsysinfo.sh gen-sysinfo.go
+-	$(SHELL) $(srcdir)/mkrsysinfo.sh
++	GOARCH=$(GOARCH) GOOS=$(GOOS) $(SHELL) $(srcdir)/mkrsysinfo.sh
+ 	$(SHELL) $(srcdir)/mvifdiff.sh tmp-runtime_sysinfo.go runtime_sysinfo.go
+ 	$(STAMP) $@
+ 
+Index: b/src/libgo/go/runtime/lfstack_64bit.go
+===================================================================
+--- a/src/libgo/go/runtime/lfstack_64bit.go
++++ b/src/libgo/go/runtime/lfstack_64bit.go
+@@ -32,9 +32,18 @@ const (
+ 	// bottom, because node must be pointer-aligned, giving a total of 19 bits
+ 	// of count.
+ 	cntBits = 64 - addrBits + 3
++
++	// On sparc64-linux, user addresses are 52-bit numbers sign extended to 64.
++	// We shift the address left 12 to eliminate the sign extended part and make
++	// room in the bottom for the count.
++	sparcLinuxAddrBits = 52
++	sparcLinuxCntBits  = 64 - sparcLinuxAddrBits + 3
+ )
+ 
+ func lfstackPack(node *lfnode, cnt uintptr) uint64 {
++	if GOARCH == "sparc64" && GOOS == "linux" {
++		return uint64(uintptr(unsafe.Pointer(node)))<<(64-sparcLinuxAddrBits) | uint64(cnt&(1<<sparcLinuxCntBits-1))
++	}
+ 	return uint64(uintptr(unsafe.Pointer(node)))<<(64-addrBits) | uint64(cnt&(1<<cntBits-1))
+ }
+ 
+@@ -44,5 +53,8 @@ func lfstackUnpack(val uint64) *lfnode {
+ 		// val before unpacking.
+ 		return (*lfnode)(unsafe.Pointer(uintptr(int64(val) >> cntBits << 3)))
+ 	}
++	if GOARCH == "sparc64" && GOOS == "linux" {
++		return (*lfnode)(unsafe.Pointer(uintptr(int64(val) >> sparcLinuxCntBits << 3)))
++	}
+ 	return (*lfnode)(unsafe.Pointer(uintptr(val >> cntBits << 3)))
+ }
+Index: b/src/libgo/mkrsysinfo.sh
+===================================================================
+--- a/src/libgo/mkrsysinfo.sh
++++ b/src/libgo/mkrsysinfo.sh
+@@ -77,7 +77,11 @@ if grep '^const _epoll_data_offset ' ${O
+   if test "$val" = "4"; then
+       echo 'type epollevent struct { events uint32; data [8]byte }' >> ${OUT}
+   elif test "$val" = "8"; then
+-      echo 'type epollevent struct { events uint32; pad [4]byte; data [8]byte }' >> ${OUT}
++      if test "$GOARCH" = "sparc64" -a "$GOOS" = "linux"; then
++          echo 'type epollevent struct { events uint32; pad [4]byte; data [8]byte; _align [0]int64 }' >> ${OUT}
++      else
++          echo 'type epollevent struct { events uint32; pad [4]byte; data [8]byte }' >> ${OUT}
++      fi
+   else
+       echo 1>&2 "unknown epoll data offset value ${val}"
+       exit 1

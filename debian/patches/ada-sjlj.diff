@@ -1,3 +1,7 @@
+# Please read ada-changes-in-autogen-output.diff about src/Makefile.def.
+
+# !!! Must be applied after ada-libgnatvsn.diff
+
 Index: b/src/libada-sjlj/Makefile.in
 ===================================================================
 --- /dev/null
@@ -72,8 +76,8 @@ Index: b/src/libada-sjlj/Makefile.in
 +GCC_DIR=$(MULTIBUILDTOP)../../$(host_subdir)/gcc
 +
 +target_noncanonical:=@target_noncanonical@
-+version := $(shell cat $(srcdir)/../gcc/BASE-VER)
-+libsubdir := $(libdir)/gcc/$(target_noncanonical)/$(version)$(MULTISUBDIR)
++gcc_version := $(shell @get_gcc_base_ver@ $(srcdir)/../gcc/BASE-VER)
++libsubdir := $(libdir)/gcc/$(target_noncanonical)/$(gcc_version)$(MULTISUBDIR)
 +ADA_RTS_DIR=$(GCC_DIR)/ada/rts$(subst /,_,$(MULTISUBDIR))
 +ADA_RTS_SUBDIR=./rts$(subst /,_,$(MULTISUBDIR))
 +
@@ -128,7 +132,7 @@ Index: b/src/libada-sjlj/Makefile.in
 +	$(MAKE) -C $(GCC_DIR)/ada $(LIBADA_FLAGS_TO_PASS) ./bldtools/oscons/xoscons
 +
 +install-gnatlib: $(GCC_DIR)/ada/Makefile
-+	$(MAKE) -C $(GCC_DIR)/ada $(LIBADA_FLAGS_TO_PASS) install-gnatlib-sjlj
++	$(MAKE) -C $(GCC_DIR)/ada $(AM_MAKEFLAGS) $(LIBADA_FLAGS_TO_PASS) install-gnatlib-sjlj
 +
 +# Check uninstalled version.
 +check:
@@ -208,9 +212,9 @@ Index: b/src/libada-sjlj/configure.ac
 ===================================================================
 --- /dev/null
 +++ b/src/libada-sjlj/configure.ac
-@@ -0,0 +1,140 @@
+@@ -0,0 +1,152 @@
 +# Configure script for libada.
-+#   Copyright (C) 2003-2015 Free Software Foundation, Inc.
++#   Copyright (C) 2003-2016 Free Software Foundation, Inc.
 +#
 +# This file is free software; you can redistribute it and/or modify it
 +# under the terms of the GNU General Public License as published by
@@ -337,6 +341,18 @@ Index: b/src/libada-sjlj/configure.ac
 +AC_PROG_AWK
 +AC_PROG_LN_S
 +
++# Determine what GCC version number to use in filesystem paths.
++GCC_BASE_VER
++
++# Determine what to build for 'gnatlib'
++if test ${enable_shared} = yes ; then
++  # Note that build=target is almost certainly the wrong test; FIXME
++  default_gnatlib_target="gnatlib-shared"
++else
++  default_gnatlib_target="gnatlib-plain"
++fi
++AC_SUBST([default_gnatlib_target])
++
 +# Check for _Unwind_GetIPInfo
 +GCC_CHECK_UNWIND_GETIPINFO
 +have_getipinfo=
@@ -353,588 +369,40 @@ Index: b/src/Makefile.def
 ===================================================================
 --- a/src/Makefile.def
 +++ b/src/Makefile.def
-@@ -183,6 +183,13 @@ target_modules = { module= libada; no_in
+@@ -197,6 +197,7 @@ target_modules = { module= libgnatvsn; n
  		   missing= TAGS;
  		   missing= install-info;
  		   missing= installcheck; };
-+target_modules = { module= libada-sjlj; no_install=true; no_check=true;
-+		   missing= info;
-+		   missing= dvi;
-+		   missing= html;
-+		   missing= TAGS;
-+		   missing= install-info;
-+		   missing= installcheck; };
- target_modules = { module= libgnatvsn; no_check=true;
- 		   missing= info;
- 		   missing= dvi;
-@@ -394,6 +401,7 @@ dependencies = { module=all-libcpp; on=a
++target_modules = { module= libada-sjlj; };
+ target_modules = { module= libgomp; bootstrap= true; lib_path=.libs; };
+ target_modules = { module= libitm; lib_path=.libs; };
+ target_modules = { module= libatomic; lib_path=.libs; };
+@@ -393,6 +394,7 @@ dependencies = { module=all-libcpp; on=a
  dependencies = { module=all-fixincludes; on=all-libiberty; };
  
  dependencies = { module=all-target-libada; on=all-gcc; };
 +dependencies = { module=all-target-libada-sjlj; on=all-target-libada; };
  dependencies = { module=all-gnattools; on=all-target-libada; };
+ dependencies = { module=all-gnattools; on=all-target-libstdc++-v3; };
  dependencies = { module=all-gnattools; on=all-target-libgnatvsn; };
- dependencies = { module=all-gnattools; on=all-target-libgnatprj; };
-Index: b/src/Makefile.in
-===================================================================
---- a/src/Makefile.in
-+++ b/src/Makefile.in
-@@ -976,6 +976,7 @@ configure-target:  \
-     maybe-configure-target-boehm-gc \
-     maybe-configure-target-rda \
-     maybe-configure-target-libada \
-+    maybe-configure-target-libada-sjlj \
-     maybe-configure-target-libgnatvsn \
-     maybe-configure-target-libgnatprj \
-     maybe-configure-target-libgomp \
-@@ -1146,6 +1147,7 @@ all-target: maybe-all-target-zlib
- all-target: maybe-all-target-boehm-gc
- all-target: maybe-all-target-rda
- all-target: maybe-all-target-libada
-+all-target: maybe-all-target-libada-sjlj
- all-target: maybe-all-target-libgnatvsn
- all-target: maybe-all-target-libgnatprj
- @if target-libgomp-no-bootstrap
-@@ -1243,6 +1245,7 @@ info-target: maybe-info-target-zlib
- info-target: maybe-info-target-boehm-gc
- info-target: maybe-info-target-rda
- info-target: maybe-info-target-libada
-+info-target: maybe-info-target-libada-sjlj
- info-target: maybe-info-target-libgnatvsn
- info-target: maybe-info-target-libgnatprj
- info-target: maybe-info-target-libgomp
-@@ -1333,6 +1336,7 @@ dvi-target: maybe-dvi-target-zlib
- dvi-target: maybe-dvi-target-boehm-gc
- dvi-target: maybe-dvi-target-rda
- dvi-target: maybe-dvi-target-libada
-+dvi-target: maybe-dvi-target-libada-sjlj
- dvi-target: maybe-dvi-target-libgnatvsn
- dvi-target: maybe-dvi-target-libgnatprj
- dvi-target: maybe-dvi-target-libgomp
-@@ -1423,6 +1427,7 @@ pdf-target: maybe-pdf-target-zlib
- pdf-target: maybe-pdf-target-boehm-gc
- pdf-target: maybe-pdf-target-rda
- pdf-target: maybe-pdf-target-libada
-+pdf-target: maybe-pdf-target-libada-sjlj
- pdf-target: maybe-pdf-target-libgnatvsn
- pdf-target: maybe-pdf-target-libgnatprj
- pdf-target: maybe-pdf-target-libgomp
-@@ -1513,6 +1518,7 @@ html-target: maybe-html-target-zlib
- html-target: maybe-html-target-boehm-gc
- html-target: maybe-html-target-rda
- html-target: maybe-html-target-libada
-+html-target: maybe-html-target-libada-sjlj
- html-target: maybe-html-target-libgnatvsn
- html-target: maybe-html-target-libgnatprj
- html-target: maybe-html-target-libgomp
-@@ -1603,6 +1609,7 @@ TAGS-target: maybe-TAGS-target-zlib
- TAGS-target: maybe-TAGS-target-boehm-gc
- TAGS-target: maybe-TAGS-target-rda
- TAGS-target: maybe-TAGS-target-libada
-+TAGS-target: maybe-TAGS-target-libada-sjlj
- TAGS-target: maybe-TAGS-target-libgnatvsn
- TAGS-target: maybe-TAGS-target-libgnatprj
- TAGS-target: maybe-TAGS-target-libgomp
-@@ -1693,6 +1700,7 @@ install-info-target: maybe-install-info-
- install-info-target: maybe-install-info-target-boehm-gc
- install-info-target: maybe-install-info-target-rda
- install-info-target: maybe-install-info-target-libada
-+install-info-target: maybe-install-info-target-libada-sjlj
- install-info-target: maybe-install-info-target-libgnatvsn
- install-info-target: maybe-install-info-target-libgnatprj
- install-info-target: maybe-install-info-target-libgomp
-@@ -1783,6 +1791,7 @@ install-pdf-target: maybe-install-pdf-ta
- install-pdf-target: maybe-install-pdf-target-boehm-gc
- install-pdf-target: maybe-install-pdf-target-rda
- install-pdf-target: maybe-install-pdf-target-libada
-+install-pdf-target: maybe-install-pdf-target-libada-sjlj
- install-pdf-target: maybe-install-pdf-target-libgnatvsn
- install-pdf-target: maybe-install-pdf-target-libgnatprj
- install-pdf-target: maybe-install-pdf-target-libgomp
-@@ -1873,6 +1882,7 @@ install-html-target: maybe-install-html-
- install-html-target: maybe-install-html-target-boehm-gc
- install-html-target: maybe-install-html-target-rda
- install-html-target: maybe-install-html-target-libada
-+install-html-target: maybe-install-html-target-libada-sjlj
- install-html-target: maybe-install-html-target-libgnatvsn
- install-html-target: maybe-install-html-target-libgnatprj
- install-html-target: maybe-install-html-target-libgomp
-@@ -1963,6 +1973,7 @@ installcheck-target: maybe-installcheck-
- installcheck-target: maybe-installcheck-target-boehm-gc
- installcheck-target: maybe-installcheck-target-rda
- installcheck-target: maybe-installcheck-target-libada
-+installcheck-target: maybe-installcheck-target-libada-sjlj
- installcheck-target: maybe-installcheck-target-libgnatvsn
- installcheck-target: maybe-installcheck-target-libgnatprj
- installcheck-target: maybe-installcheck-target-libgomp
-@@ -2053,6 +2064,7 @@ mostlyclean-target: maybe-mostlyclean-ta
- mostlyclean-target: maybe-mostlyclean-target-boehm-gc
- mostlyclean-target: maybe-mostlyclean-target-rda
- mostlyclean-target: maybe-mostlyclean-target-libada
-+mostlyclean-target: maybe-mostlyclean-target-libada-sjlj
- mostlyclean-target: maybe-mostlyclean-target-libgnatvsn
- mostlyclean-target: maybe-mostlyclean-target-libgnatprj
- mostlyclean-target: maybe-mostlyclean-target-libgomp
-@@ -2143,6 +2155,7 @@ clean-target: maybe-clean-target-zlib
- clean-target: maybe-clean-target-boehm-gc
- clean-target: maybe-clean-target-rda
- clean-target: maybe-clean-target-libada
-+clean-target: maybe-clean-target-libada-sjlj
- clean-target: maybe-clean-target-libgnatvsn
- clean-target: maybe-clean-target-libgnatprj
- clean-target: maybe-clean-target-libgomp
-@@ -2233,6 +2246,7 @@ distclean-target: maybe-distclean-target
- distclean-target: maybe-distclean-target-boehm-gc
- distclean-target: maybe-distclean-target-rda
- distclean-target: maybe-distclean-target-libada
-+distclean-target: maybe-distclean-target-libada-sjlj
- distclean-target: maybe-distclean-target-libgnatvsn
- distclean-target: maybe-distclean-target-libgnatprj
- distclean-target: maybe-distclean-target-libgomp
-@@ -2323,6 +2337,7 @@ maintainer-clean-target: maybe-maintaine
- maintainer-clean-target: maybe-maintainer-clean-target-boehm-gc
- maintainer-clean-target: maybe-maintainer-clean-target-rda
- maintainer-clean-target: maybe-maintainer-clean-target-libada
-+maintainer-clean-target: maybe-maintainer-clean-target-libada-sjlj
- maintainer-clean-target: maybe-maintainer-clean-target-libgnatvsn
- maintainer-clean-target: maybe-maintainer-clean-target-libgnatprj
- maintainer-clean-target: maybe-maintainer-clean-target-libgomp
-@@ -2469,6 +2484,7 @@ check-target:  \
-     maybe-check-target-boehm-gc \
-     maybe-check-target-rda \
-     maybe-check-target-libada \
-+    maybe-check-target-libada-sjlj \
-     maybe-check-target-libgnatvsn \
-     maybe-check-target-libgnatprj \
-     maybe-check-target-libgomp \
-@@ -2655,6 +2671,7 @@ install-target:  \
-     maybe-install-target-boehm-gc \
-     maybe-install-target-rda \
-     maybe-install-target-libada \
-+    maybe-install-target-libada-sjlj \
-     maybe-install-target-libgnatvsn \
-     maybe-install-target-libgnatprj \
-     maybe-install-target-libgomp \
-@@ -2765,6 +2782,7 @@ install-strip-target:  \
-     maybe-install-strip-target-boehm-gc \
-     maybe-install-strip-target-rda \
-     maybe-install-strip-target-libada \
-+    maybe-install-strip-target-libada-sjlj \
-     maybe-install-strip-target-libgnatvsn \
-     maybe-install-strip-target-libgnatprj \
-     maybe-install-strip-target-libgomp \
-@@ -46077,6 +46095,352 @@ maintainer-clean-target-libada:
- 
- 
- 
-+.PHONY: configure-target-libada-sjlj maybe-configure-target-libada-sjlj
-+maybe-configure-target-libada-sjlj:
-+@if gcc-bootstrap
-+configure-target-libada-sjlj: stage_current
-+@endif gcc-bootstrap
-+@if target-libada-sjlj
-+maybe-configure-target-libada-sjlj: configure-target-libada-sjlj
-+configure-target-libada-sjlj: 
-+	@: $(MAKE); $(unstage)
-+	@r=`${PWD_COMMAND}`; export r; \
-+	s=`cd $(srcdir); ${PWD_COMMAND}`; export s; \
-+	echo "Checking multilib configuration for libada-sjlj..."; \
-+	$(SHELL) $(srcdir)/mkinstalldirs $(TARGET_SUBDIR)/libada-sjlj ; \
-+	$(CC_FOR_TARGET) --print-multi-lib > $(TARGET_SUBDIR)/libada-sjlj/multilib.tmp 2> /dev/null ; \
-+	if test -r $(TARGET_SUBDIR)/libada-sjlj/multilib.out; then \
-+	  if cmp -s $(TARGET_SUBDIR)/libada-sjlj/multilib.tmp $(TARGET_SUBDIR)/libada-sjlj/multilib.out; then \
-+	    rm -f $(TARGET_SUBDIR)/libada-sjlj/multilib.tmp; \
-+	  else \
-+	    rm -f $(TARGET_SUBDIR)/libada-sjlj/Makefile; \
-+	    mv $(TARGET_SUBDIR)/libada-sjlj/multilib.tmp $(TARGET_SUBDIR)/libada-sjlj/multilib.out; \
-+	  fi; \
-+	else \
-+	  mv $(TARGET_SUBDIR)/libada-sjlj/multilib.tmp $(TARGET_SUBDIR)/libada-sjlj/multilib.out; \
-+	fi; \
-+	test ! -f $(TARGET_SUBDIR)/libada-sjlj/Makefile || exit 0; \
-+	$(SHELL) $(srcdir)/mkinstalldirs $(TARGET_SUBDIR)/libada-sjlj ; \
-+	$(NORMAL_TARGET_EXPORTS)  \
-+	echo Configuring in $(TARGET_SUBDIR)/libada-sjlj; \
-+	cd "$(TARGET_SUBDIR)/libada-sjlj" || exit 1; \
-+	case $(srcdir) in \
-+	  /* | [A-Za-z]:[\\/]*) topdir=$(srcdir) ;; \
-+	  *) topdir=`echo $(TARGET_SUBDIR)/libada-sjlj/ | \
-+		sed -e 's,\./,,g' -e 's,[^/]*/,../,g' `$(srcdir) ;; \
-+	esac; \
-+	module_srcdir=libada-sjlj; \
-+	rm -f no-such-file || : ; \
-+	CONFIG_SITE=no-such-file $(SHELL) \
-+	  $$s/$$module_srcdir/configure \
-+	  --srcdir=$${topdir}/$$module_srcdir \
-+	  $(TARGET_CONFIGARGS) --build=${build_alias} --host=${target_alias} \
-+	  --target=${target_alias}  \
-+	  || exit 1
-+@endif target-libada-sjlj
-+
-+
-+
-+
-+
-+.PHONY: all-target-libada-sjlj maybe-all-target-libada-sjlj
-+maybe-all-target-libada-sjlj:
-+@if gcc-bootstrap
-+all-target-libada-sjlj: stage_current
-+@endif gcc-bootstrap
-+@if target-libada-sjlj
-+TARGET-target-libada-sjlj=all
-+maybe-all-target-libada-sjlj: all-target-libada-sjlj
-+all-target-libada-sjlj: configure-target-libada-sjlj
-+	@: $(MAKE); $(unstage)
-+	@r=`${PWD_COMMAND}`; export r; \
-+	s=`cd $(srcdir); ${PWD_COMMAND}`; export s; \
-+	$(NORMAL_TARGET_EXPORTS)  \
-+	(cd $(TARGET_SUBDIR)/libada-sjlj && \
-+	  $(MAKE) $(BASE_FLAGS_TO_PASS) $(EXTRA_TARGET_FLAGS)   \
-+		$(TARGET-target-libada-sjlj))
-+@endif target-libada-sjlj
-+
-+
-+
-+
-+
-+.PHONY: check-target-libada-sjlj maybe-check-target-libada-sjlj
-+maybe-check-target-libada-sjlj:
-+@if target-libada-sjlj
-+maybe-check-target-libada-sjlj: check-target-libada-sjlj
-+
-+# Dummy target for uncheckable module.
-+check-target-libada-sjlj:
-+
-+@endif target-libada-sjlj
-+
-+.PHONY: install-target-libada-sjlj maybe-install-target-libada-sjlj
-+maybe-install-target-libada-sjlj:
-+@if target-libada-sjlj
-+maybe-install-target-libada-sjlj: install-target-libada-sjlj
-+
-+# Dummy target for uninstallable.
-+install-target-libada-sjlj:
-+
-+@endif target-libada-sjlj
-+
-+.PHONY: install-strip-target-libada-sjlj maybe-install-strip-target-libada-sjlj
-+maybe-install-strip-target-libada-sjlj:
-+@if target-libada-sjlj
-+maybe-install-strip-target-libada-sjlj: install-strip-target-libada-sjlj
-+
-+# Dummy target for uninstallable.
-+install-strip-target-libada-sjlj:
-+
-+@endif target-libada-sjlj
-+
-+# Other targets (info, dvi, pdf, etc.)
-+
-+.PHONY: maybe-info-target-libada-sjlj info-target-libada-sjlj
-+maybe-info-target-libada-sjlj:
-+@if target-libada-sjlj
-+maybe-info-target-libada-sjlj: info-target-libada-sjlj
-+
-+# libada-sjlj doesn't support info.
-+info-target-libada-sjlj:
-+
-+@endif target-libada-sjlj
-+
-+.PHONY: maybe-dvi-target-libada-sjlj dvi-target-libada-sjlj
-+maybe-dvi-target-libada-sjlj:
-+@if target-libada-sjlj
-+maybe-dvi-target-libada-sjlj: dvi-target-libada-sjlj
-+
-+# libada-sjlj doesn't support dvi.
-+dvi-target-libada-sjlj:
-+
-+@endif target-libada-sjlj
-+
-+.PHONY: maybe-pdf-target-libada-sjlj pdf-target-libada-sjlj
-+maybe-pdf-target-libada-sjlj:
-+@if target-libada-sjlj
-+maybe-pdf-target-libada-sjlj: pdf-target-libada-sjlj
-+
-+pdf-target-libada-sjlj: \
-+    configure-target-libada-sjlj 
-+	@: $(MAKE); $(unstage)
-+	@[ -f $(TARGET_SUBDIR)/libada-sjlj/Makefile ] || exit 0 ; \
-+	r=`${PWD_COMMAND}`; export r; \
-+	s=`cd $(srcdir); ${PWD_COMMAND}`; export s; \
-+	$(NORMAL_TARGET_EXPORTS) \
-+	echo "Doing pdf in $(TARGET_SUBDIR)/libada-sjlj" ; \
-+	for flag in $(EXTRA_TARGET_FLAGS); do \
-+	  eval `echo "$$flag" | sed -e "s|^\([^=]*\)=\(.*\)|\1='\2'; export \1|"`; \
-+	done; \
-+	(cd $(TARGET_SUBDIR)/libada-sjlj && \
-+	  $(MAKE) $(BASE_FLAGS_TO_PASS) "AR=$${AR}" "AS=$${AS}" \
-+	          "CC=$${CC}" "CXX=$${CXX}" "LD=$${LD}" "NM=$${NM}" \
-+	          "RANLIB=$${RANLIB}" \
-+	          "DLLTOOL=$${DLLTOOL}" "WINDRES=$${WINDRES}" "WINDMC=$${WINDMC}" \
-+	           pdf) \
-+	  || exit 1
-+
-+@endif target-libada-sjlj
-+
-+.PHONY: maybe-html-target-libada-sjlj html-target-libada-sjlj
-+maybe-html-target-libada-sjlj:
-+@if target-libada-sjlj
-+maybe-html-target-libada-sjlj: html-target-libada-sjlj
-+
-+# libada-sjlj doesn't support html.
-+html-target-libada-sjlj:
-+
-+@endif target-libada-sjlj
-+
-+.PHONY: maybe-TAGS-target-libada-sjlj TAGS-target-libada-sjlj
-+maybe-TAGS-target-libada-sjlj:
-+@if target-libada-sjlj
-+maybe-TAGS-target-libada-sjlj: TAGS-target-libada-sjlj
-+
-+# libada-sjlj doesn't support TAGS.
-+TAGS-target-libada-sjlj:
-+
-+@endif target-libada-sjlj
-+
-+.PHONY: maybe-install-info-target-libada-sjlj install-info-target-libada-sjlj
-+maybe-install-info-target-libada-sjlj:
-+@if target-libada-sjlj
-+maybe-install-info-target-libada-sjlj: install-info-target-libada-sjlj
-+
-+# libada-sjlj doesn't support install-info.
-+install-info-target-libada-sjlj:
-+
-+@endif target-libada-sjlj
-+
-+.PHONY: maybe-install-pdf-target-libada-sjlj install-pdf-target-libada-sjlj
-+maybe-install-pdf-target-libada-sjlj:
-+@if target-libada-sjlj
-+maybe-install-pdf-target-libada-sjlj: install-pdf-target-libada-sjlj
-+
-+install-pdf-target-libada-sjlj: \
-+    configure-target-libada-sjlj \
-+    pdf-target-libada-sjlj 
-+	@: $(MAKE); $(unstage)
-+	@[ -f $(TARGET_SUBDIR)/libada-sjlj/Makefile ] || exit 0 ; \
-+	r=`${PWD_COMMAND}`; export r; \
-+	s=`cd $(srcdir); ${PWD_COMMAND}`; export s; \
-+	$(NORMAL_TARGET_EXPORTS) \
-+	echo "Doing install-pdf in $(TARGET_SUBDIR)/libada-sjlj" ; \
-+	for flag in $(EXTRA_TARGET_FLAGS); do \
-+	  eval `echo "$$flag" | sed -e "s|^\([^=]*\)=\(.*\)|\1='\2'; export \1|"`; \
-+	done; \
-+	(cd $(TARGET_SUBDIR)/libada-sjlj && \
-+	  $(MAKE) $(BASE_FLAGS_TO_PASS) "AR=$${AR}" "AS=$${AS}" \
-+	          "CC=$${CC}" "CXX=$${CXX}" "LD=$${LD}" "NM=$${NM}" \
-+	          "RANLIB=$${RANLIB}" \
-+	          "DLLTOOL=$${DLLTOOL}" "WINDRES=$${WINDRES}" "WINDMC=$${WINDMC}" \
-+	           install-pdf) \
-+	  || exit 1
-+
-+@endif target-libada-sjlj
-+
-+.PHONY: maybe-install-html-target-libada-sjlj install-html-target-libada-sjlj
-+maybe-install-html-target-libada-sjlj:
-+@if target-libada-sjlj
-+maybe-install-html-target-libada-sjlj: install-html-target-libada-sjlj
-+
-+install-html-target-libada-sjlj: \
-+    configure-target-libada-sjlj \
-+    html-target-libada-sjlj 
-+	@: $(MAKE); $(unstage)
-+	@[ -f $(TARGET_SUBDIR)/libada-sjlj/Makefile ] || exit 0 ; \
-+	r=`${PWD_COMMAND}`; export r; \
-+	s=`cd $(srcdir); ${PWD_COMMAND}`; export s; \
-+	$(NORMAL_TARGET_EXPORTS) \
-+	echo "Doing install-html in $(TARGET_SUBDIR)/libada-sjlj" ; \
-+	for flag in $(EXTRA_TARGET_FLAGS); do \
-+	  eval `echo "$$flag" | sed -e "s|^\([^=]*\)=\(.*\)|\1='\2'; export \1|"`; \
-+	done; \
-+	(cd $(TARGET_SUBDIR)/libada-sjlj && \
-+	  $(MAKE) $(BASE_FLAGS_TO_PASS) "AR=$${AR}" "AS=$${AS}" \
-+	          "CC=$${CC}" "CXX=$${CXX}" "LD=$${LD}" "NM=$${NM}" \
-+	          "RANLIB=$${RANLIB}" \
-+	          "DLLTOOL=$${DLLTOOL}" "WINDRES=$${WINDRES}" "WINDMC=$${WINDMC}" \
-+	           install-html) \
-+	  || exit 1
-+
-+@endif target-libada-sjlj
-+
-+.PHONY: maybe-installcheck-target-libada-sjlj installcheck-target-libada-sjlj
-+maybe-installcheck-target-libada-sjlj:
-+@if target-libada-sjlj
-+maybe-installcheck-target-libada-sjlj: installcheck-target-libada-sjlj
-+
-+# libada-sjlj doesn't support installcheck.
-+installcheck-target-libada-sjlj:
-+
-+@endif target-libada-sjlj
-+
-+.PHONY: maybe-mostlyclean-target-libada-sjlj mostlyclean-target-libada-sjlj
-+maybe-mostlyclean-target-libada-sjlj:
-+@if target-libada-sjlj
-+maybe-mostlyclean-target-libada-sjlj: mostlyclean-target-libada-sjlj
-+
-+mostlyclean-target-libada-sjlj: 
-+	@: $(MAKE); $(unstage)
-+	@[ -f $(TARGET_SUBDIR)/libada-sjlj/Makefile ] || exit 0 ; \
-+	r=`${PWD_COMMAND}`; export r; \
-+	s=`cd $(srcdir); ${PWD_COMMAND}`; export s; \
-+	$(NORMAL_TARGET_EXPORTS) \
-+	echo "Doing mostlyclean in $(TARGET_SUBDIR)/libada-sjlj" ; \
-+	for flag in $(EXTRA_TARGET_FLAGS); do \
-+	  eval `echo "$$flag" | sed -e "s|^\([^=]*\)=\(.*\)|\1='\2'; export \1|"`; \
-+	done; \
-+	(cd $(TARGET_SUBDIR)/libada-sjlj && \
-+	  $(MAKE) $(BASE_FLAGS_TO_PASS) "AR=$${AR}" "AS=$${AS}" \
-+	          "CC=$${CC}" "CXX=$${CXX}" "LD=$${LD}" "NM=$${NM}" \
-+	          "RANLIB=$${RANLIB}" \
-+	          "DLLTOOL=$${DLLTOOL}" "WINDRES=$${WINDRES}" "WINDMC=$${WINDMC}" \
-+	           mostlyclean) \
-+	  || exit 1
-+
-+@endif target-libada-sjlj
-+
-+.PHONY: maybe-clean-target-libada-sjlj clean-target-libada-sjlj
-+maybe-clean-target-libada-sjlj:
-+@if target-libada-sjlj
-+maybe-clean-target-libada-sjlj: clean-target-libada-sjlj
-+
-+clean-target-libada-sjlj: 
-+	@: $(MAKE); $(unstage)
-+	@[ -f $(TARGET_SUBDIR)/libada-sjlj/Makefile ] || exit 0 ; \
-+	r=`${PWD_COMMAND}`; export r; \
-+	s=`cd $(srcdir); ${PWD_COMMAND}`; export s; \
-+	$(NORMAL_TARGET_EXPORTS) \
-+	echo "Doing clean in $(TARGET_SUBDIR)/libada-sjlj" ; \
-+	for flag in $(EXTRA_TARGET_FLAGS); do \
-+	  eval `echo "$$flag" | sed -e "s|^\([^=]*\)=\(.*\)|\1='\2'; export \1|"`; \
-+	done; \
-+	(cd $(TARGET_SUBDIR)/libada-sjlj && \
-+	  $(MAKE) $(BASE_FLAGS_TO_PASS) "AR=$${AR}" "AS=$${AS}" \
-+	          "CC=$${CC}" "CXX=$${CXX}" "LD=$${LD}" "NM=$${NM}" \
-+	          "RANLIB=$${RANLIB}" \
-+	          "DLLTOOL=$${DLLTOOL}" "WINDRES=$${WINDRES}" "WINDMC=$${WINDMC}" \
-+	           clean) \
-+	  || exit 1
-+
-+@endif target-libada-sjlj
-+
-+.PHONY: maybe-distclean-target-libada-sjlj distclean-target-libada-sjlj
-+maybe-distclean-target-libada-sjlj:
-+@if target-libada-sjlj
-+maybe-distclean-target-libada-sjlj: distclean-target-libada-sjlj
-+
-+distclean-target-libada-sjlj: 
-+	@: $(MAKE); $(unstage)
-+	@[ -f $(TARGET_SUBDIR)/libada-sjlj/Makefile ] || exit 0 ; \
-+	r=`${PWD_COMMAND}`; export r; \
-+	s=`cd $(srcdir); ${PWD_COMMAND}`; export s; \
-+	$(NORMAL_TARGET_EXPORTS) \
-+	echo "Doing distclean in $(TARGET_SUBDIR)/libada-sjlj" ; \
-+	for flag in $(EXTRA_TARGET_FLAGS); do \
-+	  eval `echo "$$flag" | sed -e "s|^\([^=]*\)=\(.*\)|\1='\2'; export \1|"`; \
-+	done; \
-+	(cd $(TARGET_SUBDIR)/libada-sjlj && \
-+	  $(MAKE) $(BASE_FLAGS_TO_PASS) "AR=$${AR}" "AS=$${AS}" \
-+	          "CC=$${CC}" "CXX=$${CXX}" "LD=$${LD}" "NM=$${NM}" \
-+	          "RANLIB=$${RANLIB}" \
-+	          "DLLTOOL=$${DLLTOOL}" "WINDRES=$${WINDRES}" "WINDMC=$${WINDMC}" \
-+	           distclean) \
-+	  || exit 1
-+
-+@endif target-libada-sjlj
-+
-+.PHONY: maybe-maintainer-clean-target-libada-sjlj maintainer-clean-target-libada-sjlj
-+maybe-maintainer-clean-target-libada-sjlj:
-+@if target-libada-sjlj
-+maybe-maintainer-clean-target-libada-sjlj: maintainer-clean-target-libada-sjlj
-+
-+maintainer-clean-target-libada-sjlj: 
-+	@: $(MAKE); $(unstage)
-+	@[ -f $(TARGET_SUBDIR)/libada-sjlj/Makefile ] || exit 0 ; \
-+	r=`${PWD_COMMAND}`; export r; \
-+	s=`cd $(srcdir); ${PWD_COMMAND}`; export s; \
-+	$(NORMAL_TARGET_EXPORTS) \
-+	echo "Doing maintainer-clean in $(TARGET_SUBDIR)/libada-sjlj" ; \
-+	for flag in $(EXTRA_TARGET_FLAGS); do \
-+	  eval `echo "$$flag" | sed -e "s|^\([^=]*\)=\(.*\)|\1='\2'; export \1|"`; \
-+	done; \
-+	(cd $(TARGET_SUBDIR)/libada-sjlj && \
-+	  $(MAKE) $(BASE_FLAGS_TO_PASS) "AR=$${AR}" "AS=$${AS}" \
-+	          "CC=$${CC}" "CXX=$${CXX}" "LD=$${LD}" "NM=$${NM}" \
-+	          "RANLIB=$${RANLIB}" \
-+	          "DLLTOOL=$${DLLTOOL}" "WINDRES=$${WINDRES}" "WINDMC=$${WINDMC}" \
-+	           maintainer-clean) \
-+	  || exit 1
-+
-+@endif target-libada-sjlj
-+
-+
-+
-+
-+
- .PHONY: configure-target-libgnatvsn maybe-configure-target-libgnatvsn
- maybe-configure-target-libgnatvsn:
- @if gcc-bootstrap
-@@ -50993,6 +51357,7 @@ configure-target-zlib: stage_last
- configure-target-boehm-gc: stage_last
- configure-target-rda: stage_last
- configure-target-libada: stage_last
-+configure-target-libada-sjlj: stage_last
- configure-target-libgnatvsn: stage_last
- configure-target-libgnatprj: stage_last
- configure-stage1-target-libgomp: maybe-all-stage1-gcc
-@@ -51030,6 +51395,7 @@ configure-target-zlib: maybe-all-gcc
- configure-target-boehm-gc: maybe-all-gcc
- configure-target-rda: maybe-all-gcc
- configure-target-libada: maybe-all-gcc
-+configure-target-libada-sjlj: maybe-all-gcc
- configure-target-libgnatvsn: maybe-all-gcc
- configure-target-libgnatprj: maybe-all-gcc
- configure-target-libgomp: maybe-all-gcc
-@@ -51404,6 +51770,7 @@ all-stage4-fixincludes: maybe-all-stage4
- all-stageprofile-fixincludes: maybe-all-stageprofile-libiberty
- all-stagefeedback-fixincludes: maybe-all-stagefeedback-libiberty
- all-target-libada: maybe-all-gcc
-+all-target-libada-sjlj: maybe-all-target-libada
- all-gnattools: maybe-all-target-libada
- all-gnattools: maybe-all-target-libgnatvsn
- all-gnattools: maybe-all-target-libgnatprj
-@@ -52007,6 +52374,7 @@ configure-target-zlib: maybe-all-target-
- configure-target-boehm-gc: maybe-all-target-libgcc
- configure-target-rda: maybe-all-target-libgcc
- configure-target-libada: maybe-all-target-libgcc
-+configure-target-libada-sjlj: maybe-all-target-libgcc
- configure-target-libgnatvsn: maybe-all-target-libgcc
- configure-target-libgnatprj: maybe-all-target-libgcc
- configure-target-libgomp: maybe-all-target-libgcc
-@@ -52063,6 +52431,8 @@ configure-target-rda: maybe-all-target-n
- 
- configure-target-libada: maybe-all-target-newlib maybe-all-target-libgloss
- 
-+configure-target-libada-sjlj: maybe-all-target-newlib maybe-all-target-libgloss
-+
- configure-target-libgnatvsn: maybe-all-target-newlib maybe-all-target-libgloss
- 
- configure-target-libgnatprj: maybe-all-target-newlib maybe-all-target-libgloss
 Index: b/src/configure.ac
 ===================================================================
 --- a/src/configure.ac
 +++ b/src/configure.ac
-@@ -176,6 +176,7 @@ target_libraries="target-libgcc \
- 		${libgcj} \
+@@ -170,6 +170,7 @@ target_libraries="target-libgcc \
+ 		target-libffi \
  		target-libobjc \
  		target-libada \
 +		target-libada-sjlj \
  		${target_libiberty} \
  		target-libgnatvsn \
- 		target-libgnatprj \
-@@ -463,7 +464,7 @@ AC_ARG_ENABLE(libada,
+ 		target-libgo"
+@@ -456,7 +457,7 @@ AC_ARG_ENABLE(libada,
  ENABLE_LIBADA=$enableval,
  ENABLE_LIBADA=yes)
  if test "${ENABLE_LIBADA}" != "yes" ; then
--  noconfigdirs="$noconfigdirs target-libgnatvsn target-libgnatprj gnattools"
-+  noconfigdirs="$noconfigdirs target-libgnatvsn target-libgnatprj gnattools target-libada-sjlj"
+-  noconfigdirs="$noconfigdirs target-libgnatvsn gnattools"
++  noconfigdirs="$noconfigdirs target-libgnatvsn gnattools target-libada-sjlj"
  fi
  
  AC_ARG_ENABLE(libssp,
@@ -942,7 +410,7 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
 ===================================================================
 --- a/src/gcc/ada/gcc-interface/Makefile.in
 +++ b/src/gcc/ada/gcc-interface/Makefile.in
-@@ -192,7 +192,7 @@ TOOLSCASE =
+@@ -190,7 +190,7 @@ TOOLSCASE =
  
  # Multilib handling
  MULTISUBDIR =
@@ -951,7 +419,7 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
  
  # Link flags used to build gnat tools.  By default we prefer to statically
  # link with libgcc to avoid a dependency on shared libgcc (which is tricky
-@@ -2633,6 +2633,27 @@ install-gnatlib: ../stamp-gnatlib-$(RTSD
+@@ -2724,6 +2724,26 @@ install-gnatlib: ../stamp-gnatlib-$(RTSD
  	cd $(DESTDIR)$(ADA_INCLUDE_DIR); $(CHMOD) a-wx *.adb
  	cd $(DESTDIR)$(ADA_INCLUDE_DIR); $(CHMOD) a-wx *.ads
  
@@ -975,20 +443,19 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
 +	cd $(DESTDIR)$(ADA_INCLUDE_DIR_SJLJ); $(CHMOD) a-wx *.adb
 +	cd $(DESTDIR)$(ADA_INCLUDE_DIR_SJLJ); $(CHMOD) a-wx *.ads
 +
-+
- ../stamp-gnatlib1-$(RTSDIR): Makefile
- 	$(RMDIR) $(RTSDIR)
- 	$(MKDIR) $(RTSDIR)
-@@ -2889,7 +2910,7 @@ gnatlib-shared:
- # in getting multiple blank lines, hence a style check error, as a
- # result.
+ ../stamp-gnatlib2-$(RTSDIR):
+ 	$(RM) $(RTSDIR)/s-*.ali
+ 	$(RM) $(RTSDIR)/s-*$(objext)
+@@ -3005,7 +3025,7 @@ gnatlib-shared:
+ # commenting the pragma instead of deleting the line, as the latter might
+ # result in getting multiple blank lines, hence possible style check errors.
  gnatlib-sjlj:
 -	$(MAKE) $(FLAGS_TO_PASS) EH_MECHANISM="" \
 +	$(MAKE) $(FLAGS_TO_PASS) EH_MECHANISM="" RTSDIR="$(RTSDIR)" \
  	THREAD_KIND="$(THREAD_KIND)" ../stamp-gnatlib1-$(RTSDIR)
  	sed \
  	  -e 's/Frontend_Exceptions.*/Frontend_Exceptions       : constant Boolean := True;/' \
-@@ -2898,6 +2919,7 @@ gnatlib-sjlj:
+@@ -3014,6 +3034,7 @@ gnatlib-sjlj:
  	  $(RTSDIR)/system.ads > $(RTSDIR)/s.ads
  	$(MV) $(RTSDIR)/s.ads $(RTSDIR)/system.ads
  	$(MAKE) $(FLAGS_TO_PASS) \
@@ -996,7 +463,7 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
  	     EH_MECHANISM="" \
  	     GNATLIBFLAGS="$(GNATLIBFLAGS)" \
  	     GNATLIBCFLAGS="$(GNATLIBCFLAGS)" \
-@@ -2950,6 +2972,8 @@ b_gnatm.o : b_gnatm.adb
+@@ -3065,6 +3086,8 @@ b_gnatm.o : b_gnatm.adb
  
  ADA_INCLUDE_DIR = $(libsubdir)/adainclude
  ADA_RTL_OBJ_DIR = $(libsubdir)/adalib
@@ -1013,10 +480,10 @@ Index: b/src/gcc/ada/gcc-interface/config-lang.in
  
  outputs="ada/gcc-interface/Makefile ada/Makefile"
  
--target_libs="target-libada target-libgnatvsn target-libgnatprj"
--lang_dirs="libada libgnatvsn libgnatprj gnattools"
-+target_libs="target-libada target-libgnatvsn target-libgnatprj target-libada-sjlj"
-+lang_dirs="libada libgnatvsn libgnatprj gnattools libada-sjlj"
+-target_libs="target-libada target-libgnatvsn"
+-lang_dirs="libada gnattools"
++target_libs="target-libada target-libgnatvsn target-libada-sjlj"
++lang_dirs="libada gnattools libada-sjlj"
  
  # Ada is not enabled by default for the time being.
  build_by_default=no
@@ -1024,7 +491,7 @@ Index: b/src/gcc/ada/gcc-interface/Make-lang.in
 ===================================================================
 --- a/src/gcc/ada/gcc-interface/Make-lang.in
 +++ b/src/gcc/ada/gcc-interface/Make-lang.in
-@@ -784,6 +784,7 @@ ada.install-common:
+@@ -788,6 +788,7 @@ ada.install-common:
  
  install-gnatlib:
  	$(MAKE) -C ada $(COMMON_FLAGS_TO_PASS) $(ADA_FLAGS_TO_PASS) install-gnatlib$(LIBGNAT_TARGET)

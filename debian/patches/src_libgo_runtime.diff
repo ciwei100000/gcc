@@ -1,0 +1,47 @@
+Index: gcc-7-7.2.0-12.1/src/libgo/runtime/getncpu-gnu.c
+===================================================================
+--- /dev/null
++++ gcc-7-7.2.0-12.1/src/libgo/runtime/getncpu-gnu.c
+@@ -0,0 +1,16 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <unistd.h>
++
++#include "runtime.h"
++#include "defs.h"
++
++int32
++getproccount(void)
++{
++	int32 n;
++	n = (int32)sysconf(_SC_NPROCESSORS_ONLN);
++	return n > 1 ? n : 1;
++}
+Index: gcc-7-7.2.0-12.1/src/libgo/runtime/go-caller.c
+===================================================================
+--- gcc-7-7.2.0-12.1.orig/src/libgo/runtime/go-caller.c
++++ gcc-7-7.2.0-12.1/src/libgo/runtime/go-caller.c
+@@ -108,7 +108,7 @@ __go_get_backtrace_state ()
+ 	 argv[0] (http://gcc.gnu.org/PR61895).  It would be nice to
+ 	 have a better check for whether this file is the real
+ 	 executable.  */
+-      if (stat (filename, &s) < 0 || s.st_size < 1024)
++      if (filename != NULL && (stat (filename, &s) < 0 || s.st_size < 1024))
+ 	filename = NULL;
+ 
+       back_state = backtrace_create_state (filename, 1, error_callback, NULL);
+Index: gcc-7-7.2.0-12.1/src/libgo/runtime/runtime_c.c
+===================================================================
+--- gcc-7-7.2.0-12.1.orig/src/libgo/runtime/runtime_c.c
++++ gcc-7-7.2.0-12.1/src/libgo/runtime/runtime_c.c
+@@ -75,7 +75,7 @@ runtime_fastrand(void)
+ int64
+ runtime_cputicks(void)
+ {
+-#if defined(__386__) || defined(__x86_64__)
++#if defined(__i386__) || defined(__x86_64__)
+   uint32 low, high;
+   asm("rdtsc" : "=a" (low), "=d" (high));
+   return (int64)(((uint64)high << 32) | (uint64)low);

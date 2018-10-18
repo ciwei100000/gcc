@@ -199,6 +199,10 @@ endif
 		$(d_g95)/$(docdir)/$(p_xbase)/fortran/changelog
 	debian/dh_rmemptydirs -p$(p_g95)
 
+ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTONS)))
+	$(DWZ) \
+	  $(d_g95)/$(gcc_lexec_dir)/f951
+endif
 	dh_strip -p$(p_g95) \
 	  $(if $(unstripped_exe),-X/f951)
 	dh_shlibdeps -p$(p_g95)

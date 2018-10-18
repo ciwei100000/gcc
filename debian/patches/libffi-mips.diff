@@ -1,8 +1,10 @@
 # DP: Backport Mips go closure support, taken from libffi issue #197.
 
+Index: b/src/libffi/src/mips/ffi.c
+===================================================================
 --- a/src/libffi/src/mips/ffi.c
 +++ b/src/libffi/src/mips/ffi.c
-@@ -581,14 +581,15 @@ ffi_status ffi_prep_cif_machdep(ffi_cif *cif)
+@@ -581,14 +581,15 @@ ffi_status ffi_prep_cif_machdep(ffi_cif
  /* Low level routine for calling O32 functions */
  extern int ffi_call_O32(void (*)(char *, extended_cif *, int, int), 
  			extended_cif *, unsigned, 
@@ -21,7 +23,7 @@
  {
    extended_cif ecif;
  
-@@ -610,7 +611,7 @@ void ffi_call(ffi_cif *cif, void (*fn)(void), void *rvalue, void **avalue)
+@@ -610,7 +611,7 @@ void ffi_call(ffi_cif *cif, void (*fn)(v
      case FFI_O32:
      case FFI_O32_SOFT_FLOAT:
        ffi_call_O32(ffi_prep_args, &ecif, cif->bytes, 
@@ -30,7 +32,7 @@
        break;
  #endif
  
-@@ -642,7 +643,7 @@ void ffi_call(ffi_cif *cif, void (*fn)(void), void *rvalue, void **avalue)
+@@ -642,7 +643,7 @@ void ffi_call(ffi_cif *cif, void (*fn)(v
  #endif
  	  }
          ffi_call_N32(ffi_prep_args, &ecif, cif->bytes,
@@ -39,7 +41,7 @@
          if (copy_rvalue)
            memcpy(ecif.rvalue, rvalue_copy + copy_offset, cif->rtype->size);
        }
-@@ -655,11 +656,27 @@ void ffi_call(ffi_cif *cif, void (*fn)(void), void *rvalue, void **avalue)
+@@ -655,11 +656,27 @@ void ffi_call(ffi_cif *cif, void (*fn)(v
      }
  }
  
@@ -67,7 +69,7 @@
  #endif /* FFI_MIPS_O32 */
  
  ffi_status
-@@ -762,17 +779,17 @@ ffi_prep_closure_loc (ffi_closure *closure,
+@@ -770,17 +787,17 @@ ffi_prep_closure_loc (ffi_closure *closu
   * Based on the similar routine for sparc.
   */
  int
@@ -88,7 +90,7 @@
    avalue = alloca (cif->nargs * sizeof (ffi_arg));
    avaluep = alloca (cif->nargs * sizeof (ffi_arg));
  
-@@ -840,7 +857,7 @@ ffi_closure_mips_inner_O32 (ffi_closure *closure,
+@@ -848,7 +865,7 @@ ffi_closure_mips_inner_O32 (ffi_closure
      }
  
    /* Invoke the closure. */
@@ -97,7 +99,7 @@
  
    if (cif->abi == FFI_O32_SOFT_FLOAT)
      {
-@@ -916,11 +933,12 @@ copy_struct_N32(char *target, unsigned offset, ffi_abi abi, ffi_type *type,
+@@ -924,11 +941,12 @@ copy_struct_N32(char *target, unsigned o
   *
   */
  int
@@ -112,7 +114,7 @@
    void **avaluep;
    ffi_arg *avalue;
    ffi_type **arg_types;
-@@ -928,7 +946,6 @@ ffi_closure_mips_inner_N32 (ffi_closure *closure,
+@@ -936,7 +954,6 @@ ffi_closure_mips_inner_N32 (ffi_closure
    int soft_float;
    ffi_arg *argp;
  
@@ -120,7 +122,7 @@
    soft_float = cif->abi == FFI_N64_SOFT_FLOAT
      || cif->abi == FFI_N32_SOFT_FLOAT;
    avalue = alloca (cif->nargs * sizeof (ffi_arg));
-@@ -1040,11 +1057,49 @@ ffi_closure_mips_inner_N32 (ffi_closure *closure,
+@@ -1048,11 +1065,49 @@ ffi_closure_mips_inner_N32 (ffi_closure
      }
  
    /* Invoke the closure. */
@@ -171,6 +173,8 @@
 +}
 +
  #endif /* FFI_CLOSURES */
+Index: b/src/libffi/src/mips/ffitarget.h
+===================================================================
 --- a/src/libffi/src/mips/ffitarget.h
 +++ b/src/libffi/src/mips/ffitarget.h
 @@ -231,12 +231,14 @@ typedef enum ffi_abi {
@@ -189,6 +193,8 @@
  #else
  #define FFI_TRAMPOLINE_SIZE 20
  #endif
+Index: b/src/libffi/src/mips/n32.S
+===================================================================
 --- a/src/libffi/src/mips/n32.S
 +++ b/src/libffi/src/mips/n32.S
 @@ -37,8 +37,12 @@
@@ -205,7 +211,7 @@
  
  #ifdef __GNUC__
  	.abicalls
-@@ -49,24 +53,25 @@
+@@ -51,24 +55,25 @@
  	.globl	ffi_call_N32
  	.ent	ffi_call_N32
  ffi_call_N32:	
@@ -235,7 +241,7 @@
  
  	# Allocate at least 4 words in the argstack
  	move	v0, bytes
-@@ -198,6 +203,9 @@ callit:
+@@ -200,6 +205,9 @@ callit:
  	# Load the function pointer
  	REG_L	t9, 5*FFI_SIZEOF_ARG($fp)
  
@@ -245,7 +251,7 @@
  	# If the return value pointer is NULL, assume no return value.
  	REG_L	t5, 4*FFI_SIZEOF_ARG($fp)
  	beqz	t5, noretval
-@@ -346,7 +354,7 @@ epilogue:
+@@ -348,7 +356,7 @@ epilogue:
  	ADDU	$sp, SIZEOF_FRAME		      # Fix stack pointer
  	j	ra
  
@@ -254,7 +260,7 @@
  	.end	ffi_call_N32
  
  /* ffi_closure_N32. Expects address of the passed-in ffi_closure in t0
-@@ -406,6 +414,41 @@ epilogue:
+@@ -408,6 +416,41 @@ epilogue:
  #define GP_OFF2		(0  * FFI_SIZEOF_ARG)
  
  	.align	2
@@ -296,7 +302,7 @@
  	.globl	ffi_closure_N32
  	.ent	ffi_closure_N32
  ffi_closure_N32:
-@@ -414,18 +457,29 @@ ffi_closure_N32:
+@@ -416,18 +459,29 @@ ffi_closure_N32:
  	.mask	0x90000000,-(SIZEOF_FRAME2 - RA_OFF2)
  	.fmask	0x00000000,0
  	SUBU	$sp, SIZEOF_FRAME2
@@ -330,7 +336,7 @@
  	REG_S	a6, A6_OFF2($sp)
  	REG_S	a7, A7_OFF2($sp)
  
-@@ -439,12 +493,6 @@ ffi_closure_N32:
+@@ -441,12 +495,6 @@ ffi_closure_N32:
  	s.d	$f18, F18_OFF2($sp)
  	s.d	$f19, F19_OFF2($sp)
  
@@ -343,7 +349,7 @@
  	jalr	t9
  
  	# Return flags are in v0
-@@ -531,46 +579,66 @@ cls_epilogue:
+@@ -533,46 +581,66 @@ cls_epilogue:
          .align  EH_FRAME_ALIGN
  .LECIE1:
  
@@ -426,6 +432,8 @@
  #endif /* __GNUC__ */	
  	
  #endif
+Index: b/src/libffi/src/mips/o32.S
+===================================================================
 --- a/src/libffi/src/mips/o32.S
 +++ b/src/libffi/src/mips/o32.S
 @@ -50,14 +50,14 @@ ffi_call_O32:

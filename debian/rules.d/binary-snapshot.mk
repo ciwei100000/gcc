@@ -21,41 +21,8 @@ ifeq ($(with_hppa64),yes)
   snapshot_depends = binutils-hppa64
 endif
 
-$(stampdir)/ecj_binaries: $(install_snap_stamp)
-	mkdir -p $(builddir)/aot/jar $(builddir)/aot/bin
-	cp $(ecj_jar) $(builddir)/aot/jar/ecj-standalone.jar
-	zip -d $(builddir)/aot/jar/ecj-standalone.jar \
-		'org/eclipse/jdt/core/JDTCompilerAdapter*'
-
-	cd $(builddir)/aot/jar \
-	  && fastjar xf ecj-standalone.jar \
-	  && find -name '*.rsc' -o -name '*.properties' \
-		| fastjar -c -@ - -f ../resources.jar
-	rm -rf $(builddir)/aot/jar/META-INF $(builddir)/aot/jar/org
-	$(d)/$(PF)/bin/gcj \
-	    -c -O2 -g -fPIC -fjni -findirect-dispatch \
-	    -o $(builddir)/aot/bin/resources.o $(builddir)/aot/resources.jar
-
-	cp $(srcdir)/libjava/contrib/classfile.py $(builddir)/aot/
-	cp $(buildlibdir)/libjava/contrib/*.py $(builddir)/aot/
-	grep -v '^sys.path.insert' $(buildlibdir)/libjava/contrib/aot-compile \
-	    > $(builddir)/aot/aot-compile
-	chmod 755 $(builddir)/aot/aot-compile
-	patch -p1 < debian/patches/aotcompile.diff
-	LD_LIBRARY_PATH=$${LD_LIBRARY_PATH:+$$LD_LIBRARY_PATH:}$(CURDIR)/$(d)/$(PF)/lib \
-	RPATH=-Wl,-rpath,/$(PF)/lib \
-	PYTHONPATH=$(builddir)/aot \
-	  python $(builddir)/aot/aot-compile \
-	    --gcj=$(CURDIR)/$(d)/$(PF)/bin/gcj \
-	    --dbtool=$(CURDIR)/$(d)/$(PF)/bin/gcj-dbtool \
-	    --makeflags="$(NJOBS)" \
-	    --ldflags="$(LDFLAGS)" \
-	    $(builddir)/aot/jar $(builddir)/aot/bin
-	touch $@
-
 # ----------------------------------------------------------------------
-$(binary_stamp)-snapshot: $(install_snap_stamp) \
-    $(if $(filter $(with_ecj),yes),$(stampdir)/ecj_binaries)
+$(binary_stamp)-snapshot: $(install_snap_stamp)
 	dh_testdir
 	dh_testroot
 	mv $(install_snap_stamp) $(install_snap_stamp)-tmp
@@ -83,43 +50,6 @@ $(binary_stamp)-snapshot: $(install_snap_stamp) \
 	fi
 
 	rm -rf $(d_snap)/$(PF)/lib/nof
-ifeq ($(with_java),yes)
-	mv $(d)/usr/lib/jvm $(d_snap)/usr/lib/
-
-	dh_link -p$(p_snap) \
-	  $(gcc_lib_dir)/include/gcj $(jvm_dir)/include/gcj \
-	  usr/bin/ecj $(jvm_dir)/bin/javac
-
-  ifneq ($(DEB_TARGET_ARCH_CPU),$(java_cpu))
-	ln -sf $(java_cpu) $(d_snap)/$(jvm_dir)/jre/lib/$(DEB_TARGET_ARCH_CPU)
-  endif
-  ifeq ($(with_ecj),yes)
-	install -m755 $(builddir)/aot/bin/javac $(d_snap)/$(jvm_dir)/bin/javac
-	install -m755 $(builddir)/aot/bin/ecj1 $(d_snap)/$(gcc_lexec_dir)/ecj1
-
-    ifeq (./,$(dir $(ecj_jar)))
-	install -m 644 $(ecj_jar) $(d_snap)/$(jvm_dir)/lib/ecj.jar
-    else
-	dh_link -p$(p_snap) \
-	  $(ecj_jar) $(jvm_dir)/lib/ecj.jar
-    endif
-  endif
-
-	: # provide .jinfo file
-	( \
-	  echo 'name=$(jvm_name_short)'; \
-	  echo 'alias=java-gcj$(pkg_ver)'; \
-	  echo 'priority=$(priority)'; \
-	  echo 'section=main'; \
-	  echo ''; \
-	  for i in $(jre_tools); do \
-	    echo "jre $$i /$(jvm_dir)/jre/bin/$$i"; \
-	  done; \
-	  for i in $(jdk_tools); do \
-	    echo "jdk $$i /$(jvm_dir)/bin/$$i"; \
-	  done; \
-	) > $(d_snap)/usr/lib/jvm/.java-gcj$(pkg_ver)-snap.jinfo
-endif
 
 ifeq ($(with_ada),yes FIXME: apply our ada patches)
 	dh_link -p$(p_snap) \
@@ -185,6 +115,7 @@ ifeq ($(DEB_TARGET_ARCH),hppa)
 	dh_strip -p$(p_snap) -Xdebug -X.o -X.a -X/cgo -Xbin/go -Xbin/gofmt \
 	  $(if $(unstripped_exe),$(foreach i,cc1 cc1obj cc1objplus cc1plus cc1d f951 go1 jc1 lto1, -X/$(i)))
 else
+	dh_dwz -p$(p_snap) -Xdebug -X/cgo -Xbin/go -Xbin/gofmt
 	dh_strip -p$(p_snap) -Xdebug -X/cgo -Xbin/go -Xbin/gofmt \
 	  $(if $(unstripped_exe),$(foreach i,cc1 cc1obj cc1objplus cc1plus cc1d f951 go1 jc1 lto1, -X/$(i)))
 endif
@@ -204,17 +135,13 @@ endif
 	  echo 'libobjc $(OBJC_SONAME) ${p_snap} (>= $(DEB_VERSION))'; \
 	  echo 'libgfortran $(FORTRAN_SONAME) ${p_snap} (>= $(DEB_VERSION))'; \
 	  echo 'libffi $(FFI_SONAME) ${p_snap} (>= $(DEB_VERSION))'; \
-	  echo 'libgcj $(GCJ_SONAME) ${p_snap} (>= $(DEB_VERSION))'; \
-	  echo 'libgcj-tools $(GCJ_SONAME) ${p_snap} (>= $(DEB_VERSION))'; \
-	  echo 'libgij $(GCJ_SONAME) ${p_snap} (>= $(DEB_VERSION))'; \
-	  echo 'libgcj_bc 1 ${p_snap} (>= $(DEB_VERSION))'; \
 	  echo 'libgomp $(GOMP_SONAME) ${p_snap} (>= $(DEB_VERSION))'; \
 	  echo 'libgnat-$(GNAT_SONAME) 1 ${p_snap} (>= $(DEB_VERSION))'; \
 	  echo 'libgnarl-$(GNAT_SONAME) 1 ${p_snap} (>= $(DEB_VERSION))'; \
 	) > debian/shlibs.local
 
 	$(ignshld)DIRNAME=$(subst n,,$(2)) $(cross_shlibdeps)  \
-	  dh_shlibdeps -p$(p_snap) -l$(CURDIR)/$(d_snap)/$(PF)/lib:$(CURDIR)/$(d_snap)/$(PF)/$(if $(filter $(DEB_TARGET_ARCH),amd64 ppc64),lib32,lib64):/usr/$(DEB_TARGET_GNU_TYPE)/lib -Xlibgcj-tools
+	  dh_shlibdeps -p$(p_snap) -l$(CURDIR)/$(d_snap)/$(PF)/lib:$(CURDIR)/$(d_snap)/$(PF)/$(if $(filter $(DEB_TARGET_ARCH),amd64 ppc64),lib32,lib64):/usr/$(DEB_TARGET_GNU_TYPE)/lib
 	-sed -i -e 's/$(p_snap)[^,]*, //g' debian/$(p_snap).substvars
 
 ifeq ($(with_multiarch_lib),yes)

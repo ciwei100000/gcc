@@ -1,0 +1,62 @@
+# DP: Fix PR target/81356 (AArch64)
+# DP: Avoid memory access w/ __builtin_strcpy of empty string.
+
+diff -urpN a/src/gcc/config/aarch64/aarch64.c b/src/gcc/config/aarch64/aarch64.c
+--- a/src/gcc/config/aarch64/aarch64.c	2018-01-08 17:26:17.048619887 -0500
++++ b/src/gcc/config/aarch64/aarch64.c	2018-01-08 17:37:19.677001978 -0500
+@@ -14083,22 +14083,6 @@ aarch64_asan_shadow_offset (void)
+   return (HOST_WIDE_INT_1 << 36);
+ }
+ 
+-static bool
+-aarch64_use_by_pieces_infrastructure_p (unsigned HOST_WIDE_INT size,
+-					unsigned int align,
+-					enum by_pieces_operation op,
+-					bool speed_p)
+-{
+-  /* STORE_BY_PIECES can be used when copying a constant string, but
+-     in that case each 64-bit chunk takes 5 insns instead of 2 (LDR/STR).
+-     For now we always fail this and let the move_by_pieces code copy
+-     the string from read-only memory.  */
+-  if (op == STORE_BY_PIECES)
+-    return false;
+-
+-  return default_use_by_pieces_infrastructure_p (size, align, op, speed_p);
+-}
+-
+ static rtx
+ aarch64_gen_ccmp_first (rtx_insn **prep_seq, rtx_insn **gen_seq,
+ 			int code, tree treeop0, tree treeop1)
+@@ -15591,10 +15575,6 @@ aarch64_libgcc_floating_mode_supported_p
+ #undef TARGET_LEGITIMIZE_ADDRESS
+ #define TARGET_LEGITIMIZE_ADDRESS aarch64_legitimize_address
+ 
+-#undef TARGET_USE_BY_PIECES_INFRASTRUCTURE_P
+-#define TARGET_USE_BY_PIECES_INFRASTRUCTURE_P \
+-  aarch64_use_by_pieces_infrastructure_p
+-
+ #undef TARGET_SCHED_CAN_SPECULATE_INSN
+ #define TARGET_SCHED_CAN_SPECULATE_INSN aarch64_sched_can_speculate_insn
+ 
+diff -urpN a/src/gcc/testsuite/gcc.target/aarch64/pr81356.c b/src/gcc/testsuite/gcc.target/aarch64/pr81356.c
+--- a/src/gcc/testsuite/gcc.target/aarch64/pr81356.c	1969-12-31 19:00:00.000000000 -0500
++++ b/src/gcc/testsuite/gcc.target/aarch64/pr81356.c	2018-01-08 17:37:48.251938066 -0500
+@@ -0,0 +1,9 @@
++/* { dg-do compile } */
++/* { dg-options "-O2" } */
++
++void f(char *a)
++{
++  __builtin_strcpy (a, "");
++}
++
++/* { dg-final { scan-assembler-not "ldrb" } } */
+diff -urpN a/src/gcc/testsuite/gfortran.dg/pr45636.f90 b/src/gcc/testsuite/gfortran.dg/pr45636.f90
+--- a/src/gcc/testsuite/gfortran.dg/pr45636.f90	2015-05-29 04:20:29.810091000 -0400
++++ b/src/gcc/testsuite/gfortran.dg/pr45636.f90	2018-01-08 17:38:20.779324980 -0500
+@@ -12,4 +12,4 @@ program main
+ end program main
+ ! This test will fail on targets which prefer memcpy/memset over
+ ! move_by_pieces/store_by_pieces.
+-! { dg-final { scan-tree-dump-times "memset" 0 "forwprop2" { xfail { { hppa*-*-* && { ! lp64 } } || { { mips*-*-* && { ! nomips16 } } || { aarch64*-*-* } } } } } }
++! { dg-final { scan-tree-dump-times "memset" 0 "forwprop2" { xfail { { hppa*-*-* && { ! lp64 } } || { mips*-*-* && { ! nomips16 } } } } } }

@@ -3,9 +3,12 @@
 # exists, the rule exits with an error to prevent deletion of modified
 # source files. It has to be deleted manually.
 
-tarballs = $(gcc_tarball) # $(gcj_tarball)
+tarballs = $(gcc_tarball)
 ifeq ($(with_d),yes)
   tarballs += $(gdc_tarball)
+endif
+ifeq ($(with_offload_nvptx),yes)
+  tarballs += $(nl_nvptx_tarball)
 endif
 
 unpack_stamps = $(foreach i,$(tarballs),$(unpack_stamp)-$(i))
@@ -87,7 +90,6 @@ gfdl_texinfo_files = \
 
 gfdl_toplevel_texinfo_files = \
 	gcc/doc/gcc.texi \
-	gcc/java/gcj.texi \
 	gcc/ada/gnat-style.texi \
 	gcc/ada/gnat_rm.texi \
 	gcc/ada/gnat_ugn.texi \
@@ -102,18 +104,10 @@ gfdl_manpages = \
 	gcc/doc/gc-analyze.1 \
 	gcc/doc/gcc.1 \
 	gcc/doc/gccgo.1 \
-	gcc/doc/gcj.1 \
-	gcc/doc/gcj-dbtool.1 \
-	gcc/doc/gcjh.1 \
 	gcc/doc/gcov.1 \
 	gcc/doc/gcov-dump.1 \
 	gcc/doc/gcov-tool.1 \
 	gcc/doc/gfortran.1 \
-	gcc/doc/gij.1 \
-	gcc/doc/grmic.1 \
-	gcc/doc/grmiregistry.1 \
-	gcc/doc/jcf-dump.1 \
-	gcc/doc/jv-convert.1 \
 	gcc/doc/fsf-funding.7 \
 
 # ---------------------------------------------------------------------------
@@ -128,17 +122,6 @@ $(unpack_stamp)-$(gcc_tarball): $(gcc_tarpath)
 	tar -x -f $(gcc_tarpath)
 	mv $(gcc_srcdir) $(srcdir)
 	ln -sf libsanitizer $(srcdir)/libasan
-ifneq (,$(wildcard java-class-files.tar.xz.uue))
-# work around #533356
-#	uudecode -o - java-class-files.tar.xz.uue | tar -C src -xvz
-	uudecode java-class-files.tar.xz.uue
-	xzcat java-class-files.tar.xz | tar -C src -xv -f -
-	rm -f java-class-files.tar.xz
-endif
-#ifeq ($(with_java),yes)
-#	tar -x -C $(srcdir)/libjava/testsuite/libmauve.exp \
-#		$(wildcard /usr/src/mauve*.tar.*)
-#endif
 ifeq (0,1)
 	cd $(srcdir) && tar cfj ../gcc-4.1.1-doc.tar.bz2 \
 		$(gfdl_texinfo_files) \
@@ -152,8 +135,6 @@ ifeq ($(GFDL_INVARIANT_FREE),yes)
 	rm -f $(srcdir)/gcc/doc/*.info
 	rm -f $(srcdir)/gcc/fortran/*.info
 	rm -f $(srcdir)/libgomp/*.info
-	rm -f $(srcdir)/gcc/java/*.1
-	rm -f $(srcdir)/gcc/java/*.info
 	for i in $(gfdl_texinfo_files); do \
 	  if [ -f $(srcdir)/$$i ]; then \
 	    cp $(SOURCE_DIR)debian/dummy.texi $(srcdir)/$$i; \
@@ -181,37 +162,6 @@ ifeq ($(GFDL_INVARIANT_FREE),yes)
   endif
 endif
 	echo "$(gcc_tarball) unpacked." > $@
-
-# ---------------------------------------------------------------------------
-ifneq (,$(gcj_tarball))
-$(unpack_stamp)-$(gcj_tarball): $(gcj_tarpath) $(unpack_stamp)-$(gcc_tarball)
-	: # unpack gcj tarball
-	rm -rf $(srcdir)/gcc/java $(srcdir)/libjava
-	tar -x -C $(srcdir) -f $(gcj_tarpath)
-ifeq ($(GFDL_INVARIANT_FREE),yes)
-  ifneq ($(single_package),yes)
-	rm -f $(srcdir)/gcc/java/*.1
-	rm -f $(srcdir)/gcc/java/*.info
-	for i in $(gfdl_texinfo_files); do \
-	  if [ -f $(srcdir)/$$i ]; then \
-	    cp $(SOURCE_DIR)debian/dummy.texi $(srcdir)/$$i; \
-	  else \
-	    echo >&2 "$$i does not exist, fix debian/rules.unpack"; \
-	  fi; \
-	done
-	for i in $(gfdl_toplevel_texinfo_files); do \
-	  n=$$(basename $$i .texi); \
-	  if [ -f $(srcdir)/$$i ]; then \
-	    sed "s/@name@/$$n/g" $(SOURCE_DIR)debian/gcc-dummy.texi \
-	      > $(srcdir)/$$i; \
-	  else \
-	    echo >&2 "$$i does not exist, fix debian/rules.unpack"; \
-	  fi; \
-	done
-  endif
-endif
-	echo "$(gcj_tarball) unpacked." > $@
-endif
 
 # ---------------------------------------------------------------------------
 ifneq (,$(gdc_tarball))
@@ -245,4 +195,14 @@ ifeq ($(GFDL_INVARIANT_FREE),yes-now-purge-gfdl)
   endif
 endif
 	echo "$(gdc_tarball) unpacked." > $@
+endif
+
+# ---------------------------------------------------------------------------
+ifneq (,$(nl_nvptx_tarball))
+$(unpack_stamp)-$(nl_nvptx_tarball): $(nl_nvptx_tarpath) $(unpack_stamp)-$(gcc_tarball)
+	: # unpack newlib-nvptx tarball
+	mkdir -p $(stampdir)
+	: # rm -rf $(nl_nvptx_srcdir)
+	tar -x -f $(nl_nvptx_tarpath)
+	echo "$(nl_nvptx_tarball) unpacked." > $@
 endif

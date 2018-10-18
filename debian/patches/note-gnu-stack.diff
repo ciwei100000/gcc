@@ -19,14 +19,6 @@ gcc/
 
 	* config/ia64/linux.h (TARGET_ASM_FILE_END): Define.
 
-boehm-gc/
-
-2005-02-08  Jakub Jelinek  <jakub@redhat.com>
-
-	* ia64_save_regs_in_stack.s: Moved to...
-	* ia64_save_regs_in_stack.S: ... this.  Add .note.GNU-stack
-	on Linux.
-
 libffi/
 
 2007-05-11  Daniel Jacobowitz  <dan@debian.org>
@@ -50,8 +42,6 @@ libffi/
 	* src/arm/sysv.S: Likewise.
 
 ---
- boehm-gc/ia64_save_regs_in_stack.S   |   15 +++++++++++++++
- boehm-gc/ia64_save_regs_in_stack.s   |   12 ------------
  gcc/config/ia64/linux.h              |    3 +++
  gcc/config/rs6000/ppc-asm.h          |    2 +-
  libgcc/config/ia64/crtbegin.S        |    4 ++++
@@ -61,48 +51,11 @@ libffi/
  libgcc/config/ia64/lib1funcs.S       |    4 ++++
  9 files changed, 39 insertions(+), 13 deletions(-)
 
-Index: b/src/boehm-gc/ia64_save_regs_in_stack.s
-===================================================================
---- a/src/boehm-gc/ia64_save_regs_in_stack.s
-+++ /dev/null
-@@ -1,12 +0,0 @@
--        .text
--        .align 16
--        .global GC_save_regs_in_stack
--        .proc GC_save_regs_in_stack
--GC_save_regs_in_stack:
--        .body
--        flushrs
--        ;;
--        mov r8=ar.bsp
--        br.ret.sptk.few rp
--        .endp GC_save_regs_in_stack
--
-Index: b/src/boehm-gc/ia64_save_regs_in_stack.S
-===================================================================
---- /dev/null
-+++ b/src/boehm-gc/ia64_save_regs_in_stack.S
-@@ -0,0 +1,15 @@
-+        .text
-+        .align 16
-+        .global GC_save_regs_in_stack
-+        .proc GC_save_regs_in_stack
-+GC_save_regs_in_stack:
-+        .body
-+        flushrs
-+        ;;
-+        mov r8=ar.bsp
-+        br.ret.sptk.few rp
-+        .endp GC_save_regs_in_stack
-+
-+#ifdef __linux__
-+	.section .note.GNU-stack,"",@progbits
-+#endif
 Index: b/src/libgcc/config/ia64/crtbegin.S
 ===================================================================
 --- a/src/libgcc/config/ia64/crtbegin.S
 +++ b/src/libgcc/config/ia64/crtbegin.S
-@@ -252,3 +252,7 @@ __do_jv_register_classes:
+@@ -185,3 +185,7 @@ __do_global_dtors_aux:
  .weak __cxa_finalize
  #endif
  .weak _Jv_RegisterClasses
@@ -114,7 +67,7 @@ Index: b/src/libgcc/config/ia64/crtend.S
 ===================================================================
 --- a/src/libgcc/config/ia64/crtend.S
 +++ b/src/libgcc/config/ia64/crtend.S
-@@ -119,3 +119,7 @@ __do_global_ctors_aux:
+@@ -114,3 +114,7 @@ __do_global_ctors_aux:
  
  	br.ret.sptk.many rp
  	.endp __do_global_ctors_aux

@@ -20,6 +20,7 @@ ifneq (,$(gdc_tarball))
 endif
 	tar cf - $$(find './debian' -mindepth 1 \( \
 		-name .svn -prune -o \
+		-path './debian/.debhelper' -prune -o \
 		-path './debian/gcc-*' -type d -prune -o \
 		-path './debian/cpp-*' -type d -prune -o \
 		-path './debian/*fortran*' -type d -prune -o \

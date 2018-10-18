@@ -1,11 +1,19 @@
-# DP: In gnatlink, pass the options and libraries after objects to the
-# DP: linker to avoid link failures with --as-needed. Closes: #680292.
+Description: when linking Ada shared libraries, list dependencies after objects
+ In gnatlink, pass the options and libraries after objects to the
+ linker to avoid link failures with --as-needed.
+ This option is activated by default on the GNU gold linker.
+ .
+ GNAT has been announcing the removal of support for GPR projects
+ since gcc-6.
+ Gnatlink will then stop being able to link shared libraries.
+ This probably explains why upstream is not interested in this patch.
+Bug-Debian: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=680292
+Author: Matthias Klose <doko@debian.org>
+Forwarded: http://gcc.gnu.org/ml/gcc-patches/2013-04/msg01132.html
 
-Index: b/src/gcc/ada/mlib-tgt-specific-linux.adb
-===================================================================
 --- a/src/gcc/ada/mlib-tgt-specific-linux.adb
 +++ b/src/gcc/ada/mlib-tgt-specific-linux.adb
-@@ -81,19 +81,54 @@ package body MLib.Tgt.Specific is
+@@ -81,19 +81,54 @@
        Version_Arg          : String_Access;
        Symbolic_Link_Needed : Boolean := False;
  
@@ -62,7 +70,7 @@ Index: b/src/gcc/ada/mlib-tgt-specific-linux.adb
  
        else
           declare
-@@ -111,18 +146,20 @@ package body MLib.Tgt.Specific is
+@@ -111,18 +146,20 @@
                 Utl.Gcc
                   (Output_File => Lib_Version,
                    Objects     => Ofiles,

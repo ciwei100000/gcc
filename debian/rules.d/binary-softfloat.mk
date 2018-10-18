@@ -24,7 +24,7 @@ $(binary_stamp)-softfloat: $(install_stamp)
 	mv $(d_softfloat)/$(PFL)/$(libdir)/soft-float/libssp.a \
 		$(d_softfloat)/$(PFL)/$(libdir)/soft-float/libssp_nonshared.a
 	debian/dh_doclink -p$(p_softfloat) $(p_xbase)
-	dh_strip -p$(p_softfloat) -Xlibgcj.a
+	dh_strip -p$(p_softfloat)
 	dh_shlibdeps -p$(p_softfloat)
 	echo $(p_softfloat) >> debian/arch_binaries
 

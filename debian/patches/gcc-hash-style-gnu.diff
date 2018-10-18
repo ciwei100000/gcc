@@ -1,5 +1,5 @@
 # DP: Link using --hash-style=gnu (aarch64, alpha, amd64, armel, armhf, ia64,
-# DP: i386, powerpc, ppc64, s390, sparc)
+# DP: i386, powerpc, ppc64, riscv64, s390, sparc)
 
 2006-07-11  Jakub Jelinek  <jakub@redhat.com>
 
@@ -22,7 +22,11 @@
 2012-11-17  Matthias Klose  <doko@ubuntu.com>
 
 	* config/aarch64/aarch64-linux.h (LINK_SPEC): Add --hash-style=gnu.
-	
+
+2018-03-02  Aurelien Jarno  <aurelien@aurel32.net>
+
+	* config/riscv/linux.h (LINK_SPEC): Add --hash-style=gnu.
+
 ---
  gcc/config/alpha/linux-elf.h |    2 +-
  gcc/config/i386/linux.h      |    2 +-
@@ -83,7 +87,7 @@ Index: b/src/gcc/config/rs6000/sysv4.h
 ===================================================================
 --- a/src/gcc/config/rs6000/sysv4.h
 +++ b/src/gcc/config/rs6000/sysv4.h
-@@ -795,7 +795,7 @@ ENDIAN_SELECT(" -mbig", " -mlittle", DEF
+@@ -810,7 +810,7 @@ ENDIAN_SELECT(" -mbig", " -mlittle", DEF
    CHOOSE_DYNAMIC_LINKER (GLIBC_DYNAMIC_LINKER, UCLIBC_DYNAMIC_LINKER, \
  			 MUSL_DYNAMIC_LINKER)
  
@@ -96,7 +100,7 @@ Index: b/src/gcc/config/s390/linux.h
 ===================================================================
 --- a/src/gcc/config/s390/linux.h
 +++ b/src/gcc/config/s390/linux.h
-@@ -65,7 +65,7 @@ along with GCC; see the file COPYING3.
+@@ -78,7 +78,7 @@ along with GCC; see the file COPYING3.
  
  #undef  LINK_SPEC
  #define LINK_SPEC \
@@ -122,7 +126,7 @@ Index: b/src/gcc/config/arm/linux-elf.h
 ===================================================================
 --- a/src/gcc/config/arm/linux-elf.h
 +++ b/src/gcc/config/arm/linux-elf.h
-@@ -72,6 +72,7 @@
+@@ -70,6 +70,7 @@
       %{rdynamic:-export-dynamic} \
       %{!shared:-dynamic-linker " GNU_USER_DYNAMIC_LINKER "}} \
     -X \
@@ -167,3 +171,15 @@ Index: b/src/gcc/config/aarch64/aarch64-linux.h
     %{static:-Bstatic}				\
     %{shared:-shared}				\
     %{symbolic:-Bsymbolic}			\
+Index: b/src/gcc/config/riscv/linux.h
+===================================================================
+--- a/src/gcc/config/riscv/linux.h
++++ b/src/gcc/config/riscv/linux.h
+@@ -48,6 +48,7 @@ along with GCC; see the file COPYING3.
+ #define ICACHE_FLUSH_FUNC "__riscv_flush_icache"
+ 
+ #define LINK_SPEC "\
++-hash-style=gnu \
+ -melf" XLEN_SPEC "lriscv \
+ %{shared} \
+   %{!shared: \

@@ -4,9 +4,9 @@ Index: b/src/gcc/doc/invoke.texi
 ===================================================================
 --- a/src/gcc/doc/invoke.texi
 +++ b/src/gcc/doc/invoke.texi
-@@ -3799,6 +3799,11 @@ included in @option{-Wformat-nonliteral}
- If @option{-Wformat} is specified, also warn if the format string
- requires an unsigned argument and the argument is signed and vice versa.
+@@ -4142,6 +4142,11 @@ value is used and that might result in t
+ sufficient length or magnitude.
+ @end table
  
 +NOTE: In Ubuntu 8.10 and later versions this option is enabled by default
 +for C, C++, ObjC, ObjC++.  To disable, use @option{-Wno-format-security},
@@ -20,7 +20,7 @@ Index: b/src/gcc/gcc.c
 ===================================================================
 --- a/src/gcc/gcc.c
 +++ b/src/gcc/gcc.c
-@@ -858,11 +858,14 @@ proper position among the other output f
+@@ -876,11 +876,14 @@ proper position among the other output f
  #define LINK_GCC_C_SEQUENCE_SPEC "%G %L %G"
  #endif
  
@@ -28,7 +28,7 @@ Index: b/src/gcc/gcc.c
 +#define FORMAT_SECURITY_SPEC "%{!Wformat:%{!Wformat=2:%{!Wformat=0:%{!Wall:-Wformat} %{!Wno-format-security:-Wformat-security}}}}"
 +
  #ifndef SSP_DEFAULT_SPEC
- #ifdef TARGET_LIBC_PROVIDES_SSP
+ #if defined(TARGET_LIBC_PROVIDES_SSP) && !defined(ACCEL_COMPILER)
 -#define SSP_DEFAULT_SPEC "%{!fno-stack-protector:%{!fstack-protector-all:%{!ffreestanding:%{!nostdlib:-fstack-protector}}}}"
 +#define SSP_DEFAULT_SPEC "%{!fno-stack-protector:%{!fstack-protector-all:%{!ffreestanding:%{!nostdlib:-fstack-protector}}}} " FORMAT_SECURITY_SPEC
  #else

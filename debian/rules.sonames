@@ -16,15 +16,6 @@ ifeq (,$(wildcard debian/soname-cache))
 	echo FORTRAN_SONAME=$$v >> $$cache; \
 	v=`tail -1 $(srcdir)/libssp/libtool-version | cut -d: -f1`; \
 	echo SSP_SONAME=$$v >> $$cache; \
-	v=`tail -1 $(srcdir)/libjava/libtool-version | cut -d: -f1`; \
-	echo GCJ_SONAME=$$v >> $$cache; \
-	if [ "$$v" -ge 70 ]; then \
-	  echo GCJ_SONAME1=`echo $$v | sed 's/.$$//'` >> $$cache; \
-	  echo GCJ_SONAME2=`echo $$v | sed 's/.*\(.\)$$/\1/'` >> $$cache; \
-	else \
-	  echo GCJ_SONAME1=$$v >> $$cache; \
-	  echo GCJ_SONAME2= >> $$cache; \
-	fi; \
 	v=`tail -1 $(srcdir)/libffi/libtool-version | cut -d: -f1`; \
 	echo FFI_SONAME=$$v >> $$cache; \
 	v=`awk -F= '/^libtool_VERSION/ {split($$2,v,":"); print v[1]}' \
@@ -63,8 +54,9 @@ ifeq (,$(wildcard debian/soname-cache))
 	echo GCCJIT_SONAME=0 >> $$cache; \
 	v=`tail -1 $(srcdir)/libmpx/mpxrt/libtool-version | cut -d: -f1`; \
 	echo MPX_SONAME=$$v >> $$cache; \
-	echo GPHOBOS_SONAME=68 >> $$cache; \
-	echo GDRUNTIME_SONAME=68 >> $$cache; \
+	echo GPHOBOS_SONAME=71 >> $$cache; \
+	echo GDRUNTIME_SONAME=71 >> $$cache; \
+	echo HSAIL_SONAME=0 >> $$cache; \
 	cat $$cache)
 else
   SONAME_VARS := $(shell cat debian/soname-cache)
@@ -73,9 +65,6 @@ CXX_SONAME	= $(call vafilt,$(SONAME_VARS),CXX_SONAME)
 OBJC_SONAME	= $(call vafilt,$(SONAME_VARS),OBJC_SONAME)
 FORTRAN_SONAME	= $(call vafilt,$(SONAME_VARS),FORTRAN_SONAME)
 SSP_SONAME	= $(call vafilt,$(SONAME_VARS),SSP_SONAME)
-GCJ_SONAME	= $(call vafilt,$(SONAME_VARS),GCJ_SONAME)
-GCJ_SONAME1	= $(call vafilt,$(SONAME_VARS),GCJ_SONAME1)
-GCJ_SONAME2	= $(call vafilt,$(SONAME_VARS),GCJ_SONAME2)
 FFI_SONAME	= $(call vafilt,$(SONAME_VARS),FFI_SONAME)
 GOMP_SONAME	= $(call vafilt,$(SONAME_VARS),GOMP_SONAME)
 ATOMIC_SONAME	= $(call vafilt,$(SONAME_VARS),ATOMIC_SONAME)
@@ -95,6 +84,7 @@ GCCJIT_SONAME	= $(call vafilt,$(SONAME_VARS),GCCJIT_SONAME)
 MPX_SONAME	= $(call vafilt,$(SONAME_VARS),MPX_SONAME)
 GPHOBOS_SONAME	= $(call vafilt,$(SONAME_VARS),GPHOBOS_SONAME)
 GDRUNTIME_SONAME= $(call vafilt,$(SONAME_VARS),GDRUNTIME_SONAME)
+HSAIL_SONAME	= $(call vafilt,$(SONAME_VARS),HSAIL_SONAME)
 
 # alias
 GFORTRAN_SONAME = $(FORTRAN_SONAME)

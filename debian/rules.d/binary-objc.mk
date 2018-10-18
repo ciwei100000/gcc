@@ -45,6 +45,10 @@ endif
 
 	debian/dh_rmemptydirs -p$(p_objc)
 
+ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTONS)))
+	$(DWZ) \
+	  $(d_objc)/$(gcc_lexec_dir)/cc1obj
+endif
 	dh_strip -p$(p_objc) \
 	  $(if $(unstripped_exe),-X/cc1obj)
 	dh_shlibdeps -p$(p_objc)

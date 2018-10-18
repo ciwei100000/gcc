@@ -5,7 +5,7 @@ Index: b/src/gcc/gcc.c
 ===================================================================
 --- a/src/gcc/gcc.c
 +++ b/src/gcc/gcc.c
-@@ -681,8 +681,11 @@ proper position among the other output f
+@@ -685,8 +685,11 @@ proper position among the other output f
  #ifdef LIBASAN_EARLY_SPEC
  #define LIBASAN_SPEC STATIC_LIBASAN_LIBS
  #elif defined(HAVE_LD_STATIC_DYNAMIC)
@@ -19,7 +19,7 @@ Index: b/src/gcc/gcc.c
  		     STATIC_LIBASAN_LIBS
  #else
  #define LIBASAN_SPEC "-lasan" STATIC_LIBASAN_LIBS
-@@ -699,8 +702,11 @@ proper position among the other output f
+@@ -703,8 +706,11 @@ proper position among the other output f
  #ifdef LIBTSAN_EARLY_SPEC
  #define LIBTSAN_SPEC STATIC_LIBTSAN_LIBS
  #elif defined(HAVE_LD_STATIC_DYNAMIC)
@@ -33,7 +33,7 @@ Index: b/src/gcc/gcc.c
  		     STATIC_LIBTSAN_LIBS
  #else
  #define LIBTSAN_SPEC "-ltsan" STATIC_LIBTSAN_LIBS
-@@ -717,8 +723,11 @@ proper position among the other output f
+@@ -721,8 +727,11 @@ proper position among the other output f
  #ifdef LIBLSAN_EARLY_SPEC
  #define LIBLSAN_SPEC STATIC_LIBLSAN_LIBS
  #elif defined(HAVE_LD_STATIC_DYNAMIC)
@@ -47,9 +47,9 @@ Index: b/src/gcc/gcc.c
  		     STATIC_LIBLSAN_LIBS
  #else
  #define LIBLSAN_SPEC "-llsan" STATIC_LIBLSAN_LIBS
-@@ -733,8 +742,11 @@ proper position among the other output f
+@@ -737,8 +746,11 @@ proper position among the other output f
  #define STATIC_LIBUBSAN_LIBS \
-   " %{static-libubsan:%:include(libsanitizer.spec)%(link_libubsan)}"
+   " %{static-libubsan|static:%:include(libsanitizer.spec)%(link_libubsan)}"
  #ifdef HAVE_LD_STATIC_DYNAMIC
 -#define LIBUBSAN_SPEC "%{static-libubsan:" LD_STATIC_OPTION \
 -		     "} -lubsan %{static-libubsan:" LD_DYNAMIC_OPTION "}" \
@@ -124,7 +124,7 @@ Index: b/src/gcc/config/s390/linux.h
 ===================================================================
 --- a/src/gcc/config/s390/linux.h
 +++ b/src/gcc/config/s390/linux.h
-@@ -65,7 +65,7 @@ along with GCC; see the file COPYING3.
+@@ -78,7 +78,7 @@ along with GCC; see the file COPYING3.
  
  #undef  LINK_SPEC
  #define LINK_SPEC \
@@ -156,7 +156,7 @@ Index: b/src/gcc/config/rs6000/sysv4.h
 ===================================================================
 --- a/src/gcc/config/rs6000/sysv4.h
 +++ b/src/gcc/config/rs6000/sysv4.h
-@@ -805,7 +805,7 @@ ENDIAN_SELECT(" -mbig", " -mlittle", DEF
+@@ -810,7 +810,7 @@ ENDIAN_SELECT(" -mbig", " -mlittle", DEF
    CHOOSE_DYNAMIC_LINKER (GLIBC_DYNAMIC_LINKER, UCLIBC_DYNAMIC_LINKER, \
  			 MUSL_DYNAMIC_LINKER)
  
@@ -207,7 +207,7 @@ Index: b/src/gcc/config/arm/linux-elf.h
 ===================================================================
 --- a/src/gcc/config/arm/linux-elf.h
 +++ b/src/gcc/config/arm/linux-elf.h
-@@ -73,6 +73,7 @@
+@@ -71,6 +71,7 @@
       %{!shared:-dynamic-linker " GNU_USER_DYNAMIC_LINKER "}} \
     -X \
     --hash-style=gnu \
@@ -227,3 +227,15 @@ Index: b/src/gcc/config/mips/gnu-user.h
    %{!shared: \
      %{!static: \
        %{rdynamic:-export-dynamic} \
+Index: b/src/gcc/config/riscv/linux.h
+===================================================================
+--- a/src/gcc/config/riscv/linux.h
++++ b/src/gcc/config/riscv/linux.h
+@@ -51,6 +51,7 @@ along with GCC; see the file COPYING3.
+ 
+ #define LINK_SPEC "\
+ -hash-style=gnu \
++-as-needed \
+ -melf" XLEN_SPEC "lriscv \
+ %{shared} \
+   %{!shared: \

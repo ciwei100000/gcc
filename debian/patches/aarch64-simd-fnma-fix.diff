@@ -1,0 +1,17 @@
+# DP: aarch64-simd: Avoid emitting dup insn by using canonical form for fnma.
+
+diff -urpN a/src/gcc/config/aarch64/aarch64-simd.md b/src/gcc/config/aarch64/aarch64-simd.md
+--- a/src/gcc/config/aarch64/aarch64-simd.md	2018-01-08 19:07:26.207492599 -0500
++++ b/src/gcc/config/aarch64/aarch64-simd.md	2018-01-08 19:22:47.451259371 -0500
+@@ -1711,9 +1711,8 @@
+ (define_insn "fnma<mode>4"
+   [(set (match_operand:VHSDF 0 "register_operand" "=w")
+ 	(fma:VHSDF
+-	  (match_operand:VHSDF 1 "register_operand" "w")
+-          (neg:VHSDF
+-	    (match_operand:VHSDF 2 "register_operand" "w"))
++	  (neg:VHSDF (match_operand:VHSDF 1 "register_operand" "w"))
++	  (match_operand:VHSDF 2 "register_operand" "w")
+ 	  (match_operand:VHSDF 3 "register_operand" "0")))]
+   "TARGET_SIMD"
+   "fmls\\t%0.<Vtype>, %1.<Vtype>, %2.<Vtype>"

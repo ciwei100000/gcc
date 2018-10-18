@@ -57,6 +57,10 @@ endif
 	debian/dh_rmemptydirs -p$(p_cxx)
 
 	dh_shlibdeps -p$(p_cxx)
+ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTONS)))
+	$(DWZ) \
+	  $(d_cxx)/$(gcc_lexec_dir)/cc1plus
+endif
 	dh_strip -p$(p_cxx) $(if $(unstripped_exe),-X/cc1plus)
 	echo $(p_cxx) >> debian/arch_binaries
 

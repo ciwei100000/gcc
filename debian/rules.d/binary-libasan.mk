@@ -36,9 +36,9 @@ define __do_asan
 	fi
 
 	dh_strip -p$(p_l) --dbg-package=$(p_d)
-	$(cross_makeshlibs) dh_makeshlibs $(ldconfig_arg) -p$(p_l) || echo XXXXXXXXXXXXXX ERROR $(p_l)
+	$(cross_makeshlibs) dh_makeshlibs $(ldconfig_arg) -p$(p_l)
 	$(call cross_mangle_shlibs,$(p_l))
-	$(ignshld)DIRNAME=$(subst n,,$(2)) $(cross_shlibdeps) dh_shlibdeps -p$(p_l) \
+	$(if $(ignshld),$(ignshld),-)DIRNAME=$(subst n,,$(2)) $(cross_shlibdeps) dh_shlibdeps -p$(p_l) \
 		$(call shlibdirs_to_search, \
 			$(subst asan$(ASAN_SONAME),gcc$(GCC_SONAME),$(p_l)) \
 			$(subst asan$(ASAN_SONAME),stdc++$(CXX_SONAME),$(p_l)) \

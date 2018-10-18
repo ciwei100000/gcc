@@ -1,0 +1,209 @@
+Index: gcc-7-7.2.0-12.1/src/libgo/go/net/cgo_gnu.go
+===================================================================
+--- /dev/null
++++ gcc-7-7.2.0-12.1/src/libgo/go/net/cgo_gnu.go
+@@ -0,0 +1,16 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build cgo,!netgo
++// +build gnu
++
++package net
++
++/*
++#include <netdb.h>
++*/
++
++import "syscall"
++
++const cgoAddrInfoFlags = syscall.AI_CANONNAME | syscall.AI_V4MAPPED | syscall.AI_ALL
+Index: gcc-7-7.2.0-12.1/src/libgo/go/net/sendfile_gnu.go
+===================================================================
+--- /dev/null
++++ gcc-7-7.2.0-12.1/src/libgo/go/net/sendfile_gnu.go
+@@ -0,0 +1,79 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import (
++	"io"
++	"os"
++	"syscall"
++)
++
++// maxSendfileSize is the largest chunk size we ask the kernel to copy
++// at a time.
++const maxSendfileSize int = 4 << 20
++
++// sendFile copies the contents of r to c using the sendfile
++// system call to minimize copies.
++//
++// if handled == true, sendFile returns the number of bytes copied and any
++// non-EOF error.
++//
++// if handled == false, sendFile performed no work.
++func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
++	var remain int64 = 1 << 62 // by default, copy until EOF
++
++	lr, ok := r.(*io.LimitedReader)
++	if ok {
++		remain, r = lr.N, lr.R
++		if remain <= 0 {
++			return 0, nil, true
++		}
++	}
++	f, ok := r.(*os.File)
++	if !ok {
++		return 0, nil, false
++	}
++
++	if err := c.writeLock(); err != nil {
++		return 0, err, true
++	}
++	defer c.writeUnlock()
++
++	dst := c.sysfd
++	src := int(f.Fd())
++	for remain > 0 {
++		n := maxSendfileSize
++		if int64(n) > remain {
++			n = int(remain)
++		}
++		n, err1 := syscall.Sendfile(dst, src, nil, n)
++		if n > 0 {
++			written += int64(n)
++			remain -= int64(n)
++		}
++		if n == 0 && err1 == nil {
++			break
++		}
++		if err1 == syscall.EAGAIN {
++			if err1 = c.pd.waitWrite(); err1 == nil {
++				continue
++			}
++		}
++		if err1 != nil {
++			// This includes syscall.ENOSYS (no kernel
++			// support) and syscall.EINVAL (fd types which
++			// don't implement sendfile)
++			err = err1
++			break
++		}
++	}
++	if lr != nil {
++		lr.N = remain
++	}
++	if err != nil {
++		err = os.NewSyscallError("sendfile", err)
++	}
++	return written, err, written > 0
++}
+Index: gcc-7-7.2.0-12.1/src/libgo/go/net/sock_gnu.go
+===================================================================
+--- /dev/null
++++ gcc-7-7.2.0-12.1/src/libgo/go/net/sock_gnu.go
+@@ -0,0 +1,14 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build gnu
++
++package net
++
++import "syscall"
++
++func maxListenerBacklog() int {
++       // From /usr/include/i386-gnu/bits/socket.h
++       return syscall.SOMAXCONN
++}
+Index: gcc-7-7.2.0-12.1/src/libgo/go/net/sockopt_gnu.go
+===================================================================
+--- /dev/null
++++ gcc-7-7.2.0-12.1/src/libgo/go/net/sockopt_gnu.go
+@@ -0,0 +1,45 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build gnu
++
++package net
++
++import (
++	"os"
++	"syscall"
++)
++
++func setDefaultSockopts(s, family, sotype int, ipv6only bool) error {
++	if family == syscall.AF_INET6 && sotype != syscall.SOCK_RAW {
++		// Allow both IP versions even if the OS default
++		// is otherwise.  Note that some operating systems
++		// never admit this option.
++		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, boolint(ipv6only))
++	}
++	// Allow broadcast.
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1))
++}
++
++func setDefaultListenerSockopts(s int) error {
++	// Allow reuse of recently-used addresses.
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1))
++}
++
++func setDefaultMulticastSockopts(s int) error {
++	// Allow multicast UDP and raw IP datagram sockets to listen
++	// concurrently across multiple listeners.
++	if err := syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1); err != nil {
++		return os.NewSyscallError("setsockopt", err)
++	}
++	// Allow reuse of recently-used ports.
++	// This option is supported only in descendants of 4.4BSD,
++	// to make an effective multicast application that requires
++	// quick draw possible.
++	// Not supported on GNU/Hurd
++	//if syscall.SO_REUSEPORT != 0 {
++	//	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEPORT, 1))
++	//}
++	return nil
++}
+Index: gcc-7-7.2.0-12.1/src/libgo/go/net/sockoptip_gnu.go
+===================================================================
+--- /dev/null
++++ gcc-7-7.2.0-12.1/src/libgo/go/net/sockoptip_gnu.go
+@@ -0,0 +1,30 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build gnu
++
++package net
++
++import (
++	"os"
++	"syscall"
++)
++
++func setIPv4MulticastInterface(fd *netFD, ifi *Interface) error {
++	ip, err := interfaceToIPv4Addr(ifi)
++	if err != nil {
++		return os.NewSyscallError("setsockopt", err)
++	}
++	var a [4]byte
++	copy(a[:], ip.To4())
++	if err := fd.incref(); err != nil {
++		return err
++	}
++	defer fd.decref()
++	return os.NewSyscallError("setsockopt", syscall.SetsockoptInet4Addr(fd.sysfd, syscall.IPPROTO_IP, syscall.IP_MULTICAST_IF, a))
++}
++
++func setIPv4MulticastLoopback(fd *netFD, v bool) error {
++	return syscall.ENOPROTOOPT
++}

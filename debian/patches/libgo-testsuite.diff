@@ -1,13 +1,22 @@
 # DP: Only run the libgo testsuite for flags configured in RUNTESTFLAGS
 
-Index: b/src/libgo/Makefile.am
+Index: gcc-7-7.2.0/src/libgo/Makefile.am
 ===================================================================
---- a/src/libgo/Makefile.am
-+++ b/src/libgo/Makefile.am
-@@ -2387,6 +2387,12 @@ CHECK = \
- 	export LD_LIBRARY_PATH; \
+--- gcc-7-7.2.0.orig/src/libgo/Makefile.am
++++ gcc-7-7.2.0/src/libgo/Makefile.am
+@@ -929,7 +929,7 @@ BUILDGOX = \
+ 	$(SHELL) $(srcdir)/mvifdiff.sh $@.tmp `echo $@ | sed -e 's/s-gox/gox/'`
+ 
+ GOTESTFLAGS =
+-GOBENCH = 
++GOBENCH =
+ 
+ # Check a package.
+ CHECK = \
+@@ -948,6 +948,12 @@ CHECK = \
  	$(MKDIR_P) $(@D); \
  	rm -f $@-testsum $@-testlog; \
+ 	files=`$(SHELL) $(srcdir)/match.sh --goarch=$(GOARCH) --goos=$(GOOS) --srcdir=$(srcdir)/go/$(@D) --extrafiles="$(extra_go_files_$(subst /,_,$(@D)))" $(matchargs_$(subst /,_,$(@D)))`; \
 +	run_check=yes; \
 +	MULTILIBDIR="$(MULTILIBDIR)"; \
 +	case "$$MULTILIBDIR" in /64|/x32) \
@@ -15,9 +24,9 @@ Index: b/src/libgo/Makefile.am
 +	esac; \
 +	if test "$$run_check" = "yes"; then \
  	if test "$(USE_DEJAGNU)" = "yes"; then \
- 	  $(SHELL) $(srcdir)/testsuite/gotest --goarch=$(GOARCH) --goos=$(GOOS) --dejagnu=yes --basedir=$(srcdir) --srcdir=$(srcdir)/go/$(@D) --pkgpath="$(@D)" --pkgfiles="$(go_$(subst /,_,$(@D))_files)" --testname="$(@D)" $(GOTESTFLAGS) $(go_$(subst /,_,$(@D))_test_files); \
+ 	  $(SHELL) $(srcdir)/testsuite/gotest --goarch=$(GOARCH) --goos=$(GOOS) --dejagnu=yes --basedir=$(srcdir) --srcdir=$(srcdir)/go/$(@D) --pkgpath="$(@D)" --pkgfiles="$$files" --testname="$(@D)" $(GOTESTFLAGS); \
  	elif test "$(GOBENCH)" != ""; then \
-@@ -2402,6 +2408,7 @@ CHECK = \
+@@ -963,6 +969,7 @@ CHECK = \
  	    echo "FAIL: $(@D)" > $@-testsum; \
  	    exit 1; \
  	  fi; \
@@ -25,14 +34,23 @@ Index: b/src/libgo/Makefile.am
  	fi
  
  # Build all packages before checking any.
-Index: b/src/libgo/Makefile.in
+Index: gcc-7-7.2.0/src/libgo/Makefile.in
 ===================================================================
---- a/src/libgo/Makefile.in
-+++ b/src/libgo/Makefile.in
-@@ -2394,6 +2394,12 @@ CHECK = \
- 	export LD_LIBRARY_PATH; \
+--- gcc-7-7.2.0.orig/src/libgo/Makefile.in
++++ gcc-7-7.2.0/src/libgo/Makefile.in
+@@ -1085,7 +1085,7 @@ BUILDGOX = \
+ 	$(SHELL) $(srcdir)/mvifdiff.sh $@.tmp `echo $@ | sed -e 's/s-gox/gox/'`
+ 
+ GOTESTFLAGS = 
+-GOBENCH = 
++GOBENCH =
+ 
+ # Check a package.
+ CHECK = \
+@@ -1104,6 +1104,12 @@ CHECK = \
  	$(MKDIR_P) $(@D); \
  	rm -f $@-testsum $@-testlog; \
+ 	files=`$(SHELL) $(srcdir)/match.sh --goarch=$(GOARCH) --goos=$(GOOS) --srcdir=$(srcdir)/go/$(@D) --extrafiles="$(extra_go_files_$(subst /,_,$(@D)))" $(matchargs_$(subst /,_,$(@D)))`; \
 +	run_check=yes; \
 +	MULTILIBDIR="$(MULTILIBDIR)"; \
 +	case "$$MULTILIBDIR" in /64|/x32) \
@@ -40,9 +58,9 @@ Index: b/src/libgo/Makefile.in
 +	esac; \
 +	if test "$$run_check" = "yes"; then \
  	if test "$(USE_DEJAGNU)" = "yes"; then \
- 	  $(SHELL) $(srcdir)/testsuite/gotest --goarch=$(GOARCH) --goos=$(GOOS) --dejagnu=yes --basedir=$(srcdir) --srcdir=$(srcdir)/go/$(@D) --pkgpath="$(@D)" --pkgfiles="$(go_$(subst /,_,$(@D))_files)" --testname="$(@D)" $(GOTESTFLAGS) $(go_$(subst /,_,$(@D))_test_files); \
+ 	  $(SHELL) $(srcdir)/testsuite/gotest --goarch=$(GOARCH) --goos=$(GOOS) --dejagnu=yes --basedir=$(srcdir) --srcdir=$(srcdir)/go/$(@D) --pkgpath="$(@D)" --pkgfiles="$$files" --testname="$(@D)" $(GOTESTFLAGS); \
  	elif test "$(GOBENCH)" != ""; then \
-@@ -2409,6 +2415,7 @@ CHECK = \
+@@ -1119,6 +1125,7 @@ CHECK = \
  	    echo "FAIL: $(@D)" > $@-testsum; \
  	    exit 1; \
  	  fi; \

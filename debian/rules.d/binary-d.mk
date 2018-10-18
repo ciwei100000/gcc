@@ -129,6 +129,10 @@ endif
 		/$(docdir)/$(p_gcc)/README.Bugs \
 		/$(docdir)/$(p_gdc)/README.Bugs
 
+ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTONS)))
+	$(DWZ) \
+	  $(d_gdc)/$(gcc_lexec_dir)/cc1d
+endif
 	dh_strip -p$(p_gdc) \
 	  $(if $(unstripped_exe),-X/cc1d)
 	dh_shlibdeps -p$(p_gdc)

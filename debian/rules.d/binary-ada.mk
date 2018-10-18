@@ -3,7 +3,14 @@ ifeq ($(with_separate_gnat),yes)
 endif
 
 ifeq ($(with_libgnat),yes)
-  $(lib_binaries) += libgnat libgnatvsn libgnatprj
+  # During native builds, gnat-BV Depends:
+  # * libgnat, libgnatvsn because gnat1 is linked dynamically
+  # * libgnat             because of the development symlink.
+  # During cross builds, gnat1 is linked statically. Only the latter remains.
+  $(lib_binaries) += libgnat
+  ifneq ($(DEB_CROSS),yes)
+    $(lib_binaries) += libgnatvsn
+  endif
 endif
 
 arch_binaries := $(arch_binaries) ada
@@ -27,9 +34,6 @@ p_lgnat_dbg = libgnat-$(GNAT_VERSION)-dbg$(cross_lib_arch)
 p_lgnatvsn = libgnatvsn$(GNAT_VERSION)$(cross_lib_arch)
 p_lgnatvsn_dev = libgnatvsn$(GNAT_VERSION)-dev$(cross_lib_arch)
 p_lgnatvsn_dbg = libgnatvsn$(GNAT_VERSION)-dbg$(cross_lib_arch)
-p_lgnatprj = libgnatprj$(GNAT_VERSION)$(cross_lib_arch)
-p_lgnatprj_dev = libgnatprj$(GNAT_VERSION)-dev$(cross_lib_arch)
-p_lgnatprj_dbg = libgnatprj$(GNAT_VERSION)-dbg$(cross_lib_arch)
 p_gnatd	= $(p_gnat)-doc
 
 d_gbase	= debian/$(p_gbase)
@@ -38,8 +42,6 @@ d_gnatsjlj	= debian/$(p_gnatsjlj)
 d_lgnat	= debian/$(p_lgnat)
 d_lgnatvsn = debian/$(p_lgnatvsn)
 d_lgnatvsn_dev = debian/$(p_lgnatvsn_dev)
-d_lgnatprj = debian/$(p_lgnatprj)
-d_lgnatprj_dev = debian/$(p_lgnatprj_dev)
 d_gnatd	= debian/$(p_gnatd)
 
 GNAT_TOOLS = gnat gnatbind gnatchop gnatclean gnatfind gnatkr gnatlink \
@@ -122,7 +124,7 @@ $(binary_stamp)-libgnat: $(install_stamp)
 
 ifneq (,$(filter $(build_type), build-native cross-build-native))
 	mkdir -p $(d_lgnat)/usr/share/lintian/overrides
-	cp -p debian/$(p_lgnat).overrides \
+	echo package-name-doesnt-match-sonames > \
 		$(d_lgnat)/usr/share/lintian/overrides/$(p_lgnat)
 endif
 
@@ -132,7 +134,7 @@ endif
 			$(subst gnat-$(GNAT_SONAME),gcc$(GCC_SONAME),$(p_lgnat)) \
 			$(subst gnat-$(GNAT_SONAME),atomic$(ATOMIC_SONAME),$(p_lgnat)) \
 		,) \
-		$(if $(filter yes, $(with_common_libs)),,-- -Ldebian/shlibs.common$(2))
+		$(if $(filter yes, $(with_common_libs)),,-- -Ldebian/shlibs.common)
 	$(call cross_mangle_substvars,$(p_lgnat))
 
 	: # $(p_lgnat_dbg)
@@ -142,21 +144,11 @@ endif
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 
-
 $(binary_stamp)-libgnatvsn: $(install_stamp)
 	: # $(p_lgnatvsn_dev)
-ifneq (,$(filter $(build_type), build-native cross-build-native))
-	$(dh_compat2) dh_movefiles -p$(p_lgnatvsn_dev) usr/lib/ada/adalib/gnatvsn
+	dh_install -p$(p_lgnatvsn_dev) $(usr_lib)/ada/adalib/gnatvsn
 	$(dh_compat2) dh_movefiles -p$(p_lgnatvsn_dev) usr/share/ada/adainclude/gnatvsn
-	dh_install -p$(p_lgnatvsn_dev) \
-	   debian/gnatvsn.gpr usr/share/ada/adainclude
-else
-	mkdir -p $(d_lgnatvsn_dev)/$(gcc_lib_dir)/{adalib,adainclude}/gnatvsn
-	mv $(d)/usr/lib/ada/adalib/gnatvsn $(d_lgnatvsn_dev)/$(gcc_lib_dir)/adalib/.
-	mv $(d)/usr/share/ada/adainclude/gnatvsn $(d_lgnatvsn_dev)/$(gcc_lib_dir)/adainclude/.
-	dh_install -p$(p_lgnatvsn_dev) \
-	   debian/gnatvsn.gpr $(gcc_lib_dir)/adainclude
-endif
+	dh_install -p$(p_lgnatvsn_dev) usr/share/gpr/gnatvsn.gpr
 	$(dh_compat2) dh_movefiles -p$(p_lgnatvsn_dev) $(usr_lib)/libgnatvsn.a
 	dh_link -p$(p_lgnatvsn_dev) \
 	   $(usr_lib)/libgnatvsn.so.$(GNAT_VERSION) \
@@ -165,11 +157,9 @@ endif
 	dh_strip -p$(p_lgnatvsn_dev) -X.a --keep-debug
 
 	: # $(p_lgnatvsn)
-ifneq (,$(filter $(build_type), build-native cross-build-native))
 	mkdir -p $(d_lgnatvsn)/usr/share/lintian/overrides
-	cp -p debian/$(p_lgnatvsn).overrides \
-		$(d_lgnatvsn)/usr/share/lintian/overrides/$(p_lgnatvsn)
-endif
+	echo missing-dependency-on-libc \
+	  > $(d_lgnatvsn)/usr/share/lintian/overrides/$(p_lgnatvsn)
 	$(dh_compat2) dh_movefiles -p$(p_lgnatvsn) $(usr_lib)/libgnatvsn.so.$(GNAT_VERSION)
 	debian/dh_doclink -p$(p_lgnatvsn) $(p_glbase)
 	dh_strip -p$(p_lgnatvsn) --dbg-package=$(p_lgnatvsn_dbg)
@@ -183,62 +173,14 @@ endif
 			$(subst gnatvsn$(GNAT_SONAME),atomic$(ATOMIC_SONAME),$(p_lgnatvsn)) \
 			$(subst gnatvsn$(GNAT_SONAME),gnat-$(GNAT_SONAME),$(p_lgnatvsn)) \
 		,) \
-		$(if $(filter yes, $(with_common_libs)),,-- -Ldebian/shlibs.common$(2))
+		$(if $(filter yes, $(with_common_libs)),,-- -Ldebian/shlibs.common)
 	$(call cross_mangle_substvars,$(p_lgnatvsn))
 
 	: # $(p_lgnatvsn_dbg)
 	debian/dh_doclink -p$(p_lgnatvsn_dbg) $(p_glbase)
 
 	echo $(p_lgnatvsn) $(p_lgnatvsn_dev) $(p_lgnatvsn_dbg) >> debian/$(lib_binaries)
-	touch $@
 
-$(binary_stamp)-libgnatprj: $(install_stamp)
-	: # $(p_lgnatprj_dev)
-ifneq (,$(filter $(build_type), build-native cross-build-native))
-	$(dh_compat2) dh_movefiles -p$(p_lgnatprj_dev) usr/lib/ada/adalib/gnatprj
-	$(dh_compat2) dh_movefiles -p$(p_lgnatprj_dev) usr/share/ada/adainclude/gnatprj
-	dh_install -p$(p_lgnatprj_dev) \
-	   debian/gnatprj.gpr usr/share/ada/adainclude
-else
-	mkdir -p $(d_lgnatprj_dev)/$(gcc_lib_dir)/{adalib,adainclude}/gnatvsn
-	mv $(d)/usr/lib/ada/adalib/gnatprj $(d_lgnatprj_dev)/$(gcc_lib_dir)/adalib/.
-	mv $(d)/usr/share/ada/adainclude/gnatprj $(d_lgnatprj_dev)/$(gcc_lib_dir)/adainclude/.
-	dh_install -p$(p_lgnatprj_dev) \
-	   debian/gnatprj.gpr $(gcc_lib_dir)/adainclude
-endif
-	$(dh_compat2) dh_movefiles -p$(p_lgnatprj_dev) $(usr_lib)/libgnatprj.a
-	dh_link -p$(p_lgnatprj_dev) \
-	   $(usr_lib)/libgnatprj.so.$(GNAT_VERSION) \
-	   $(usr_lib)/libgnatprj.so
-	dh_strip -p$(p_lgnatprj_dev) -X.a --keep-debug
-	debian/dh_doclink -p$(p_lgnatprj_dev) $(p_glbase)
-
-	: # $(p_lgnatprj)
-ifneq (,$(filter $(build_type), build-native cross-build-native))
-	mkdir -p $(d_lgnatprj)/usr/share/lintian/overrides
-	cp -p debian/$(p_lgnatprj).overrides \
-		$(d_lgnatprj)/usr/share/lintian/overrides/$(p_lgnatprj)
-endif
-	$(dh_compat2) dh_movefiles -p$(p_lgnatprj) $(usr_lib)/libgnatprj.so.$(GNAT_VERSION)
-	debian/dh_doclink -p$(p_lgnatprj) $(p_glbase)
-	dh_strip -p$(p_lgnatprj) --dbg-package=$(p_lgnatprj_dbg)
-	$(cross_makeshlibs) dh_makeshlibs $(ldconfig_arg) -p$(p_lgnatprj) \
-		-V '$(p_lgnatprj) (>= $(DEB_VERSION))'
-	$(call cross_mangle_shlibs,$(p_lgnatprj))
-	cat debian/$(p_lgnatprj)/DEBIAN/shlibs >> debian/shlibs.local
-	$(cross_shlibdeps) dh_shlibdeps -p$(p_lgnatprj) \
-		$(call shlibdirs_to_search, \
-			$(subst gnatprj$(GNAT_SONAME),gcc$(GCC_SONAME),$(p_lgnatprj)) \
-			$(subst gnatprj$(GNAT_SONAME),gnat-$(GNAT_SONAME),$(p_lgnatprj)) \
-			$(subst gnatprj$(GNAT_SONAME),gnatvsn$(GNAT_SONAME),$(p_lgnatprj)) \
-		,) \
-		$(if $(filter yes, $(with_common_libs)),,-- -Ldebian/shlibs.common$(2))
-	$(call cross_mangle_substvars,$(p_lgnatprj))
-
-	: # $(p_lgnatprj_dbg)
-	debian/dh_doclink -p$(p_lgnatprj_dbg) $(p_glbase)
-
-	echo $(p_lgnatprj) $(p_lgnatprj_dev) $(p_lgnatprj_dbg) >> debian/$(lib_binaries)
 	touch $@
 
 $(binary_stamp)-ada: $(install_stamp)
@@ -290,11 +232,6 @@ endif
 	    *) ln -sf $(cmd_prefix)gnat$(pkg_ver).1 $(d_gnat)/$(PF)/share/man/man1/$(cmd_prefix)$$i$(pkg_ver).1; \
 	  esac; \
 	done
-
-ifneq (,$(filter $(build_type), build-native cross-build-native))
-	: # see #814977, work around it for now ...
-	ln -sf gcc$(pkg_ver) $(d_gnat)/$(PF)/bin/gcc$(pkg_ver)$(pkg_ver)
-endif
 
 ifneq (,$(filter $(build_type), build-native cross-build-native))
 	: # still ship the unversioned prefixed names in the gnat package.
@@ -356,12 +293,13 @@ ifeq ($(unprefixed_names),yes)
 endif
 	debian/dh_rmemptydirs -p$(p_gnat)
 
+ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTONS)))
+	$(DWZ) \
+	  $(d_gnat)/$(gcc_lexec_dir)/gnat1
+endif
 	dh_strip -p$(p_gnat)
 	find $(d_gnat) -name '*.ali' | xargs chmod 444
-	$(cross_shlibdeps) dh_shlibdeps -p$(p_gnat) \
-		$(call shlibdirs_to_search, \
-			$(p_lgcc) $(p_lgnat) $(p_lgnatvsn) $(p_lgnatprj) \
-		,)
+	dh_shlibdeps -p$(p_gnat)
 	mkdir -p $(d_gnat)/usr/share/lintian/overrides
 	echo '$(p_gnat) binary: hardening-no-pie' \
 	  > $(d_gnat)/usr/share/lintian/overrides/$(p_gnat)
@@ -375,7 +313,7 @@ endif
 ifeq ($(with_gnatsjlj),yes)
 	dh_strip -p$(p_gnatsjlj)
 	find $(d_gnatsjlj) -name '*.ali' | xargs chmod 444
-	$(cross_makeshlibs) dh_shlibdeps -p$(p_gnatsjlj)
+	dh_shlibdeps -p$(p_gnatsjlj)
 	echo $(p_gnatsjlj) >> debian/arch_binaries
 endif
 

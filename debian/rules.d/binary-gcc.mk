@@ -44,7 +44,7 @@ files_gcc = \
 
 ifeq ($(with_libcc1_plugin),yes)
     files_gcc += \
-	$(gcc_lib_dir)/plugin/libcc1plugin.so{,.0,.0.0.0}
+	$(gcc_lib_dir)/plugin/libc[cp]1plugin.so{,.0,.0.0.0}
 endif
 
 files_gcc += \
@@ -188,6 +188,12 @@ ifeq ($(GFDL_INVARIANT_FREE),yes)
 endif
 
 	debian/dh_rmemptydirs -p$(p_gcc)
+ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTONS)))
+	$(DWZ) \
+	  $(d_gcc)/$(gcc_lexec_dir)/lto1 \
+	  $(d_gcc)/$(gcc_lexec_dir)/lto-wrapper \
+	  $(d_gcc)/$(gcc_lexec_dir)/collect2
+endif
 	dh_strip -p$(p_gcc) \
 	  $(if $(unstripped_exe),-X/lto1)
 	dh_shlibdeps -p$(p_gcc)

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python2
 
 # Helper when migrating bugs from a gnat version to another.
 
@@ -11,13 +11,12 @@ import tempfile
 
 os.environ ['LC_ALL'] = 'C'
 
-# If == new_version, "reassign" -> "found" and "retitle" -> "fixed".
-# Once the bug tracking system is informed,
-# please update this number.
-old_version = "5"
+# If True, "reassign" -> "found" and "retitle" -> "fixed".
+# Once the bug tracking system is informed, please update this boolean.
+same_gcc_base_version = True
 
 # The current version.
-new_version = "6"
+new_version = "7"
 
 for line in subprocess.check_output (("dpkg", "--status", "gnat-" + new_version)).split ("\n"):
     if line.startswith ("Version: "):
@@ -46,7 +45,7 @@ def attempt_to_reproduce (bug, make, sources):
     return tmp_dir, status, stderr
 
 def reassign_and_remove_dir (bug, tmp_dir):
-    if old_version == new_version:
+    if same_gcc_base_version:
         print ("found {} {}".format (bug, deb_version))
     else:
         print ("reassign {} {} {}".format (bug, "gnat-" + new_version, deb_version))
@@ -59,7 +58,7 @@ def report (bug, message, output):
 
 def report_and_retitle (bug, message, output):
     report (bug, message, output)
-    if old_version == new_version:
+    if same_gcc_base_version:
         print ("fixed {} {}".format (bug, deb_version))
     else:
         print ("retitle {} [Fixed in {}] <current title>".format (bug, new_version))
@@ -819,8 +818,7 @@ end pak1;
 check_reports_an_error_but_should_not (
     bug = 427108,
     make = ("gnatmake", "test1"),
-#     regex = "FAILED",
-    regex = "Program_Error exp_disp.adb:7842 explicit raise",
+    regex = "Program_Error exp_disp.adb:7840 explicit raise",
     sources = (
         ("test1.adb", """-- "For the execution of a call on an inherited subprogram,
 -- a call on the corresponding primitive subprogram of the
@@ -961,6 +959,20 @@ begin
    );
 end Test;
 """)))
+
+check_produces_a_faulty_executable (
+    bug = 864969,
+    make = ("gnatmake", "main"),
+    trigger = "main",
+    regex = "ZZund",
+    sources = (
+        ("main.adb", """with Ada.Locales, Ada.Text_IO;
+procedure Main is
+begin
+   Ada.Text_IO.Put_Line (String (Ada.Locales.Country)
+                       & String (Ada.Locales.Language));
+end Main;
+"""),))
 
 try:
     os.rmdir (workspace)

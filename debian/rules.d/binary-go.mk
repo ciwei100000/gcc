@@ -109,7 +109,7 @@ define __do_gccgo
 
 	rm -rf $(d_l) $(d_d)
 	dh_installdirs -p$(p_l) $(usr_lib$(2))
-	$(dh_compat2) dh_movefiles -v -p$(p_l) \
+	$(dh_compat2) dh_movefiles -p$(p_l) \
 		$(usr_lib$(2))/libgo.so.*
 
 	debian/dh_doclink -p$(p_l) $(p_lbase)
@@ -168,11 +168,9 @@ endef
 
 define do_go_dev
 	dh_installdirs -p$(2) $(gcc_lib_dir$(1)) $(usr_lib$(1))
-	$(dh_compat2) dh_movefiles -v -p$(2) \
-		$(gcc_lib_dir$(1))/{libgobegin,libnetgo}.a \
+	$(dh_compat2) dh_movefiles -p$(2) \
+		$(gcc_lib_dir$(1))/{libgobegin,libgolibbegin}.a \
 		$(usr_lib$(1))/go
-	: # See https://launchpad.net/bugs/1783930
-	ln -sf $(BASE_VERSION) debian/$(2)/$(usr_lib$(1))/go/$(GCC_VERSION)
 	$(if $(filter yes, $(with_standalone_go)), \
 	  $(call install_gccgo_lib,libgomp,$(GOMP_SONAME),$(1),$(2)))
 	$(call install_gccgo_lib,libgo,$(GO_SONAME),$(1),$(2))
@@ -203,22 +201,22 @@ $(binary_stamp)-gccgo: $(install_stamp)
 	rm -rf $(d_go)
 	dh_installdirs -p$(p_go) $(dirs_go)
 
-	mv $(d)/$(usr_lib)/{libgobegin,libnetgo}.a \
+	mv $(d)/$(usr_lib)/{libgobegin,libgolibbegin}.a \
 		$(d)/$(gcc_lib_dir)/
 	if [ -f $(d)/$(usr_lib64)/libgobegin.a ]; then \
-	    mv $(d)/$(usr_lib64)/{libgobegin,libnetgo}.a \
+	    mv $(d)/$(usr_lib64)/{libgobegin,libgolibbegin}.a \
 		$(d)/$(gcc_lib_dir)/64/; \
 	fi
 	if [ -f $(d)/$(usr_lib32)/libgobegin.a ]; then \
-	    mv $(d)/$(usr_lib32)/{libgobegin,libnetgo}.a \
+	    mv $(d)/$(usr_lib32)/{libgobegin,libgolibbegin}.a \
 		$(d)/$(gcc_lib_dir)/32/; \
 	fi
 	if [ -f $(d)/$(usr_libn32)/libgobegin.a ]; then \
-	    mv $(d)/$(usr_libn32)/{libgobegin,libnetgo}.a \
+	    mv $(d)/$(usr_libn32)/{libgobegin,libgolibbegin}.a \
 		$(d)/$(gcc_lib_dir)/n32/; \
 	fi
 	if [ -f $(d)/$(usr_libx32)/libgobegin.a ]; then \
-	    mv $(d)/$(usr_libx32)/{libgobegin,libnetgo}.a \
+	    mv $(d)/$(usr_libx32)/{libgobegin,libgolibbegin}.a \
 		$(d)/$(gcc_lib_dir)/x32/; \
 	fi
 
@@ -272,6 +270,8 @@ ifeq ($(with_standalone_go),yes)
 endif
 
 	mkdir -p $(d_go)/usr/share/lintian/overrides
+	echo '$(p_go) binary: unstripped-binary-or-object' \
+	  > $(d_go)/usr/share/lintian/overrides/$(p_go)
 	echo '$(p_go) binary: hardening-no-pie' \
 	  > $(d_go)/usr/share/lintian/overrides/$(p_go)
 ifeq ($(GFDL_INVARIANT_FREE),yes)
@@ -285,6 +285,10 @@ endif
 #		$(d_go)/$(docdir)/$(p_base)/go/changelog
 	debian/dh_rmemptydirs -p$(p_go)
 
+ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTONS)))
+	$(DWZ) \
+	  $(d_go)/$(gcc_lexec_dir)/go1
+endif
 	dh_strip -v -p$(p_go) -X/cgo -X/go$(pkg_ver) -X/gofmt$(pkg_ver) \
 	  $(if $(unstripped_exe),-X/go1)
 	dh_shlibdeps -p$(p_go)

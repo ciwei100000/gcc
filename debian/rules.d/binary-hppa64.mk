@@ -20,6 +20,13 @@ $(binary_stamp)-hppa64: $(install_hppa64_stamp)
 	debian/dh_doclink -p$(p_hppa64) $(p_xbase)
 	debian/dh_rmemptydirs -p$(p_hppa64)
 
+ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTONS)))
+	$(DWZ) \
+	  $(d_hppa64)/$(gcc_lexec_dir)/cc1 \
+	  $(d_hppa64)/$(gcc_lexec_dir)/collect2 \
+	  $(d_hppa64)/$(gcc_lexec_dir)/lto-wrapper \
+	  $(d_hppa64)/$(gcc_lexec_dir)/lto1
+endif
 	dh_strip -p$(p_hppa64) -X.o -Xlibgcc.a -Xlibgcov.a
 	dh_shlibdeps -p$(p_hppa64)
 

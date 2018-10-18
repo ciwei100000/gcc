@@ -1,10 +1,8 @@
 # DP: Add FORCE_CROSS_LAYOUT env var to force a cross directory layout.
 
-Index: b/src/configure.ac
-===================================================================
 --- a/src/configure.ac
 +++ b/src/configure.ac
-@@ -3110,7 +3110,7 @@ target_configargs="$target_configargs ${
+@@ -3016,7 +3016,7 @@
  # native.  However, it would be better to use other mechanisms to make the
  # sorts of decisions they want to make on this basis.  Please consider
  # this option to be deprecated.  FIXME.
@@ -13,11 +11,9 @@ Index: b/src/configure.ac
    target_configargs="--with-cross-host=${host_noncanonical} ${target_configargs}"
  fi
  
-Index: b/src/gcc/configure.ac
-===================================================================
 --- a/src/gcc/configure.ac
 +++ b/src/gcc/configure.ac
-@@ -1987,7 +1987,7 @@ else
+@@ -2008,7 +2008,7 @@
    build_system_header_dir='$(CROSS_SYSTEM_HEADER_DIR)'
  fi
  
@@ -26,16 +22,16 @@ Index: b/src/gcc/configure.ac
  then
  	CROSS="-DCROSS_DIRECTORY_STRUCTURE"
  	ALL=all.cross
-@@ -2026,7 +2026,7 @@ elif test "x$TARGET_SYSTEM_ROOT" != x; t
+@@ -2026,7 +2026,7 @@
          SYSTEM_HEADER_DIR=$build_system_header_dir 
  fi
  
 -if test x$host != x$target || test "x$TARGET_SYSTEM_ROOT" != x; then
 +if test x$host != x$target || test "x$TARGET_SYSTEM_ROOT" != x || test x$FORCE_CROSS_LAYOUT = xyes; then
-   if test "x$with_headers" != x; then
+   if test "x$with_headers" != x && test "x$with_headers" != xyes; then
      target_header_dir=$with_headers
    elif test "x$with_sysroot" = x; then
-@@ -6036,14 +6036,14 @@ AC_SUBST_FILE(language_hooks)
+@@ -6193,7 +6193,7 @@
  
  # Echo link setup.
  if test x${build} = x${host} ; then
@@ -44,6 +40,7 @@ Index: b/src/gcc/configure.ac
      echo "Links are now set up to build a native compiler for ${target}." 1>&2
    else
      echo "Links are now set up to build a cross-compiler" 1>&2
+@@ -6200,7 +6200,7 @@
      echo " from ${host} to ${target}." 1>&2
    fi
  else

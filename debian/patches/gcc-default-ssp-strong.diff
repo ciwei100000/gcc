@@ -4,10 +4,10 @@ Index: b/src/gcc/gcc.c
 ===================================================================
 --- a/src/gcc/gcc.c
 +++ b/src/gcc/gcc.c
-@@ -863,7 +863,7 @@ proper position among the other output f
+@@ -881,7 +881,7 @@ proper position among the other output f
  
  #ifndef SSP_DEFAULT_SPEC
- #ifdef TARGET_LIBC_PROVIDES_SSP
+ #if defined(TARGET_LIBC_PROVIDES_SSP) && !defined(ACCEL_COMPILER)
 -#define SSP_DEFAULT_SPEC "%{!fno-stack-protector:%{!fstack-protector-all:%{!ffreestanding:%{!nostdlib:-fstack-protector}}}} " FORMAT_SECURITY_SPEC
 +#define SSP_DEFAULT_SPEC "%{!fno-stack-protector:%{!fstack-protector-all:%{!ffreestanding:%{!nostdlib:%{!fstack-protector:-fstack-protector-strong}}}}} " FORMAT_SECURITY_SPEC
  #else
@@ -17,7 +17,7 @@ Index: b/src/gcc/doc/invoke.texi
 ===================================================================
 --- a/src/gcc/doc/invoke.texi
 +++ b/src/gcc/doc/invoke.texi
-@@ -9771,6 +9771,11 @@ branch target registers within any basic
+@@ -9583,6 +9583,11 @@ branch target registers within any basic
  Optimize the prologue of variadic argument functions with respect to usage of
  those arguments.
  
@@ -29,7 +29,7 @@ Index: b/src/gcc/doc/invoke.texi
  @item -fsection-anchors
  @opindex fsection-anchors
  Try to reduce the number of symbolic address calculations by using
-@@ -10351,13 +10356,13 @@ value of a shared integer constant.  The
+@@ -10185,13 +10190,13 @@ value of a shared integer constant.  The
  The minimum size of buffers (i.e.@: arrays) that receive stack smashing
  protection when @option{-fstack-protection} is used.
  
@@ -46,7 +46,7 @@ Index: b/src/gcc/doc/invoke.texi
  @item max-jump-thread-duplication-stmts
  Maximum number of statements allowed in a block that needs to be
  duplicated when threading jumps.
-@@ -11276,10 +11281,6 @@ functions with buffers larger than 8 byt
+@@ -11204,10 +11209,6 @@ functions with buffers larger than 8 byt
  when a function is entered and then checked when the function exits.
  If a guard check fails, an error message is printed and the program exits.
  

@@ -1,24 +1,192 @@
-# DP: Don't add the configured prefix to libcc1's compiler name.
+# DP: libcc1: Fix setting the compiler name, taken from the trunk
 
---- a/src/libcc1/Makefile.am
-+++ b/src/libcc1/Makefile.am
-@@ -49,7 +49,7 @@
- # Put this in a header so we don't run sed for each compilation.  This
- # is also simpler to debug as one can easily see the constant.
- compiler-name.h: Makefile
--	echo "#define COMPILER_NAME \"`echo gcc | sed '$(transform)'`\"" > $@
-+	echo "#define COMPILER_NAME \"`echo gcc-6`\"" > $@
+libcc1/
+
+2017-11-16  Sergio Durigan Junior  <sergiodj@redhat.com>
+	    Pedro Alves  <palves@redhat.com>
+
+	* Makefile.am: Remove references to c-compiler-name.h and
+	cp-compiler-name.h
+	* Makefile.in: Regenerate.
+	* compiler-name.hh: New file.
+	* libcc1.cc: Don't include c-compiler-name.h.  Include
+	compiler-name.hh.
+	* libcp1.cc: Don't include cp-compiler-name.h.  Include
+	compiler-name.hh.
+
+Index: libcc1/libcc1.cc
+===================================================================
+--- a/src/libcc1/libcc1.cc	(revision 254837)
++++ b/src/libcc1/libcc1.cc	(revision 254838)
+@@ -37,7 +37,7 @@
+ #include "libiberty.h"
+ #include "xregex.h"
+ #include "findcomp.hh"
+-#include "c-compiler-name.h"
++#include "compiler-name.hh"
+ #include "intl.h"
  
- 
+ struct libcc1;
+Index: libcc1/Makefile.in
+===================================================================
+--- a/src/libcc1/Makefile.in	(revision 254837)
++++ b/src/libcc1/Makefile.in	(revision 254838)
+@@ -307,8 +307,6 @@
+ cc1libdir = $(libdir)/$(libsuffix)
+ @ENABLE_PLUGIN_TRUE@plugin_LTLIBRARIES = libcc1plugin.la libcp1plugin.la
+ @ENABLE_PLUGIN_TRUE@cc1lib_LTLIBRARIES = libcc1.la
+-BUILT_SOURCES = c-compiler-name.h cp-compiler-name.h
+-MOSTLYCLEANFILES = c-compiler-name.h cp-compiler-name.h
  shared_source = callbacks.cc callbacks.hh connection.cc connection.hh \
---- a/src/libcc1/Makefile.in
-+++ b/src/libcc1/Makefile.in
-@@ -674,7 +674,7 @@
- # Put this in a header so we don't run sed for each compilation.  This
- # is also simpler to debug as one can easily see the constant.
- compiler-name.h: Makefile
--	echo "#define COMPILER_NAME \"`echo gcc | sed '$(transform)'`\"" > $@
-+	echo "#define COMPILER_NAME \"`echo gcc-6`\"" > $@
+     marshall.cc marshall.hh rpc.hh status.hh
  
+@@ -344,7 +342,7 @@
+ 	$(LIBTOOLFLAGS) --mode=link $(CXXLD) $(AM_CXXFLAGS) \
+ 	$(CXXFLAGS) $(libcc1_la_LDFLAGS) $(LTLDFLAGS) -o $@
+ 
+-all: $(BUILT_SOURCES) cc1plugin-config.h
++all: cc1plugin-config.h
+ 	$(MAKE) $(AM_MAKEFLAGS) all-am
+ 
+ .SUFFIXES:
+@@ -567,15 +565,13 @@
+ distclean-tags:
+ 	-rm -f TAGS ID GTAGS GRTAGS GSYMS GPATH tags
+ check-am: all-am
+-check: $(BUILT_SOURCES)
+-	$(MAKE) $(AM_MAKEFLAGS) check-am
++check: check-am
+ all-am: Makefile $(LTLIBRARIES) cc1plugin-config.h
+ installdirs:
+ 	for dir in "$(DESTDIR)$(cc1libdir)" "$(DESTDIR)$(plugindir)"; do \
+ 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
+ 	done
+-install: $(BUILT_SOURCES)
+-	$(MAKE) $(AM_MAKEFLAGS) install-am
++install: install-am
+ install-exec: install-exec-am
+ install-data: install-data-am
+ uninstall: uninstall-am
+@@ -595,7 +591,6 @@
+ 	    "INSTALL_PROGRAM_ENV=STRIPPROG='$(STRIP)'" install; \
+ 	fi
+ mostlyclean-generic:
+-	-test -z "$(MOSTLYCLEANFILES)" || rm -f $(MOSTLYCLEANFILES)
+ 
+ clean-generic:
+ 
+@@ -606,7 +601,6 @@
+ maintainer-clean-generic:
+ 	@echo "This command is intended for maintainers to use"
+ 	@echo "it deletes files that may require special tools to rebuild."
+-	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
+ clean: clean-am
+ 
+ clean-am: clean-cc1libLTLIBRARIES clean-generic clean-libtool \
+@@ -681,7 +675,7 @@
+ 
+ uninstall-am: uninstall-cc1libLTLIBRARIES uninstall-pluginLTLIBRARIES
+ 
+-.MAKE: all check install install-am install-strip
++.MAKE: all install-am install-strip
+ 
+ .PHONY: CTAGS GTAGS all all-am am--refresh check check-am clean \
+ 	clean-cc1libLTLIBRARIES clean-generic clean-libtool \
+@@ -702,21 +696,6 @@
+ override CXXFLAGS := $(filter-out -fsanitize=address,$(CXXFLAGS))
+ override LDFLAGS := $(filter-out -fsanitize=address,$(LDFLAGS))
+ 
+-# Put this in a header so we don't run sed for each compilation.  This
+-# is also simpler to debug as one can easily see the constant.
+-# FIXME: compute it in configure.ac and output it in config.status, or
+-# introduce timestamp files for some indirection to avoid rebuilding it
+-# every time.
+-c-compiler-name.h: Makefile
+-	-rm -f $@T
+-	echo "#define C_COMPILER_NAME \"`echo gcc | sed '$(transform)'`\"" > $@T
+-	mv $@T $@ # $(SHELL) $(srcdir)/../move-if-change $@T $@
+-
+-cp-compiler-name.h: Makefile
+-	-rm -f $@T
+-	echo "#define CP_COMPILER_NAME \"`echo g++ | sed '$(transform)'`\"" > $@T
+-	mv $@T $@ # $(SHELL) $(srcdir)/../move-if-change $@T $@
+-
  # Tell versions [3.59,3.63) of GNU make to not export all variables.
  # Otherwise a system limit (for SysV at least) may be exceeded.
+ .NOEXPORT:
+Index: libcc1/compiler-name.hh
+===================================================================
+--- a/src/libcc1/compiler-name.hh	(nonexistent)
++++ b/src/libcc1/compiler-name.hh	(revision 254838)
+@@ -0,0 +1,29 @@
++/* The names of the compilers we use.
++   Copyright (C) 2017 Free Software Foundation, Inc.
++
++This file is part of GCC.
++
++GCC is free software; you can redistribute it and/or modify it under
++the terms of the GNU General Public License as published by the Free
++Software Foundation; either version 3, or (at your option) any later
++version.
++
++GCC is distributed in the hope that it will be useful, but WITHOUT ANY
++WARRANTY; without even the implied warranty of MERCHANTABILITY or
++FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
++for more details.
++
++You should have received a copy of the GNU General Public License
++along with GCC; see the file COPYING3.  If not see
++<http://www.gnu.org/licenses/>.  */
++
++#ifndef COMPILER_NAME_H
++#define COMPILER_NAME_H
++
++// C compiler name.
++#define C_COMPILER_NAME "gcc"
++
++// C++ compiler name.
++#define CP_COMPILER_NAME "g++"
++
++#endif // ! COMPILER_NAME_H
+Index: libcc1/libcp1.cc
+===================================================================
+--- a/src/libcc1/libcp1.cc	(revision 254837)
++++ b/src/libcc1/libcp1.cc	(revision 254838)
+@@ -37,7 +37,7 @@
+ #include "libiberty.h"
+ #include "xregex.h"
+ #include "findcomp.hh"
+-#include "cp-compiler-name.h"
++#include "compiler-name.hh"
+ #include "intl.h"
+ 
+ struct libcp1;
+Index: libcc1/Makefile.am
+===================================================================
+--- a/src/libcc1/Makefile.am	(revision 254837)
++++ b/src/libcc1/Makefile.am	(revision 254838)
+@@ -45,24 +45,6 @@
+ cc1lib_LTLIBRARIES = libcc1.la
+ endif
+ 
+-BUILT_SOURCES = c-compiler-name.h cp-compiler-name.h
+-MOSTLYCLEANFILES = c-compiler-name.h cp-compiler-name.h
+-
+-# Put this in a header so we don't run sed for each compilation.  This
+-# is also simpler to debug as one can easily see the constant.
+-# FIXME: compute it in configure.ac and output it in config.status, or
+-# introduce timestamp files for some indirection to avoid rebuilding it
+-# every time.
+-c-compiler-name.h: Makefile
+-	-rm -f $@T
+-	echo "#define C_COMPILER_NAME \"`echo gcc | sed '$(transform)'`\"" > $@T
+-	mv $@T $@ # $(SHELL) $(srcdir)/../move-if-change $@T $@
+-
+-cp-compiler-name.h: Makefile
+-	-rm -f $@T
+-	echo "#define CP_COMPILER_NAME \"`echo g++ | sed '$(transform)'`\"" > $@T
+-	mv $@T $@ # $(SHELL) $(srcdir)/../move-if-change $@T $@
+-
+ shared_source = callbacks.cc callbacks.hh connection.cc connection.hh \
+     marshall.cc marshall.hh rpc.hh status.hh
+ 
