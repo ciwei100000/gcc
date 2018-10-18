@@ -96,8 +96,8 @@ Homepage: http://gdcproject.org/
 ', `dnl
 Homepage: http://gcc.gnu.org/
 ')dnl SRCNAME
-Vcs-Browser: http://svn.debian.org/viewsvn/gcccvs/branches/sid/gcc`'PV/
-Vcs-Svn: svn://anonscm.debian.org/gcccvs/branches/sid/gcc`'PV
+Vcs-Browser: https://salsa.debian.org/toolchain-team/gcc
+Vcs-Svn: https://salsa.debian.org/toolchain-team/gcc.git
 XS-Testsuite: autopkgtest
 
 ifelse(regexp(SRCNAME, `gcc-snapshot'),0,`dnl
