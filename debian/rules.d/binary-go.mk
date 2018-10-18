@@ -93,7 +93,7 @@ define __do_gccgo
 
 	rm -rf $(d_l) $(d_d)
 	dh_installdirs -p$(p_l) $(usr_lib$(2))
-	DH_COMPAT=2 dh_movefiles -p$(p_l) \
+	$(dh_compat2) dh_movefiles -p$(p_l) \
 		$(usr_lib$(2))/libgo.so.* $(usr_lib$(2))/go
 
 	debian/dh_doclink -p$(p_l) $(p_base)
@@ -105,7 +105,11 @@ define __do_gccgo
 	$(cross_makeshlibs) dh_makeshlibs -p$(p_l)
 	$(call cross_mangle_shlibs,$(p_l))
 	$(ignshld)DIRNAME=$(subst n,,$(2)) $(cross_shlibdeps) dh_shlibdeps -p$(p_l) \
-		$(call shlibdirs_to_search,$(subst go$(GO_SONAME),gcc$(GCC_SONAME),$(p_l)),$(2))
+		$(call shlibdirs_to_search, \
+			$(subst go$(GO_SONAME),gcc$(GCC_SONAME),$(p_l)) \
+			$(subst go$(GO_SONAME),atomic$(ATOMIC_SONAME),$(p_l)) \
+		,$(2)) \
+		$(if $(filter yes, $(with_common_libs)),,-- -Ldebian/shlibs.common$(2))
 	$(call cross_mangle_substvars,$(p_l))
 	$(cross_gencontrol) dh_gencontrol -p$(p_l) -p$(p_d) \
 		-- -v$(DEB_VERSION) $(common_substvars)
@@ -129,7 +133,7 @@ endef
 
 define do_go_dev
 	dh_installdirs -p$(2) $(gcc_lib_dir$(1))
-	DH_COMPAT=2 dh_movefiles -p$(2) \
+	$(dh_compat2) dh_movefiles -p$(2) \
 		$(gcc_lib_dir$(1))/libgobegin.a
 	$(call install_gccgo_lib,libgo,$(GO_SONAME),$(1),$(2))
 endef
@@ -165,24 +169,19 @@ $(binary_stamp)-gccgo: $(install_stamp)
 		$(d)/$(gcc_lib_dir)/64/; \
 	fi
 	if [ -f $(d)/$(usr_lib32)/libgobegin.a ]; then \
-	  if [ -d $(d)/$(gcc_lib_dir)/32 ]; then \
 	    mv $(d)/$(usr_lib32)/libgobegin.a \
 		$(d)/$(gcc_lib_dir)/32/; \
-	  else \
-	    mv $(d)/$(usr_lib32)/libgobegin.a \
-		$(d)/$(gcc_lib_dir)/n32/; \
-	  fi; \
 	fi
 	if [ -f $(d)/$(usr_libn32)/libgobegin.a ]; then \
-            mv $(d)/$(usr_libn32)/libgobegin.a \
-                $(d)/$(gcc_lib_dir)/n32/; \
-        fi
+	    mv $(d)/$(usr_libn32)/libgobegin.a \
+		$(d)/$(gcc_lib_dir)/n32/; \
+	fi
 	if [ -f $(d)/$(usr_libx32)/libgobegin.a ]; then \
 	    mv $(d)/$(usr_libx32)/libgobegin.a \
 		$(d)/$(gcc_lib_dir)/x32/; \
 	fi
 
-	DH_COMPAT=2 dh_movefiles -p$(p_go) $(files_go)
+	$(dh_compat2) dh_movefiles -p$(p_go) $(files_go)
 
 	$(call do_go_dev,,$(p_go))
 
@@ -251,7 +250,7 @@ $(binary_stamp)-go-doc: $(build_html_stamp) $(install_stamp)
 	dh_installdirs -p$(p_god) \
 		$(docdir)/$(p_xbase)/go \
 		$(PF)/share/info
-	DH_COMPAT=2 dh_movefiles -p$(p_god) \
+	$(dh_compat2) dh_movefiles -p$(p_god) \
 		$(PF)/share/info/gccgo*
 
 	debian/dh_doclink -p$(p_god) $(p_xbase)

@@ -33,19 +33,20 @@ ifneq ($(gcc_lib_dir),$(gcc_lexec_dir))
         done
 endif
 
-ifeq ($(with_spu),yes)
-	mkdir -p $(d_base)/$(gcc_spu_lexec_dir)
-	mkdir -p $(d_base)/$(gcc_spu_lib_dir)
-	ln -sf $(BASE_VERSION) $(d_base)/$(spulibexecdir)/$(gcc_spu_subdir_name)/spu/$(GCC_VERSION)
-	ln -sf $(BASE_VERSION) $(d_base)/usr/spu/lib/$(gcc_spu_subdir_name)/spu/$(GCC_VERSION)
-endif
-
+ifeq ($(with_base_only),yes)
+	dh_installdocs -p$(p_base) debian/README.Debian
+else
 	dh_installdocs -p$(p_base) debian/README.Debian.$(DEB_TARGET_ARCH)
+endif
 	rm -f $(d_base)/usr/share/doc/$(p_base)/README.Debian
 	dh_installchangelogs -p$(p_base)
 	dh_compress -p$(p_base)
 	dh_fixperms -p$(p_base)
+ifeq ($(with_deps_on_target_arch_pkgs),yes)
+	$(cross_gencontrol) dh_gencontrol -p$(p_base) -- -v$(DEB_VERSION) $(common_substvars)
+else
 	dh_gencontrol -p$(p_base) -- -v$(DEB_VERSION) $(common_substvars)
+endif
 	dh_installdeb -p$(p_base)
 	dh_md5sums -p$(p_base)
 	dh_builddeb -p$(p_base)

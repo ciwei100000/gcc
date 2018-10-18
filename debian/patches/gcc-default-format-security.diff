@@ -1,46 +1,10 @@
 # DP: Turn on -Wformat -Wformat-security by  default for C, C++, ObjC, ObjC++.
 
----
- gcc/c-common.c      |    2 +-
- gcc/c.opt           |    2 +-
- gcc/doc/invoke.texi |    8 ++++++++
- 3 files changed, 10 insertions(+), 2 deletions(-)
-
---- a/src/gcc/c-family/c-common.c
-+++ b/src/gcc/c-family/c-common.c
-@@ -201,7 +201,7 @@
- /* Warn about format/argument anomalies in calls to formatted I/O functions
-    (*printf, *scanf, strftime, strfmon, etc.).  */
- 
--int warn_format;
-+int warn_format = 1;
- 
- /* C/ObjC language option variables.  */
- 
---- a/src/gcc/c-family/c.opt
-+++ b/src/gcc/c-family/c.opt
-@@ -384,7 +384,7 @@
- Warn about format strings that contain NUL bytes
- 
- Wformat-security
--C ObjC C++ ObjC++ Var(warn_format_security) Warning
-+C ObjC C++ ObjC++ Var(warn_format_security) Init(1) Warning
- Warn about possible security problems with format functions
- 
- Wformat-y2k
+Index: b/src/gcc/doc/invoke.texi
+===================================================================
 --- a/src/gcc/doc/invoke.texi
 +++ b/src/gcc/doc/invoke.texi
-@@ -3102,6 +3102,9 @@
- @option{-Wformat-nonliteral}, @option{-Wformat-security}, and
- @option{-Wformat=2} are available, but are not included in @option{-Wall}.
- 
-+NOTE: In Ubuntu 8.10 and later versions this option is enabled by default
-+for C, C++, ObjC, ObjC++.  To disable, use @option{-Wformat=0}.
-+
- @item -Wformat-y2k
- @opindex Wformat-y2k
- @opindex Wno-format-y2k
-@@ -3155,6 +3158,11 @@
+@@ -3351,6 +3351,11 @@
  in future warnings may be added to @option{-Wformat-security} that are not
  included in @option{-Wformat-nonliteral}.)
  
@@ -49,6 +13,25 @@
 +or disable all format warnings with @option{-Wformat=0}.  To make format
 +security warnings fatal, specify @option{-Werror=format-security}.
 +
- @item -Wformat=2
- @opindex Wformat=2
- @opindex Wno-format=2
+ @item -Wformat-y2k
+ @opindex Wformat-y2k
+ @opindex Wno-format-y2k
+--- a/src/gcc/gcc.c
++++ b/src/gcc/gcc.c
+@@ -654,11 +654,14 @@
+ #define LINK_GCC_C_SEQUENCE_SPEC "%G %L %G"
+ #endif
+ 
++/* no separate spec, just shove it into the ssp default spec */
++#define FORMAT_SECURITY_SPEC "%{!Wformat:%{!Wformat=2:%{!Wformat=0:%{!Wall:-Wformat} %{!Wno-format-security:-Wformat-security}}}}"
++
+ #ifndef SSP_DEFAULT_SPEC
+ #ifdef TARGET_LIBC_PROVIDES_SSP
+-#define SSP_DEFAULT_SPEC "%{!fno-stack-protector:%{!fstack-protector-all:%{!ffreestanding:%{!nostdlib:-fstack-protector}}}}"
++#define SSP_DEFAULT_SPEC "%{!fno-stack-protector:%{!fstack-protector-all:%{!ffreestanding:%{!nostdlib:-fstack-protector}}}} " FORMAT_SECURITY_SPEC
+ #else
+-#define SSP_DEFAULT_SPEC ""
++#define SSP_DEFAULT_SPEC FORMAT_SECURITY_SPEC
+ #endif
+ #endif
+

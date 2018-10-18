@@ -17,10 +17,6 @@ dirs_snap = \
 	$(docdir)/$(p_snap) \
 	usr/lib
 
-ifeq ($(with_spu),yes)
-  snapshot_depends = binutils-spu
-  snapshot_recommends = newlib-spu
-endif
 ifeq ($(with_hppa64),yes)
   snapshot_depends = binutils-hppa64
 endif
@@ -155,11 +151,6 @@ ifeq ($(with_hppa64),yes)
 		/$(PF)/libexec/gcc/hppa64-linux-gnu/$(GCC_VERSION)/ld
 endif
 
-# don't do this; would create a b-d on gcc-snapshot
-#ifeq ($(with_spu),yes)
-#	dh_link -p $(p_snap) /usr/spu /$(PF)/spu
-#endif
-
 ifeq ($(with_check),yes)
 	dh_installdocs -p$(p_snap) test-summary
   ifeq ($(with_pascal),yes)
@@ -198,8 +189,6 @@ endif
 	  echo 'libgcc_s $(GCC_SONAME) ${p_snap} (>= $(DEB_VERSION))'; \
 	  echo 'libobjc $(OBJC_SONAME) ${p_snap} (>= $(DEB_VERSION))'; \
 	  echo 'libgfortran $(FORTRAN_SONAME) ${p_snap} (>= $(DEB_VERSION))'; \
-	  echo 'libmudflap $(MUDFLAP_SONAME) ${p_snap} (>= $(DEB_VERSION))'; \
-	  echo 'libmudflapth $(MUDFLAP_SONAME) ${p_snap} (>= $(DEB_VERSION))'; \
 	  echo 'libffi $(FFI_SONAME) ${p_snap} (>= $(DEB_VERSION))'; \
 	  echo 'libgcj $(GCJ_SONAME) ${p_snap} (>= $(DEB_VERSION))'; \
 	  echo 'libgcj-tools $(GCJ_SONAME) ${p_snap} (>= $(DEB_VERSION))'; \
@@ -211,7 +200,7 @@ endif
 	) > debian/shlibs.local
 
 	$(ignshld)DIRNAME=$(subst n,,$(2)) $(cross_shlibdeps)  \
-	  dh_shlibdeps -p$(p_snap) -l$(CURDIR)/$(d_snap)/$(PF)/lib:$(CURDIR)/$(d_snap)/$(PF)/$(if $(filter $(DEB_TARGET_ARCH),amd64 ppc64),lib32,lib64):/usr/$(DEB_TARGET_GNU_TYPE)/lib -Xlibgcj-tools -Xlibmudflap
+	  dh_shlibdeps -p$(p_snap) -l$(CURDIR)/$(d_snap)/$(PF)/lib:$(CURDIR)/$(d_snap)/$(PF)/$(if $(filter $(DEB_TARGET_ARCH),amd64 ppc64),lib32,lib64):/usr/$(DEB_TARGET_GNU_TYPE)/lib -Xlibgcj-tools
 	-sed -i -e 's/$(p_snap)[^,]*, //g' debian/$(p_snap).substvars
 
 ifeq ($(with_multiarch_lib),yes)

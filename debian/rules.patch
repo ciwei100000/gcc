@@ -14,9 +14,13 @@ series_file	?= $(patchdir)/series
 
 debian_patches = \
 	$(if $(with_linaro_branch),gcc-linaro) \
-	hjl-x32-gcc-4_7-branch \
+	$(if $(with_linaro_branch),gcc-linaro-no-macros) \
+	$(if $(with_linaro_branch),gcc-linaro-no-local) \
 
-#	svn-updates$(if $(with_linaro_branch),-linaro) \
+#	svn-updates \
+
+# FIXME: pr61208 requires Linaro 4.9-2014.04.
+#	$(if $(with_linaro_branch),pr61208-linaro) \
 
 ifeq ($(with_java),yes)
 #  debian_patches += \
@@ -27,11 +31,14 @@ ifneq ($(GFDL_INVARIANT_FREE),yes)
   debian_patches += \
 	rename-info-files \
 	$(if $(with_linaro_branch),gcc-linaro-doc) \
-	hjl-x32-gcc-4_7-branch-doc \
+	pr67281-doc \
 
+#	svn-doc-updates \
 #	$(if $(with_linaro_branch),,svn-doc-updates) \
 
 else
+  debian_patches += \
+        $(if $(with_linaro_branch),gcc-dfsg-linaro-doc)
 endif
 debian_patches += \
 	gcc-gfdl-build
@@ -39,15 +46,10 @@ debian_patches += \
 #	boehm-gc-nocheck: seems to work on the buildds \
 
 debian_patches += \
-	$(if $(with_linaro_branch),aarch64-multiarch) \
-	$(if $(with_linaro_branch),aarch64-hash-style-gnu) \
-	$(if $(with_linaro_branch),pr59695) \
-	aarch64-libffi \
-	aarch64-libffi-testsuite \
 	gcc-textdomain \
 	gcc-driver-extra-langs
 
-ifneq (,$(filter $(distrelease),dapper hardy intrepid jaunty karmic lucid lenny etch squeeze wheezy))
+ifneq (,$(filter $(distrelease),etch lenny squeeze wheezy dapper hardy intrepid jaunty karmic lucid))
   debian_patches += gcc-hash-style-both
 else
   debian_patches += gcc-hash-style-gnu
@@ -67,60 +69,69 @@ debian_patches += \
 	note-gnu-stack \
 	libgomp-omp_h-multilib \
 	sparc-force-cpu \
-	pr24619 \
 	gccgo-version \
-	pr45078 \
 	pr47818 \
-	pr49940 \
 	pr49944 \
-	libffi-kfreebsd \
-	gcc-base-version \
-	libffi-powerpc-sf \
-	libffi-powerpc-sysv-without-string-ops \
-	mudflapth-link \
-	libffi-m68k \
-	pr26155 \
-	arm-no-va_list-warn \
-	libmudflap-x32 \
-	pr54411 \
-	hurd-pthread \
+	gcc-base-version$(if $(with_linaro_branch),-linaro) \
 	libgo-testsuite \
 	gcc-target-include-asm \
-	libgcc-backports \
-	ppl-version \
+	libgo-revert-timeout-exp \
+	$(if $(with_linaro_branch),,arm-sanitizer) \
 	libgo-setcontext-config \
-	pr50043 \
-	pr61801 \
+	pr57211 \
+	kfreebsd-unwind \
+	libgcc-no-limits-h \
+	kfreebsd-boehm-gc \
+	hurd-boehm-gc \
+	pr49847 \
+	libffi-m68k \
+	m68k-picflag \
+	sys-auxv-header \
+	go-use-gold \
+	go-testsuite \
+	pr57363 \
+	$(if $(with_linaro_branch),aarch64-call-frame-info) \
+	$(if $(with_linaro_branch),aarch64-abi-fix) \
+	fix-ffi_call_VFP-with-no-VFP-argument \
+	$(if $(with_linaro_branch),pr60034) \
+	pr61106 \
+	pr61126 \
+	libitm-aarch64 \
+	pr61046 \
+	pr61336 \
+	gcc-setmultilib-fix \
+	pr61841 \
+	pr62032 \
+	pr59586 \
+	pr62255 \
+	pr62258 \
+	pr65711 \
+	pr56158 \
+	isl-0.15 \
+	pr67281 \
 
-gdb_depends := $(shell dpkg -s gdb | grep '^Depends:.*libpython3')
-ifneq (,$(findstring libpython3,$(gdb_depends)))
-  debian_patches += libstdc++-python3
-endif
-
-ifneq (,$(filter $(cloog_backend),ppl-0.11))
-  debian_patches += gcc-cloog-dl
-endif
+# FIXME: still necessary for cross building the native compiler?
+#	gcc-auto-build \
 
 #	$(if $(filter yes, $(DEB_CROSS)),,gcc-print-file-name) \
 #	libstdc++-nothumb-check \
 # TODO: update ...
+#	gcc-cloog-dl \
 #	libjava-rpath \
 
 hardening_patches =
-ifneq ($(distribution),Debian)
+ifeq ($(with_ssp)-$(with_ssp_default),yes-yes)
+  hardening_patches += gcc-default-ssp
+  hardening_patches += gcc-default-format-security
+endif
+ifeq ($(distribution),Ubuntu)
   ifneq (,$(findstring gcc-4, $(PKGSOURCE)))
-    hardening_patches += gcc-default-format-security \
+    hardening_patches += \
 	gcc-default-fortify-source \
 	gcc-default-relro \
 	testsuite-hardening-format \
-	testsuite-hardening-printf-types
-  endif
-endif
-ifeq ($(with_ssp)-$(with_ssp_default),yes-yes)
-  ifeq ($(distribution),Ubuntu)
-    hardening_patches += gcc-default-ssp$(if $(filter ppc64,$(DEB_TARGET_ARCH)),-ppc64)
-  else
-    hardening_patches += gcc-default-ssp
+	testsuite-hardening-printf-types \
+	testsuite-hardening-updates
   endif
 endif
 
@@ -135,7 +146,8 @@ ifeq ($(with_ada),yes)
 	ada-gcc-name \
 	ada-default-project-path \
 	ada-symbolic-tracebacks \
-	ada-library-project-files-soname
+	ada-library-project-files-soname \
+	ada-ppc64
 
   ifeq ($(biarch64),yes)
     debian_patches += \
@@ -154,11 +166,6 @@ ifeq ($(with_ada),yes)
     endif
   endif
 
-  ifneq (,$(findstring $(DEB_TARGET_ARCH_OS),kfreebsd hurd))
-    debian_patches += ada-kfreebsd-gnu \
-	ada-bug564232
-  endif
-
   ifeq ($(DEB_TARGET_ARCH_OS),hurd)
     debian_patches += \
         gcc_ada_gcc-interface_Makefile.in \
@@ -171,37 +178,60 @@ ifeq ($(with_ada),yes)
 	ada-link-shlib
 endif
 
-ifeq (0,1)
 ifeq ($(with_d),yes)
   debian_patches += \
-       gdc-4.6 \
-       gdc-libphobos-math \
-       gdc-driver-zlib
-
+	gdc-4.8 \
+	gdc-versym-cpu \
+	gdc-versym-os \
+	gdc-frontend-posix
+#	gdc-updates \
+#	gdc-multiarch
+  ifneq ($(GFDL_INVARIANT_FREE),yes)
+    debian_patches += gdc-4.8-doc
+  else
+    debian_patches += gdc-texinfo
+  endif
   ifeq ($(with_libphobos),yes)
     debian_patches += gdc-libphobos-build
   else
     debian_patches += gdc-driver-nophobos
   endif
-
+  ifeq (,$(filter $(DEB_TARGET_ARCH),amd64 i386))
+    debian_patches += disable-gdc-tests
+  endif
 else
   debian_patches += gcc-d-lang
 endif
-endif
 
 ifeq ($(DEB_TARGET_ARCH),alpha)
-  debian_patches += alpha-ieee mudflap-nocheck
+  debian_patches += alpha-ieee
   ifneq ($(GFDL_INVARIANT_FREE),yes)
     debian_patches += alpha-ieee-doc
   endif
+endif
+
+ifeq ($(DEB_TARGET_ARCH_CPU),amd64)
+  debian_patches += libjava-testsuite
 endif
 
 ifneq (,$(findstring $(DEB_TARGET_ARCH),arm armel armhf))
   debian_patches += libjava-armel-unwind
 endif
 
+ifeq ($(DEB_TARGET_ARCH),armhf)
+ debian_patches += gcj-arm-mode
+else ifeq ($(DEB_TARGET_ARCH),armel)
+  ifneq (,$(filter $(distrelease),lucid maverick natty oneiric precise))
+    debian_patches += gcj-arm-mode
+  endif
+endif
+
 ifeq ($(DEB_TARGET_ARCH),m68k)
-  debian_patches +=
+  debian_patches += m68k-ada
+  debian_patches += m68k-revert-pr45144
+  debian_patches += pr52714
+  debian_patches += pr58369
+  debian_patches += pr52306
 endif
 
 ifeq ($(DEB_TARGET_ARCH),powerpcspe)
@@ -209,29 +239,19 @@ ifeq ($(DEB_TARGET_ARCH),powerpcspe)
   debian_patches += powerpc_nofprs
 endif
 
-ifeq ($(DEB_TARGET_ARCH),ppc64)
-  ifeq ($(distribution),Ubuntu)
-    #debian_patches += ibm-branch
-  endif
-endif
-
-spu_patches = cross-install-location
-
 #debian_patches += link-libs
-debian_patches += $(if $(with_linaro_branch),,arm-dynamic-linker)
 
 # all patches below this line are applied for gcc-snapshot builds as well
 
 ifeq ($(single_package),yes)
-  spu_patches =
   debian_patches =
 endif
 
-ifeq ($(trunk_build),yes)
-  debian_patches += gcc-sysroot-trunk
-else
-  debian_patches += gcc-sysroot
-endif
+debian_patches += gcc-sysroot
+debian_patches += goarch-aarch64
+debian_patches += libgo-explicit-reservation
+debian_patches += \
+	ada-kfreebsd \
 
 ifeq ($(with_softfloat),yes)
   debian_patches += arm-multilib-soft-float
@@ -250,7 +270,9 @@ ifeq ($(DEB_CROSS),yes)
     debian_patches += cross-ma-install-location
   else
     debian_patches += cross-install-location
-    spu_patches := $(filter-out cross-install-location,$(spu_patches))
+    ifeq ($(with_d),yes)
+      debian_patches += gdc-cross-install-location
+    endif
   endif
 endif
 
@@ -258,30 +280,28 @@ ifeq ($(DEB_TARGET_ARCH_OS),hurd)
   debian_patches += hurd-changes
 endif
 
-debian_patches += gcc-ice-hack gcc-ice-apport
-debian_patches += gold-and-ld
-ifneq ($(GFDL_INVARIANT_FREE),yes)
-  debian_patches += gold-and-ld-doc
-endif
+debian_patches += gcc-ice-hack gcc-ice-dump gcc-ice-apport
+#FIXME
+#debian_patches += gold-and-ld
 
 debian_patches += libjava-fixed-symlinks
-debian_patches += libstdc++-arm-wno-abi
 
 ifneq (,$(filter $(DEB_TARGET_ARCH), mips mipsel))
   # timeouts on the buildd's, Debian
   debian_patches += libstdc++-no-testsuite
 else ifeq ($(distribution),Ubuntu)
-  ifneq (,$(filter $(DEB_TARGET_ARCH), armel ia64 mips mipsel))
-    # timeouts on the buildd's, Ubuntu only
+  # timeouts on the buildd's, Ubuntu only
+  ifneq (,$(filter $(DEB_TARGET_ARCH), armel ia64))
     debian_patches += libstdc++-no-testsuite
   endif
 endif
-debian_patches += ada-mips
+ifneq (,$(filter $(DEB_TARGET_ARCH), mips mipsel))
+  # FIXME: this adds -gtoggle to STAGE3_CFLAGS. Why?
+  debian_patches += ada-mips
+endif
 debian_patches += libffi-ro-eh_frame_sect
 
 debian_patches += gcc-multiarch
-debian_patches += gcc-powerpc-nof
-debian_patches += gcc-multiarch-no-multilib
 ifeq ($(with_multiarch_lib),yes)
   ifneq ($(single_package),yes)
     debian_patches += libjava-multiarch
@@ -302,21 +322,22 @@ ifeq ($(biarch64),yes)
     debian_patches += cross-biarch
   endif
 endif
-debian_patches += gcc-powerpc-undef
 debian_patches += gcc-multilib-multiarch
 
-ifeq (,$(filter $(distrelease),lenny squeeze wheezy jessie sid experimental dapper hardy intrepid jaunty karmic lucid maverick))
-  debian_patches += gcc-as-needed
+ifneq (,$(filter $(derivative),Ubuntu))
+  ifeq (,$(filter $(distrelease),dapper hardy intrepid jaunty karmic lucid maverick))
+    debian_patches += gcc-as-needed
+  endif
+else # Debian
+    #debian_patches += gcc-as-needed
 endif
 debian_patches += mips-fix-loongson2f-nop
-ifeq ($(distribution),Ubuntu)
+ifeq ($(derivative),Ubuntu)
   ifeq ($(DEB_TARGET_ARCH),ppc64)
     debian_patches += gcc-ppc64-O3
   endif
 endif
 debian_patches += libgomp-kfreebsd-testsuite
-#debian_patches += address-clauses-timed-entry-calls
-
 
 series_stamp = $(stampdir)/02-series-stamp
 series: $(series_stamp)
@@ -332,7 +353,7 @@ endif
 	sed -r 's/(.)$$/\1 -p1/' -i $(series_file)
 	touch $@
 
-autotools_files := $(addprefix ./,$(foreach file,$(shell lsdiff --no-filename \
+autotools_files = $(addprefix ./,$(foreach file,$(shell lsdiff --no-filename \
 	$(foreach patch,$(debian_patches),$(patchdir)/$(patch).diff) \
 	| sed -r 's:[^/]+/src/:src/:' | sort | uniq),$(shell echo $(file) \
 	| egrep 'configure\.(ac|in)|Makefile\.(am|in)|acinclude.m4')))
@@ -381,7 +402,7 @@ endif
 	  esac; \
 	done
 
-	for i in $(debian_patches); do \
+	for i in $(debian_patches) $(hardening_patches); do \
 	  echo -e "\n$$i:" >> pxxx; \
 	  sed -n 's/^# *DP: */  /p' $(patchdir)/$$i.diff >> pxxx; \
 	done
@@ -395,28 +416,6 @@ unpatch:
 	for f in $(autotools_files); do \
 	  rm -f $$(echo $$f | sed -r 's/\.(ac|am|in)$$//'); \
 	done
-
-$(src_spu_stamp): $(patch_stamp)
-	rm -rf src-spu
-ifeq (,$(strip $(hardening_patches)$(spu_patches)))
-	ln -s src src-spu
-else
-	cp -a src src-spu
-endif
-	set -e; \
-	for p in $(hardening_patches); do \
-	  list="$$p $$list"; \
-	done; \
-	for p in $$list; do \
-	  echo "Revert for spu build: $$p"; \
-	  patch -d src-spu -p2 -R < debian/patches/$$p.diff; \
-	done
-	set -e; \
-	for p in $(spu_patches); do \
-	  echo "Apply for spu build: $$p"; \
-	  patch -d src-spu -p2 < debian/patches/$$p.diff; \
-	done
-	touch $@
 
 update-patches: $(series_stamp)
 	export QUILT_PATCHES=$(patchdir); \

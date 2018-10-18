@@ -48,7 +48,7 @@ Index: b/src/gcc/fortran/Make-lang.in
 ===================================================================
 --- a/src/gcc/fortran/Make-lang.in
 +++ b/src/gcc/fortran/Make-lang.in
-@@ -118,7 +118,8 @@
+@@ -117,7 +117,8 @@
  	cd $(srcdir)/fortran; etags -o TAGS.sub *.c *.h; \
  	etags --include TAGS.sub --include ../TAGS.sub
  
@@ -58,7 +58,7 @@ Index: b/src/gcc/fortran/Make-lang.in
  fortran.dvi: doc/gfortran.dvi doc/gfc-internals.dvi
  
  F95_HTMLFILES = $(build_htmldir)/gfortran
-@@ -190,10 +191,10 @@
+@@ -189,10 +190,10 @@
    $(srcdir)/doc/include/gcc-common.texi \
    gcc-vers.texi
  
@@ -71,7 +71,7 @@ Index: b/src/gcc/fortran/Make-lang.in
  	    -o $@ $<; \
  	else true; fi
  
-@@ -261,7 +262,7 @@
+@@ -260,7 +261,7 @@
  
  fortran.install-plugin:
  
@@ -80,7 +80,7 @@ Index: b/src/gcc/fortran/Make-lang.in
  
  fortran.install-man: $(DESTDIR)$(man1dir)/$(GFORTRAN_INSTALL_NAME)$(man1ext)
  
-@@ -279,7 +280,7 @@
+@@ -278,7 +279,7 @@
  	rm -rf $(DESTDIR)$(bindir)/$(GFORTRAN_INSTALL_NAME)$(exeext); \
  	rm -rf $(DESTDIR)$(man1dir)/$(GFORTRAN_INSTALL_NAME)$(man1ext); \
  	rm -rf $(DESTDIR)$(bindir)/$(GFORTRAN_TARGET_INSTALL_NAME)$(exeext); \
@@ -93,7 +93,7 @@ Index: b/src/gcc/Makefile.in
 ===================================================================
 --- a/src/gcc/Makefile.in
 +++ b/src/gcc/Makefile.in
-@@ -4258,8 +4258,30 @@
+@@ -4266,8 +4266,31 @@
  
  doc: $(BUILD_INFO) $(GENERATED_MANPAGES)
  
@@ -116,6 +116,7 @@ Index: b/src/gcc/Makefile.in
 +
 +MAKEINFODEFS = -D 'fncpp $(INFO_CPP_NAME)' \
 +               -D 'fngcc $(INFO_GCC_NAME)' \
++               -D 'fngcov $(INFO_GCC_NAME)' \
 +               -D 'fngxx $(INFO_GXX_NAME)' \
 +               -D 'fngccint $(INFO_GCCINT_NAME)' \
 +               -D 'fngccinstall $(INFO_GCCINSTALL_NAME)' \
@@ -126,7 +127,7 @@ Index: b/src/gcc/Makefile.in
  
  info: $(INFOFILES) lang.info @GENINSRC@ srcinfo lang.srcinfo
  
-@@ -4305,7 +4327,19 @@
+@@ -4313,7 +4336,19 @@
  	if [ -n "$(PKGVERSION)" ]; then \
  	  echo "@set VERSION_PACKAGE $(PKGVERSION)" >> $@T; \
  	fi
@@ -147,7 +148,7 @@ Index: b/src/gcc/Makefile.in
  	mv -f $@T $@
  
  
-@@ -4313,21 +4347,41 @@
+@@ -4321,21 +4356,41 @@
  # patterns.  To use them, put each of the specific targets with its
  # specific dependencies but no build commands.
  
@@ -196,7 +197,7 @@ Index: b/src/gcc/Makefile.in
  			-I $(gcc_docdir)/include -o $@ $<; \
  	fi
  
-@@ -4688,11 +4742,11 @@
+@@ -4701,11 +4756,11 @@
  # $(INSTALL_DATA) might be a relative pathname, so we can't cd into srcdir
  # to do the install.
  install-info:: doc installdirs \
@@ -213,7 +214,7 @@ Index: b/src/gcc/Makefile.in
  	lang.install-info
  
  $(DESTDIR)$(infodir)/%.info: doc/%.info installdirs
-@@ -4899,8 +4953,11 @@
+@@ -4912,8 +4967,11 @@
  	-rm -rf $(DESTDIR)$(bindir)/$(GCOV_INSTALL_NAME)$(exeext)
  	-rm -rf $(DESTDIR)$(man1dir)/$(GCC_INSTALL_NAME)$(man1ext)
  	-rm -rf $(DESTDIR)$(man1dir)/cpp$(man1ext)
@@ -279,33 +280,20 @@ Index: b/src/gcc/java/Make-lang.in
 ===================================================================
 --- a/src/gcc/java/Make-lang.in
 +++ b/src/gcc/java/Make-lang.in
-@@ -127,11 +127,23 @@
+@@ -126,9 +126,10 @@
  	etags --include TAGS.sub --include ../TAGS.sub
  
  
 -java.info: doc/gcj.info
-+TEXI_GCJ_FILES = java/gcj.texi \
-+		 $(gcc_docdir)/include/gpl.texi $(gcc_docdir)/include/funding.texi \
-+		 $(gcc_docdir)/include/fdl.texi $(gcc_docdir)/include/gcc-common.texi gcc-vers.texi
 +INFO_GCJ_NAME = $(shell echo gcj|sed '$(program_transform_name)')
++java.info: doc/$(INFO_GCJ_NAME).info
  
 -java.srcinfo: doc/gcj.info
-+java.info: doc/$(INFO_GCJ_NAME).info
-+
 +java.srcinfo: doc/$(INFO_GCJ_NAME).info
  	-cp -p $^ $(srcdir)/doc
  
-+doc/$(INFO_GCJ_NAME).info: $(TEXI_GCJ_FILES)
-+	if test "x$(BUILD_INFO)" = xinfo; then \
-+	  rm -f $(@)*; \
-+	  $(MAKEINFO) $(MAKEINFOFLAGS) $(MAKEINFODEFS) \
-+	    -I$(gcc_docdir)/include -I$(srcdir)/f -o$@ $<; \
-+	fi
-+
  java.dvi: doc/gcj.dvi
- 
- JAVA_PDFFILES = doc/gcj.pdf
-@@ -195,7 +207,7 @@
+@@ -194,7 +195,7 @@
  	-rm -rf $(DESTDIR)$(man1dir)/aot-compile$(man1ext)
  	-rm -rf $(DESTDIR)$(man1dir)/rebuild-gcj-db$(man1ext)
  
@@ -314,6 +302,20 @@ Index: b/src/gcc/java/Make-lang.in
  
  java.install-pdf: $(JAVA_PDFFILES)
  	@$(NORMAL_INSTALL)
+@@ -339,10 +340,10 @@
+ 	 gcc-vers.texi
+ 
+ # Documentation
+-doc/gcj.info: $(TEXI_JAVA_FILES)
++doc/$(INFO_GCJ_NAME).info: $(TEXI_JAVA_FILES)
+ 	if test "x$(BUILD_INFO)" = xinfo; then \
+-	  rm -f doc/gcj.info*; \
+-	  $(MAKEINFO) $(MAKEINFOFLAGS) -I $(gcc_docdir) \
++	  rm -f doc/$(INFO_GCJ_NAME).info*; \
++	  $(MAKEINFO) $(MAKEINFOFLAGS) $(MAKEINFODEFS) -I $(gcc_docdir) \
+ 		-I $(gcc_docdir)/include -o $@ $<; \
+ 	else true; fi
+ 
 Index: b/src/gcc/ada/gnat-style.texi
 ===================================================================
 --- a/src/gcc/ada/gnat-style.texi
@@ -323,7 +325,7 @@ Index: b/src/gcc/ada/gnat-style.texi
  @dircategory Software development
  @direntry
 -* gnat-style: (gnat-style).      GNAT Coding Style
-+* gnat-style: (gnat-style-4.7).      GNAT Coding Style
++* gnat-style: (gnat-style-4.8).      GNAT Coding Style
  @end direntry
  
  @macro syntax{element}
@@ -336,7 +338,7 @@ Index: b/src/gcc/ada/gnat_rm.texi
  @dircategory GNU Ada tools
  @direntry
 -* GNAT Reference Manual: (gnat_rm).  Reference Manual for GNU Ada tools.
-+* GNAT Reference Manual: (gnat_rm-4.7).  Reference Manual for GNU Ada tools.
++* GNAT Reference Manual: (gnat_rm-4.8).  Reference Manual for GNU Ada tools.
  @end direntry
  
  @titlepage
@@ -344,7 +346,7 @@ Index: b/src/gcc/doc/invoke.texi
 ===================================================================
 --- a/src/gcc/doc/invoke.texi
 +++ b/src/gcc/doc/invoke.texi
-@@ -9442,7 +9442,7 @@
+@@ -9886,7 +9886,7 @@
  @option{-nodefaultlibs} is @file{libgcc.a}, a library of internal subroutines
  which GCC uses to overcome shortcomings of particular machines, or special
  needs for some languages.
@@ -353,16 +355,16 @@ Index: b/src/gcc/doc/invoke.texi
  Collection (GCC) Internals},
  for more discussion of @file{libgcc.a}.)
  In most cases, you need @file{libgcc.a} even when you want to avoid
-@@ -9450,7 +9450,7 @@
- or @option{-nodefaultlibs} you should usually specify @option{-lgcc} as well.
+@@ -9895,7 +9895,7 @@
  This ensures that you have no unresolved references to internal GCC
- library subroutines.  (For example, @samp{__main}, used to ensure C++
--constructors will be called; @pxref{Collect2,,@code{collect2}, gccint,
-+constructors will be called; @pxref{Collect2,,@code{collect2}, @value{fngccint},
+ library subroutines.
+ (An example of such an internal subroutine is @samp{__main}, used to ensure C++
+-constructors are called; @pxref{Collect2,,@code{collect2}, gccint,
++constructors are called; @pxref{Collect2,,@code{collect2}, @value{fngccint},
  GNU Compiler Collection (GCC) Internals}.)
  
  @item -pie
-@@ -19734,7 +19734,7 @@
+@@ -20722,7 +20722,7 @@
  @option{-B}, @option{-I} and @option{-L} (@pxref{Directory Options}).  These
  take precedence over places specified using environment variables, which
  in turn take precedence over those specified by the configuration of GCC@.
@@ -371,9 +373,9 @@ Index: b/src/gcc/doc/invoke.texi
  GNU Compiler Collection (GCC) Internals}.
  
  @table @env
-@@ -19895,7 +19895,7 @@
+@@ -20882,7 +20882,7 @@
  
- A precompiled header file will be searched for when @code{#include} is
+ A precompiled header file is searched for when @code{#include} is
  seen in the compilation.  As it searches for the included file
 -(@pxref{Search Path,,Search Path,cpp,The C Preprocessor}) the
 +(@pxref{Search Path,,Search Path,@value{fncpp},The C Preprocessor}) the
@@ -384,7 +386,7 @@ Index: b/src/gcc/doc/extend.texi
 ===================================================================
 --- a/src/gcc/doc/extend.texi
 +++ b/src/gcc/doc/extend.texi
-@@ -14874,7 +14874,7 @@
+@@ -15327,7 +15327,7 @@
  test for the GNU compiler the same way as for C programs: check for a
  predefined macro @code{__GNUC__}.  You can also use @code{__GNUG__} to
  test specifically for GNU C++ (@pxref{Common Predefined Macros,,
@@ -397,7 +399,7 @@ Index: b/src/gcc/doc/standards.texi
 ===================================================================
 --- a/src/gcc/doc/standards.texi
 +++ b/src/gcc/doc/standards.texi
-@@ -295,8 +295,8 @@
+@@ -289,8 +289,8 @@
  GNAT Reference Manual}, for information on standard
  conformance and compatibility of the Ada compiler.
  
@@ -412,7 +414,7 @@ Index: b/src/gcc/doc/libgcc.texi
 ===================================================================
 --- a/src/gcc/doc/libgcc.texi
 +++ b/src/gcc/doc/libgcc.texi
-@@ -25,7 +25,7 @@
+@@ -24,7 +24,7 @@
  GCC will also generate calls to C library routines, such as
  @code{memcpy} and @code{memset}, in some cases.  The set of routines
  that GCC may possibly use is documented in @ref{Other
@@ -425,7 +427,7 @@ Index: b/src/gcc/doc/gccint.texi
 ===================================================================
 --- a/src/gcc/doc/gccint.texi
 +++ b/src/gcc/doc/gccint.texi
-@@ -51,7 +51,7 @@
+@@ -49,7 +49,7 @@
  @ifnottex
  @dircategory Software development
  @direntry
@@ -434,7 +436,7 @@ Index: b/src/gcc/doc/gccint.texi
  @end direntry
  This file documents the internals of the GNU compilers.
  @sp 1
-@@ -83,7 +83,7 @@
+@@ -81,7 +81,7 @@
  @value{VERSION_PACKAGE}
  @end ifset
  version @value{version-GCC}.  The use of the GNU compilers is documented in a
@@ -447,7 +449,7 @@ Index: b/src/gcc/doc/cpp.texi
 ===================================================================
 --- a/src/gcc/doc/cpp.texi
 +++ b/src/gcc/doc/cpp.texi
-@@ -53,7 +53,7 @@
+@@ -50,7 +50,7 @@
  @ifinfo
  @dircategory Software development
  @direntry
@@ -460,7 +462,7 @@ Index: b/src/gcc/doc/passes.texi
 ===================================================================
 --- a/src/gcc/doc/passes.texi
 +++ b/src/gcc/doc/passes.texi
-@@ -199,7 +199,7 @@
+@@ -197,7 +197,7 @@
  @item Mudflap declaration registration
  
  If mudflap (@pxref{Optimize Options,,-fmudflap -fmudflapth
@@ -473,18 +475,20 @@ Index: b/src/gcc/doc/gcc.texi
 ===================================================================
 --- a/src/gcc/doc/gcc.texi
 +++ b/src/gcc/doc/gcc.texi
-@@ -65,8 +65,8 @@
+@@ -63,9 +63,9 @@
  @ifnottex
  @dircategory Software development
  @direntry
 -* gcc: (gcc).                  The GNU Compiler Collection.
 -* g++: (gcc).                  The GNU C++ compiler.
+-* gcov: (gcc) Gcov.            @command{gcov}---a test coverage program.
 +* @value{fngcc}: (@value{fngcc}).                  The GNU Compiler Collection.
 +* @value{fngxx}: (@value{fngcc}).                  The GNU C++ compiler.
++* @value{fngcov}: (@value{fngcc}) Gcov.            @command{gcov}---a test coverage program.
  @end direntry
  This file documents the use of the GNU compilers.
  @sp 1
-@@ -126,7 +126,7 @@
+@@ -125,7 +125,7 @@
  The internals of the GNU compilers, including how to port them to new
  targets and some information about how to write front ends for new
  languages, are documented in a separate manual.  @xref{Top,,
@@ -497,7 +501,7 @@ Index: b/src/gcc/doc/makefile.texi
 ===================================================================
 --- a/src/gcc/doc/makefile.texi
 +++ b/src/gcc/doc/makefile.texi
-@@ -140,7 +140,7 @@
+@@ -139,7 +139,7 @@
  Builds a compiler with profiling feedback information.  In this case,
  the second and third stages are named @samp{profile} and @samp{feedback},
  respectively.  For more information, see
@@ -510,7 +514,7 @@ Index: b/src/gcc/doc/install.texi
 ===================================================================
 --- a/src/gcc/doc/install.texi
 +++ b/src/gcc/doc/install.texi
-@@ -98,7 +98,7 @@
+@@ -94,7 +94,7 @@
  @end ifinfo
  @dircategory Software development
  @direntry
@@ -760,7 +764,7 @@ Index: b/src/libquadmath/Makefile.am
 ===================================================================
 --- a/src/libquadmath/Makefile.am
 +++ b/src/libquadmath/Makefile.am
-@@ -129,22 +129,24 @@
+@@ -132,22 +132,24 @@
  
  all-local: $(STAMP_GENINSRC)
  
@@ -795,7 +799,7 @@ Index: b/src/libquadmath/Makefile.in
 ===================================================================
 --- a/src/libquadmath/Makefile.in
 +++ b/src/libquadmath/Makefile.in
-@@ -164,7 +164,8 @@
+@@ -169,7 +169,8 @@
  MULTISUBDIR = 
  MULTIDO = true
  MULTICLEAN = true
@@ -805,7 +809,7 @@ Index: b/src/libquadmath/Makefile.in
  am__TEXINFO_TEX_DIR = $(srcdir)/../gcc/doc/include
  DVIS = libquadmath.dvi
  PDFS = libquadmath.pdf
-@@ -397,8 +398,8 @@
+@@ -405,8 +406,8 @@
  
  # AM_CONDITIONAL on configure check ACX_CHECK_PROG_VER([MAKEINFO])
  @BUILD_INFO_TRUE@@BUILD_LIBQUADMATH_TRUE@STAMP_BUILD_INFO = stamp-build-info
@@ -816,7 +820,7 @@ Index: b/src/libquadmath/Makefile.in
  
  # Automake Documentation:
  # If your package has Texinfo files in many directories, you can use the
-@@ -1412,17 +1413,17 @@
+@@ -1464,17 +1465,17 @@
  
  @BUILD_LIBQUADMATH_TRUE@all-local: $(STAMP_GENINSRC)
  

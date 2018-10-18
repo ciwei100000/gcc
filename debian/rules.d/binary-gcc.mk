@@ -36,6 +36,17 @@ files_gcc = \
 	$(shell test -e $(d)/$(gcc_lib_dir)/SYSCALLS.c.X \
 		&& echo $(gcc_lib_dir)/SYSCALLS.c.X)
 
+ifeq ($(DEB_STAGE),stage1)
+    files_gcc += \
+	$(gcc_lib_dir)/include \
+	$(shell for h in \
+		  README limits.h syslimits.h; \
+		do \
+		  test -e $(d)/$(gcc_lib_dir)/include-fixed/$$h \
+		    && echo $(gcc_lib_dir)/include-fixed/$$h; \
+		done)
+endif
+
 ifneq ($(GFDL_INVARIANT_FREE),yes)
     files_gcc += \
 	$(PF)/share/man/man1/$(cmd_prefix){gcc,gcov}$(pkg_ver).1
@@ -64,8 +75,8 @@ $(binary_stamp)-gcc: $(install_dependencies)
 	dh_installdirs -p$(p_gcc) $(dirs_gcc)
 
 ifeq ($(with_linaro_branch),yes)
-	if [ -f $(srcdir)/ChangeLog.linaro ]; then \
-	  cp -p $(srcdir)/ChangeLog.linaro \
+	if [ -f $(srcdir)/gcc/ChangeLog.linaro ]; then \
+	  cp -p $(srcdir)/gcc/ChangeLog.linaro \
 		$(d_gcc)/$(docdir)/$(p_xbase)/changelog.linaro; \
 	fi
 endif
@@ -88,24 +99,22 @@ ifeq ($(with_qmath),yes)
 		$(d_gcc)/$(docdir)/$(p_xbase)/quadmath/changelog
 endif
 
-	DH_COMPAT=2 dh_movefiles -p$(p_gcc) $(files_gcc)
+	$(dh_compat2) dh_movefiles -p$(p_gcc) $(files_gcc)
 
 ifneq ($(DEB_CROSS),yes)
-	ln -sf gcc$(pkg_ver) \
-	    $(d_gcc)/$(PF)/bin/$(DEB_TARGET_GNU_TYPE)-gcc$(pkg_ver)
-	ln -sf gcc$(pkg_ver) \
-	    $(d_gcc)/$(PF)/bin/$(TARGET_ALIAS)-gcc$(pkg_ver)
-	for i in ar ranlib nm; do \
-	  ln -sf gcc-$$i$(pkg_ver) \
-	    $(d_gcc)/$(PF)/bin/$(DEB_TARGET_GNU_TYPE)-gcc-$$i$(pkg_ver); \
-	  ln -sf gcc-$$i$(pkg_ver) \
-	    $(d_gcc)/$(PF)/bin/$(TARGET_ALIAS)-gcc-$$i$(pkg_ver); \
+	for i in gcc gcov gcc-ar gcc-nm gcc-ranlib; do \
+	  ln -sf $$i$(pkg_ver) \
+	    $(d_gcc)/$(PF)/bin/$(DEB_TARGET_GNU_TYPE)-$$i$(pkg_ver); \
+	  ln -sf $$i$(pkg_ver) \
+	    $(d_gcc)/$(PF)/bin/$(TARGET_ALIAS)-$$i$(pkg_ver); \
 	done
 ifneq ($(GFDL_INVARIANT_FREE),yes)
-	ln -sf gcc$(pkg_ver).1 \
-	    $(d_gcc)/$(PF)/share/man/man1/$(DEB_TARGET_GNU_TYPE)-gcc$(pkg_ver).1
-	ln -sf gcc$(pkg_ver).1 \
-	    $(d_gcc)/$(PF)/share/man/man1/$(TARGET_ALIAS)-gcc$(pkg_ver).1
+	for i in gcc gcov gcc-ar gcc-nm gcc-ranlib; do \
+	  ln -sf gcc$(pkg_ver).1 \
+	    $(d_gcc)/$(PF)/share/man/man1/$(DEB_TARGET_GNU_TYPE)-$$i$(pkg_ver).1; \
+	  ln -sf $$i$(pkg_ver).1 \
+	    $(d_gcc)/$(PF)/share/man/man1/$(TARGET_ALIAS)-$$i$(pkg_ver).1; \
+	done
 endif
 endif
 
@@ -185,7 +194,7 @@ $(binary_stamp)-gcc-plugindev: $(install_dependencies)
 	dh_installdirs -p$(p_pld) \
 		$(docdir) \
 		$(gcc_lib_dir)/plugin/include/config/arm
-	DH_COMPAT=2 dh_movefiles -p$(p_pld) \
+	$(dh_compat2) dh_movefiles -p$(p_pld) \
 		$(gcc_lib_dir)/plugin
 
 	: # FIXME: see #645018, this only works for the native build :-/
@@ -193,16 +202,6 @@ $(binary_stamp)-gcc-plugindev: $(install_dependencies)
 	  cp $(builddir)/gcc/build/gengtype $(d_pld)/$(gcc_lib_dir)/; \
 	  cp $(builddir)/gcc/gtype.state $(d_pld)/$(gcc_lib_dir)/; \
 	fi
-
-ifneq (,$(filter arm% mips% sh% sparc%,$(DEB_TARGET_GNU_CPU)))
-	# see GCC #45078; vxworks-dummy.h is included for cpu_type in arm,
-	# i386, mips, sh and sparc but only installed when it's i386; copy it
-	# manually on the other arches where it's included
-	cp $(srcdir)/gcc/config/vxworks-dummy.h \
-		$(d_pld)/$(gcc_lib_dir)/plugin/include/config/
-endif
-	cp $(srcdir)/gcc/config/arm/arm-cores.def \
-		$(d_pld)/$(gcc_lib_dir)/plugin/include/config/arm/
 
 	debian/dh_doclink -p$(p_pld) $(p_xbase)
 	debian/dh_rmemptydirs -p$(p_pld)
@@ -227,7 +226,7 @@ $(binary_stamp)-gcc-locales: $(install_dependencies)
 	rm -rf $(d_loc)
 	dh_installdirs -p$(p_loc) \
 		$(docdir)
-	DH_COMPAT=2 dh_movefiles -p$(p_loc) \
+	$(dh_compat2) dh_movefiles -p$(p_loc) \
 		$(PF)/share/locale/*/*/cpplib*.* \
 		$(PF)/share/locale/*/*/gcc*.*
 
@@ -243,6 +242,7 @@ $(binary_stamp)-gcc-locales: $(install_dependencies)
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 
+
 # ----------------------------------------------------------------------
 $(binary_stamp)-gcc-doc: $(build_html_stamp) $(install_stamp)
 	dh_testdir
@@ -253,7 +253,7 @@ $(binary_stamp)-gcc-doc: $(build_html_stamp) $(install_stamp)
 	dh_installdirs -p$(p_doc) \
 		$(docdir)/$(p_xbase) \
 		$(PF)/share/info
-	DH_COMPAT=2 dh_movefiles -p$(p_doc) \
+	$(dh_compat2) dh_movefiles -p$(p_doc) \
 		$(PF)/share/info/cpp{,internals}-* \
 		$(PF)/share/info/gcc{,int}-* \
 		$(PF)/share/info/lib{gomp,itm}-* \

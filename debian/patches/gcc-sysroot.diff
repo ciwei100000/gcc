@@ -1,8 +1,10 @@
+# DP: Allow building --with-sysroot=/
+
 Index: b/src/gcc/configure.ac
 ===================================================================
 --- a/src/gcc/configure.ac
 +++ b/src/gcc/configure.ac
-@@ -118,6 +118,72 @@
+@@ -117,6 +117,69 @@
  	local_prefix=/usr/local
  fi
  
@@ -28,14 +30,21 @@ Index: b/src/gcc/configure.ac
 +  [SYSROOT_CFLAGS_FOR_TARGET=])
 +AC_SUBST(SYSROOT_CFLAGS_FOR_TARGET)
 +
++if test "x$prefix" = xNONE; then
++ test_prefix=/usr/local
++else
++ test_prefix=$prefix
++fi
++if test "x$exec_prefix" = xNONE; then
++ test_exec_prefix=$test_prefix
++else
++ test_exec_prefix=$exec_prefix
++fi
++
 +AC_ARG_WITH(sysroot,
 +[AS_HELP_STRING([[--with-sysroot[=DIR]]],
 +		[search for usr/lib, usr/include, et al, within DIR])],
 +[
-+ case ${with_sysroot} in
-+ /) ;;
-+ */) with_sysroot=`echo $with_sysroot | sed 's,/$,,'` ;;
-+ esac
 + case ${with_sysroot} in
 + yes) TARGET_SYSTEM_ROOT='${exec_prefix}/${target_noncanonical}/sys-root' ;;
 + *) TARGET_SYSTEM_ROOT=$with_sysroot ;;
@@ -44,16 +53,6 @@ Index: b/src/gcc/configure.ac
 + TARGET_SYSTEM_ROOT_DEFINE='-DTARGET_SYSTEM_ROOT=\"$(TARGET_SYSTEM_ROOT)\"'
 + CROSS_SYSTEM_HEADER_DIR='$(TARGET_SYSTEM_ROOT)$${sysroot_headers_suffix}$(NATIVE_SYSTEM_HEADER_DIR)'
 +	
-+ if test "x$prefix" = xNONE; then
-+  test_prefix=/usr/local
-+ else
-+  test_prefix=$prefix
-+ fi
-+ if test "x$exec_prefix" = xNONE; then
-+  test_exec_prefix=$test_prefix
-+ else
-+  test_exec_prefix=$exec_prefix
-+ fi
 + case ${TARGET_SYSTEM_ROOT} in
 + "${test_prefix}"|"${test_prefix}/"*|\
 + "${test_exec_prefix}"|"${test_exec_prefix}/"*|\
@@ -75,7 +74,7 @@ Index: b/src/gcc/configure.ac
  # Don't set gcc_gxx_include_dir to gxx_include_dir since that's only
  # passed in by the toplevel make and thus we'd get different behavior
  # depending on where we built the sources.
-@@ -149,7 +215,9 @@
+@@ -148,7 +211,9 @@
  if test "${with_sysroot+set}" = set; then
    gcc_gxx_without_sysroot=`expr "${gcc_gxx_include_dir}" : "${with_sysroot}"'\(.*\)'`
    if test "${gcc_gxx_without_sysroot}"; then
@@ -86,7 +85,7 @@ Index: b/src/gcc/configure.ac
      gcc_gxx_include_dir_add_sysroot=1
    fi
  fi
-@@ -759,68 +827,6 @@
+@@ -742,69 +807,6 @@
  ], [enable_shared=yes])
  AC_SUBST(enable_shared)
  
@@ -112,6 +111,17 @@ Index: b/src/gcc/configure.ac
 -  [SYSROOT_CFLAGS_FOR_TARGET=])
 -AC_SUBST(SYSROOT_CFLAGS_FOR_TARGET)
 -
+-if test "x$prefix" = xNONE; then
+- test_prefix=/usr/local
+-else
+- test_prefix=$prefix
+-fi
+-if test "x$exec_prefix" = xNONE; then
+- test_exec_prefix=$test_prefix
+-else
+- test_exec_prefix=$exec_prefix
+-fi
+-
 -AC_ARG_WITH(sysroot,
 -[AS_HELP_STRING([[--with-sysroot[=DIR]]],
 -		[search for usr/lib, usr/include, et al, within DIR])],
@@ -124,16 +134,6 @@ Index: b/src/gcc/configure.ac
 - TARGET_SYSTEM_ROOT_DEFINE='-DTARGET_SYSTEM_ROOT=\"$(TARGET_SYSTEM_ROOT)\"'
 - CROSS_SYSTEM_HEADER_DIR='$(TARGET_SYSTEM_ROOT)$${sysroot_headers_suffix}$(NATIVE_SYSTEM_HEADER_DIR)'
 -	
-- if test "x$prefix" = xNONE; then
--  test_prefix=/usr/local
-- else
--  test_prefix=$prefix
-- fi
-- if test "x$exec_prefix" = xNONE; then
--  test_exec_prefix=$test_prefix
-- else
--  test_exec_prefix=$exec_prefix
-- fi
 - case ${TARGET_SYSTEM_ROOT} in
 - "${test_prefix}"|"${test_prefix}/"*|\
 - "${test_exec_prefix}"|"${test_exec_prefix}/"*|\

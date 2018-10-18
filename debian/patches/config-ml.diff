@@ -19,7 +19,7 @@ Index: b/src/config-ml.in
 +multidirs=""
 +for x in ${old_multidirs}; do
 +    case " $x " in
-+	" 32 "|" n32 "|" x32 "|" 64 "|" hf "|" sf ")
++	" 32 "|" n32 "|" x32 "|" 64 "|" hf "|" sf "|" m4-nofpu ")
 +	case "$biarch_multidir_names" in
 +	    *"$ml_srcbase"*) multidirs="${multidirs} ${x}" ;;
 +	esac
@@ -93,7 +93,7 @@ Index: b/src/libstdc++-v3/include/Makefile.am
 ===================================================================
 --- a/src/libstdc++-v3/include/Makefile.am
 +++ b/src/libstdc++-v3/include/Makefile.am
-@@ -821,8 +821,9 @@
+@@ -826,8 +826,9 @@
  endif
  
  host_srcdir = ${glibcxx_srcdir}/$(OS_INC_SRCDIR)
@@ -105,10 +105,10 @@ Index: b/src/libstdc++-v3/include/Makefile.am
  host_headers = \
  	${host_srcdir}/ctype_base.h \
  	${host_srcdir}/ctype_inline.h \
-@@ -1042,6 +1043,7 @@
- 
+@@ -1048,6 +1049,7 @@
  stamp-${host_alias}:
  	@-mkdir -p ${host_builddir}
+ 	@-mkdir -p ${host_builddir}/../ext
 +	@test ${default_host_alias} = ${host_alias} || ln -sf ${default_host_alias} ${host_alias}
  	@$(STAMP) stamp-${host_alias}
  
@@ -117,22 +117,29 @@ Index: b/src/libstdc++-v3/include/Makefile.in
 ===================================================================
 --- a/src/libstdc++-v3/include/Makefile.in
 +++ b/src/libstdc++-v3/include/Makefile.in
-@@ -1066,8 +1066,9 @@
+@@ -202,6 +202,7 @@
+ check_msgfmt = @check_msgfmt@
+ datadir = @datadir@
+ datarootdir = @datarootdir@
++default_host_alias = @default_host_alias@
+ docdir = @docdir@
+ dvidir = @dvidir@
+ enable_shared = @enable_shared@
+@@ -1081,8 +1082,8 @@
  # For --enable-cheaders=c_std
  @GLIBCXX_C_HEADERS_COMPATIBILITY_TRUE@c_compatibility_headers_extra = ${c_compatibility_headers}
  host_srcdir = ${glibcxx_srcdir}/$(OS_INC_SRCDIR)
 -host_builddir = ./${host_alias}/bits
 -host_installdir = ${gxx_include_dir}/${host_alias}$(MULTISUBDIR)/bits
-+default_host_alias = @default_host_alias@
 +host_builddir = ./${default_host_alias}/bits
 +host_installdir = ${gxx_include_dir}/${default_host_alias}$(MULTISUBDIR)/bits
  host_headers = \
  	${host_srcdir}/ctype_base.h \
  	${host_srcdir}/ctype_inline.h \
-@@ -1445,6 +1446,7 @@
- 
+@@ -1461,6 +1462,7 @@
  stamp-${host_alias}:
  	@-mkdir -p ${host_builddir}
+ 	@-mkdir -p ${host_builddir}/../ext
 +	@test ${default_host_alias} = ${host_alias} || ln -sf ${default_host_alias} ${host_alias}
  	@$(STAMP) stamp-${host_alias}
  
@@ -141,7 +148,7 @@ Index: b/src/libstdc++-v3/configure.ac
 ===================================================================
 --- a/src/libstdc++-v3/configure.ac
 +++ b/src/libstdc++-v3/configure.ac
-@@ -447,6 +447,16 @@
+@@ -461,6 +461,16 @@
    multilib_arg=
  fi
  

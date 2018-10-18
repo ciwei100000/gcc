@@ -1,0 +1,22 @@
+# DP: Fix PR target/65711 (ARM32), don't pass '-dynamic-linker' when '-shared' is used.
+
+gcc/
+2015-06-23  Ludovic Courtès  <ludo@gnu.org>
+
+	PR target/65711
+	* config/arm/linux-elf.h (LINUX_TARGET_LINK_SPEC): Move
+	'-dynamic-linker' within %{!shared: ...}.
+
+Index: b/src/gcc/config/arm/linux-elf.h
+===================================================================
+--- a/src/gcc/config/arm/linux-elf.h
++++ b/src/gcc/config/arm/linux-elf.h
+@@ -65,7 +65,7 @@
+    %{symbolic:-Bsymbolic} \
+    %{!static: \
+      %{rdynamic:-export-dynamic} \
+-     -dynamic-linker " GNU_USER_DYNAMIC_LINKER "} \
++     %{!shared:-dynamic-linker " GNU_USER_DYNAMIC_LINKER "}} \
+    -X \
+    --hash-style=gnu \
+    %{mbig-endian:-EB} %{mlittle-endian:-EL}" \

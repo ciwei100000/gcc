@@ -10,6 +10,9 @@ stampdir	= stamps
 
 distribution	:= $(shell lsb_release -is)
 distrelease	:= $(shell lsb_release -cs)
+derivative	:= $(shell if dpkg-vendor --derives-from Ubuntu; then echo Ubuntu; \
+			elif dpkg-vendor --derives-from Debian; then echo Debian; \
+			else echo Unknown; fi)
 
 # On non official archives, "lsb_release -cs" default to "n/a". Assume
 # sid in that case 
@@ -19,8 +22,8 @@ endif
 
 on_buildd := $(shell [ -f /CurrentlyBuilding -o "$$LOGNAME" = buildd ] && echo yes)
 
-# creates {srcdir,builddir}_{hppa64,neon,spu}
-$(foreach x,srcdir builddir,$(foreach target,hppa64 spu neon,$(eval \
+# creates {srcdir,builddir}_{hppa64,neon}
+$(foreach x,srcdir builddir,$(foreach target,hppa64 neon,$(eval \
   $(x)_$(target) := $($(x))-$(target))))
 
 # for architecture dependent variables and changelog vars
@@ -28,7 +31,23 @@ vafilt = $(subst $(2)=,,$(filter $(2)=%,$(1)))
 # for rules.sonames
 vafilt_defined = 1
 
+dpkg_target_vars := $(shell (dpkg-architecture | grep -q DEB_TARGET) && echo yes)
+ifeq ($(dpkg_target_vars),yes)
+  DEB_TARGET_ARCH=
+  DEB_TARGET_ARCH_BITS=
+  DEB_TARGET_ARCH_CPU=
+  DEB_TARGET_ARCH_ENDIAN=
+  DEB_TARGET_ARCH_OS=
+  DEB_TARGET_GNU_CPU=
+  DEB_TARGET_GNU_SYSTEM=
+  DEB_TARGET_GNU_TYPE=
+  DEB_TARGET_MULTIARCH=
+endif
+
 DPKG_VARS		:= $(shell dpkg-architecture)
+ifeq ($(dpkg_target_vars),yes)
+  DPKG_VARS		:= $(filter-out DEB_TARGET_%, $(DPKG_VARS))
+endif
 DEB_BUILD_ARCH		?= $(call vafilt,$(DPKG_VARS),DEB_BUILD_ARCH)
 DEB_BUILD_GNU_TYPE	?= $(call vafilt,$(DPKG_VARS),DEB_BUILD_GNU_TYPE)
 DEB_BUILD_MULTIARCH	?= $(call vafilt,$(DPKG_VARS),DEB_BUILD_MULTIARCH)
@@ -52,10 +71,6 @@ DEB_VERSION := $(strip $(shell echo $(SOURCE_VERSION) | \
 EPOCH := 1
 DEB_EVERSION := $(EPOCH):$(DEB_VERSION)
 BASE_VERSION := $(shell echo $(DEB_VERSION) | sed -e 's/\([1-9]\.[0-9]\).*-.*/\1/')
-
-ifneq (,$(findstring gdc,$(PKGSOURCE)))
-  BASE_VERSION := $(shell echo $(DEB_VERSION) | sed -e 's/.*-\([1-9]\.[0-9]\).*-.*/\1/')
-endif
 
 # push glibc stack traces into stderr
 export LIBC_FATAL_STDERR_=1
@@ -89,14 +104,17 @@ else
   endif
   TARGET_VARS := $(shell dpkg-architecture -f -a$(DEB_TARGET_ARCH) 2>/dev/null)
 endif
+ifeq ($(dpkg_target_vars),yes)
+  TARGET_VARS		:= $(filter-out DEB_TARGET_%, $(TARGET_VARS))
+endif
 
-DEB_TARGET_ARCH		?= $(call vafilt,$(TARGET_VARS),DEB_HOST_ARCH)
-DEB_TARGET_ARCH_OS	?= $(call vafilt,$(TARGET_VARS),DEB_HOST_ARCH_OS)
-DEB_TARGET_ARCH_CPU	?= $(call vafilt,$(TARGET_VARS),DEB_HOST_ARCH_CPU)
-DEB_TARGET_GNU_CPU	?= $(call vafilt,$(TARGET_VARS),DEB_HOST_GNU_CPU)
-DEB_TARGET_GNU_TYPE	?= $(call vafilt,$(TARGET_VARS),DEB_HOST_GNU_TYPE)
-DEB_TARGET_GNU_SYSTEM	?= $(call vafilt,$(TARGET_VARS),DEB_HOST_GNU_SYSTEM)
-DEB_TARGET_MULTIARCH	?= $(call vafilt,$(TARGET_VARS),DEB_HOST_MULTIARCH)
+DEB_TARGET_ARCH		:= $(call vafilt,$(TARGET_VARS),DEB_HOST_ARCH)
+DEB_TARGET_ARCH_OS	:= $(call vafilt,$(TARGET_VARS),DEB_HOST_ARCH_OS)
+DEB_TARGET_ARCH_CPU	:= $(call vafilt,$(TARGET_VARS),DEB_HOST_ARCH_CPU)
+DEB_TARGET_GNU_CPU	:= $(call vafilt,$(TARGET_VARS),DEB_HOST_GNU_CPU)
+DEB_TARGET_GNU_TYPE	:= $(call vafilt,$(TARGET_VARS),DEB_HOST_GNU_TYPE)
+DEB_TARGET_GNU_SYSTEM	:= $(call vafilt,$(TARGET_VARS),DEB_HOST_GNU_SYSTEM)
+DEB_TARGET_MULTIARCH	:= $(call vafilt,$(TARGET_VARS),DEB_HOST_MULTIARCH)
 
 ifeq ($(DEB_TARGET_ARCH),)
   $(error Invalid architecure.)
@@ -293,9 +311,13 @@ envfilt	= $(strip $(or $(call lfilt,$(1),$(2)),$(call nlfilt,$(1),$(3)),$(call w
 # separate gcj builds
 ifeq (,$(findstring gcj,$(PKGSOURCE)))
   ifeq ($(DEB_TARGET_ARCH),armhf)
-    with_arm_thumb := yes
+    ifeq ($(distribution),Raspbian)
+      with_arm_thumb := no
+    else
+      with_arm_thumb := yes
+    endif
   else
-    ifeq ($(distribution)-$(DEB_TARGET_ARCH),Ubuntu-armel)
+    ifeq ($(derivative)-$(DEB_TARGET_ARCH),Ubuntu-armel)
       ifneq (,$(filter $(distrelease),lucid maverick natty oneiric precise))
         with_arm_thumb := yes
       endif
@@ -304,14 +326,14 @@ ifeq (,$(findstring gcj,$(PKGSOURCE)))
 endif
 
 # build using fsf or linaro
-ifeq ($(distribution),Ubuntu)
+ifeq ($(derivative),Ubuntu)
   ifeq (,$(findstring gnat, $(PKGSOURCE)))
-  ifneq (,$(findstring $(DEB_TARGET_ARCH),arm64 armel armhf amd64 i386 powerpc))
+  ifneq (,$(findstring $(DEB_TARGET_ARCH),arm64 armel armhf))
     with_linaro_branch = yes
   endif
   endif
 endif
-ifeq ($(distribution)-$(DEB_TARGET_ARCH),Debian-arm64)
+ifeq ($(derivative)-$(DEB_TARGET_ARCH),Debian-arm64)
   with_linaro_branch = yes
 endif
 
@@ -335,15 +357,12 @@ endif
 # build common packages, where package names don't differ in different
 # gcc versions (fixincludes, libgcj-common) ...
 with_common_pkgs := yes
-# ... and some libraries, which do not change (libgcc1, libmudflap, libssp0).
+# ... and some libraries, which do not change (libgcc1, libssp0).
 with_common_libs := yes
 # XXX: should with_common_libs be "yes" only if this is the default compiler
 # version on the targeted arch?
 
-ifeq (,$(filter $(distrelease),etch lenny squeeze wheezy))
-  with_common_pkgs :=
-  with_common_libs :=
-else ifeq (,$(filter $(distrelease),dapper hardy jaunty karmic lucid maverick oneiric precise quantal raring))
+ifeq (,$(filter $(distrelease),lenny etch squeeze wheezy dapper hardy jaunty karmic lucid maverick oneiric precise quantal raring saucy trusty))
   with_common_pkgs :=
   with_common_libs :=
 endif
@@ -432,6 +451,8 @@ ifneq ($(DEB_STAGE),stage1)
   else
     ifneq ($(with_deps_on_target_arch_pkgs),yes)
       with_gccxbase := yes
+    else
+      with_gccbase := yes
     endif
   endif
 endif
@@ -488,11 +509,11 @@ endif
 
 ifndef DEB_STAGE
 # Ada --------------------
-ada_no_cpus	:= m32r m68k sh3 sh3eb sh4 sh4eb
+ada_no_cpus	:= m32r sh3 sh3eb sh4 sh4eb
 ada_no_systems	:= 
 ada_no_cross	:= yes
 ada_no_snap	:= no
-ifneq (,$(filter $(DEB_TARGET_ARCH),arm64 armhf m68k powerpcspe sh4 sparc64))
+ifneq (,$(filter $(DEB_TARGET_ARCH),arm64 armhf m68k powerpcspe ppc64el sh4 sparc64))
   ada_no_snap := yes
 endif
 
@@ -522,6 +543,9 @@ ifeq ($(with_ada)-$(with_separate_gnat),yes-yes)
   ifneq (,$(findstring gnat,$(PKGSOURCE)))
     languages := c
     separate_lang := yes
+    with_mudflap := no
+    with_gccbase := no
+    with_cdev := no
   else
     debian_extra_langs += ada
     with_ada := built from separate source
@@ -575,7 +599,7 @@ ifeq ($(with_cxx),yes)
     with_cxxdev := yes
     with_libcxxdbg := yes
   endif
-  ifeq ($(with_common_pkgs),yes)
+  ifeq ($(with_common_libs),yes)
     with_libcxx := yes
   endif
 
@@ -602,12 +626,13 @@ endif
 # - To build gcc and java from separate sources:
 #   with_separate_libgcj=yes, with_standalone_gcj=no
 
-java_no_cpus := arm64 # mips mipsel
-java_no_systems := knetbsd-gnu
+java_no_cpus := # arm64 mips mipsel
+java_no_systems :=
 
 ifneq ($(single_package),yes)
   with_separate_libgcj := yes
 endif
+with_separate_libgcj := no
 with_standalone_gcj := no
 
 ifneq ($(separate_lang),yes)
@@ -645,7 +670,7 @@ with_java_plugin := no
 
 ifeq ($(with_java),yes)
   # use the same names as OpenJDK
-  java_cpu_map = armel=arm armhf=arm hppa=parisc i686=i386 i586=i386 i486=i386 mipsel=mips mips64=mips mips64el=mips mipsn32=mips mipsn32el=mips powerpc=ppc sh4=sh
+  java_cpu_map = armel=arm armhf=arm hppa=parisc i686=i386 i586=i386 i486=i386 mipsel=mips mips64=mips mips64el=mips mipsn32=mips mipsn32el=mips powerpc=ppc sh4=sh x32=x32
   java_cpu = $(patsubst $(DEB_TARGET_ARCH_CPU)=%,%, \
                          $(filter $(DEB_TARGET_ARCH_CPU)=%,$(java_cpu_map)))
   ifeq (,$(java_cpu))
@@ -690,6 +715,11 @@ ifeq ($(with_java),yes)
     with_java_alsa := no
   endif
 
+  # Just build the cross compiler to be able to cross build a native build.
+  ifeq ($(DEB_CROSS),yes)
+    with_libgcj :=
+  endif
+
   enabled_languages += java
 endif
 
@@ -713,9 +743,6 @@ go_no_cpus := avr arm hppa m68k sh4 sparc sparc64
 ifeq (,$(filter $(distrelease),lenny etch squeeze dapper hardy jaunty karmic lucid maverick natty oneiric))
   go_no_cpus := $(filter-out arm, $(go_no_cpus))
 endif
-ifneq ($(trunk_build),yes)
-  go_no_cpus := $(go_no_cpus) alpha arm64
-endif
 go_no_systems := gnu kfreebsd-gnu
 
 ifneq ($(with_base_only),yes)
@@ -735,9 +762,11 @@ endif
 with_go := $(call envfilt, go, , , $(with_go))
 
 # Build all packages needed for Go development
-ifeq ($(with_go),yes)
-  with_libgo := yes
-  enabled_languages += go
+ifneq (,$(findstring gcc, $(PKGSOURCE)))
+  ifeq ($(with_go),yes)
+    enabled_languages += go
+    with_libgo := yes
+  endif
 endif
 
 ifeq ($(with_go)-$(with_separate_libgo),yes-yes)
@@ -754,43 +783,52 @@ endif
 # D ---------------------------
 d_no_cross := yes
 d_no_snap := yes
+d_no_cpus := s390 sh4
 
 ifneq ($(single_package),yes)
   with_separate_gdc := yes
 endif
+with_separate_gdc := no
 
 ifneq ($(separate_lang),yes)
   with_d := yes
 endif
+ifneq (,$(filter $(DEB_TARGET_ARCH_CPU),$(d_no_cpus)))
+  with_d := disabled for cpu $(DEB_TARGET_ARCH_CPU)
+endif
 ifeq ($(d_no_snap)-$(single_package),yes-yes)
   with_d := disabled for snapshot build
+endif
+with_d := $(call envfilt, d, , , $(with_d))
+
+ifeq ($(with_base_only),yes)
+  with_d := no
 endif
 
 ifeq ($(with_d)-$(with_separate_gdc),yes-yes)
   ifneq (,$(findstring gdc,$(PKGSOURCE)))
     languages := c c++
     separate_lang := yes
+
+    # FIXME: language selection needs improvement.
+    with_go := disabled for d
   else
-    #debian_extra_langs += d
+    debian_extra_langs += d
     with_d := built from separate source
   endif
 endif
 
-ifeq ($(with_base_only),yes)
-  with_d := no
-endif
-
 ifeq ($(with_d),yes)
-  # no suffix for D 1.0
-  #libphobos_version :=
-  # still experimental
-  libphobos_version := 2
+  libphobos_archs = armel armhf amd64 i386 x32 kfreebsd-amd64 kfreebsd-i386
+  ifneq (,$(filter $(DEB_TARGET_ARCH), $(libphobos_archs)))
+    with_libphobos := yes
+  endif
 
-  with_libphobos := yes
-
-  libphobos_no_cpus := alpha avr arm hppa ia64 m68k mips mipsel mipsn32 mipsn32el mips64 mips64el powerpc powerpcspe ppc64 s390 s390x sh4 sparc sparc64
-  libphobos_no_systems := gnu
-  ifneq (,$(findstring $(DEB_TARGET_ARCH_CPU),$(libphobos_no_cpus)))
+  libphobos_no_cpus := alpha avr arm64 hppa ia64 m68k \
+	mips mipsel mips64 mips64el mipsn32 mipsn32el \
+	powerpc powerpcspe ppc64 ppc64el s390 s390x sh4 sparc sparc64
+  libphobos_no_systems := gnu kfreebsd-gnu
+  ifneq (,$(filter $(DEB_TARGET_ARCH_CPU),$(libphobos_no_cpus)))
     with_libphobos := disabled for cpu $(DEB_TARGET_ARCH_CPU)
   endif
   ifneq (,$(findstring $(DEB_TARGET_GNU_SYSTEM),$(libphobos_no_systems)))
@@ -845,7 +883,7 @@ objc_no_cross := no
 ifneq ($(with_base_only),yes)
   ifneq ($(separate_lang),yes)
     with_objc := yes
-    objc_no_archs = arm64
+    objc_no_archs =
     ifneq (,$(filter $(DEB_TARGET_ARCH),$(objc_no_archs)))
       with_objc :=
     endif
@@ -874,7 +912,6 @@ ifeq ($(with_objc),yes)
   ifeq ($(with_dev),yes)
     with_objcdev := yes
   endif
-  # libobjc soname change in 4.7
   ifeq ($(with_common_libs),yes)
     with_libobjc := yes
   endif
@@ -923,45 +960,77 @@ ifneq (,$(findstring gcc-4,$(PKGSOURCE)))
 endif
 with_source := $(call envfilt, source, , , $(with_source))
 
+ifeq ($(with_cdev),yes)
+
 # ssp & libssp -------------------------
 with_ssp := yes
-ssp_no_archs = alpha arm64 hppa ia64 m68k
+ssp_no_archs = alpha hppa ia64 m68k
 ifneq (, $(filter $(DEB_TARGET_ARCH),$(ssp_no_archs) $(ssp_no_archs:%=uclibc-%)))
   with_ssp := not available on $(DEB_TARGET_ARCH)
 endif
 with_ssp := $(call envfilt, ssp, , , $(with_ssp))
 
 ifeq ($(with_ssp),yes)
-  ifneq ($(distribution),Debian)
+  ifneq ($(derivative),Debian)
     ifneq (,$(findstring gcc-4, $(PKGSOURCE)))
       with_ssp_default := yes
     endif
   endif
 endif
 
-# mudflap -------------------
-with_mudflap := yes
-with_mudflap := $(call envfilt, mudflap, , , $(with_mudflap))
-mudflap_no_archs = arm64
-ifneq (,$(filter $(DEB_TARGET_ARCH),$(mudflap_no_archs)))
-  with_mudflap :=
-endif
-with_mudflap :=
-
 # gomp --------------------
 with_gomp := yes
 with_gomp := $(call envfilt, gomp, , , $(with_gomp))
-gomp_no_archs = arm64
+gomp_no_archs =
 ifneq (,$(filter $(DEB_TARGET_ARCH),$(gomp_no_archs)))
   with_gomp :=
 endif
 
 # itm --------------------
-itm_archs = amd64 i386 x32
+itm_archs = amd64 arm64 i386 x32 ppc64 ppc64el
 ifneq (,$(filter $(DEB_TARGET_ARCH),$(itm_archs)))
   with_itm := yes
 endif
 with_itm := $(call envfilt, itm, , , $(with_itm))
+
+# atomic --------------------
+with_atomic := yes
+atomic_no_archs =
+ifneq (,$(filter $(DEB_TARGET_ARCH),$(atomic_no_archs)))
+  with_atomic :=
+endif
+
+# backtrace --------------------
+with_backtrace := yes
+backtrace_no_archs = m68k
+ifneq (,$(filter $(DEB_TARGET_ARCH),$(backtrace_no_archs)))
+  with_backtrace :=
+endif
+
+# asan / sanitizer --------------------
+with_asan :=
+with_asan := $(call envfilt, asan, , , $(with_asan))
+asan_archs = amd64 armel armhf i386 powerpc ppc64 x32 sparc sparc64
+ifneq (,$(filter $(DEB_TARGET_ARCH),$(asan_archs)))
+  with_asan := yes
+endif
+
+# tsan / sanitizer --------------------
+with_tsan :=
+with_tsan := $(call envfilt, tsan, , , $(with_tsan))
+tsan_archs = amd64
+ifneq (,$(filter $(DEB_TARGET_ARCH),$(tsan_archs)))
+  with_tsan := yes
+endif
+
+# not yet completely ported, and causing kernel crashes running the tests
+ifneq (,$(filter $(DEB_TARGET_ARCH),powerpc ppc64el))
+  ifneq (,$(filter $(distrelease),squeeze wheezy jessie sid precise trusty utopic vivid))
+    empty_sanitizer_packages := yes
+  endif
+endif
+
+endif # with_cdev
 
 # gold --------------------
 # armel with binutils 2.20.51 only
@@ -975,18 +1044,9 @@ with_plugins := yes
 
 endif # ifndef DEB_STAGE
 
-# cloog backend
-ifneq (,$(filter $(distrelease),lenny etch squeeze dapper hardy jaunty karmic lucid maverick))
-  cloog_backend = ppl-0.10
-else ifneq (,$(filter $(distrelease),wheezy jessie sid natty oneiric precise quantal))
-  cloog_backend = ppl-0.11
-else
-  cloog_backend = ppl-1.0
-endif
-
 # Don't include docs with GFDL invariant sections
 GFDL_INVARIANT_FREE := yes
-ifeq ($(distribution),Ubuntu)
+ifeq ($(derivative),Ubuntu)
   GFDL_INVARIANT_FREE := no
 endif
 
@@ -994,9 +1054,6 @@ endif
 # non-extra config
 ifeq ($(extra_package),yes)
   ifeq ($(with_separate_libgcj)-$(with_standalone_gcj),yes-no)
-    # build stuff
-    with_mudflap :=
-
     # package stuff
     with_gccbase := no
     with_cdev := no
@@ -1010,9 +1067,6 @@ ifeq ($(extra_package),yes)
     endif
   endif
   ifeq ($(with_separate_libgo),yes)
-    # build stuff
-    with_mudflap :=
-
     # package stuff
     with_gccbase := yes
     with_cdev := no
@@ -1025,11 +1079,7 @@ else
     #ifneq ($(DEB_CROSS),yes)
       with_libssp := $(if $(wildcard $(builddir)/gcc/auto-host.h),$(shell if grep -qs '^\#define TARGET_LIBC_PROVIDES_SSP 1' $(builddir)/gcc/auto-host.h; then echo 'libc provides ssp'; else echo 'yes'; fi))
     #endif
-  endif
-
-  # libmudflap --------------
-  ifeq ($(with_mudflap)-$(with_common_libs),yes-yes)
-      with_libmudflap := yes
+    with_libssp := libc provides ssp
   endif
 
   # libgomp -----------------
@@ -1043,6 +1093,37 @@ else
   ifeq ($(with_itm)-$(with_common_libs),yes-yes)
     #ifneq ($(DEB_CROSS),yes)
       with_libitm := yes
+    #endif
+  endif
+
+  # libatomic -----------------
+  ifeq ($(with_atomic)-$(with_common_libs),yes-yes)
+    #ifneq ($(DEB_CROSS),yes)
+      with_libatomic := yes
+    #endif
+  endif
+
+  # libbacktrace -----------------
+  ifeq ($(with_backtrace)-$(with_common_libs),yes-yes)
+    #ifneq ($(DEB_CROSS),yes)
+      # currently not a shared library
+      #with_libbacktrace := yes
+    #endif
+  endif
+
+  # libasan -----------------
+  # soname change in 4.9
+  ifeq ($(with_asan),yes)
+  #ifeq ($(with_asan)-$(with_common_libs),yes-yes)
+    #ifneq ($(DEB_CROSS),yes)
+      with_libasan := yes
+    #endif
+  endif
+
+  # libtsan -----------------
+  ifeq ($(with_tsan)-$(with_common_libs),yes-yes)
+    #ifneq ($(DEB_CROSS),yes)
+      with_libtsan := yes
     #endif
   endif
 
@@ -1065,6 +1146,12 @@ else
     with_shared_libgcc := yes
     ifeq ($(with_common_libs),yes)
       with_libgcc := yes
+    endif
+    ifneq (,$(filter $(distrelease),trusty))
+      # built from the gccgo-4.9 package, but not for cross builds
+      ifneq ($(DEB_CROSS),yes)
+        with_libgcc :=
+      endif
     endif
   endif
 
@@ -1091,28 +1178,10 @@ else
   endif
   with_hppa64 := $(call envfilt, hppa64, , , $(with_hppa64))
 
-  # spu build -------------------
-  spu_no_snap := no
-  ifneq (,$(findstring $(DEB_TARGET_ARCH),powerpc ppc64))
-    ifneq ($(DEB_CROSS),yes)
-      with_spu := yes
-    endif
-  endif
-  with_spu := now disabled, newlib now maintained by an arm only maintainer
-  ifeq ($(spu_no_snap)-$(trunk_build),yes-yes)
-    with_spu := disabled for snapshot build
-  endif
-  with_spu := $(call envfilt, spu, , , $(with_spu))
-
-  ifeq ($(with_spu),yes)
-    with_spucache := yes
-    with_spumea64 := yes
-  endif
-
   # neon build -------------------
   # FIXME: build as a cross compiler to build on armv4 as well
   ifneq (,$(findstring gcc-4, $(PKGSOURCE)))
-    ifeq ($(distribution),Ubuntu)
+    ifeq ($(derivative),Ubuntu)
 #      neon_archs = armel armhf
 #      ifneq (, $(filter $(DEB_TARGET_ARCH),$(neon_archs)))
 #        with_neon = yes
@@ -1125,9 +1194,6 @@ endif
 with_check := yes
 # if you don't want to run the gcc testsuite, uncomment the next line
 #with_check := disabled by hand
-ifneq (,$(findstring nocheck,$(DEB_BUILD_OPTIONS)))
-  with_check := disabled by DEB_BUILD_OPTIONS
-endif
 ifeq ($(with_base_only),yes)
   with_check := no
 endif
@@ -1139,13 +1205,13 @@ ifeq ($(REVERSE_CROSS),yes)
 endif
 check_no_cpus := m68k
 check_no_systems := gnu kfreebsd-gnu
-ifneq (,$(findstring $(DEB_TARGET_ARCH_CPU),$(check_no_cpus)))
+ifneq (,$(filter $(DEB_TARGET_ARCH_CPU),$(check_no_cpus)))
   with_check := disabled for cpu $(DEB_TARGET_ARCH_CPU)
 endif
 ifneq (,$(findstring $(DEB_TARGET_GNU_SYSTEM),$(check_no_systems)))
   with_check := disabled for system $(DEB_TARGET_GNU_SYSTEM)
 endif
-ifeq ($(distribution)-$(DEB_HOST_ARCH),Ubuntu-hppa)
+ifeq ($(derivative)-$(DEB_HOST_ARCH),Ubuntu-hppa)
   ifneq ($(single_package),yes)
     with_check := disabled, testsuite timeouts with expect
   endif
@@ -1160,7 +1226,12 @@ endif
 ifneq ($(findstring nocheck, $(DEB_BUILD_OPTIONS)),)
   with_check := disabled by DEB_BUILD_OPTIONS
 endif
-#with_check := disabled for this build
+ifneq (,$(filter $(DEB_HOST_ARCH), hppa))
+  ifneq ($(single_package),yes)
+    with_check := disabled for $(DEB_HOST_ARCH), testsuite timeouts with expect
+  endif
+endif
+#with_check := disabled for this upload
 
 # not a dependency on all archs, but if available, use it for the testsuite
 ifneq (,$(wildcard /usr/bin/localedef))
@@ -1175,11 +1246,17 @@ export debian_extra_langs
 
 # multilib
 biarch_map := i686=x86_64 powerpc=powerpc64 sparc=sparc64 sparc64=sparc s390=s390x s390x=s390 \
-		x86_64=i686 powerpc64=powerpc mips=mips64 mipsel=mips64el mips64=mips mips64el=mipsel mipsn32=mips mipsn32el=mipsel
-ifeq (,$(filter $(distrelease),lenny etch squeeze wheezy jessie sid dapper hardy jaunty karmic lucid))
+		x86_64=i686 powerpc64=powerpc mips=mips64 mipsel=mips64el \
+		mips64=mips mips64el=mipsel mipsn32=mips mipsn32el=mipsel
+ifneq (,$(filter $(derivative),Ubuntu))
+  ifeq (,$(filter $(distrelease),dapper hardy jaunty karmic lucid))
+    biarch_map := $(subst i686=,i486=,$(biarch_map))
+  endif
+else # Debian
   biarch_map := $(subst i686=,i486=,$(biarch_map))
 endif
-ifeq ($(distribution),Ubuntu)
+
+ifeq ($(derivative),Ubuntu)
   ifeq (,$(filter $(distrelease),dapper hardy jaunty karmic lucid maverick natty))
     biarch_map += arm=arm
   endif
@@ -1230,9 +1307,6 @@ define gen_biarch
     ifeq ($$(with_fdev),yes)
       with_lib$1gfortrandev := yes
     endif
-    ifeq ($$(with_libmudflap),yes)
-      with_lib$1mudflap := yes
-    endif
     ifeq ($$(with_libssp),yes)
       with_lib$1ssp := yes
     endif
@@ -1241,6 +1315,18 @@ define gen_biarch
     endif
     ifeq ($$(with_libitm),yes)
       with_lib$1itm:= yes
+    endif
+    ifeq ($$(with_libatomic),yes)
+      with_lib$1atomic:= yes
+    endif
+    ifeq ($$(with_libbacktrace),yes)
+      with_lib$1backtrace:= yes
+    endif
+    ifeq ($$(with_libasan),yes)
+      with_lib$1asan:= yes
+    endif
+    ifeq ($$(with_libtsan),yes)
+      with_lib$1tsan:= yes
     endif
     ifeq ($$(with_libqmath),yes)
       with_lib$1qmath := yes
@@ -1252,7 +1338,8 @@ define gen_biarch
     biarch_multidir_names = libiberty libgcc
     ifneq (,$$(findstring gcc-, $$(PKGSOURCE)))
       biarch_multidir_names += libstdc++-v3 libobjc libgfortran libssp \
-				libgomp libmudflap zlib libitm
+				libgomp zlib libitm \
+				libbacktrace libatomic libsanitizer
       ifeq ($$(with_objc_gc),yes)
         biarch_multidir_names += boehm-gc
       endif
@@ -1266,8 +1353,12 @@ define gen_biarch
     ifeq ($(with_go),yes)
       biarch_multidir_names += libgo
     endif
-    ifeq ($(trunk_build),yes)
-      biarch_multidir_names += libbacktrace libatomic libsanitizer
+    # no gdc-4-x-multilib built
+    #ifeq ($(with_d),yes)
+    #  biarch_multidir_names += libphobos
+    #endif
+    ifeq ($$(PKGSOURCE),gcc-snapshot)
+      biarch_multidir_names += libcilkrts libvtv
     endif
     export biarch_multidir_names
     ifneq (,$$(findstring 32,$1))
@@ -1284,9 +1375,9 @@ define gen_biarch
   endif
 endef
 biarch32archs := /amd64/ppc64/kfreebsd-amd64/s390x/sparc64/x32/mipsn32/mipsn32el/mips64/mips64el/
-biarch64archs := /i386/powerpc/sparc/s390/mips/mipsel/x32/mipsn32/mipsn32el/
+biarch64archs := /i386/powerpc/sparc/s390/mips/mipsel/mipsn32/mipsn32el/x32/
 biarchn32archs := /mips/mipsel/mips64/mips64el/
-ifeq ($(distribution),Ubuntu)
+ifeq ($(derivative),Ubuntu)
   ifeq (,$(filter $(distrelease),dapper hardy jaunty karmic lucid maverick natty))
     biarchhfarchs := /armel/
     biarchsfarchs := /armhf/
@@ -1295,26 +1386,21 @@ ifeq ($(distribution),Ubuntu)
     biarchx32archs := /amd64/i386/
   endif
 endif
-ifeq ($(distribution),Debian)
-  # FIXME: ifeq (,$(filter $(distrelease),etch squeeze wheezy))
-  ifeq (,$(filter $(distrelease),etch squeeze))
+ifeq ($(derivative),Debian)
+  ifeq (,$(filter $(distrelease),etch squeeze wheezy))
     biarchx32archs := /amd64/i386/
   endif
 endif
-
 $(foreach x,32 64 n32 x32 hf sf,$(eval $(call gen_biarch,$(x))))
 
-#ifeq ($(DEB_TARGET_ARCH),ia64)
-#  biarch32 := yes
-#endif
+ifeq ($(DEB_TARGET_ARCH),sh4)
+  export biarch_multidir_names=none
+endif
 
 #ifeq ($(trunk_build),yes)
 #  no_biarch_libs := yes
 #endif
 ifdef DEB_CROSS_NO_BIARCH
-  no_biarch_libs := yes
-endif
-ifeq ($(with_d)-$(with_separate_gdc),yes-yes)
   no_biarch_libs := yes
 endif
 
@@ -1326,12 +1412,15 @@ ifeq ($(no_biarch_libs),yes)
   with_lib64ffi		:= no
   with_lib64gcj		:= no
   with_lib64gfortran	:= no
-  with_lib64mudflap	:= no
   with_lib64ssp		:= no
   with_lib64go		:= no
   with_lib64gomp	:= no
   with_lib64itm		:= no
   with_lib64qmath	:= no
+  with_lib64atomic	:= no
+  with_lib64backtrace	:= no
+  with_lib64asan	:= no
+  with_lib64tsan	:= no
   with_lib64gccdev	:= no
   with_lib64cxxdev	:= no
   with_lib64objcdev	:= no
@@ -1344,12 +1433,15 @@ ifeq ($(no_biarch_libs),yes)
   with_lib32ffi		:= no
   with_lib32gcj		:= no
   with_lib32gfortran	:= no
-  with_lib32mudflap	:= no
   with_lib32ssp		:= no
   with_lib32go		:= no
   with_lib32gomp	:= no
   with_lib32itm		:= no
   with_lib32qmath	:= no
+  with_lib32atomic	:= no
+  with_lib32backtrace	:= no
+  with_lib32asan	:= no
+  with_lib32tsan	:= no
   with_lib32gccdev	:= no
   with_lib32cxxdev	:= no
   with_lib32objcdev	:= no
@@ -1362,12 +1454,15 @@ ifeq ($(no_biarch_libs),yes)
   with_libn32ffi	:= no
   with_libn32gcj	:= no
   with_libn32gfortran	:= no
-  with_libn32mudflap	:= no
   with_libn32ssp	:= no
   with_libn32go		:= no
   with_libn32gomp	:= no
   with_libn32itm	:= no
   with_libn32qmath	:= no
+  with_libn32atomic	:= no
+  with_libn32backtrace	:= no
+  with_libn32asan	:= no
+  with_libn32tsan	:= no
   with_libn32gccdev	:= no
   with_libn32cxxdev	:= no
   with_libn32objcdev	:= no
@@ -1380,12 +1475,15 @@ ifeq ($(no_biarch_libs),yes)
   with_libx32ffi	:= no
   with_libx32gcj	:= no
   with_libx32gfortran	:= no
-  with_libx32mudflap	:= no
   with_libx32ssp	:= no
   with_libx32go		:= no
   with_libx32gomp	:= no
   with_libx32itm	:= no
   with_libx32qmath	:= no
+  with_libx32atomic	:= no
+  with_libx32backtrace	:= no
+  with_libx32asan	:= no
+  with_libx32tsan	:= no
   with_libx32gccdev	:= no
   with_libx32cxxdev	:= no
   with_libx32objcdev	:= no
@@ -1398,12 +1496,15 @@ ifeq ($(no_biarch_libs),yes)
   with_libhfffi		:= no
   with_libhfgcj		:= no
   with_libhfgfortran	:= no
-  with_libhfmudflap	:= no
   with_libhfssp		:= no
   with_libhfgo		:= no
   with_libhfgomp	:= no
   with_libhfitm		:= no
   with_libhfqmath	:= no
+  with_libhfatomic	:= no
+  with_libhfbacktrace	:= no
+  with_libhfasan	:= no
+  with_libhftsan	:= no
   with_libhfgccdev	:= no
   with_libhfcxxdev	:= no
   with_libhfobjcdev	:= no
@@ -1416,12 +1517,15 @@ ifeq ($(no_biarch_libs),yes)
   with_libsfffi		:= no
   with_libsfgcj		:= no
   with_libsfgfortran	:= no
-  with_libsfmudflap	:= no
   with_libsfssp		:= no
   with_libsfgo		:= no
   with_libsfgomp	:= no
   with_libsfitm		:= no
   with_libsfqmath	:= no
+  with_libsfatomic	:= no
+  with_libsfbacktrace	:= no
+  with_libsfasan	:= no
+  with_libsftsan	:= no
   with_libsfgccdev	:= no
   with_libsfcxxdev	:= no
   with_libsfobjcdev	:= no
@@ -1436,15 +1540,6 @@ ifeq ($(no_biarch_libs),yes)
     biarchx32	:= disabled by DEB_CROSS_NO_BIARCH
     biarchhf 	:= disabled by DEB_CROSS_NO_BIARCH
     biarchsf 	:= disabled by DEB_CROSS_NO_BIARCH
-  endif
-
-  ifeq ($(with_d)-$(with_separate_gdc),yes-yes)
-    biarch64	:= disabled for D
-    biarch32	:= disabled for D
-    biarchn32	:= disabled for D
-    biarchx32	:= disabled for D
-    biarchhf	:= disabled for D
-    biarchsf	:= disabled for D
   endif
 
   ifeq ($(with_ada)-$(with_separate_gnat),yes-yes)
@@ -1477,7 +1572,7 @@ ifneq (,$(findstring $(DEB_TARGET_GNU_SYSTEM),$(locale_no_systems)))
   force_gnu_locales := disabled for system $(DEB_TARGET_GNU_SYSTEM)
 endif
 
-gcc_tarpath		:= $(firstword $(wildcard gcc-*.tar.* /usr/src/gcc-$(BASE_VERSION)/gcc-*.tar.*))
+gcc_tarpath		:= $(firstword $(wildcard gcc-*.tar.* /usr/src/gcc-4.8/gcc-*.tar.*))
 gcc_tarball		:= $(notdir $(gcc_tarpath))
 gcc_srcdir		:= $(subst -dfsg,,$(patsubst %.tar.xz,%,$(patsubst %.tar.lzma,%,$(patsubst %.tar.gz,%,$(gcc_tarball:.tar.bz2=)))))
 
@@ -1497,13 +1592,15 @@ endif
 ifeq ($(DEB_CROSS),yes)
   add_built_using = yes
 endif
+ifeq ($(with_ada)-$(with_separate_gnat),yes-yes)
+  add_built_using = yes
+endif
 
 ecj_jar := $(firstword $(wildcard ecj.jar /usr/share/java/eclipse-ecj.jar /usr/share/java/ecj.jar))
 
 unpack_stamp		:= $(stampdir)/01-unpack-stamp
 pre_patch_stamp		:= $(stampdir)/02-pre-patch-stamp
 patch_stamp		:= $(stampdir)/02-patch-stamp
-src_spu_stamp		:= $(stampdir)/02-src-spu-stamp
 control_stamp		:= $(stampdir)/03-control-stamp
 configure_stamp		:= $(stampdir)/04-configure-stamp
 build_stamp		:= $(stampdir)/05-build-stamp
@@ -1529,10 +1626,6 @@ install_hppa64_stamp	:= $(stampdir)/07-install-hppa64-stamp
 configure_neon_stamp	:= $(stampdir)/04-configure-neon-stamp
 build_neon_stamp		:= $(stampdir)/05-build-neon-stamp
 install_neon_stamp	:= $(stampdir)/07-install-neon-stamp
-
-configure_spu_stamp	:= $(stampdir)/04-configure-spu-stamp
-build_spu_stamp		:= $(stampdir)/05-build-spu-stamp
-install_spu_stamp	:= $(stampdir)/07-install-spu-stamp
 
 control_dependencies	:= $(patch_stamp)
 
@@ -1578,14 +1671,6 @@ ifeq ($(with_hppa64),yes)
   endif
 endif
 
-ifeq ($(with_spu),yes)
-  control_dependencies += $(src_spu_stamp)
-  build_dependencies += $(build_spu_stamp)
-  ifneq ($(trunk_build),yes)
-    install_dependencies += $(install_spu_stamp)
-  endif
-endif
-
 build_dependencies += $(check_dependencies)
 
 stamp-dir:
@@ -1594,12 +1679,11 @@ stamp-dir:
 ifeq ($(DEB_CROSS),yes)
   ifneq ($(with_deps_on_target_arch_pkgs),yes)
     define cross_mangle_shlibs
-	sed -i s/$(cross_lib_arch)//g debian/$(1)/DEBIAN/shlibs
+	if [ -f debian/$(1)/DEBIAN/shlibs ]; then \
+	  sed -i s/$(cross_lib_arch)//g debian/$(1)/DEBIAN/shlibs; \
+	fi
     endef
     define cross_mangle_substvars
-	if [ -f debian/$(1).substvars ]; then \
-	  sed -i 's/lib[^ ,(]*/&$(cross_lib_arch)/g' debian/$(1).substvars; \
-	fi
     endef
   else
     define cross_mangle_shlibs
@@ -1613,8 +1697,9 @@ else
   define cross_mangle_substvars
   endef
   # precise's dh_shlibdeps doesn't work well for ARM multilibs
-  ifneq (,$(filter $(distrelease),precise quantal raring saucy))
-    ifneq (,$(filter $(DEB_TARGET_ARCH), armel armhf))
+  # and dh_shlibdeps doesn't work well for cross builds, see #698881.
+  ifneq (,$(filter $(distrelease),precise quantal raring))
+    ifneq (,$(filter $(DEB_TARGET_ARCH), armel armhf arm64))
       ignshld = -
     endif
   endif
@@ -1630,7 +1715,10 @@ _shlibdirs = \
 	$(with_build_sysroot)$(subst /usr,,/$(usr_lib$(2))) \
 	$(with_build_sysroot)/$(usr_lib$(2)) \
 	$(if $(filter yes,$(biarchsf) $(biarchhf)), \
-	  $(with_build_sysroot)/usr/$(call mlib_to_march,$(2))/lib)
+	  $(with_build_sysroot)/usr/$(call mlib_to_march,$(2))/lib) \
+	$(if $(filter yes, $(with_common_libs)),, \
+	  $(CURDIR)/$(d)/usr/$(DEB_TARGET_GNU_TYPE)/lib$(2) \
+	  $(CURDIR)/$(d)/usr/$(call mlib_to_march,$(2))/lib)
 shlibdirs_to_search = -l$(subst $(SPACE),:,$(foreach d,$(_shlibdirs),$(d)))
 
 # native ... 

@@ -33,8 +33,6 @@ $(configure_hppa64_stamp): $(build_stamp)
 	$(MAKE) -f debian/rules2 $@
 $(configure_neon_stamp): $(build_stamp)
 	$(MAKE) -f debian/rules2 $@
-$(configure_spu_stamp): $(build_stamp)
-	$(MAKE) -f debian/rules2 $@
 
 pre-build:
 #ifneq (,$(filter $(distrelease),squeeze sid))
@@ -58,8 +56,6 @@ $(build_hppa64_stamp): $(configure_hppa64_stamp)
 	$(MAKE) -f debian/rules2 $@
 $(build_neon_stamp): $(configure_neon_stamp)
 	$(MAKE) -f debian/rules2 $@
-$(build_spu_stamp): $(configure_spu_stamp)
-	$(MAKE) -f debian/rules2 $@
 
 check: $(check_stamp)
 $(check_stamp): $(build_stamp)
@@ -68,7 +64,7 @@ $(check_stamp): $(build_stamp)
 clean:
 	rm -rf $(stampdir)
 # remove temporary dirs used for unpacking
-	rm -rf $(gcc_srcdir) $(gdc_srcdir) d
+	rm -rf $(gcc_srcdir) $(gdc_srcdir)
 	-$(MAKE) -f debian/rules2 $@
 	rm -rf $(srcdir)* $(builddir)* debian/tmp* html
 	rm -f bootstrap-* first-move-stamp
@@ -90,8 +86,6 @@ $(install_hppa64_stamp): $(build_hppa64_stamp)
 	$(MAKE) -f debian/rules2 $@
 $(install_neon_stamp): $(build_neon_stamp)
 	$(MAKE) -f debian/rules2 $@
-$(install_spu_stamp): $(build_spu_stamp)
-	$(MAKE) -f debian/rules2 $@
 
 html-docs doxygen-docs update-doxygen-docs update-ada-files xxx:
 	$(MAKE) -f debian/rules2 $@
@@ -109,4 +103,5 @@ release:
 				xargs rm -rf; \
 		fi
 
+.NOTPARALLEL:
 .PHONY: build clean binary-indep binary-arch binary release

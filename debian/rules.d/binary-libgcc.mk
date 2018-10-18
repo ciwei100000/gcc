@@ -49,8 +49,9 @@ header_files = \
 		    {cpuid,decfloat,float,iso646,limits,mm3dnow,mm_malloc}.h \
 		    {ppu_intrinsics,paired,spu2vmx,vec_types,si2vmx}.h \
 		    {,a,b,e,i,n,p,s,t,w,x}mmintrin.h mmintrin-common.h \
-		    {abm,avx,avx2,bmi,bmi2,f16c,fma,fma4,ia32,}intrin.h \
-		    {lwp,lzcnt,popcnt,tbm,x86,xop,}intrin.h \
+		    {abm,adx,avx,avx2,bmi,bmi2,f16c,fma,fma4,fxsr,ia32,}intrin.h \
+		    {lwp,lzcnt,popcnt,prfchw,rdseed,rtm,tbm,x86,xop,xsave{,opt},xtest,}intrin.h \
+		    {htm,htmxl}intrin.h \
 		    {cross-stdarg,syslimits,unwind,unwind-arm-common,varargs}.h; \
 		do \
 		  test -e $(d)/$(gcc_lib_dir)/include/$$h \
@@ -86,7 +87,7 @@ ifeq ($(DEB_TARGET_ARCH),m68k)
     header_files += $(gcc_lib_dir)/include/math-68881.h
 endif
 
-ifeq ($(DEB_TARGET_ARCH),$(findstring $(DEB_TARGET_ARCH),powerpc ppc64 powerpcspe))
+ifeq ($(DEB_TARGET_ARCH),$(findstring $(DEB_TARGET_ARCH),powerpc ppc64 ppc64el powerpcspe))
     header_files += $(gcc_lib_dir)/include/{altivec.h,ppc-asm.h,spe.h}
 endif
 
@@ -187,10 +188,26 @@ define __do_gcc_devels2
 		$(if $(1), dh_link -p$(2) /$(3)/libgcc_s.so \
 		    $(gcc_lib_dir)/libgcc_s_$(1).so;)
 	)
-	DH_COMPAT=2 dh_movefiles -p$(2) \
+	$(dh_compat2) dh_movefiles -p$(2) \
 		$(3)/{libgcc*,libgcov.a,*.o} \
 		$(if $(1),,$(header_files)) # Only move headers for the "main" package
-	# If building a flavour, add a lintian override
+
+	: # libbacktrace not installed by default
+	$(if $(filter yes, $(with_backtrace)),
+	if [ -f $(buildlibdir)/$(1)/libbacktrace/.libs/libbacktrace.a ]; then \
+	  install -m644 $(buildlibdir)/$(1)/libbacktrace/.libs/libbacktrace.a \
+	      debian/$(2)/$(gcc_lib_dir)/$(1); \
+	fi; \
+	$(if $(1),,
+	if [ -f $(buildlibdir)/libbacktrace/backtrace-supported.h ]; then \
+	  install -m644 $(buildlibdir)/libbacktrace/backtrace-supported.h \
+	    debian/$(2)/$(gcc_lib_dir)/include/; \
+	  install -m644 $(srcdir)/libbacktrace/backtrace.h \
+	    debian/$(2)/$(gcc_lib_dir)/include/; \
+	fi
+	))
+
+	: # If building a flavour, add a lintian override
 	$(if $(1),
 		#TODO: use a file instead of a hacky echo
 		# bu do we want to use one override file (in the source package) per
@@ -214,8 +231,20 @@ define __do_gcc_devels2
 	$(if $(filter yes, $(with_itm)),
 		$(call install_gcc_lib,libitm,$(ITM_SONAME),$(1),$(2))
 	)
+	$(if $(filter yes, $(with_atomic)),
+		$(call install_gcc_lib,libatomic,$(ATOMIC_SONAME),$(1),$(2))
+	)
+	$(if $(empty_sanitizer_packages),,
+	$(if $(filter yes, $(with_asan)),
+		$(call install_gcc_lib,libasan,$(ASAN_SONAME),$(1),$(2))
+		mv $(4)/libasan_preinit.o debian/$(2)/$(3)/;
+	)
+	$(if $(1),,$(if $(filter yes, $(with_tsan)),
+		$(call install_gcc_lib,libtsan,$(TSAN_SONAME),$(1),$(2))
+	))
+	)
 	$(if $(filter yes, $(with_qmath)),
-		$(call install_gcc_lib,libquadmath,$(QMATH_SONAME),$(1),$(2))
+		$(call install_gcc_lib,libquadmath,$(QUADMATH_SONAME),$(1),$(2))
 	)
 endef
 

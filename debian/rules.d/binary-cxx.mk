@@ -29,7 +29,7 @@ $(binary_stamp)-cxx: $(install_stamp)
 
 	rm -rf $(d_cxx)
 	dh_installdirs -p$(p_cxx) $(dirs_cxx)
-	DH_COMPAT=2 dh_movefiles -p$(p_cxx) $(files_cxx)
+	$(dh_compat2) dh_movefiles -p$(p_cxx) $(files_cxx)
 
 ifneq ($(DEB_CROSS),yes)
 	ln -sf g++$(pkg_ver) \
@@ -60,8 +60,14 @@ endif
 	mkdir -p $(d_cxx)/$(docdir)/$(p_xbase)/test-summaries
 	echo "TEST COMPARE BEGIN"
 ifeq ($(with_check),yes)
-	cp -p $$(find $(builddir) -mindepth 3 -name '*.sum') \
+# more than one libgo.sum, avoid it 
+	cp -p $$(find $(builddir)/gcc/testsuite -maxdepth 2 \( -name '*.sum' -o -name '*.log' \)) \
+	      $$(find $(buildlibdir)/*/testsuite -maxdepth 1 \( -name '*.sum'  -o -name '*.log' \) ! -name 'libgo.*') \
 		$(d_cxx)/$(docdir)/$(p_xbase)/test-summaries/
+  ifeq ($(with_go),yes)
+	cp -p $(buildlibdir)/libgo/libgo.sum \
+		$(d_cxx)/$(docdir)/$(p_xbase)/test-summaries/
+  endif
   ifeq (0,1)
 	cd $(builddir); \
 	for i in $(CURDIR)/$(d_cxx)/$(docdir)/$(p_xbase)/test-summaries/*.sum; do \
@@ -79,13 +85,16 @@ ifeq ($(with_check),yes)
 	  fi; \
 	done
   endif
+	if which xz 2>&1 >/dev/null; then \
+		xz -7v $(d_cxx)/$(docdir)/$(p_xbase)/test-summaries/*; \
+	fi
 else
 	echo "Nothing to compare (testsuite not run)"
 endif	
 	echo "TEST COMPARE END"
 
 	dh_strip -p$(p_cxx)
-	dh_compress -p$(p_cxx)
+	dh_compress -p$(p_cxx) -X.log.xz -X.sum.xz
 	dh_fixperms -p$(p_cxx)
 	dh_shlibdeps -p$(p_cxx)
 	dh_gencontrol -p$(p_cxx) -- -v$(DEB_VERSION) $(common_substvars)

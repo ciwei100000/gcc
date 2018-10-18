@@ -1,0 +1,267 @@
+# DP: Build using isl 0.15 and cloog 0.18.4
+
+Index: b/src/configure.ac
+===================================================================
+--- a/src/configure.ac
++++ b/src/configure.ac
+@@ -1637,6 +1637,9 @@ if test "x$with_isl" != "xno" &&
+       ISL_CHECK_VERSION(0,12)
+       if test "${gcc_cv_isl}" = no ; then
+         ISL_CHECK_VERSION(0,14)
++        if test "${gcc_cv_isl}" = no ; then
++          ISL_CHECK_VERSION(0,15)
++        fi
+       fi
+     fi
+   fi
+Index: b/src/gcc/config.in
+===================================================================
+--- a/src/gcc/config.in
++++ b/src/gcc/config.in
+@@ -1181,6 +1181,12 @@
+ #endif
+ 
+ 
++/* Define if isl_options_set_schedule_serialize_sccs exists. */
++#ifndef USED_FOR_TARGET
++#undef HAVE_ISL_OPTIONS_SET_SCHEDULE_SERIALIZE_SCCS
++#endif
++
++
+ /* Define if isl_schedule_constraints_compute_schedule exists. */
+ #ifndef USED_FOR_TARGET
+ #undef HAVE_ISL_SCHED_CONSTRAINTS_COMPUTE_SCHEDULE
+Index: b/src/gcc/configure.ac
+===================================================================
+--- a/src/gcc/configure.ac
++++ b/src/gcc/configure.ac
+@@ -5221,6 +5221,8 @@ if test "x${CLOOGLIBS}" != "x" ; then
+ 
+   # Check whether isl_schedule_constraints_compute_schedule is available;
+   # it's new in ISL-0.13.
++  # Check whether isl_options_set_schedule_serialize_sccs is available;
++  # it's new in ISL-0.15.
+   saved_CFLAGS="$CFLAGS"
+   CFLAGS="$CFLAGS $ISLINC"
+   saved_LIBS="$LIBS"
+@@ -5233,6 +5235,13 @@ if test "x${CLOOGLIBS}" != "x" ; then
+               [ac_has_isl_schedule_constraints_compute_schedule=no])
+   AC_MSG_RESULT($ac_has_isl_schedule_constraints_compute_schedule)
+ 
++  AC_MSG_CHECKING([Checking for isl_options_set_schedule_serialize_sccs])
++  AC_TRY_LINK([#include <isl/schedule.h>],
++              [isl_options_set_schedule_serialize_sccs (NULL, 0);],
++              [ac_has_isl_options_set_schedule_serialize_sccs=yes],
++              [ac_has_isl_options_set_schedule_serialize_sccs=no])
++  AC_MSG_RESULT($ac_has_isl_options_set_schedule_serialize_sccs)
++
+   LIBS="$saved_LIBS"
+   CFLAGS="$saved_CFLAGS"
+ 
+@@ -5240,6 +5249,11 @@ if test "x${CLOOGLIBS}" != "x" ; then
+      AC_DEFINE(HAVE_ISL_SCHED_CONSTRAINTS_COMPUTE_SCHEDULE, 1,
+                [Define if isl_schedule_constraints_compute_schedule exists.])
+   fi
++
++  if test x"$ac_has_isl_options_set_schedule_serialize_sccs" = x"yes"; then
++     AC_DEFINE(HAVE_ISL_OPTIONS_SET_SCHEDULE_SERIALIZE_SCCS, 1,
++               [Define if isl_options_set_schedule_serialize_sccs exists.])
++  fi
+ fi
+ 
+ 
+Index: b/src/gcc/graphite-blocking.c
+===================================================================
+--- a/src/gcc/graphite-blocking.c
++++ b/src/gcc/graphite-blocking.c
+@@ -24,6 +24,7 @@ along with GCC; see the file COPYING3.
+ #include "config.h"
+ 
+ #ifdef HAVE_cloog
++#include <isl/constraint.h>
+ #include <isl/set.h>
+ #include <isl/map.h>
+ #include <isl/union_map.h>
+Index: b/src/gcc/graphite-dependences.c
+===================================================================
+--- a/src/gcc/graphite-dependences.c
++++ b/src/gcc/graphite-dependences.c
+@@ -22,6 +22,7 @@ along with GCC; see the file COPYING3.
+ #include "config.h"
+ 
+ #ifdef HAVE_cloog
++#include <isl/constraint.h>
+ #include <isl/set.h>
+ #include <isl/map.h>
+ #include <isl/union_map.h>
+@@ -174,7 +175,7 @@ scop_get_transformed_schedule (scop_p sc
+ /* Helper function used on each MAP of a isl_union_map.  Computes the
+    maximal output dimension.  */
+ 
+-static int
++static isl_stat
+ max_number_of_out_dimensions (__isl_take isl_map *map, void *user)
+ {
+   int global_max = *((int *) user);
+@@ -186,7 +187,7 @@ max_number_of_out_dimensions (__isl_take
+ 
+   isl_map_free (map);
+   isl_space_free (space);
+-  return 0;
++  return isl_stat_ok;
+ }
+ 
+ /* Extends the output dimension of MAP to MAX dimensions.  */
+@@ -210,12 +211,12 @@ struct extend_schedule_str {
+ 
+ /* Helper function for extend_schedule.  */
+ 
+-static int
++static isl_stat
+ extend_schedule_1 (__isl_take isl_map *map, void *user)
+ {
+   struct extend_schedule_str *str = (struct extend_schedule_str *) user;
+   str->umap = isl_union_map_add_map (str->umap, extend_map (map, str->max));
+-  return 0;
++  return isl_stat_ok;
+ }
+ 
+ /* Return a relation that has uniform output dimensions.  */
+@@ -224,16 +225,16 @@ __isl_give isl_union_map *
+ extend_schedule (__isl_take isl_union_map *x)
+ {
+   int max = 0;
+-  int res;
++  isl_stat res;
+   struct extend_schedule_str str;
+ 
+   res = isl_union_map_foreach_map (x, max_number_of_out_dimensions, (void *) &max);
+-  gcc_assert (res == 0);
++  gcc_assert (res == isl_stat_ok);
+ 
+   str.max = max;
+   str.umap = isl_union_map_empty (isl_union_map_get_space (x));
+   res = isl_union_map_foreach_map (x, extend_schedule_1, (void *) &str);
+-  gcc_assert (res == 0);
++  gcc_assert (res == isl_stat_ok);
+ 
+   isl_union_map_free (x);
+   return str.umap;
+Index: b/src/gcc/graphite-interchange.c
+===================================================================
+--- a/src/gcc/graphite-interchange.c
++++ b/src/gcc/graphite-interchange.c
+@@ -24,6 +24,7 @@ along with GCC; see the file COPYING3.
+ #include "config.h"
+ 
+ #ifdef HAVE_cloog
++#include <isl/constraint.h>
+ #include <isl/aff.h>
+ #include <isl/set.h>
+ #include <isl/map.h>
+Index: b/src/gcc/graphite-optimize-isl.c
+===================================================================
+--- a/src/gcc/graphite-optimize-isl.c
++++ b/src/gcc/graphite-optimize-isl.c
+@@ -21,7 +21,9 @@ along with GCC; see the file COPYING3.
+ #include "config.h"
+ 
+ #ifdef HAVE_cloog
++#include <isl/constraint.h>
+ #include <isl/set.h>
++#include <isl/union_set.h>
+ #include <isl/map.h>
+ #include <isl/union_map.h>
+ #include <isl/schedule.h>
+@@ -407,13 +409,13 @@ getScheduleMap(isl_schedule *Schedule)
+   return ScheduleMap;
+ }
+ 
+-static int
++static isl_stat
+ getSingleMap(__isl_take isl_map *map, void *user)
+ {
+   isl_map **singleMap = (isl_map **) user;
+   *singleMap = map;
+ 
+-  return 0;
++  return isl_stat_ok;
+ }
+ 
+ static void
+@@ -460,7 +462,11 @@ optimize_isl (scop_p scop)
+ 
+   isl_options_set_schedule_max_constant_term(scop->ctx, CONSTANT_BOUND);
+   isl_options_set_schedule_maximize_band_depth(scop->ctx, 1);
++#ifdef HAVE_ISL_OPTIONS_SET_SCHEDULE_SERIALIZE_SCCS
++  isl_options_set_schedule_serialize_sccs (scop->ctx, 1);
++#else
+   isl_options_set_schedule_fuse(scop->ctx, ISL_SCHEDULE_FUSE_MIN);
++#endif
+   isl_options_set_on_error(scop->ctx, ISL_ON_ERROR_CONTINUE);
+   schedule = isl_union_set_compute_schedule (domain, validity, proximity);
+   isl_options_set_on_error(scop->ctx, ISL_ON_ERROR_ABORT);
+Index: b/src/gcc/graphite-poly.c
+===================================================================
+--- a/src/gcc/graphite-poly.c
++++ b/src/gcc/graphite-poly.c
+@@ -22,6 +22,7 @@ along with GCC; see the file COPYING3.
+ #include "config.h"
+ 
+ #ifdef HAVE_cloog
++#include <isl/constraint.h>
+ #include <isl/set.h>
+ #include <isl/map.h>
+ #include <isl/union_map.h>
+Index: b/src/gcc/graphite-poly.h
+===================================================================
+--- a/src/gcc/graphite-poly.h
++++ b/src/gcc/graphite-poly.h
+@@ -22,6 +22,11 @@ along with GCC; see the file COPYING3.
+ #ifndef GCC_GRAPHITE_POLY_H
+ #define GCC_GRAPHITE_POLY_H
+ 
++#ifndef HAVE_ISL_OPTIONS_SET_SCHEDULE_SERIALIZE_SCCS
++# define isl_stat int
++# define isl_stat_ok 0
++#endif
++
+ typedef struct poly_dr *poly_dr_p;
+ 
+ typedef struct poly_bb *poly_bb_p;
+Index: b/src/gcc/graphite-scop-detection.c
+===================================================================
+--- a/src/gcc/graphite-scop-detection.c
++++ b/src/gcc/graphite-scop-detection.c
+@@ -22,6 +22,7 @@ along with GCC; see the file COPYING3.
+ #include "config.h"
+ 
+ #ifdef HAVE_cloog
++#include <isl/constraint.h>
+ #include <isl/set.h>
+ #include <isl/map.h>
+ #include <isl/union_map.h>
+Index: b/src/gcc/graphite-sese-to-poly.c
+===================================================================
+--- a/src/gcc/graphite-sese-to-poly.c
++++ b/src/gcc/graphite-sese-to-poly.c
+@@ -21,6 +21,7 @@ along with GCC; see the file COPYING3.
+ #include "config.h"
+ 
+ #ifdef HAVE_cloog
++#include <isl/constraint.h>
+ #include <isl/set.h>
+ #include <isl/map.h>
+ #include <isl/union_map.h>
+Index: b/src/gcc/graphite.c
+===================================================================
+--- a/src/gcc/graphite.c
++++ b/src/gcc/graphite.c
+@@ -35,6 +35,7 @@ along with GCC; see the file COPYING3.
+ #include "config.h"
+ 
+ #ifdef HAVE_cloog
++#include <isl/constraint.h>
+ #include <isl/set.h>
+ #include <isl/map.h>
+ #include <isl/options.h>

@@ -1,7 +1,7 @@
 # DP: Link against -ldl instead of -lcloog -lppl. Exit with an error when using
 # DP: the Graphite loop transformation infrastructure without having the
-# DP: libcloog-ppl[01] package installed. Packages using these optimizations
-# DP: should build-depend on libcloog-ppl1 | libcloog-ppl0.
+# DP: libcloog-ppl0 package installed. Packages using these optimizations
+# DP: should build-depend on libcloog-ppl0.
 
 2011-01-04  Jakub Jelinek  <jakub@redhat.com>
 
@@ -22,7 +22,7 @@ Index: b/src/gcc/Makefile.in
 ===================================================================
 --- a/src/gcc/Makefile.in
 +++ b/src/gcc/Makefile.in
-@@ -980,6 +980,8 @@
+@@ -965,6 +965,8 @@
  PLUGIN_H = plugin.h $(GCC_PLUGIN_H)
  PLUGIN_VERSION_H = plugin-version.h configargs.h
  LIBFUNCS_H = libfuncs.h $(HASHTAB_H)
@@ -31,7 +31,7 @@ Index: b/src/gcc/Makefile.in
  
  #
  # Now figure out from those variables how to compile and link.
-@@ -1034,7 +1036,7 @@
+@@ -1019,7 +1021,7 @@
  # and the system's installed libraries.
  LIBS = @LIBS@ libcommon.a $(CPPLIB) $(LIBINTL) $(LIBICONV) $(LIBIBERTY) \
  	$(LIBDECNUMBER) $(HOST_LIBS)
@@ -40,7 +40,7 @@ Index: b/src/gcc/Makefile.in
  	$(ZLIB)
  # Any system libraries needed just for GNAT.
  SYSLIBS = @GNAT_LIBEXC@
-@@ -2621,40 +2623,40 @@
+@@ -2605,40 +2607,40 @@
     $(TREE_FLOW_H) $(CFGLOOP_H) $(TREE_DATA_REF_H) tree-pass.h value-prof.h
  graphite.o : graphite.c $(CONFIG_H) $(SYSTEM_H) coretypes.h $(DIAGNOSTIC_CORE_H) \
     $(TREE_FLOW_H) $(TREE_DUMP_H) $(CFGLOOP_H) $(TREE_DATA_REF_H) sese.h \
@@ -95,7 +95,7 @@ Index: b/src/gcc/Makefile.in
     graphite-sese-to-poly.h
  tree-vect-loop.o: tree-vect-loop.c $(CONFIG_H) $(SYSTEM_H) coretypes.h \
     $(TM_H) $(GGC_H) $(TREE_H) $(BASIC_BLOCK_H) $(DIAGNOSTIC_H) $(TREE_FLOW_H) \
-@@ -3473,6 +3475,15 @@
+@@ -3457,6 +3459,15 @@
  	$(COMPILER) -c $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) \
  	  $< $(OUTPUT_OPTION)
  
@@ -399,7 +399,7 @@ Index: b/src/gcc/graphite.c
 ===================================================================
 --- a/src/gcc/graphite.c
 +++ b/src/gcc/graphite.c
-@@ -56,6 +56,37 @@
+@@ -56,6 +56,35 @@
  
  CloogState *cloog_state;
  
@@ -412,9 +412,7 @@ Index: b/src/gcc/graphite.c
 +
 +  if (cloog_pointers__.inited)
 +    return cloog_pointers__.h != NULL;
-+  h = dlopen ("libcloog-ppl.so.1", RTLD_LAZY);
-+  if (!h)
-+    h = dlopen ("libcloog-ppl.so.0", RTLD_LAZY);
++  h = dlopen ("libcloog-isl.so.4", RTLD_LAZY);
 +  cloog_pointers__.h = h;
 +  if (h == NULL)
 +    return false;
@@ -437,13 +435,13 @@ Index: b/src/gcc/graphite.c
  /* Print global statistics to FILE.  */
  
  static void
-@@ -201,6 +232,12 @@
+@@ -201,6 +230,12 @@
        return false;
      }
  
 +  if (!init_cloog_pointers ())
 +    {
-+      sorry ("Graphite loop optimizations can only be used if the libcloog-ppl1 or libcloog-ppl0 package is installed");
++      sorry ("Graphite loop optimizations can only be used if the libcloog-isl4 package is installed");
 +      return false;
 +    }
 +

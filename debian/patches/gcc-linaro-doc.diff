@@ -1,1217 +1,249 @@
-# DP: Changes for the Linaro 4.7-2014.04 release (documentation).
+# DP: Changes for the Linaro 4.8-2015.07 release (documentation).
 
 --- a/src/gcc/doc/extend.texi
 +++ b/src/gcc/doc/extend.texi
-@@ -8577,12 +8577,17 @@
- are @code{long double}.
+@@ -8797,6 +8797,7 @@
+ * Alpha Built-in Functions::
+ * ARM iWMMXt Built-in Functions::
+ * ARM NEON Intrinsics::
++* ARM ACLE Intrinsics::
+ * AVR Built-in Functions::
+ * Blackfin Built-in Functions::
+ * FR-V Built-in Functions::
+@@ -9063,6 +9064,14 @@
+ 
+ @include arm-neon-intrinsics.texi
+ 
++@node ARM ACLE Intrinsics
++@subsection ARM ACLE Intrinsics
++
++These built-in intrinsics for the ARMv8-A CRC32 extension are available when
++the @option{-march=armv8-a+crc} switch is used:
++
++@include arm-acle-intrinsics.texi
++
+ @node AVR Built-in Functions
+ @subsection AVR Built-in Functions
+ 
+--- a/src/gcc/doc/arm-acle-intrinsics.texi
++++ b/src/gcc/doc/arm-acle-intrinsics.texi
+@@ -0,0 +1,55 @@
++@c Copyright (C) 2013-2014 Free Software Foundation, Inc.
++@c This is part of the GCC manual.
++@c For copying conditions, see the file gcc.texi.
++
++@subsubsection CRC32 intrinsics
++
++@itemize @bullet
++@item uint32_t __crc32b (uint32_t, uint8_t)
++@*@emph{Form of expected instruction(s):} @code{crc32b @var{r0}, @var{r0}, @var{r0}}
++@end itemize
++
++
++@itemize @bullet
++@item uint32_t __crc32h (uint32_t, uint16_t)
++@*@emph{Form of expected instruction(s):} @code{crc32h @var{r0}, @var{r0}, @var{r0}}
++@end itemize
++
++
++@itemize @bullet
++@item uint32_t __crc32w (uint32_t, uint32_t)
++@*@emph{Form of expected instruction(s):} @code{crc32w @var{r0}, @var{r0}, @var{r0}}
++@end itemize
++
++
++@itemize @bullet
++@item uint32_t __crc32d (uint32_t, uint64_t)
++@*@emph{Form of expected instruction(s):} Two @code{crc32w @var{r0}, @var{r0}, @var{r0}}
++instructions for AArch32. One @code{crc32w @var{w0}, @var{w0}, @var{x0}} instruction for
++AArch64.
++@end itemize
++
++@itemize @bullet
++@item uint32_t __crc32cb (uint32_t, uint8_t)
++@*@emph{Form of expected instruction(s):} @code{crc32cb @var{r0}, @var{r0}, @var{r0}}
++@end itemize
++
++
++@itemize @bullet
++@item uint32_t __crc32ch (uint32_t, uint16_t)
++@*@emph{Form of expected instruction(s):} @code{crc32ch @var{r0}, @var{r0}, @var{r0}}
++@end itemize
++
++
++@itemize @bullet
++@item uint32_t __crc32cw (uint32_t, uint32_t)
++@*@emph{Form of expected instruction(s):} @code{crc32cw @var{r0}, @var{r0}, @var{r0}}
++@end itemize
++
++
++@itemize @bullet
++@item uint32_t __crc32cd (uint32_t, uint64_t)
++@*@emph{Form of expected instruction(s):} Two @code{crc32cw @var{r0}, @var{r0}, @var{r0}}
++instructions for AArch32. One @code{crc32cw @var{w0}, @var{w0}, @var{x0}} instruction for
++AArch64.
++@end itemize
+--- a/src/gcc/doc/tm.texi
++++ b/src/gcc/doc/tm.texi
+@@ -10925,10 +10925,18 @@
+ @samp{TARGET_INIT_BUILTINS}.  @var{fndecl} is the declaration of the
+ built-in function.  @var{n_args} is the number of arguments passed to
+ the function; the arguments themselves are pointed to by @var{argp}.
+-The result is another tree containing a simplified expression for the
+-call's result.  If @var{ignore} is true the value will be ignored.
++The result is another tree, valid for both GIMPLE and GENERIC,
++containing a simplified expression for the call's result.  If
++@var{ignore} is true the value will be ignored.
  @end deftypefn
  
--@deftypefn {Built-in Function} int32_t __builtin_bswap32 (int32_t x)
-+@deftypefn {Built-in Function} int16_t __builtin_bswap16 (int16_t x)
- Returns @var{x} with the order of the bytes reversed; for example,
--@code{0xaabbccdd} becomes @code{0xddccbbaa}.  Byte here always means
-+@code{0xaabb} becomes @code{0xbbaa}.  Byte here always means
- exactly 8 bits.
- @end deftypefn
- 
-+@deftypefn {Built-in Function} int32_t __builtin_bswap32 (int32_t x)
-+Similar to @code{__builtin_bswap16}, except the argument and return types
-+are 32-bit.
++@deftypefn {Target Hook} bool TARGET_GIMPLE_FOLD_BUILTIN (gimple_stmt_iterator *@var{gsi})
++Fold a call to a machine specific built-in function that was set up
++by @samp{TARGET_INIT_BUILTINS}.  @var{gsi} points to the gimple
++statement holding the function call.  Returns true if any change
++was made to the GIMPLE stream.
 +@end deftypefn
 +
- @deftypefn {Built-in Function} int64_t __builtin_bswap64 (int64_t x)
- Similar to @code{__builtin_bswap32}, except the argument and return types
- are 64-bit.
-@@ -13468,7 +13473,6 @@
- double __builtin_recipdiv (double, double);
- double __builtin_rsqrt (double);
- long __builtin_bpermd (long, long);
--int __builtin_bswap16 (int);
- @end smallexample
+ @deftypefn {Target Hook} int TARGET_COMPARE_VERSION_PRIORITY (tree @var{decl1}, tree @var{decl2})
+ This hook is used to compare the target attributes in two functions to
+ determine which function's features get higher priority.  This is used
+--- a/src/gcc/doc/tm.texi.in
++++ b/src/gcc/doc/tm.texi.in
+@@ -10771,10 +10771,13 @@
+ @samp{TARGET_INIT_BUILTINS}.  @var{fndecl} is the declaration of the
+ built-in function.  @var{n_args} is the number of arguments passed to
+ the function; the arguments themselves are pointed to by @var{argp}.
+-The result is another tree containing a simplified expression for the
+-call's result.  If @var{ignore} is true the value will be ignored.
++The result is another tree, valid for both GIMPLE and GENERIC,
++containing a simplified expression for the call's result.  If
++@var{ignore} is true the value will be ignored.
+ @end deftypefn
  
- The @code{vec_rsqrt}, @code{__builtin_rsqrt}, and
---- a/src/gcc/doc/fragments.texi
-+++ b/src/gcc/doc/fragments.texi
-@@ -127,6 +127,29 @@
- *mthumb/*mhard-float*
- @end smallexample
- 
-+@findex MULTILIB_REQUIRED
-+@item MULTILIB_REQUIRED
-+Sometimes when there are only a few combinations are required, it would
-+be a big effort to come up with a @code{MULTILIB_EXCEPTIONS} list to
-+cover all undesired ones.  In such a case, just listing all the required
-+combinations in @code{MULTILIB_REQUIRED} would be more straightforward.
++@hook TARGET_GIMPLE_FOLD_BUILTIN
 +
-+The way to specify the entries in @code{MULTILIB_REQUIRED} is same with
-+the way used for @code{MULTILIB_EXCEPTIONS}, only this time what are
-+required will be specified.  Suppose there are multiple sets of
-+@code{MULTILIB_OPTIONS} and only two combinations are required, one
-+for ARMv7-M and one for ARMv7-R with hard floating-point ABI and FPU, the
-+@code{MULTILIB_REQUIRED} can be set to:
-+@smallexample
-+@code{MULTILIB_REQUIRED} =  mthumb/march=armv7-m
-+@code{MULTILIB_REQUIRED} += march=armv7-r/mfloat-abi=hard/mfpu=vfpv3-d16
-+@end smallexample
-+
-+The @code{MULTILIB_REQUIRED} can be used together with
-+@code{MULTILIB_EXCEPTIONS}.  The option combinations generated from
-+@code{MULTILIB_OPTIONS} will be filtered by @code{MULTILIB_EXCEPTIONS}
-+and then by @code{MULTILIB_REQUIRED}.
-+
- @findex MULTILIB_EXTRA_OPTS
- @item MULTILIB_EXTRA_OPTS
- Sometimes it is desirable that when building multiple versions of
---- a/src/gcc/doc/fsf-funding.7
-+++ b/src/gcc/doc/fsf-funding.7
-@@ -1,15 +1,7 @@
--.\" Automatically generated by Pod::Man 2.16 (Pod::Simple 3.05)
-+.\" Automatically generated by Pod::Man 2.27 (Pod::Simple 3.28)
- .\"
- .\" Standard preamble:
- .\" ========================================================================
--.de Sh \" Subsection heading
--.br
--.if t .Sp
--.ne 5
--.PP
--\fB\\$1\fR
--.PP
--..
- .de Sp \" Vertical space (when we can't use .PP)
- .if t .sp .5v
- .if n .sp
-@@ -46,6 +38,8 @@
- .    ds PI \(*p
- .    ds L" ``
- .    ds R" ''
-+.    ds C`
-+.    ds C'
- 'br\}
- .\"
- .\" Escape single quotes in literal strings from groff's Unicode transform.
-@@ -53,20 +47,27 @@
- .el       .ds Aq '
- .\"
- .\" If the F register is turned on, we'll generate index entries on stderr for
--.\" titles (.TH), headers (.SH), subsections (.Sh), items (.Ip), and index
-+.\" titles (.TH), headers (.SH), subsections (.SS), items (.Ip), and index
- .\" entries marked with X<> in POD.  Of course, you'll have to process the
- .\" output yourself in some meaningful fashion.
--.ie \nF \{\
--.    de IX
--.    tm Index:\\$1\t\\n%\t"\\$2"
--..
--.    nr % 0
--.    rr F
--.\}
--.el \{\
--.    de IX
-+.\"
-+.\" Avoid warning from groff about undefined register 'F'.
-+.de IX
- ..
-+.nr rF 0
-+.if \n(.g .if rF .nr rF 1
-+.if (\n(rF:(\n(.g==0)) \{
-+.    if \nF \{
-+.        de IX
-+.        tm Index:\\$1\t\\n%\t"\\$2"
-+..
-+.        if !\nF==2 \{
-+.            nr % 0
-+.            nr F 2
-+.        \}
-+.    \}
- .\}
-+.rr rF
- .\"
- .\" Accent mark definitions (@(#)ms.acc 1.5 88/02/08 SMI; from UCB 4.2).
- .\" Fear.  Run.  Save yourself.  No user-serviceable parts.
-@@ -141,7 +142,7 @@
- fsf\-funding \- Funding Free Software
- .SH "DESCRIPTION"
- .IX Header "DESCRIPTION"
--.Sh "Funding Free Software"
-+.SS "Funding Free Software"
- .IX Subsection "Funding Free Software"
- If you want to have more free software a few years from now, it makes
- sense for you to help encourage people to contribute funds for its
---- a/src/gcc/doc/gfdl.7
-+++ b/src/gcc/doc/gfdl.7
-@@ -1,645 +1 @@
--.\" Automatically generated by Pod::Man 2.16 (Pod::Simple 3.05)
--.\"
--.\" Standard preamble:
--.\" ========================================================================
--.de Sh \" Subsection heading
--.br
--.if t .Sp
--.ne 5
--.PP
--\fB\\$1\fR
--.PP
--..
--.de Sp \" Vertical space (when we can't use .PP)
--.if t .sp .5v
--.if n .sp
--..
--.de Vb \" Begin verbatim text
--.ft CW
--.nf
--.ne \\$1
--..
--.de Ve \" End verbatim text
--.ft R
--.fi
--..
--.\" Set up some character translations and predefined strings.  \*(-- will
--.\" give an unbreakable dash, \*(PI will give pi, \*(L" will give a left
--.\" double quote, and \*(R" will give a right double quote.  \*(C+ will
--.\" give a nicer C++.  Capital omega is used to do unbreakable dashes and
--.\" therefore won't be available.  \*(C` and \*(C' expand to `' in nroff,
--.\" nothing in troff, for use with C<>.
--.tr \(*W-
--.ds C+ C\v'-.1v'\h'-1p'\s-2+\h'-1p'+\s0\v'.1v'\h'-1p'
--.ie n \{\
--.    ds -- \(*W-
--.    ds PI pi
--.    if (\n(.H=4u)&(1m=24u) .ds -- \(*W\h'-12u'\(*W\h'-12u'-\" diablo 10 pitch
--.    if (\n(.H=4u)&(1m=20u) .ds -- \(*W\h'-12u'\(*W\h'-8u'-\"  diablo 12 pitch
--.    ds L" ""
--.    ds R" ""
--.    ds C` ""
--.    ds C' ""
--'br\}
--.el\{\
--.    ds -- \|\(em\|
--.    ds PI \(*p
--.    ds L" ``
--.    ds R" ''
--'br\}
--.\"
--.\" Escape single quotes in literal strings from groff's Unicode transform.
--.ie \n(.g .ds Aq \(aq
--.el       .ds Aq '
--.\"
--.\" If the F register is turned on, we'll generate index entries on stderr for
--.\" titles (.TH), headers (.SH), subsections (.Sh), items (.Ip), and index
--.\" entries marked with X<> in POD.  Of course, you'll have to process the
--.\" output yourself in some meaningful fashion.
--.ie \nF \{\
--.    de IX
--.    tm Index:\\$1\t\\n%\t"\\$2"
--..
--.    nr % 0
--.    rr F
--.\}
--.el \{\
--.    de IX
--..
--.\}
--.\"
--.\" Accent mark definitions (@(#)ms.acc 1.5 88/02/08 SMI; from UCB 4.2).
--.\" Fear.  Run.  Save yourself.  No user-serviceable parts.
--.    \" fudge factors for nroff and troff
--.if n \{\
--.    ds #H 0
--.    ds #V .8m
--.    ds #F .3m
--.    ds #[ \f1
--.    ds #] \fP
--.\}
--.if t \{\
--.    ds #H ((1u-(\\\\n(.fu%2u))*.13m)
--.    ds #V .6m
--.    ds #F 0
--.    ds #[ \&
--.    ds #] \&
--.\}
--.    \" simple accents for nroff and troff
--.if n \{\
--.    ds ' \&
--.    ds ` \&
--.    ds ^ \&
--.    ds , \&
--.    ds ~ ~
--.    ds /
--.\}
--.if t \{\
--.    ds ' \\k:\h'-(\\n(.wu*8/10-\*(#H)'\'\h"|\\n:u"
--.    ds ` \\k:\h'-(\\n(.wu*8/10-\*(#H)'\`\h'|\\n:u'
--.    ds ^ \\k:\h'-(\\n(.wu*10/11-\*(#H)'^\h'|\\n:u'
--.    ds , \\k:\h'-(\\n(.wu*8/10)',\h'|\\n:u'
--.    ds ~ \\k:\h'-(\\n(.wu-\*(#H-.1m)'~\h'|\\n:u'
--.    ds / \\k:\h'-(\\n(.wu*8/10-\*(#H)'\z\(sl\h'|\\n:u'
--.\}
--.    \" troff and (daisy-wheel) nroff accents
--.ds : \\k:\h'-(\\n(.wu*8/10-\*(#H+.1m+\*(#F)'\v'-\*(#V'\z.\h'.2m+\*(#F'.\h'|\\n:u'\v'\*(#V'
--.ds 8 \h'\*(#H'\(*b\h'-\*(#H'
--.ds o \\k:\h'-(\\n(.wu+\w'\(de'u-\*(#H)/2u'\v'-.3n'\*(#[\z\(de\v'.3n'\h'|\\n:u'\*(#]
--.ds d- \h'\*(#H'\(pd\h'-\w'~'u'\v'-.25m'\f2\(hy\fP\v'.25m'\h'-\*(#H'
--.ds D- D\\k:\h'-\w'D'u'\v'-.11m'\z\(hy\v'.11m'\h'|\\n:u'
--.ds th \*(#[\v'.3m'\s+1I\s-1\v'-.3m'\h'-(\w'I'u*2/3)'\s-1o\s+1\*(#]
--.ds Th \*(#[\s+2I\s-2\h'-\w'I'u*3/5'\v'-.3m'o\v'.3m'\*(#]
--.ds ae a\h'-(\w'a'u*4/10)'e
--.ds Ae A\h'-(\w'A'u*4/10)'E
--.    \" corrections for vroff
--.if v .ds ~ \\k:\h'-(\\n(.wu*9/10-\*(#H)'\s-2\u~\d\s+2\h'|\\n:u'
--.if v .ds ^ \\k:\h'-(\\n(.wu*10/11-\*(#H)'\v'-.4m'^\v'.4m'\h'|\\n:u'
--.    \" for low resolution devices (crt and lpr)
--.if \n(.H>23 .if \n(.V>19 \
--\{\
--.    ds : e
--.    ds 8 ss
--.    ds o a
--.    ds d- d\h'-1'\(ga
--.    ds D- D\h'-1'\(hy
--.    ds th \o'bp'
--.    ds Th \o'LP'
--.    ds ae ae
--.    ds Ae AE
--.\}
--.rm #[ #] #H #V #F C
--.\" ========================================================================
--.\"
--.IX Title "GFDL 7"
--.TH GFDL 7 "2014-06-12" "gcc-4.7.4" "GNU"
--.\" For nroff, turn off justification.  Always turn off hyphenation; it makes
--.\" way too many mistakes in technical documents.
--.if n .ad l
--.nh
--.SH "NAME"
--gfdl \- GNU Free Documentation License
--.SH "DESCRIPTION"
--.IX Header "DESCRIPTION"
--.Sh "\s-1GNU\s0 Free Documentation License"
--.IX Subsection "GNU Free Documentation License"
--.Sh "Version 1.3, 3 November 2008"
--.IX Subsection "Version 1.3, 3 November 2008"
--.Vb 2
--\&        Copyright (c) 2000, 2001, 2002, 2007, 2008 Free Software Foundation, Inc.
--\&        E<lt>B<http://fsf.org/>E<gt>
--\&        
--\&        Everyone is permitted to copy and distribute verbatim copies
--\&        of this license document, but changing it is not allowed.
--.Ve
--.IP "0." 4
--.IX Item "0."
--\&\s-1PREAMBLE\s0
--.Sp
--The purpose of this License is to make a manual, textbook, or other
--functional and useful document \fIfree\fR in the sense of freedom: to
--assure everyone the effective freedom to copy and redistribute it,
--with or without modifying it, either commercially or noncommercially.
--Secondarily, this License preserves for the author and publisher a way
--to get credit for their work, while not being considered responsible
--for modifications made by others.
--.Sp
--This License is a kind of \*(L"copyleft\*(R", which means that derivative
--works of the document must themselves be free in the same sense.  It
--complements the \s-1GNU\s0 General Public License, which is a copyleft
--license designed for free software.
--.Sp
--We have designed this License in order to use it for manuals for free
--software, because free software needs free documentation: a free
--program should come with manuals providing the same freedoms that the
--software does.  But this License is not limited to software manuals;
--it can be used for any textual work, regardless of subject matter or
--whether it is published as a printed book.  We recommend this License
--principally for works whose purpose is instruction or reference.
--.IP "1." 4
--.IX Item "1."
--\&\s-1APPLICABILITY\s0 \s-1AND\s0 \s-1DEFINITIONS\s0
--.Sp
--This License applies to any manual or other work, in any medium, that
--contains a notice placed by the copyright holder saying it can be
--distributed under the terms of this License.  Such a notice grants a
--world-wide, royalty-free license, unlimited in duration, to use that
--work under the conditions stated herein.  The \*(L"Document\*(R", below,
--refers to any such manual or work.  Any member of the public is a
--licensee, and is addressed as \*(L"you\*(R".  You accept the license if you
--copy, modify or distribute the work in a way requiring permission
--under copyright law.
--.Sp
--A \*(L"Modified Version\*(R" of the Document means any work containing the
--Document or a portion of it, either copied verbatim, or with
--modifications and/or translated into another language.
--.Sp
--A \*(L"Secondary Section\*(R" is a named appendix or a front-matter section
--of the Document that deals exclusively with the relationship of the
--publishers or authors of the Document to the Document's overall
--subject (or to related matters) and contains nothing that could fall
--directly within that overall subject.  (Thus, if the Document is in
--part a textbook of mathematics, a Secondary Section may not explain
--any mathematics.)  The relationship could be a matter of historical
--connection with the subject or with related matters, or of legal,
--commercial, philosophical, ethical or political position regarding
--them.
--.Sp
--The \*(L"Invariant Sections\*(R" are certain Secondary Sections whose titles
--are designated, as being those of Invariant Sections, in the notice
--that says that the Document is released under this License.  If a
--section does not fit the above definition of Secondary then it is not
--allowed to be designated as Invariant.  The Document may contain zero
--Invariant Sections.  If the Document does not identify any Invariant
--Sections then there are none.
--.Sp
--The \*(L"Cover Texts\*(R" are certain short passages of text that are listed,
--as Front-Cover Texts or Back-Cover Texts, in the notice that says that
--the Document is released under this License.  A Front-Cover Text may
--be at most 5 words, and a Back-Cover Text may be at most 25 words.
--.Sp
--A \*(L"Transparent\*(R" copy of the Document means a machine-readable copy,
--represented in a format whose specification is available to the
--general public, that is suitable for revising the document
--straightforwardly with generic text editors or (for images composed of
--pixels) generic paint programs or (for drawings) some widely available
--drawing editor, and that is suitable for input to text formatters or
--for automatic translation to a variety of formats suitable for input
--to text formatters.  A copy made in an otherwise Transparent file
--format whose markup, or absence of markup, has been arranged to thwart
--or discourage subsequent modification by readers is not Transparent.
--An image format is not Transparent if used for any substantial amount
--of text.  A copy that is not \*(L"Transparent\*(R" is called \*(L"Opaque\*(R".
--.Sp
--Examples of suitable formats for Transparent copies include plain
--\&\s-1ASCII\s0 without markup, Texinfo input format, LaTeX input
--format, \s-1SGML\s0 or \s-1XML\s0 using a publicly available
--\&\s-1DTD\s0, and standard-conforming simple \s-1HTML\s0,
--PostScript or \s-1PDF\s0 designed for human modification.  Examples
--of transparent image formats include \s-1PNG\s0, \s-1XCF\s0 and
--\&\s-1JPG\s0.  Opaque formats include proprietary formats that can be
--read and edited only by proprietary word processors, \s-1SGML\s0 or
--\&\s-1XML\s0 for which the \s-1DTD\s0 and/or processing tools are
--not generally available, and the machine-generated \s-1HTML\s0,
--PostScript or \s-1PDF\s0 produced by some word processors for
--output purposes only.
--.Sp
--The \*(L"Title Page\*(R" means, for a printed book, the title page itself,
--plus such following pages as are needed to hold, legibly, the material
--this License requires to appear in the title page.  For works in
--formats which do not have any title page as such, \*(L"Title Page\*(R" means
--the text near the most prominent appearance of the work's title,
--preceding the beginning of the body of the text.
--.Sp
--The \*(L"publisher\*(R" means any person or entity that distributes copies
--of the Document to the public.
--.Sp
--A section \*(L"Entitled \s-1XYZ\s0\*(R" means a named subunit of the Document whose
--title either is precisely \s-1XYZ\s0 or contains \s-1XYZ\s0 in parentheses following
--text that translates \s-1XYZ\s0 in another language.  (Here \s-1XYZ\s0 stands for a
--specific section name mentioned below, such as \*(L"Acknowledgements\*(R",
--\&\*(L"Dedications\*(R", \*(L"Endorsements\*(R", or \*(L"History\*(R".)  To \*(L"Preserve the Title\*(R"
--of such a section when you modify the Document means that it remains a
--section \*(L"Entitled \s-1XYZ\s0\*(R" according to this definition.
--.Sp
--The Document may include Warranty Disclaimers next to the notice which
--states that this License applies to the Document.  These Warranty
--Disclaimers are considered to be included by reference in this
--License, but only as regards disclaiming warranties: any other
--implication that these Warranty Disclaimers may have is void and has
--no effect on the meaning of this License.
--.IP "2." 4
--.IX Item "2."
--\&\s-1VERBATIM\s0 \s-1COPYING\s0
--.Sp
--You may copy and distribute the Document in any medium, either
--commercially or noncommercially, provided that this License, the
--copyright notices, and the license notice saying this License applies
--to the Document are reproduced in all copies, and that you add no other
--conditions whatsoever to those of this License.  You may not use
--technical measures to obstruct or control the reading or further
--copying of the copies you make or distribute.  However, you may accept
--compensation in exchange for copies.  If you distribute a large enough
--number of copies you must also follow the conditions in section 3.
--.Sp
--You may also lend copies, under the same conditions stated above, and
--you may publicly display copies.
--.IP "3." 4
--.IX Item "3."
--\&\s-1COPYING\s0 \s-1IN\s0 \s-1QUANTITY\s0
--.Sp
--If you publish printed copies (or copies in media that commonly have
--printed covers) of the Document, numbering more than 100, and the
--Document's license notice requires Cover Texts, you must enclose the
--copies in covers that carry, clearly and legibly, all these Cover
--Texts: Front-Cover Texts on the front cover, and Back-Cover Texts on
--the back cover.  Both covers must also clearly and legibly identify
--you as the publisher of these copies.  The front cover must present
--the full title with all words of the title equally prominent and
--visible.  You may add other material on the covers in addition.
--Copying with changes limited to the covers, as long as they preserve
--the title of the Document and satisfy these conditions, can be treated
--as verbatim copying in other respects.
--.Sp
--If the required texts for either cover are too voluminous to fit
--legibly, you should put the first ones listed (as many as fit
--reasonably) on the actual cover, and continue the rest onto adjacent
--pages.
--.Sp
--If you publish or distribute Opaque copies of the Document numbering
--more than 100, you must either include a machine-readable Transparent
--copy along with each Opaque copy, or state in or with each Opaque copy
--a computer-network location from which the general network-using
--public has access to download using public-standard network protocols
--a complete Transparent copy of the Document, free of added material.
--If you use the latter option, you must take reasonably prudent steps,
--when you begin distribution of Opaque copies in quantity, to ensure
--that this Transparent copy will remain thus accessible at the stated
--location until at least one year after the last time you distribute an
--Opaque copy (directly or through your agents or retailers) of that
--edition to the public.
--.Sp
--It is requested, but not required, that you contact the authors of the
--Document well before redistributing any large number of copies, to give
--them a chance to provide you with an updated version of the Document.
--.IP "4." 4
--.IX Item "4."
--\&\s-1MODIFICATIONS\s0
--.Sp
--You may copy and distribute a Modified Version of the Document under
--the conditions of sections 2 and 3 above, provided that you release
--the Modified Version under precisely this License, with the Modified
--Version filling the role of the Document, thus licensing distribution
--and modification of the Modified Version to whoever possesses a copy
--of it.  In addition, you must do these things in the Modified Version:
--.RS 4
--.IP "A." 4
--.IX Item "A."
--Use in the Title Page (and on the covers, if any) a title distinct
--from that of the Document, and from those of previous versions
--(which should, if there were any, be listed in the History section
--of the Document).  You may use the same title as a previous version
--if the original publisher of that version gives permission.
--.IP "B." 4
--.IX Item "B."
--List on the Title Page, as authors, one or more persons or entities
--responsible for authorship of the modifications in the Modified
--Version, together with at least five of the principal authors of the
--Document (all of its principal authors, if it has fewer than five),
--unless they release you from this requirement.
--.IP "C." 4
--.IX Item "C."
--State on the Title page the name of the publisher of the
--Modified Version, as the publisher.
--.IP "D." 4
--.IX Item "D."
--Preserve all the copyright notices of the Document.
--.IP "E." 4
--.IX Item "E."
--Add an appropriate copyright notice for your modifications
--adjacent to the other copyright notices.
--.IP "F." 4
--.IX Item "F."
--Include, immediately after the copyright notices, a license notice
--giving the public permission to use the Modified Version under the
--terms of this License, in the form shown in the Addendum below.
--.IP "G." 4
--.IX Item "G."
--Preserve in that license notice the full lists of Invariant Sections
--and required Cover Texts given in the Document's license notice.
--.IP "H." 4
--.IX Item "H."
--Include an unaltered copy of this License.
--.IP "I." 4
--.IX Item "I."
--Preserve the section Entitled \*(L"History\*(R", Preserve its Title, and add
--to it an item stating at least the title, year, new authors, and
--publisher of the Modified Version as given on the Title Page.  If
--there is no section Entitled \*(L"History\*(R" in the Document, create one
--stating the title, year, authors, and publisher of the Document as
--given on its Title Page, then add an item describing the Modified
--Version as stated in the previous sentence.
--.IP "J." 4
--.IX Item "J."
--Preserve the network location, if any, given in the Document for
--public access to a Transparent copy of the Document, and likewise
--the network locations given in the Document for previous versions
--it was based on.  These may be placed in the \*(L"History\*(R" section.
--You may omit a network location for a work that was published at
--least four years before the Document itself, or if the original
--publisher of the version it refers to gives permission.
--.IP "K." 4
--.IX Item "K."
--For any section Entitled \*(L"Acknowledgements\*(R" or \*(L"Dedications\*(R", Preserve
--the Title of the section, and preserve in the section all the
--substance and tone of each of the contributor acknowledgements and/or
--dedications given therein.
--.IP "L." 4
--.IX Item "L."
--Preserve all the Invariant Sections of the Document,
--unaltered in their text and in their titles.  Section numbers
--or the equivalent are not considered part of the section titles.
--.IP "M." 4
--.IX Item "M."
--Delete any section Entitled \*(L"Endorsements\*(R".  Such a section
--may not be included in the Modified Version.
--.IP "N." 4
--.IX Item "N."
--Do not retitle any existing section to be Entitled \*(L"Endorsements\*(R" or
--to conflict in title with any Invariant Section.
--.IP "O." 4
--.IX Item "O."
--Preserve any Warranty Disclaimers.
--.RE
--.RS 4
--.Sp
--If the Modified Version includes new front-matter sections or
--appendices that qualify as Secondary Sections and contain no material
--copied from the Document, you may at your option designate some or all
--of these sections as invariant.  To do this, add their titles to the
--list of Invariant Sections in the Modified Version's license notice.
--These titles must be distinct from any other section titles.
--.Sp
--You may add a section Entitled \*(L"Endorsements\*(R", provided it contains
--nothing but endorsements of your Modified Version by various
--parties\-\-\-for example, statements of peer review or that the text has
--been approved by an organization as the authoritative definition of a
--standard.
--.Sp
--You may add a passage of up to five words as a Front-Cover Text, and a
--passage of up to 25 words as a Back-Cover Text, to the end of the list
--of Cover Texts in the Modified Version.  Only one passage of
--Front-Cover Text and one of Back-Cover Text may be added by (or
--through arrangements made by) any one entity.  If the Document already
--includes a cover text for the same cover, previously added by you or
--by arrangement made by the same entity you are acting on behalf of,
--you may not add another; but you may replace the old one, on explicit
--permission from the previous publisher that added the old one.
--.Sp
--The author(s) and publisher(s) of the Document do not by this License
--give permission to use their names for publicity for or to assert or
--imply endorsement of any Modified Version.
--.RE
--.IP "5." 4
--.IX Item "5."
--\&\s-1COMBINING\s0 \s-1DOCUMENTS\s0
--.Sp
--You may combine the Document with other documents released under this
--License, under the terms defined in section 4 above for modified
--versions, provided that you include in the combination all of the
--Invariant Sections of all of the original documents, unmodified, and
--list them all as Invariant Sections of your combined work in its
--license notice, and that you preserve all their Warranty Disclaimers.
--.Sp
--The combined work need only contain one copy of this License, and
--multiple identical Invariant Sections may be replaced with a single
--copy.  If there are multiple Invariant Sections with the same name but
--different contents, make the title of each such section unique by
--adding at the end of it, in parentheses, the name of the original
--author or publisher of that section if known, or else a unique number.
--Make the same adjustment to the section titles in the list of
--Invariant Sections in the license notice of the combined work.
--.Sp
--In the combination, you must combine any sections Entitled \*(L"History\*(R"
--in the various original documents, forming one section Entitled
--\&\*(L"History\*(R"; likewise combine any sections Entitled \*(L"Acknowledgements\*(R",
--and any sections Entitled \*(L"Dedications\*(R".  You must delete all
--sections Entitled \*(L"Endorsements.\*(R"
--.IP "6." 4
--.IX Item "6."
--\&\s-1COLLECTIONS\s0 \s-1OF\s0 \s-1DOCUMENTS\s0
--.Sp
--You may make a collection consisting of the Document and other documents
--released under this License, and replace the individual copies of this
--License in the various documents with a single copy that is included in
--the collection, provided that you follow the rules of this License for
--verbatim copying of each of the documents in all other respects.
--.Sp
--You may extract a single document from such a collection, and distribute
--it individually under this License, provided you insert a copy of this
--License into the extracted document, and follow this License in all
--other respects regarding verbatim copying of that document.
--.IP "7." 4
--.IX Item "7."
--\&\s-1AGGREGATION\s0 \s-1WITH\s0 \s-1INDEPENDENT\s0 \s-1WORKS\s0
--.Sp
--A compilation of the Document or its derivatives with other separate
--and independent documents or works, in or on a volume of a storage or
--distribution medium, is called an \*(L"aggregate\*(R" if the copyright
--resulting from the compilation is not used to limit the legal rights
--of the compilation's users beyond what the individual works permit.
--When the Document is included in an aggregate, this License does not
--apply to the other works in the aggregate which are not themselves
--derivative works of the Document.
--.Sp
--If the Cover Text requirement of section 3 is applicable to these
--copies of the Document, then if the Document is less than one half of
--the entire aggregate, the Document's Cover Texts may be placed on
--covers that bracket the Document within the aggregate, or the
--electronic equivalent of covers if the Document is in electronic form.
--Otherwise they must appear on printed covers that bracket the whole
--aggregate.
--.IP "8." 4
--.IX Item "8."
--\&\s-1TRANSLATION\s0
--.Sp
--Translation is considered a kind of modification, so you may
--distribute translations of the Document under the terms of section 4.
--Replacing Invariant Sections with translations requires special
--permission from their copyright holders, but you may include
--translations of some or all Invariant Sections in addition to the
--original versions of these Invariant Sections.  You may include a
--translation of this License, and all the license notices in the
--Document, and any Warranty Disclaimers, provided that you also include
--the original English version of this License and the original versions
--of those notices and disclaimers.  In case of a disagreement between
--the translation and the original version of this License or a notice
--or disclaimer, the original version will prevail.
--.Sp
--If a section in the Document is Entitled \*(L"Acknowledgements\*(R",
--\&\*(L"Dedications\*(R", or \*(L"History\*(R", the requirement (section 4) to Preserve
--its Title (section 1) will typically require changing the actual
--title.
--.IP "9." 4
--.IX Item "9."
--\&\s-1TERMINATION\s0
--.Sp
--You may not copy, modify, sublicense, or distribute the Document
--except as expressly provided under this License.  Any attempt
--otherwise to copy, modify, sublicense, or distribute it is void, and
--will automatically terminate your rights under this License.
--.Sp
--However, if you cease all violation of this License, then your license
--from a particular copyright holder is reinstated (a) provisionally,
--unless and until the copyright holder explicitly and finally
--terminates your license, and (b) permanently, if the copyright holder
--fails to notify you of the violation by some reasonable means prior to
--60 days after the cessation.
--.Sp
--Moreover, your license from a particular copyright holder is
--reinstated permanently if the copyright holder notifies you of the
--violation by some reasonable means, this is the first time you have
--received notice of violation of this License (for any work) from that
--copyright holder, and you cure the violation prior to 30 days after
--your receipt of the notice.
--.Sp
--Termination of your rights under this section does not terminate the
--licenses of parties who have received copies or rights from you under
--this License.  If your rights have been terminated and not permanently
--reinstated, receipt of a copy of some or all of the same material does
--not give you any rights to use it.
--.IP "10." 4
--.IX Item "10."
--\&\s-1FUTURE\s0 \s-1REVISIONS\s0 \s-1OF\s0 \s-1THIS\s0 \s-1LICENSE\s0
--.Sp
--The Free Software Foundation may publish new, revised versions
--of the \s-1GNU\s0 Free Documentation License from time to time.  Such new
--versions will be similar in spirit to the present version, but may
--differ in detail to address new problems or concerns.  See
--<\fBhttp://www.gnu.org/copyleft/\fR>.
--.Sp
--Each version of the License is given a distinguishing version number.
--If the Document specifies that a particular numbered version of this
--License \*(L"or any later version\*(R" applies to it, you have the option of
--following the terms and conditions either of that specified version or
--of any later version that has been published (not as a draft) by the
--Free Software Foundation.  If the Document does not specify a version
--number of this License, you may choose any version ever published (not
--as a draft) by the Free Software Foundation.  If the Document
--specifies that a proxy can decide which future versions of this
--License can be used, that proxy's public statement of acceptance of a
--version permanently authorizes you to choose that version for the
--Document.
--.IP "11." 4
--.IX Item "11."
--\&\s-1RELICENSING\s0
--.Sp
--\&\*(L"Massive Multiauthor Collaboration Site\*(R" (or \*(L"\s-1MMC\s0 Site\*(R") means any
--World Wide Web server that publishes copyrightable works and also
--provides prominent facilities for anybody to edit those works.  A
--public wiki that anybody can edit is an example of such a server.  A
--\&\*(L"Massive Multiauthor Collaboration\*(R" (or \*(L"\s-1MMC\s0\*(R") contained in the
--site means any set of copyrightable works thus published on the \s-1MMC\s0
--site.
--.Sp
--\&\*(L"CC-BY-SA\*(R" means the Creative Commons Attribution-Share Alike 3.0
--license published by Creative Commons Corporation, a not-for-profit
--corporation with a principal place of business in San Francisco,
--California, as well as future copyleft versions of that license
--published by that same organization.
--.Sp
--\&\*(L"Incorporate\*(R" means to publish or republish a Document, in whole or
--in part, as part of another Document.
--.Sp
--An \s-1MMC\s0 is \*(L"eligible for relicensing\*(R" if it is licensed under this
--License, and if all works that were first published under this License
--somewhere other than this \s-1MMC\s0, and subsequently incorporated in whole
--or in part into the \s-1MMC\s0, (1) had no cover texts or invariant sections,
--and (2) were thus incorporated prior to November 1, 2008.
--.Sp
--The operator of an \s-1MMC\s0 Site may republish an \s-1MMC\s0 contained in the site
--under CC-BY-SA on the same site at any time before August 1, 2009,
--provided the \s-1MMC\s0 is eligible for relicensing.
--.Sh "\s-1ADDENDUM:\s0 How to use this License for your documents"
--.IX Subsection "ADDENDUM: How to use this License for your documents"
--To use this License in a document you have written, include a copy of
--the License in the document and put the following copyright and
--license notices just after the title page:
--.PP
--.Vb 7
--\&          Copyright (C)  <year>  <your name>.
--\&          Permission is granted to copy, distribute and/or modify this document
--\&          under the terms of the GNU Free Documentation License, Version 1.3
--\&          or any later version published by the Free Software Foundation;
--\&          with no Invariant Sections, no Front\-Cover Texts, and no Back\-Cover
--\&          Texts.  A copy of the license is included in the section entitled "GNU
--\&          Free Documentation License".
--.Ve
--.PP
--If you have Invariant Sections, Front-Cover Texts and Back-Cover Texts,
--replace the \*(L"with...Texts.\*(R" line with this:
--.PP
--.Vb 3
--\&            with the Invariant Sections being <list their titles>, with
--\&            the Front\-Cover Texts being <list>, and with the Back\-Cover Texts
--\&            being <list>.
--.Ve
--.PP
--If you have Invariant Sections without Cover Texts, or some other
--combination of the three, merge those two alternatives to suit the
--situation.
--.PP
--If your document contains nontrivial examples of program code, we
--recommend releasing these examples in parallel under your choice of
--free software license, such as the \s-1GNU\s0 General Public License,
--to permit their use in free software.
--.SH "SEE ALSO"
--.IX Header "SEE ALSO"
--\&\fIgpl\fR\|(7), \fIfsf\-funding\fR\|(7).
--.SH "COPYRIGHT"
--.IX Header "COPYRIGHT"
--Copyright (c) 2000, 2001, 2002, 2007, 2008 Free Software Foundation, Inc.
--<\fBhttp://fsf.org/\fR>
--.PP
--Everyone is permitted to copy and distribute verbatim copies
--of this license document, but changing it is not allowed.
-+timestamp
---- a/src/gcc/doc/gpl.7
-+++ b/src/gcc/doc/gpl.7
-@@ -1,15 +1,7 @@
--.\" Automatically generated by Pod::Man 2.16 (Pod::Simple 3.05)
-+.\" Automatically generated by Pod::Man 2.27 (Pod::Simple 3.28)
- .\"
- .\" Standard preamble:
- .\" ========================================================================
--.de Sh \" Subsection heading
--.br
--.if t .Sp
--.ne 5
--.PP
--\fB\\$1\fR
--.PP
--..
- .de Sp \" Vertical space (when we can't use .PP)
- .if t .sp .5v
- .if n .sp
-@@ -46,6 +38,8 @@
- .    ds PI \(*p
- .    ds L" ``
- .    ds R" ''
-+.    ds C`
-+.    ds C'
- 'br\}
- .\"
- .\" Escape single quotes in literal strings from groff's Unicode transform.
-@@ -53,20 +47,27 @@
- .el       .ds Aq '
- .\"
- .\" If the F register is turned on, we'll generate index entries on stderr for
--.\" titles (.TH), headers (.SH), subsections (.Sh), items (.Ip), and index
-+.\" titles (.TH), headers (.SH), subsections (.SS), items (.Ip), and index
- .\" entries marked with X<> in POD.  Of course, you'll have to process the
- .\" output yourself in some meaningful fashion.
--.ie \nF \{\
--.    de IX
--.    tm Index:\\$1\t\\n%\t"\\$2"
-+.\"
-+.\" Avoid warning from groff about undefined register 'F'.
-+.de IX
- ..
--.    nr % 0
--.    rr F
--.\}
--.el \{\
--.    de IX
-+.nr rF 0
-+.if \n(.g .if rF .nr rF 1
-+.if (\n(rF:(\n(.g==0)) \{
-+.    if \nF \{
-+.        de IX
-+.        tm Index:\\$1\t\\n%\t"\\$2"
- ..
-+.        if !\nF==2 \{
-+.            nr % 0
-+.            nr F 2
-+.        \}
-+.    \}
- .\}
-+.rr rF
- .\"
- .\" Accent mark definitions (@(#)ms.acc 1.5 88/02/08 SMI; from UCB 4.2).
- .\" Fear.  Run.  Save yourself.  No user-serviceable parts.
-@@ -141,9 +142,9 @@
- gpl \- GNU General Public License
- .SH "DESCRIPTION"
- .IX Header "DESCRIPTION"
--.Sh "\s-1GNU\s0 General Public License"
-+.SS "\s-1GNU\s0 General Public License"
- .IX Subsection "GNU General Public License"
--.Sh "Version 3, 29 June 2007"
-+.SS "Version 3, 29 June 2007"
- .IX Subsection "Version 3, 29 June 2007"
- .Vb 1
- \&        Copyright (c) 2007 Free Software Foundation, Inc. <http://fsf.org/>
-@@ -151,7 +152,7 @@
- \&        Everyone is permitted to copy and distribute verbatim copies of this
- \&        license document, but changing it is not allowed.
- .Ve
--.Sh "Preamble"
-+.SS "Preamble"
- .IX Subsection "Preamble"
- The \s-1GNU\s0 General Public License is a free, copyleft license for
- software and other kinds of works.
-@@ -184,7 +185,7 @@
- receive or can get the source code.  And you must show them these
- terms so they know their rights.
- .PP
--Developers that use the \s-1GNU\s0 \s-1GPL\s0 protect your rights with two steps:
-+Developers that use the \s-1GNU GPL\s0 protect your rights with two steps:
- (1) assert copyright on the software, and (2) offer you this License
- giving you legal permission to copy, distribute and/or modify it.
- .PP
-@@ -203,7 +204,7 @@
- Therefore, we have designed this version of the \s-1GPL\s0 to prohibit the
- practice for those products.  If such problems arise substantially in
- other domains, we stand ready to extend this provision to those
--domains in future versions of the \s-1GPL\s0, as needed to protect the
-+domains in future versions of the \s-1GPL,\s0 as needed to protect the
- freedom of users.
- .PP
- Finally, every program is threatened constantly by software patents.
-@@ -215,7 +216,7 @@
- .PP
- The precise terms and conditions for copying, distribution and
- modification follow.
--.Sh "\s-1TERMS\s0 \s-1AND\s0 \s-1CONDITIONS\s0"
-+.SS "\s-1TERMS AND CONDITIONS\s0"
- .IX Subsection "TERMS AND CONDITIONS"
- .IP "0. Definitions." 4
- .IX Item "0. Definitions."
-@@ -750,26 +751,26 @@
- later version.
- .IP "15. Disclaimer of Warranty." 4
- .IX Item "15. Disclaimer of Warranty."
--\&\s-1THERE\s0 \s-1IS\s0 \s-1NO\s0 \s-1WARRANTY\s0 \s-1FOR\s0 \s-1THE\s0 \s-1PROGRAM\s0, \s-1TO\s0 \s-1THE\s0 \s-1EXTENT\s0 \s-1PERMITTED\s0 \s-1BY\s0
--\&\s-1APPLICABLE\s0 \s-1LAW\s0.  \s-1EXCEPT\s0 \s-1WHEN\s0 \s-1OTHERWISE\s0 \s-1STATED\s0 \s-1IN\s0 \s-1WRITING\s0 \s-1THE\s0 \s-1COPYRIGHT\s0
--\&\s-1HOLDERS\s0 \s-1AND/OR\s0 \s-1OTHER\s0 \s-1PARTIES\s0 \s-1PROVIDE\s0 \s-1THE\s0 \s-1PROGRAM\s0 \*(L"\s-1AS\s0 \s-1IS\s0\*(R" \s-1WITHOUT\s0
--\&\s-1WARRANTY\s0 \s-1OF\s0 \s-1ANY\s0 \s-1KIND\s0, \s-1EITHER\s0 \s-1EXPRESSED\s0 \s-1OR\s0 \s-1IMPLIED\s0, \s-1INCLUDING\s0, \s-1BUT\s0 \s-1NOT\s0
--\&\s-1LIMITED\s0 \s-1TO\s0, \s-1THE\s0 \s-1IMPLIED\s0 \s-1WARRANTIES\s0 \s-1OF\s0 \s-1MERCHANTABILITY\s0 \s-1AND\s0 \s-1FITNESS\s0 \s-1FOR\s0
--A \s-1PARTICULAR\s0 \s-1PURPOSE\s0.  \s-1THE\s0 \s-1ENTIRE\s0 \s-1RISK\s0 \s-1AS\s0 \s-1TO\s0 \s-1THE\s0 \s-1QUALITY\s0 \s-1AND\s0
--\&\s-1PERFORMANCE\s0 \s-1OF\s0 \s-1THE\s0 \s-1PROGRAM\s0 \s-1IS\s0 \s-1WITH\s0 \s-1YOU\s0.  \s-1SHOULD\s0 \s-1THE\s0 \s-1PROGRAM\s0 \s-1PROVE\s0
--\&\s-1DEFECTIVE\s0, \s-1YOU\s0 \s-1ASSUME\s0 \s-1THE\s0 \s-1COST\s0 \s-1OF\s0 \s-1ALL\s0 \s-1NECESSARY\s0 \s-1SERVICING\s0, \s-1REPAIR\s0 \s-1OR\s0
--\&\s-1CORRECTION\s0.
-+\&\s-1THERE IS NO WARRANTY FOR THE PROGRAM, TO THE EXTENT PERMITTED BY
-+APPLICABLE LAW.  EXCEPT WHEN OTHERWISE STATED IN WRITING THE COPYRIGHT
-+HOLDERS AND/OR OTHER PARTIES PROVIDE THE PROGRAM \*(L"AS IS\*(R" WITHOUT
-+WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT
-+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-+A PARTICULAR PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND
-+PERFORMANCE OF THE PROGRAM IS WITH YOU.  SHOULD THE PROGRAM PROVE
-+DEFECTIVE, YOU ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR
-+CORRECTION.\s0
- .IP "16. Limitation of Liability." 4
- .IX Item "16. Limitation of Liability."
--\&\s-1IN\s0 \s-1NO\s0 \s-1EVENT\s0 \s-1UNLESS\s0 \s-1REQUIRED\s0 \s-1BY\s0 \s-1APPLICABLE\s0 \s-1LAW\s0 \s-1OR\s0 \s-1AGREED\s0 \s-1TO\s0 \s-1IN\s0 \s-1WRITING\s0
--\&\s-1WILL\s0 \s-1ANY\s0 \s-1COPYRIGHT\s0 \s-1HOLDER\s0, \s-1OR\s0 \s-1ANY\s0 \s-1OTHER\s0 \s-1PARTY\s0 \s-1WHO\s0 \s-1MODIFIES\s0 \s-1AND/OR\s0
--\&\s-1CONVEYS\s0 \s-1THE\s0 \s-1PROGRAM\s0 \s-1AS\s0 \s-1PERMITTED\s0 \s-1ABOVE\s0, \s-1BE\s0 \s-1LIABLE\s0 \s-1TO\s0 \s-1YOU\s0 \s-1FOR\s0 \s-1DAMAGES\s0,
--\&\s-1INCLUDING\s0 \s-1ANY\s0 \s-1GENERAL\s0, \s-1SPECIAL\s0, \s-1INCIDENTAL\s0 \s-1OR\s0 \s-1CONSEQUENTIAL\s0 \s-1DAMAGES\s0
--\&\s-1ARISING\s0 \s-1OUT\s0 \s-1OF\s0 \s-1THE\s0 \s-1USE\s0 \s-1OR\s0 \s-1INABILITY\s0 \s-1TO\s0 \s-1USE\s0 \s-1THE\s0 \s-1PROGRAM\s0 (\s-1INCLUDING\s0 \s-1BUT\s0
--\&\s-1NOT\s0 \s-1LIMITED\s0 \s-1TO\s0 \s-1LOSS\s0 \s-1OF\s0 \s-1DATA\s0 \s-1OR\s0 \s-1DATA\s0 \s-1BEING\s0 \s-1RENDERED\s0 \s-1INACCURATE\s0 \s-1OR\s0
--\&\s-1LOSSES\s0 \s-1SUSTAINED\s0 \s-1BY\s0 \s-1YOU\s0 \s-1OR\s0 \s-1THIRD\s0 \s-1PARTIES\s0 \s-1OR\s0 A \s-1FAILURE\s0 \s-1OF\s0 \s-1THE\s0 \s-1PROGRAM\s0
--\&\s-1TO\s0 \s-1OPERATE\s0 \s-1WITH\s0 \s-1ANY\s0 \s-1OTHER\s0 \s-1PROGRAMS\s0), \s-1EVEN\s0 \s-1IF\s0 \s-1SUCH\s0 \s-1HOLDER\s0 \s-1OR\s0 \s-1OTHER\s0
--\&\s-1PARTY\s0 \s-1HAS\s0 \s-1BEEN\s0 \s-1ADVISED\s0 \s-1OF\s0 \s-1THE\s0 \s-1POSSIBILITY\s0 \s-1OF\s0 \s-1SUCH\s0 \s-1DAMAGES\s0.
-+\&\s-1IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
-+WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MODIFIES AND/OR
-+CONVEYS THE PROGRAM AS PERMITTED ABOVE, BE LIABLE TO YOU FOR DAMAGES,
-+INCLUDING ANY GENERAL, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES
-+ARISING OUT OF THE USE OR INABILITY TO USE THE PROGRAM \s0(\s-1INCLUDING BUT
-+NOT LIMITED TO LOSS OF DATA OR DATA BEING RENDERED INACCURATE OR
-+LOSSES SUSTAINED BY YOU OR THIRD PARTIES OR A FAILURE OF THE PROGRAM
-+TO OPERATE WITH ANY OTHER PROGRAMS\s0), \s-1EVEN IF SUCH HOLDER OR OTHER
-+PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.\s0
- .IP "17. Interpretation of Sections 15 and 16." 4
- .IX Item "17. Interpretation of Sections 15 and 16."
- If the disclaimer of warranty and limitation of liability provided
-@@ -778,9 +779,9 @@
- an absolute waiver of all civil liability in connection with the
- Program, unless a warranty or assumption of liability accompanies a
- copy of the Program in return for a fee.
--.Sh "\s-1END\s0 \s-1OF\s0 \s-1TERMS\s0 \s-1AND\s0 \s-1CONDITIONS\s0"
-+.SS "\s-1END OF TERMS AND CONDITIONS\s0"
- .IX Subsection "END OF TERMS AND CONDITIONS"
--.Sh "How to Apply These Terms to Your New Programs"
-+.SS "How to Apply These Terms to Your New Programs"
- .IX Subsection "How to Apply These Terms to Your New Programs"
- If you develop a new program, and you want it to be of the greatest
- possible use to the public, the best way to achieve this is to make it
-@@ -829,7 +830,7 @@
- .PP
- You should also get your employer (if you work as a programmer) or school,
- if any, to sign a \*(L"copyright disclaimer\*(R" for the program, if necessary.
--For more information on this, and how to apply and follow the \s-1GNU\s0 \s-1GPL\s0, see
-+For more information on this, and how to apply and follow the \s-1GNU GPL,\s0 see
- <\fBhttp://www.gnu.org/licenses/\fR>.
- .PP
- The \s-1GNU\s0 General Public License does not permit incorporating your
---- a/src/gcc/doc/install.texi
-+++ b/src/gcc/doc/install.texi
-@@ -1047,6 +1047,15 @@
- conventions, etc.@: should not be built.  The default is to build a
- predefined set of them.
- 
-+@item --enable-multiarch
-+Specify whether to enable or disable multiarch support.  The default is
-+to check for glibc start files in a multiarch location, and enable it
-+if the files are found.  The auto detection is enabled for native builds,
-+and for cross builds configured with @option{--with-sysroot}, and without
-+@option{--with-native-system-header-dir}.
-+More documentation about multiarch can be found at
-+@uref{http://wiki.debian.org/Multiarch}.
-+
- Some targets provide finer-grained control over which multilibs are built
- (e.g., @option{--disable-softfloat}):
- @table @code
+ @hook TARGET_COMPARE_VERSION_PRIORITY
+ This hook is used to compare the target attributes in two functions to
+ determine which function's features get higher priority.  This is used
 --- a/src/gcc/doc/invoke.texi
 +++ b/src/gcc/doc/invoke.texi
-@@ -403,13 +403,15 @@
- -fsplit-ivs-in-unroller -fsplit-wide-types -fstack-protector @gol
- -fstack-protector-all -fstrict-aliasing -fstrict-overflow @gol
- -fthread-jumps -ftracer -ftree-bit-ccp @gol
---ftree-builtin-call-dce -ftree-ccp -ftree-ch -ftree-copy-prop @gol
-+-ftree-builtin-call-dce -ftree-ccp -ftree-ch @gol
-+-ftree-coalesce-inline-vars -ftree-coalesce-vars -ftree-copy-prop @gol
- -ftree-copyrename -ftree-dce -ftree-dominator-opts -ftree-dse @gol
- -ftree-forwprop -ftree-fre -ftree-loop-if-convert @gol
- -ftree-loop-if-convert-stores -ftree-loop-im @gol
- -ftree-phiprop -ftree-loop-distribution -ftree-loop-distribute-patterns @gol
- -ftree-loop-ivcanon -ftree-loop-linear -ftree-loop-optimize @gol
---ftree-parallelize-loops=@var{n} -ftree-pre -ftree-pta -ftree-reassoc @gol
-+-ftree-parallelize-loops=@var{n} -ftree-pre -ftree-partial-pre -ftree-pta @gol
-+-ftree-reassoc @gol
- -ftree-sink -ftree-sra -ftree-switch-conversion -ftree-tail-merge @gol
- -ftree-ter -ftree-vect-loop-version -ftree-vectorize -ftree-vrp @gol
+@@ -418,7 +418,7 @@
+ -ftree-parallelize-loops=@var{n} -ftree-pre -ftree-partial-pre -ftree-pta @gol
+ -ftree-reassoc -ftree-sink -ftree-slsr -ftree-sra @gol
+ -ftree-switch-conversion -ftree-tail-merge @gol
+--ftree-ter -ftree-vect-loop-version -ftree-vectorize -ftree-vrp @gol
++-ftree-ter -ftree-vectorize -ftree-vrp @gol
  -funit-at-a-time -funroll-all-loops -funroll-loops @gol
-@@ -460,6 +462,15 @@
- @c Try and put the significant identifier (CPU or system) first,
- @c so users have a clue at guessing where the ones they want will be.
- 
-+@emph{AArch64 Options}
-+@gccoptlist{-mbig-endian  -mlittle-endian @gol
-+-mgeneral-regs-only @gol
-+-mcmodel=tiny  -mcmodel=small  -mcmodel=large @gol
-+-mstrict-align @gol
-+-momit-leaf-frame-pointer  -mno-omit-leaf-frame-pointer @gol
-+-mtls-dialect=desc  -mtls-dialect=traditional @gol
-+-march=@var{name}  -mcpu=@var{name}  -mtune=@var{name}}
-+
- @emph{Adapteva Epiphany Options}
- @gccoptlist{-mhalf-reg-file -mprefer-short-insn-regs @gol
- -mbranch-cost=@var{num} -mcmove -mnops=@var{num} -msoft-cmpsf @gol
-@@ -494,7 +505,8 @@
+ -funsafe-loop-optimizations -funsafe-math-optimizations -funswitch-loops @gol
+ -fvariable-expansion-in-unroller -fvect-cost-model -fvpt -fweb @gol
+@@ -511,7 +511,9 @@
  -mtp=@var{name} -mtls-dialect=@var{dialect} @gol
  -mword-relocations @gol
  -mfix-cortex-m3-ldrd @gol
 --munaligned-access}
 +-munaligned-access @gol
-+-mneon-for-64bits}
++-mneon-for-64bits @gol
++-mrestrict-it}
  
  @emph{AVR Options}
  @gccoptlist{-mmcu=@var{mcu} -maccumulate-args -mbranch-cost=@var{cost} @gol
-@@ -6239,8 +6251,8 @@
- Optimize yet more.  @option{-O3} turns on all optimizations specified
- by @option{-O2} and also turns on the @option{-finline-functions},
- @option{-funswitch-loops}, @option{-fpredictive-commoning},
--@option{-fgcse-after-reload}, @option{-ftree-vectorize} and
--@option{-fipa-cp-clone} options.
-+@option{-fgcse-after-reload}, @option{-ftree-vectorize},
-+@option{-ftree-partial-pre} and @option{-fipa-cp-clone} options.
+@@ -6606,7 +6608,7 @@
+ @option{-Os} disables the following optimization flags:
+ @gccoptlist{-falign-functions  -falign-jumps  -falign-loops @gol
+ -falign-labels  -freorder-blocks  -freorder-blocks-and-partition @gol
+--fprefetch-loop-arrays  -ftree-vect-loop-version}
++-fprefetch-loop-arrays}
  
- @item -O0
- @opindex O0
-@@ -7035,6 +7047,11 @@
- Perform partial redundancy elimination (PRE) on trees.  This flag is
- enabled by default at @option{-O2} and @option{-O3}.
+ @item -Ofast
+ @opindex Ofast
+@@ -7847,19 +7849,20 @@
+ Perform basic block vectorization on trees. This flag is enabled by default at
+ @option{-O3} and when @option{-ftree-vectorize} is enabled.
  
-+@item -ftree-partial-pre
-+@opindex ftree-partial-pre
-+Make partial redundancy elimination (PRE) more aggressive.  This flag is
-+enabled by default at @option{-O3}.
-+
- @item -ftree-forwprop
- @opindex ftree-forwprop
- Perform forward propagation on trees.  This flag is enabled by default
-@@ -7430,6 +7447,24 @@
- variable names which more closely resemble the original variables.  This flag
- is enabled by default at @option{-O} and higher.
+-@item -ftree-vect-loop-version
+-@opindex ftree-vect-loop-version
+-Perform loop versioning when doing loop vectorization on trees.  When a loop
+-appears to be vectorizable except that data alignment or data dependence cannot
+-be determined at compile time, then vectorized and non-vectorized versions of
+-the loop are generated along with run-time checks for alignment or dependence
+-to control which version is executed.  This option is enabled by default
+-except at level @option{-Os} where it is disabled.
+-
+-@item -fvect-cost-model
++@item -fvect-cost-model=@var{model}
+ @opindex fvect-cost-model
+-Enable cost model for vectorization.  This option is enabled by default at
+-@option{-O3}.
++Alter the cost model used for vectorization.  The @var{model} argument
++should be one of @code{unlimited}, @code{dynamic} or @code{cheap}.
++With the @code{unlimited} model the vectorized code-path is assumed
++to be profitable while with the @code{dynamic} model a runtime check
++will guard the vectorized code-path to enable it only for iteration
++counts that will likely execute faster than when executing the original
++scalar loop.  The @code{cheap} model will disable vectorization of
++loops where doing so would be cost prohibitive for example due to
++required runtime checks for data dependence or alignment but otherwise
++is equal to the @code{dynamic} model.
++The default cost model depends on other optimization flags and is
++either @code{dynamic} or @code{cheap}.
  
-+@item -ftree-coalesce-inlined-vars
-+Tell the copyrename pass (see @option{-ftree-copyrename}) to attempt to
-+combine small user-defined variables too, but only if they were inlined
-+from other functions.  It is a more limited form of
-+@option{-ftree-coalesce-vars}.  This may harm debug information of such
-+inlined variables, but it will keep variables of the inlined-into
-+function apart from each other, such that they are more likely to
-+contain the expected values in a debugging session.  This was the
-+default in GCC versions older than 4.7.
-+
-+@item -ftree-coalesce-vars
-+Tell the copyrename pass (see @option{-ftree-copyrename}) to attempt to
-+combine small user-defined variables too, instead of just compiler
-+temporaries.  This may severely limit the ability to debug an optimized
-+program compiled with @option{-fno-var-tracking-assignments}.  In the
-+negated form, this flag prevents SSA coalescing of user variables,
-+including inlined ones.  This option is enabled by default.
-+
- @item -ftree-ter
- @opindex ftree-ter
- Perform temporary expression replacement during the SSA->normal phase.  Single
-@@ -10331,6 +10366,7 @@
- @c in Machine Dependent Options
+ @item -ftree-vrp
+ @opindex ftree-vrp
+@@ -9255,14 +9258,16 @@
  
- @menu
-+* AArch64 Options::
- * Adapteva Epiphany Options::
- * ARM Options::
- * AVR Options::
-@@ -10539,6 +10575,125 @@
+ @item vect-max-version-for-alignment-checks
+ The maximum number of run-time checks that can be performed when
+-doing loop versioning for alignment in the vectorizer.  See option
+-@option{-ftree-vect-loop-version} for more information.
++doing loop versioning for alignment in the vectorizer. 
  
- @end table
+ @item vect-max-version-for-alias-checks
+ The maximum number of run-time checks that can be performed when
+-doing loop versioning for alias in the vectorizer.  See option
+-@option{-ftree-vect-loop-version} for more information.
++doing loop versioning for alias in the vectorizer. 
  
-+@node AArch64 Options
-+@subsection AArch64 Options
-+@cindex AArch64 Options
++@item vect-max-peeling-for-alignment
++The maximum number of loop peels to enhance access alignment
++for vectorizer. Value -1 means 'no limit'.
 +
-+These options are defined for AArch64 implementations:
+ @item max-iterations-to-track
+ The maximum number of iterations of a loop the brute-force algorithm
+ for analysis of the number of iterations of the loop tries to evaluate.
+@@ -10990,6 +10995,8 @@
+ the following:
+ 
+ @table @samp
++@item crc
++Enable CRC extension.
+ @item crypto
+ Enable Crypto extension.  This implies Advanced SIMD is enabled.
+ @item fp
+@@ -11276,9 +11283,12 @@
+ @samp{armv6}, @samp{armv6j},
+ @samp{armv6t2}, @samp{armv6z}, @samp{armv6zk}, @samp{armv6-m},
+ @samp{armv7}, @samp{armv7-a}, @samp{armv7-r}, @samp{armv7-m}, @samp{armv7e-m}
+-@samp{armv8-a},
++@samp{armv8-a}, @samp{armv8-a+crc},
+ @samp{iwmmxt}, @samp{iwmmxt2}, @samp{ep9312}.
+ 
++@option{-march=armv8-a+crc} enables code generation for the ARMv8-A
++architecture together with the optional CRC32 extensions.
 +
-+@table @gcctabopt
-+
-+@item -mbig-endian
-+@opindex mbig-endian
-+Generate big-endian code.  This is the default when GCC is configured for an
-+@samp{aarch64_be-*-*} target.
-+
-+@item -mgeneral-regs-only
-+@opindex mgeneral-regs-only
-+Generate code which uses only the general registers.
-+
-+@item -mlittle-endian
-+@opindex mlittle-endian
-+Generate little-endian code.  This is the default when GCC is configured for an
-+@samp{aarch64-*-*} but not an @samp{aarch64_be-*-*} target.
-+
-+@item -mcmodel=tiny
-+@opindex mcmodel=tiny
-+Generate code for the tiny code model.  The program and its statically defined
-+symbols must be within 1GB of each other.  Pointers are 64 bits.  Programs can
-+be statically or dynamically linked.  This model is not fully implemented and
-+mostly treated as "small".
-+
-+@item -mcmodel=small
-+@opindex mcmodel=small
-+Generate code for the small code model.  The program and its statically defined
-+symbols must be within 4GB of each other.  Pointers are 64 bits.  Programs can
-+be statically or dynamically linked.  This is the default code model.
-+
-+@item -mcmodel=large
-+@opindex mcmodel=large
-+Generate code for the large code model.  This makes no assumptions about
-+addresses and sizes of sections.  Pointers are 64 bits.  Programs can be
-+statically linked only.
-+
-+@item -mstrict-align
-+@opindex mstrict-align
-+Do not assume that unaligned memory references will be handled by the system.
-+
-+@item -momit-leaf-frame-pointer
-+@item -mno-omit-leaf-frame-pointer
-+@opindex momit-leaf-frame-pointer
-+@opindex mno-omit-leaf-frame-pointer
-+Omit or keep the frame pointer in leaf functions.  The former behaviour is the
-+default.
-+
-+@item -mtls-dialect=desc
-+@opindex mtls-dialect=desc
-+Use TLS descriptors as the thread-local storage mechanism for dynamic accesses
-+of TLS variables.  This is the default.
-+
-+@item -mtls-dialect=traditional
-+@opindex mtls-dialect=traditional
-+Use traditional TLS as the thread-local storage mechanism for dynamic accesses
-+of TLS variables.
-+
-+@item -march=@var{name}
-+@opindex march
-+Specify the name of the target architecture, optionally suffixed by one or
-+more feature modifiers.  This option has the form
-+@option{-march=@var{arch}@r{@{}+@r{[}no@r{]}@var{feature}@r{@}*}}, where the
-+only value for @var{arch} is @samp{armv8-a}.  The possible values for
-+@var{feature} are documented in the sub-section below.
-+
-+Where conflicting feature modifiers are specified, the right-most feature is
-+used.
-+
-+GCC uses this name to determine what kind of instructions it can emit when
-+generating assembly code.  This option can be used in conjunction with or
-+instead of the @option{-mcpu=} option.
-+
-+@item -mcpu=@var{name}
-+@opindex mcpu
-+Specify the name of the target processor, optionally suffixed by one or more
-+feature modifiers.  This option has the form
-+@option{-mcpu=@var{cpu}@r{@{}+@r{[}no@r{]}@var{feature}@r{@}*}}, where the
-+possible values for @var{cpu} are @samp{generic}, @samp{large}.  The
-+possible values for @var{feature} are documented in the sub-section
-+below.
-+
-+Where conflicting feature modifiers are specified, the right-most feature is
-+used.
-+
-+GCC uses this name to determine what kind of instructions it can emit when
-+generating assembly code.
-+
-+@item -mtune=@var{name}
-+@opindex mtune
-+Specify the name of the processor to tune the performance for.  The code will
-+be tuned as if the target processor were of the type specified in this option,
-+but still using instructions compatible with the target processor specified
-+by a @option{-mcpu=} option.  This option cannot be suffixed by feature
-+modifiers.
-+
-+@end table
-+
-+@subsubsection @option{-march} and @option{-mcpu} feature modifiers
-+@cindex @option{-march} feature modifiers
-+@cindex @option{-mcpu} feature modifiers
-+Feature modifiers used with @option{-march} and @option{-mcpu} can be one
-+the following:
-+
-+@table @samp
-+@item crypto
-+Enable Crypto extension.  This implies Advanced SIMD is enabled.
-+@item fp
-+Enable floating-point instructions.
-+@item simd
-+Enable Advanced SIMD instructions.  This implies floating-point instructions
-+are enabled.  This is the default for all current possible values for options
-+@option{-march} and @option{-mcpu=}.
-+@end table
-+
- @node ARM Options
- @subsection ARM Options
- @cindex ARM options
-@@ -10952,6 +11107,11 @@
+ @option{-march=native} causes the compiler to auto-detect the architecture
+ of the build computer.  At present, this feature is only supported on
+ GNU/Linux, and not all architectures are recognized.  If the auto-detect
+@@ -11308,8 +11318,8 @@
+ @samp{arm1136j-s}, @samp{arm1136jf-s}, @samp{mpcore}, @samp{mpcorenovfp},
+ @samp{arm1156t2-s}, @samp{arm1156t2f-s}, @samp{arm1176jz-s}, @samp{arm1176jzf-s},
+ @samp{cortex-a5}, @samp{cortex-a7}, @samp{cortex-a8}, @samp{cortex-a9}, 
+-@samp{cortex-a15}, @samp{cortex-r4}, @samp{cortex-r4f}, @samp{cortex-r5},
+-@samp{cortex-m4}, @samp{cortex-m3},
++@samp{cortex-a15}, @samp{cortex-a53}, @samp{cortex-r4}, @samp{cortex-r4f},
++@samp{cortex-r5}, @samp{cortex-r7}, @samp{cortex-m4}, @samp{cortex-m3},
+ @samp{cortex-m1},
+ @samp{cortex-m0},
+ @samp{cortex-m0plus},
+@@ -11556,6 +11566,17 @@
  preprocessor symbol @code{__ARM_FEATURE_UNALIGNED} will also be
  defined.
  
@@ -1220,194 +252,2274 @@
 +Enables using Neon to handle scalar 64-bits operations. This is
 +disabled by default since the cost of moving data from core registers
 +to Neon is high.
++
++@item -mrestrict-it
++@opindex mrestrict-it
++Restricts generation of IT blocks to conform to the rules of ARMv8.
++IT blocks can only contain a single 16-bit instruction from a select
++set of instructions. This option is on by default for ARMv8 Thumb mode.
  @end table
  
  @node AVR Options
+--- a/src/gcc/doc/arm-neon-intrinsics.texi
++++ b/src/gcc/doc/arm-neon-intrinsics.texi
+@@ -4079,6 +4079,12 @@
+ @subsubsection Vector shift right and insert
+ 
+ @itemize @bullet
++@item poly64x1_t vsri_n_p64 (poly64x1_t, poly64x1_t, const int)
++@*@emph{Form of expected instruction(s):} @code{vsri.64 @var{d0}, @var{d0}, #@var{0}}
++@end itemize
++
++
++@itemize @bullet
+ @item uint32x2_t vsri_n_u32 (uint32x2_t, uint32x2_t, const int)
+ @*@emph{Form of expected instruction(s):} @code{vsri.32 @var{d0}, @var{d0}, #@var{0}}
+ @end itemize
+@@ -4139,6 +4145,12 @@
+ 
+ 
+ @itemize @bullet
++@item poly64x2_t vsriq_n_p64 (poly64x2_t, poly64x2_t, const int)
++@*@emph{Form of expected instruction(s):} @code{vsri.64 @var{q0}, @var{q0}, #@var{0}}
++@end itemize
++
++
++@itemize @bullet
+ @item uint32x4_t vsriq_n_u32 (uint32x4_t, uint32x4_t, const int)
+ @*@emph{Form of expected instruction(s):} @code{vsri.32 @var{q0}, @var{q0}, #@var{0}}
+ @end itemize
+@@ -4203,6 +4215,12 @@
+ @subsubsection Vector shift left and insert
+ 
+ @itemize @bullet
++@item poly64x1_t vsli_n_p64 (poly64x1_t, poly64x1_t, const int)
++@*@emph{Form of expected instruction(s):} @code{vsli.64 @var{d0}, @var{d0}, #@var{0}}
++@end itemize
++
++
++@itemize @bullet
+ @item uint32x2_t vsli_n_u32 (uint32x2_t, uint32x2_t, const int)
+ @*@emph{Form of expected instruction(s):} @code{vsli.32 @var{d0}, @var{d0}, #@var{0}}
+ @end itemize
+@@ -4263,6 +4281,12 @@
+ 
+ 
+ @itemize @bullet
++@item poly64x2_t vsliq_n_p64 (poly64x2_t, poly64x2_t, const int)
++@*@emph{Form of expected instruction(s):} @code{vsli.64 @var{q0}, @var{q0}, #@var{0}}
++@end itemize
++
++
++@itemize @bullet
+ @item uint32x4_t vsliq_n_u32 (uint32x4_t, uint32x4_t, const int)
+ @*@emph{Form of expected instruction(s):} @code{vsli.32 @var{q0}, @var{q0}, #@var{0}}
+ @end itemize
+@@ -5071,6 +5095,11 @@
+ @subsubsection Create vector from literal bit pattern
+ 
+ @itemize @bullet
++@item poly64x1_t vcreate_p64 (uint64_t)
++@end itemize
++
++
++@itemize @bullet
+ @item uint32x2_t vcreate_u32 (uint64_t)
+ @end itemize
+ 
+@@ -5184,6 +5213,11 @@
+ 
+ 
+ @itemize @bullet
++@item poly64x1_t vdup_n_p64 (poly64_t)
++@end itemize
++
++
++@itemize @bullet
+ @item uint64x1_t vdup_n_u64 (uint64_t)
+ @end itemize
+ 
+@@ -5194,6 +5228,11 @@
+ 
+ 
+ @itemize @bullet
++@item poly64x2_t vdupq_n_p64 (poly64_t)
++@end itemize
++
++
++@itemize @bullet
+ @item uint32x4_t vdupq_n_u32 (uint32_t)
+ @*@emph{Form of expected instruction(s):} @code{vdup.32 @var{q0}, @var{r0}}
+ @end itemize
+@@ -5440,6 +5479,11 @@
+ 
+ 
+ @itemize @bullet
++@item poly64x1_t vdup_lane_p64 (poly64x1_t, const int)
++@end itemize
++
++
++@itemize @bullet
+ @item uint64x1_t vdup_lane_u64 (uint64x1_t, const int)
+ @end itemize
+ 
+@@ -5504,6 +5548,11 @@
+ 
+ 
+ @itemize @bullet
++@item poly64x2_t vdupq_lane_p64 (poly64x1_t, const int)
++@end itemize
++
++
++@itemize @bullet
+ @item uint64x2_t vdupq_lane_u64 (uint64x1_t, const int)
+ @end itemize
+ 
+@@ -5518,6 +5567,11 @@
+ @subsubsection Combining vectors
+ 
+ @itemize @bullet
++@item poly64x2_t vcombine_p64 (poly64x1_t, poly64x1_t)
++@end itemize
++
++
++@itemize @bullet
+ @item uint32x4_t vcombine_u32 (uint32x2_t, uint32x2_t)
+ @end itemize
+ 
+@@ -5577,6 +5631,11 @@
+ @subsubsection Splitting vectors
+ 
+ @itemize @bullet
++@item poly64x1_t vget_high_p64 (poly64x2_t)
++@end itemize
++
++
++@itemize @bullet
+ @item uint32x2_t vget_high_u32 (uint32x4_t)
+ @end itemize
+ 
+@@ -5686,6 +5745,11 @@
+ 
+ 
+ @itemize @bullet
++@item poly64x1_t vget_low_p64 (poly64x2_t)
++@end itemize
++
++
++@itemize @bullet
+ @item uint64x1_t vget_low_u64 (uint64x2_t)
+ @end itemize
+ 
+@@ -5748,6 +5812,18 @@
+ 
+ 
+ @itemize @bullet
++@item float16x4_t vcvt_f16_f32 (float32x4_t)
++@*@emph{Form of expected instruction(s):} @code{vcvt.f16.f32 @var{d0}, @var{q0}}
++@end itemize
++
++
++@itemize @bullet
++@item float32x4_t vcvt_f32_f16 (float16x4_t)
++@*@emph{Form of expected instruction(s):} @code{vcvt.f32.f16 @var{q0}, @var{d0}}
++@end itemize
++
++
++@itemize @bullet
+ @item float32x2_t vcvt_n_f32_u32 (uint32x2_t, const int)
+ @*@emph{Form of expected instruction(s):} @code{vcvt.f32.u32 @var{d0}, @var{d0}, #@var{0}}
+ @end itemize
+@@ -6806,6 +6882,12 @@
+ @subsubsection Vector extract
+ 
+ @itemize @bullet
++@item poly64x1_t vext_p64 (poly64x1_t, poly64x1_t, const int)
++@*@emph{Form of expected instruction(s):} @code{vext.64 @var{d0}, @var{d0}, @var{d0}, #@var{0}}
++@end itemize
++
++
++@itemize @bullet
+ @item uint32x2_t vext_u32 (uint32x2_t, uint32x2_t, const int)
+ @*@emph{Form of expected instruction(s):} @code{vext.32 @var{d0}, @var{d0}, @var{d0}, #@var{0}}
+ @end itemize
+@@ -6872,6 +6954,12 @@
+ 
+ 
+ @itemize @bullet
++@item poly64x2_t vextq_p64 (poly64x2_t, poly64x2_t, const int)
++@*@emph{Form of expected instruction(s):} @code{vext.64 @var{q0}, @var{q0}, @var{q0}, #@var{0}}
++@end itemize
++
++
++@itemize @bullet
+ @item uint32x4_t vextq_u32 (uint32x4_t, uint32x4_t, const int)
+ @*@emph{Form of expected instruction(s):} @code{vext.32 @var{q0}, @var{q0}, @var{q0}, #@var{0}}
+ @end itemize
+@@ -7162,6 +7250,12 @@
+ @subsubsection Bit selection
+ 
+ @itemize @bullet
++@item poly64x1_t vbsl_p64 (uint64x1_t, poly64x1_t, poly64x1_t)
++@*@emph{Form of expected instruction(s):} @code{vbsl @var{d0}, @var{d0}, @var{d0}} @emph{or} @code{vbit @var{d0}, @var{d0}, @var{d0}} @emph{or} @code{vbif @var{d0}, @var{d0}, @var{d0}}
++@end itemize
++
++
++@itemize @bullet
+ @item uint32x2_t vbsl_u32 (uint32x2_t, uint32x2_t, uint32x2_t)
+ @*@emph{Form of expected instruction(s):} @code{vbsl @var{d0}, @var{d0}, @var{d0}} @emph{or} @code{vbit @var{d0}, @var{d0}, @var{d0}} @emph{or} @code{vbif @var{d0}, @var{d0}, @var{d0}}
+ @end itemize
+@@ -7228,6 +7322,12 @@
+ 
+ 
+ @itemize @bullet
++@item poly64x2_t vbslq_p64 (uint64x2_t, poly64x2_t, poly64x2_t)
++@*@emph{Form of expected instruction(s):} @code{vbsl @var{q0}, @var{q0}, @var{q0}} @emph{or} @code{vbit @var{q0}, @var{q0}, @var{q0}} @emph{or} @code{vbif @var{q0}, @var{q0}, @var{q0}}
++@end itemize
++
++
++@itemize @bullet
+ @item uint32x4_t vbslq_u32 (uint32x4_t, uint32x4_t, uint32x4_t)
+ @*@emph{Form of expected instruction(s):} @code{vbsl @var{q0}, @var{q0}, @var{q0}} @emph{or} @code{vbit @var{q0}, @var{q0}, @var{q0}} @emph{or} @code{vbif @var{q0}, @var{q0}, @var{q0}}
+ @end itemize
+@@ -7634,6 +7734,12 @@
+ @subsubsection Element/structure loads, VLD1 variants
+ 
+ @itemize @bullet
++@item poly64x1_t vld1_p64 (const poly64_t *)
++@*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}@}, [@var{r0}]}
++@end itemize
++
++
++@itemize @bullet
+ @item uint32x2_t vld1_u32 (const uint32_t *)
+ @*@emph{Form of expected instruction(s):} @code{vld1.32 @{@var{d0}@}, [@var{r0}]}
+ @end itemize
+@@ -7700,6 +7806,12 @@
+ 
+ 
+ @itemize @bullet
++@item poly64x2_t vld1q_p64 (const poly64_t *)
++@*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}, @var{d1}@}, [@var{r0}]}
++@end itemize
++
++
++@itemize @bullet
+ @item uint32x4_t vld1q_u32 (const uint32_t *)
+ @*@emph{Form of expected instruction(s):} @code{vld1.32 @{@var{d0}, @var{d1}@}, [@var{r0}]}
+ @end itemize
+@@ -7820,6 +7932,12 @@
+ 
+ 
+ @itemize @bullet
++@item poly64x1_t vld1_lane_p64 (const poly64_t *, poly64x1_t, const int)
++@*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}@}, [@var{r0}]}
++@end itemize
++
++
++@itemize @bullet
+ @item uint64x1_t vld1_lane_u64 (const uint64_t *, uint64x1_t, const int)
+ @*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}@}, [@var{r0}]}
+ @end itemize
+@@ -7886,6 +8004,12 @@
+ 
+ 
+ @itemize @bullet
++@item poly64x2_t vld1q_lane_p64 (const poly64_t *, poly64x2_t, const int)
++@*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}@}, [@var{r0}]}
++@end itemize
++
++
++@itemize @bullet
+ @item uint64x2_t vld1q_lane_u64 (const uint64_t *, uint64x2_t, const int)
+ @*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}@}, [@var{r0}]}
+ @end itemize
+@@ -7952,6 +8076,12 @@
+ 
+ 
+ @itemize @bullet
++@item poly64x1_t vld1_dup_p64 (const poly64_t *)
++@*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}@}, [@var{r0}]}
++@end itemize
++
++
++@itemize @bullet
+ @item uint64x1_t vld1_dup_u64 (const uint64_t *)
+ @*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}@}, [@var{r0}]}
+ @end itemize
+@@ -8018,6 +8148,12 @@
+ 
+ 
+ @itemize @bullet
++@item poly64x2_t vld1q_dup_p64 (const poly64_t *)
++@*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}@}, [@var{r0}]}
++@end itemize
++
++
++@itemize @bullet
+ @item uint64x2_t vld1q_dup_u64 (const uint64_t *)
+ @*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}@}, [@var{r0}]}
+ @end itemize
+@@ -8034,6 +8170,12 @@
+ @subsubsection Element/structure stores, VST1 variants
+ 
+ @itemize @bullet
++@item void vst1_p64 (poly64_t *, poly64x1_t)
++@*@emph{Form of expected instruction(s):} @code{vst1.64 @{@var{d0}@}, [@var{r0}]}
++@end itemize
++
++
++@itemize @bullet
+ @item void vst1_u32 (uint32_t *, uint32x2_t)
+ @*@emph{Form of expected instruction(s):} @code{vst1.32 @{@var{d0}@}, [@var{r0}]}
+ @end itemize
+@@ -8100,6 +8242,12 @@
+ 
+ 
+ @itemize @bullet
++@item void vst1q_p64 (poly64_t *, poly64x2_t)
++@*@emph{Form of expected instruction(s):} @code{vst1.64 @{@var{d0}, @var{d1}@}, [@var{r0}]}
++@end itemize
++
++
++@itemize @bullet
+ @item void vst1q_u32 (uint32_t *, uint32x4_t)
+ @*@emph{Form of expected instruction(s):} @code{vst1.32 @{@var{d0}, @var{d1}@}, [@var{r0}]}
+ @end itemize
+@@ -8220,6 +8368,12 @@
+ 
+ 
+ @itemize @bullet
++@item void vst1_lane_p64 (poly64_t *, poly64x1_t, const int)
++@*@emph{Form of expected instruction(s):} @code{vst1.64 @{@var{d0}@}, [@var{r0}]}
++@end itemize
++
++
++@itemize @bullet
+ @item void vst1_lane_s64 (int64_t *, int64x1_t, const int)
+ @*@emph{Form of expected instruction(s):} @code{vst1.64 @{@var{d0}@}, [@var{r0}]}
+ @end itemize
+@@ -8286,6 +8440,12 @@
+ 
+ 
+ @itemize @bullet
++@item void vst1q_lane_p64 (poly64_t *, poly64x2_t, const int)
++@*@emph{Form of expected instruction(s):} @code{vst1.64 @{@var{d0}@}, [@var{r0}]}
++@end itemize
++
++
++@itemize @bullet
+ @item void vst1q_lane_s64 (int64_t *, int64x2_t, const int)
+ @*@emph{Form of expected instruction(s):} @code{vst1.64 @{@var{d0}@}, [@var{r0}]}
+ @end itemize
+@@ -8356,6 +8516,12 @@
+ 
+ 
+ @itemize @bullet
++@item poly64x1x2_t vld2_p64 (const poly64_t *)
++@*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}, @var{d1}@}, [@var{r0}]}
++@end itemize
++
++
++@itemize @bullet
+ @item uint64x1x2_t vld2_u64 (const uint64_t *)
+ @*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}, @var{d1}@}, [@var{r0}]}
+ @end itemize
+@@ -8566,6 +8732,12 @@
+ 
+ 
+ @itemize @bullet
++@item poly64x1x2_t vld2_dup_p64 (const poly64_t *)
++@*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}, @var{d1}@}, [@var{r0}]}
++@end itemize
++
++
++@itemize @bullet
+ @item uint64x1x2_t vld2_dup_u64 (const uint64_t *)
+ @*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}, @var{d1}@}, [@var{r0}]}
+ @end itemize
+@@ -8636,6 +8808,12 @@
+ 
+ 
+ @itemize @bullet
++@item void vst2_p64 (poly64_t *, poly64x1x2_t)
++@*@emph{Form of expected instruction(s):} @code{vst1.64 @{@var{d0}, @var{d1}@}, [@var{r0}]}
++@end itemize
++
++
++@itemize @bullet
+ @item void vst2_u64 (uint64_t *, uint64x1x2_t)
+ @*@emph{Form of expected instruction(s):} @code{vst1.64 @{@var{d0}, @var{d1}@}, [@var{r0}]}
+ @end itemize
+@@ -8850,6 +9028,12 @@
+ 
+ 
+ @itemize @bullet
++@item poly64x1x3_t vld3_p64 (const poly64_t *)
++@*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}, @var{d1}, @var{d2}@}, [@var{r0}]}
++@end itemize
++
++
++@itemize @bullet
+ @item uint64x1x3_t vld3_u64 (const uint64_t *)
+ @*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}, @var{d1}, @var{d2}@}, [@var{r0}]}
+ @end itemize
+@@ -9060,6 +9244,12 @@
+ 
+ 
+ @itemize @bullet
++@item poly64x1x3_t vld3_dup_p64 (const poly64_t *)
++@*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}, @var{d1}, @var{d2}@}, [@var{r0}]}
++@end itemize
++
++
++@itemize @bullet
+ @item uint64x1x3_t vld3_dup_u64 (const uint64_t *)
+ @*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}, @var{d1}, @var{d2}@}, [@var{r0}]}
+ @end itemize
+@@ -9130,6 +9320,12 @@
+ 
+ 
+ @itemize @bullet
++@item void vst3_p64 (poly64_t *, poly64x1x3_t)
++@*@emph{Form of expected instruction(s):} @code{vst1.64 @{@var{d0}, @var{d1}, @var{d2}, @var{d3}@}, [@var{r0}]}
++@end itemize
++
++
++@itemize @bullet
+ @item void vst3_u64 (uint64_t *, uint64x1x3_t)
+ @*@emph{Form of expected instruction(s):} @code{vst1.64 @{@var{d0}, @var{d1}, @var{d2}, @var{d3}@}, [@var{r0}]}
+ @end itemize
+@@ -9344,6 +9540,12 @@
+ 
+ 
+ @itemize @bullet
++@item poly64x1x4_t vld4_p64 (const poly64_t *)
++@*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}, @var{d1}, @var{d2}, @var{d3}@}, [@var{r0}]}
++@end itemize
++
++
++@itemize @bullet
+ @item uint64x1x4_t vld4_u64 (const uint64_t *)
+ @*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}, @var{d1}, @var{d2}, @var{d3}@}, [@var{r0}]}
+ @end itemize
+@@ -9554,6 +9756,12 @@
+ 
+ 
+ @itemize @bullet
++@item poly64x1x4_t vld4_dup_p64 (const poly64_t *)
++@*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}, @var{d1}, @var{d2}, @var{d3}@}, [@var{r0}]}
++@end itemize
++
++
++@itemize @bullet
+ @item uint64x1x4_t vld4_dup_u64 (const uint64_t *)
+ @*@emph{Form of expected instruction(s):} @code{vld1.64 @{@var{d0}, @var{d1}, @var{d2}, @var{d3}@}, [@var{r0}]}
+ @end itemize
+@@ -9624,6 +9832,12 @@
+ 
+ 
+ @itemize @bullet
++@item void vst4_p64 (poly64_t *, poly64x1x4_t)
++@*@emph{Form of expected instruction(s):} @code{vst1.64 @{@var{d0}, @var{d1}, @var{d2}, @var{d3}@}, [@var{r0}]}
++@end itemize
++
++
++@itemize @bullet
+ @item void vst4_u64 (uint64_t *, uint64x1x4_t)
+ @*@emph{Form of expected instruction(s):} @code{vst1.64 @{@var{d0}, @var{d1}, @var{d2}, @var{d3}@}, [@var{r0}]}
+ @end itemize
+@@ -10274,27 +10488,27 @@
+ @subsubsection Reinterpret casts
+ 
+ @itemize @bullet
+-@item poly8x8_t vreinterpret_p8_u32 (uint32x2_t)
++@item poly8x8_t vreinterpret_p8_p16 (poly16x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly8x8_t vreinterpret_p8_u16 (uint16x4_t)
++@item poly8x8_t vreinterpret_p8_f32 (float32x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly8x8_t vreinterpret_p8_u8 (uint8x8_t)
++@item poly8x8_t vreinterpret_p8_p64 (poly64x1_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly8x8_t vreinterpret_p8_s32 (int32x2_t)
++@item poly8x8_t vreinterpret_p8_s64 (int64x1_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly8x8_t vreinterpret_p8_s16 (int16x4_t)
++@item poly8x8_t vreinterpret_p8_u64 (uint64x1_t)
+ @end itemize
+ 
+ 
+@@ -10304,952 +10518,1317 @@
+ 
+ 
+ @itemize @bullet
+-@item poly8x8_t vreinterpret_p8_u64 (uint64x1_t)
++@item poly8x8_t vreinterpret_p8_s16 (int16x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly8x8_t vreinterpret_p8_s64 (int64x1_t)
++@item poly8x8_t vreinterpret_p8_s32 (int32x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly8x8_t vreinterpret_p8_f32 (float32x2_t)
++@item poly8x8_t vreinterpret_p8_u8 (uint8x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly8x8_t vreinterpret_p8_p16 (poly16x4_t)
++@item poly8x8_t vreinterpret_p8_u16 (uint16x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly8x16_t vreinterpretq_p8_u32 (uint32x4_t)
++@item poly8x8_t vreinterpret_p8_u32 (uint32x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly8x16_t vreinterpretq_p8_u16 (uint16x8_t)
++@item poly16x4_t vreinterpret_p16_p8 (poly8x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly8x16_t vreinterpretq_p8_u8 (uint8x16_t)
++@item poly16x4_t vreinterpret_p16_f32 (float32x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly8x16_t vreinterpretq_p8_s32 (int32x4_t)
++@item poly16x4_t vreinterpret_p16_p64 (poly64x1_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly8x16_t vreinterpretq_p8_s16 (int16x8_t)
++@item poly16x4_t vreinterpret_p16_s64 (int64x1_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly8x16_t vreinterpretq_p8_s8 (int8x16_t)
++@item poly16x4_t vreinterpret_p16_u64 (uint64x1_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly8x16_t vreinterpretq_p8_u64 (uint64x2_t)
++@item poly16x4_t vreinterpret_p16_s8 (int8x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly8x16_t vreinterpretq_p8_s64 (int64x2_t)
++@item poly16x4_t vreinterpret_p16_s16 (int16x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly8x16_t vreinterpretq_p8_f32 (float32x4_t)
++@item poly16x4_t vreinterpret_p16_s32 (int32x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly8x16_t vreinterpretq_p8_p16 (poly16x8_t)
++@item poly16x4_t vreinterpret_p16_u8 (uint8x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
++@item poly16x4_t vreinterpret_p16_u16 (uint16x4_t)
++@end itemize
++
++
++@itemize @bullet
+ @item poly16x4_t vreinterpret_p16_u32 (uint32x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly16x4_t vreinterpret_p16_u16 (uint16x4_t)
++@item float32x2_t vreinterpret_f32_p8 (poly8x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly16x4_t vreinterpret_p16_u8 (uint8x8_t)
++@item float32x2_t vreinterpret_f32_p16 (poly16x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly16x4_t vreinterpret_p16_s32 (int32x2_t)
++@item float32x2_t vreinterpret_f32_p64 (poly64x1_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly16x4_t vreinterpret_p16_s16 (int16x4_t)
++@item float32x2_t vreinterpret_f32_s64 (int64x1_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly16x4_t vreinterpret_p16_s8 (int8x8_t)
++@item float32x2_t vreinterpret_f32_u64 (uint64x1_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly16x4_t vreinterpret_p16_u64 (uint64x1_t)
++@item float32x2_t vreinterpret_f32_s8 (int8x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly16x4_t vreinterpret_p16_s64 (int64x1_t)
++@item float32x2_t vreinterpret_f32_s16 (int16x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly16x4_t vreinterpret_p16_f32 (float32x2_t)
++@item float32x2_t vreinterpret_f32_s32 (int32x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly16x4_t vreinterpret_p16_p8 (poly8x8_t)
++@item float32x2_t vreinterpret_f32_u8 (uint8x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly16x8_t vreinterpretq_p16_u32 (uint32x4_t)
++@item float32x2_t vreinterpret_f32_u16 (uint16x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly16x8_t vreinterpretq_p16_u16 (uint16x8_t)
++@item float32x2_t vreinterpret_f32_u32 (uint32x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly16x8_t vreinterpretq_p16_u8 (uint8x16_t)
++@item poly64x1_t vreinterpret_p64_p8 (poly8x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly16x8_t vreinterpretq_p16_s32 (int32x4_t)
++@item poly64x1_t vreinterpret_p64_p16 (poly16x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly16x8_t vreinterpretq_p16_s16 (int16x8_t)
++@item poly64x1_t vreinterpret_p64_f32 (float32x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly16x8_t vreinterpretq_p16_s8 (int8x16_t)
++@item poly64x1_t vreinterpret_p64_s64 (int64x1_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly16x8_t vreinterpretq_p16_u64 (uint64x2_t)
++@item poly64x1_t vreinterpret_p64_u64 (uint64x1_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly16x8_t vreinterpretq_p16_s64 (int64x2_t)
++@item poly64x1_t vreinterpret_p64_s8 (int8x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly16x8_t vreinterpretq_p16_f32 (float32x4_t)
++@item poly64x1_t vreinterpret_p64_s16 (int16x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item poly16x8_t vreinterpretq_p16_p8 (poly8x16_t)
++@item poly64x1_t vreinterpret_p64_s32 (int32x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item float32x2_t vreinterpret_f32_u32 (uint32x2_t)
++@item poly64x1_t vreinterpret_p64_u8 (uint8x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item float32x2_t vreinterpret_f32_u16 (uint16x4_t)
++@item poly64x1_t vreinterpret_p64_u16 (uint16x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item float32x2_t vreinterpret_f32_u8 (uint8x8_t)
++@item poly64x1_t vreinterpret_p64_u32 (uint32x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item float32x2_t vreinterpret_f32_s32 (int32x2_t)
++@item int64x1_t vreinterpret_s64_p8 (poly8x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item float32x2_t vreinterpret_f32_s16 (int16x4_t)
++@item int64x1_t vreinterpret_s64_p16 (poly16x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item float32x2_t vreinterpret_f32_s8 (int8x8_t)
++@item int64x1_t vreinterpret_s64_f32 (float32x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item float32x2_t vreinterpret_f32_u64 (uint64x1_t)
++@item int64x1_t vreinterpret_s64_p64 (poly64x1_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item float32x2_t vreinterpret_f32_s64 (int64x1_t)
++@item int64x1_t vreinterpret_s64_u64 (uint64x1_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item float32x2_t vreinterpret_f32_p16 (poly16x4_t)
++@item int64x1_t vreinterpret_s64_s8 (int8x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item float32x2_t vreinterpret_f32_p8 (poly8x8_t)
++@item int64x1_t vreinterpret_s64_s16 (int16x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item float32x4_t vreinterpretq_f32_u32 (uint32x4_t)
++@item int64x1_t vreinterpret_s64_s32 (int32x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item float32x4_t vreinterpretq_f32_u16 (uint16x8_t)
++@item int64x1_t vreinterpret_s64_u8 (uint8x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item float32x4_t vreinterpretq_f32_u8 (uint8x16_t)
++@item int64x1_t vreinterpret_s64_u16 (uint16x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item float32x4_t vreinterpretq_f32_s32 (int32x4_t)
++@item int64x1_t vreinterpret_s64_u32 (uint32x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item float32x4_t vreinterpretq_f32_s16 (int16x8_t)
++@item uint64x1_t vreinterpret_u64_p8 (poly8x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item float32x4_t vreinterpretq_f32_s8 (int8x16_t)
++@item uint64x1_t vreinterpret_u64_p16 (poly16x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item float32x4_t vreinterpretq_f32_u64 (uint64x2_t)
++@item uint64x1_t vreinterpret_u64_f32 (float32x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item float32x4_t vreinterpretq_f32_s64 (int64x2_t)
++@item uint64x1_t vreinterpret_u64_p64 (poly64x1_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item float32x4_t vreinterpretq_f32_p16 (poly16x8_t)
++@item uint64x1_t vreinterpret_u64_s64 (int64x1_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item float32x4_t vreinterpretq_f32_p8 (poly8x16_t)
++@item uint64x1_t vreinterpret_u64_s8 (int8x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int64x1_t vreinterpret_s64_u32 (uint32x2_t)
++@item uint64x1_t vreinterpret_u64_s16 (int16x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int64x1_t vreinterpret_s64_u16 (uint16x4_t)
++@item uint64x1_t vreinterpret_u64_s32 (int32x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int64x1_t vreinterpret_s64_u8 (uint8x8_t)
++@item uint64x1_t vreinterpret_u64_u8 (uint8x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int64x1_t vreinterpret_s64_s32 (int32x2_t)
++@item uint64x1_t vreinterpret_u64_u16 (uint16x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int64x1_t vreinterpret_s64_s16 (int16x4_t)
++@item uint64x1_t vreinterpret_u64_u32 (uint32x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int64x1_t vreinterpret_s64_s8 (int8x8_t)
++@item int8x8_t vreinterpret_s8_p8 (poly8x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int64x1_t vreinterpret_s64_u64 (uint64x1_t)
++@item int8x8_t vreinterpret_s8_p16 (poly16x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int64x1_t vreinterpret_s64_f32 (float32x2_t)
++@item int8x8_t vreinterpret_s8_f32 (float32x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int64x1_t vreinterpret_s64_p16 (poly16x4_t)
++@item int8x8_t vreinterpret_s8_p64 (poly64x1_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int64x1_t vreinterpret_s64_p8 (poly8x8_t)
++@item int8x8_t vreinterpret_s8_s64 (int64x1_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int64x2_t vreinterpretq_s64_u32 (uint32x4_t)
++@item int8x8_t vreinterpret_s8_u64 (uint64x1_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int64x2_t vreinterpretq_s64_u16 (uint16x8_t)
++@item int8x8_t vreinterpret_s8_s16 (int16x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int64x2_t vreinterpretq_s64_u8 (uint8x16_t)
++@item int8x8_t vreinterpret_s8_s32 (int32x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int64x2_t vreinterpretq_s64_s32 (int32x4_t)
++@item int8x8_t vreinterpret_s8_u8 (uint8x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int64x2_t vreinterpretq_s64_s16 (int16x8_t)
++@item int8x8_t vreinterpret_s8_u16 (uint16x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int64x2_t vreinterpretq_s64_s8 (int8x16_t)
++@item int8x8_t vreinterpret_s8_u32 (uint32x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int64x2_t vreinterpretq_s64_u64 (uint64x2_t)
++@item int16x4_t vreinterpret_s16_p8 (poly8x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int64x2_t vreinterpretq_s64_f32 (float32x4_t)
++@item int16x4_t vreinterpret_s16_p16 (poly16x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int64x2_t vreinterpretq_s64_p16 (poly16x8_t)
++@item int16x4_t vreinterpret_s16_f32 (float32x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int64x2_t vreinterpretq_s64_p8 (poly8x16_t)
++@item int16x4_t vreinterpret_s16_p64 (poly64x1_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint64x1_t vreinterpret_u64_u32 (uint32x2_t)
++@item int16x4_t vreinterpret_s16_s64 (int64x1_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint64x1_t vreinterpret_u64_u16 (uint16x4_t)
++@item int16x4_t vreinterpret_s16_u64 (uint64x1_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint64x1_t vreinterpret_u64_u8 (uint8x8_t)
++@item int16x4_t vreinterpret_s16_s8 (int8x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint64x1_t vreinterpret_u64_s32 (int32x2_t)
++@item int16x4_t vreinterpret_s16_s32 (int32x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint64x1_t vreinterpret_u64_s16 (int16x4_t)
++@item int16x4_t vreinterpret_s16_u8 (uint8x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint64x1_t vreinterpret_u64_s8 (int8x8_t)
++@item int16x4_t vreinterpret_s16_u16 (uint16x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint64x1_t vreinterpret_u64_s64 (int64x1_t)
++@item int16x4_t vreinterpret_s16_u32 (uint32x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint64x1_t vreinterpret_u64_f32 (float32x2_t)
++@item int32x2_t vreinterpret_s32_p8 (poly8x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint64x1_t vreinterpret_u64_p16 (poly16x4_t)
++@item int32x2_t vreinterpret_s32_p16 (poly16x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint64x1_t vreinterpret_u64_p8 (poly8x8_t)
++@item int32x2_t vreinterpret_s32_f32 (float32x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint64x2_t vreinterpretq_u64_u32 (uint32x4_t)
++@item int32x2_t vreinterpret_s32_p64 (poly64x1_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint64x2_t vreinterpretq_u64_u16 (uint16x8_t)
++@item int32x2_t vreinterpret_s32_s64 (int64x1_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint64x2_t vreinterpretq_u64_u8 (uint8x16_t)
++@item int32x2_t vreinterpret_s32_u64 (uint64x1_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint64x2_t vreinterpretq_u64_s32 (int32x4_t)
++@item int32x2_t vreinterpret_s32_s8 (int8x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint64x2_t vreinterpretq_u64_s16 (int16x8_t)
++@item int32x2_t vreinterpret_s32_s16 (int16x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint64x2_t vreinterpretq_u64_s8 (int8x16_t)
++@item int32x2_t vreinterpret_s32_u8 (uint8x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint64x2_t vreinterpretq_u64_s64 (int64x2_t)
++@item int32x2_t vreinterpret_s32_u16 (uint16x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint64x2_t vreinterpretq_u64_f32 (float32x4_t)
++@item int32x2_t vreinterpret_s32_u32 (uint32x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint64x2_t vreinterpretq_u64_p16 (poly16x8_t)
++@item uint8x8_t vreinterpret_u8_p8 (poly8x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint64x2_t vreinterpretq_u64_p8 (poly8x16_t)
++@item uint8x8_t vreinterpret_u8_p16 (poly16x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int8x8_t vreinterpret_s8_u32 (uint32x2_t)
++@item uint8x8_t vreinterpret_u8_f32 (float32x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int8x8_t vreinterpret_s8_u16 (uint16x4_t)
++@item uint8x8_t vreinterpret_u8_p64 (poly64x1_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int8x8_t vreinterpret_s8_u8 (uint8x8_t)
++@item uint8x8_t vreinterpret_u8_s64 (int64x1_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int8x8_t vreinterpret_s8_s32 (int32x2_t)
++@item uint8x8_t vreinterpret_u8_u64 (uint64x1_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int8x8_t vreinterpret_s8_s16 (int16x4_t)
++@item uint8x8_t vreinterpret_u8_s8 (int8x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int8x8_t vreinterpret_s8_u64 (uint64x1_t)
++@item uint8x8_t vreinterpret_u8_s16 (int16x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int8x8_t vreinterpret_s8_s64 (int64x1_t)
++@item uint8x8_t vreinterpret_u8_s32 (int32x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int8x8_t vreinterpret_s8_f32 (float32x2_t)
++@item uint8x8_t vreinterpret_u8_u16 (uint16x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int8x8_t vreinterpret_s8_p16 (poly16x4_t)
++@item uint8x8_t vreinterpret_u8_u32 (uint32x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int8x8_t vreinterpret_s8_p8 (poly8x8_t)
++@item uint16x4_t vreinterpret_u16_p8 (poly8x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int8x16_t vreinterpretq_s8_u32 (uint32x4_t)
++@item uint16x4_t vreinterpret_u16_p16 (poly16x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int8x16_t vreinterpretq_s8_u16 (uint16x8_t)
++@item uint16x4_t vreinterpret_u16_f32 (float32x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int8x16_t vreinterpretq_s8_u8 (uint8x16_t)
++@item uint16x4_t vreinterpret_u16_p64 (poly64x1_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int8x16_t vreinterpretq_s8_s32 (int32x4_t)
++@item uint16x4_t vreinterpret_u16_s64 (int64x1_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int8x16_t vreinterpretq_s8_s16 (int16x8_t)
++@item uint16x4_t vreinterpret_u16_u64 (uint64x1_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int8x16_t vreinterpretq_s8_u64 (uint64x2_t)
++@item uint16x4_t vreinterpret_u16_s8 (int8x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int8x16_t vreinterpretq_s8_s64 (int64x2_t)
++@item uint16x4_t vreinterpret_u16_s16 (int16x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int8x16_t vreinterpretq_s8_f32 (float32x4_t)
++@item uint16x4_t vreinterpret_u16_s32 (int32x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int8x16_t vreinterpretq_s8_p16 (poly16x8_t)
++@item uint16x4_t vreinterpret_u16_u8 (uint8x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int8x16_t vreinterpretq_s8_p8 (poly8x16_t)
++@item uint16x4_t vreinterpret_u16_u32 (uint32x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int16x4_t vreinterpret_s16_u32 (uint32x2_t)
++@item uint32x2_t vreinterpret_u32_p8 (poly8x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int16x4_t vreinterpret_s16_u16 (uint16x4_t)
++@item uint32x2_t vreinterpret_u32_p16 (poly16x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int16x4_t vreinterpret_s16_u8 (uint8x8_t)
++@item uint32x2_t vreinterpret_u32_f32 (float32x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int16x4_t vreinterpret_s16_s32 (int32x2_t)
++@item uint32x2_t vreinterpret_u32_p64 (poly64x1_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int16x4_t vreinterpret_s16_s8 (int8x8_t)
++@item uint32x2_t vreinterpret_u32_s64 (int64x1_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int16x4_t vreinterpret_s16_u64 (uint64x1_t)
++@item uint32x2_t vreinterpret_u32_u64 (uint64x1_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int16x4_t vreinterpret_s16_s64 (int64x1_t)
++@item uint32x2_t vreinterpret_u32_s8 (int8x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int16x4_t vreinterpret_s16_f32 (float32x2_t)
++@item uint32x2_t vreinterpret_u32_s16 (int16x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int16x4_t vreinterpret_s16_p16 (poly16x4_t)
++@item uint32x2_t vreinterpret_u32_s32 (int32x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int16x4_t vreinterpret_s16_p8 (poly8x8_t)
++@item uint32x2_t vreinterpret_u32_u8 (uint8x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int16x8_t vreinterpretq_s16_u32 (uint32x4_t)
++@item uint32x2_t vreinterpret_u32_u16 (uint16x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int16x8_t vreinterpretq_s16_u16 (uint16x8_t)
++@item poly8x16_t vreinterpretq_p8_p16 (poly16x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int16x8_t vreinterpretq_s16_u8 (uint8x16_t)
++@item poly8x16_t vreinterpretq_p8_f32 (float32x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int16x8_t vreinterpretq_s16_s32 (int32x4_t)
++@item poly8x16_t vreinterpretq_p8_p64 (poly64x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int16x8_t vreinterpretq_s16_s8 (int8x16_t)
++@item poly8x16_t vreinterpretq_p8_p128 (poly128_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int16x8_t vreinterpretq_s16_u64 (uint64x2_t)
++@item poly8x16_t vreinterpretq_p8_s64 (int64x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int16x8_t vreinterpretq_s16_s64 (int64x2_t)
++@item poly8x16_t vreinterpretq_p8_u64 (uint64x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int16x8_t vreinterpretq_s16_f32 (float32x4_t)
++@item poly8x16_t vreinterpretq_p8_s8 (int8x16_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int16x8_t vreinterpretq_s16_p16 (poly16x8_t)
++@item poly8x16_t vreinterpretq_p8_s16 (int16x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int16x8_t vreinterpretq_s16_p8 (poly8x16_t)
++@item poly8x16_t vreinterpretq_p8_s32 (int32x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int32x2_t vreinterpret_s32_u32 (uint32x2_t)
++@item poly8x16_t vreinterpretq_p8_u8 (uint8x16_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int32x2_t vreinterpret_s32_u16 (uint16x4_t)
++@item poly8x16_t vreinterpretq_p8_u16 (uint16x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int32x2_t vreinterpret_s32_u8 (uint8x8_t)
++@item poly8x16_t vreinterpretq_p8_u32 (uint32x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int32x2_t vreinterpret_s32_s16 (int16x4_t)
++@item poly16x8_t vreinterpretq_p16_p8 (poly8x16_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int32x2_t vreinterpret_s32_s8 (int8x8_t)
++@item poly16x8_t vreinterpretq_p16_f32 (float32x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int32x2_t vreinterpret_s32_u64 (uint64x1_t)
++@item poly16x8_t vreinterpretq_p16_p64 (poly64x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int32x2_t vreinterpret_s32_s64 (int64x1_t)
++@item poly16x8_t vreinterpretq_p16_p128 (poly128_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int32x2_t vreinterpret_s32_f32 (float32x2_t)
++@item poly16x8_t vreinterpretq_p16_s64 (int64x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int32x2_t vreinterpret_s32_p16 (poly16x4_t)
++@item poly16x8_t vreinterpretq_p16_u64 (uint64x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int32x2_t vreinterpret_s32_p8 (poly8x8_t)
++@item poly16x8_t vreinterpretq_p16_s8 (int8x16_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int32x4_t vreinterpretq_s32_u32 (uint32x4_t)
++@item poly16x8_t vreinterpretq_p16_s16 (int16x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int32x4_t vreinterpretq_s32_u16 (uint16x8_t)
++@item poly16x8_t vreinterpretq_p16_s32 (int32x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int32x4_t vreinterpretq_s32_u8 (uint8x16_t)
++@item poly16x8_t vreinterpretq_p16_u8 (uint8x16_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int32x4_t vreinterpretq_s32_s16 (int16x8_t)
++@item poly16x8_t vreinterpretq_p16_u16 (uint16x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int32x4_t vreinterpretq_s32_s8 (int8x16_t)
++@item poly16x8_t vreinterpretq_p16_u32 (uint32x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int32x4_t vreinterpretq_s32_u64 (uint64x2_t)
++@item float32x4_t vreinterpretq_f32_p8 (poly8x16_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int32x4_t vreinterpretq_s32_s64 (int64x2_t)
++@item float32x4_t vreinterpretq_f32_p16 (poly16x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int32x4_t vreinterpretq_s32_f32 (float32x4_t)
++@item float32x4_t vreinterpretq_f32_p64 (poly64x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int32x4_t vreinterpretq_s32_p16 (poly16x8_t)
++@item float32x4_t vreinterpretq_f32_p128 (poly128_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item int32x4_t vreinterpretq_s32_p8 (poly8x16_t)
++@item float32x4_t vreinterpretq_f32_s64 (int64x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint8x8_t vreinterpret_u8_u32 (uint32x2_t)
++@item float32x4_t vreinterpretq_f32_u64 (uint64x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint8x8_t vreinterpret_u8_u16 (uint16x4_t)
++@item float32x4_t vreinterpretq_f32_s8 (int8x16_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint8x8_t vreinterpret_u8_s32 (int32x2_t)
++@item float32x4_t vreinterpretq_f32_s16 (int16x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint8x8_t vreinterpret_u8_s16 (int16x4_t)
++@item float32x4_t vreinterpretq_f32_s32 (int32x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint8x8_t vreinterpret_u8_s8 (int8x8_t)
++@item float32x4_t vreinterpretq_f32_u8 (uint8x16_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint8x8_t vreinterpret_u8_u64 (uint64x1_t)
++@item float32x4_t vreinterpretq_f32_u16 (uint16x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint8x8_t vreinterpret_u8_s64 (int64x1_t)
++@item float32x4_t vreinterpretq_f32_u32 (uint32x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint8x8_t vreinterpret_u8_f32 (float32x2_t)
++@item poly64x2_t vreinterpretq_p64_p8 (poly8x16_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint8x8_t vreinterpret_u8_p16 (poly16x4_t)
++@item poly64x2_t vreinterpretq_p64_p16 (poly16x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint8x8_t vreinterpret_u8_p8 (poly8x8_t)
++@item poly64x2_t vreinterpretq_p64_f32 (float32x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint8x16_t vreinterpretq_u8_u32 (uint32x4_t)
++@item poly64x2_t vreinterpretq_p64_p128 (poly128_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint8x16_t vreinterpretq_u8_u16 (uint16x8_t)
++@item poly64x2_t vreinterpretq_p64_s64 (int64x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint8x16_t vreinterpretq_u8_s32 (int32x4_t)
++@item poly64x2_t vreinterpretq_p64_u64 (uint64x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint8x16_t vreinterpretq_u8_s16 (int16x8_t)
++@item poly64x2_t vreinterpretq_p64_s8 (int8x16_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint8x16_t vreinterpretq_u8_s8 (int8x16_t)
++@item poly64x2_t vreinterpretq_p64_s16 (int16x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint8x16_t vreinterpretq_u8_u64 (uint64x2_t)
++@item poly64x2_t vreinterpretq_p64_s32 (int32x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint8x16_t vreinterpretq_u8_s64 (int64x2_t)
++@item poly64x2_t vreinterpretq_p64_u8 (uint8x16_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint8x16_t vreinterpretq_u8_f32 (float32x4_t)
++@item poly64x2_t vreinterpretq_p64_u16 (uint16x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint8x16_t vreinterpretq_u8_p16 (poly16x8_t)
++@item poly64x2_t vreinterpretq_p64_u32 (uint32x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
++@item poly128_t vreinterpretq_p128_p8 (poly8x16_t)
++@end itemize
++
++
++@itemize @bullet
++@item poly128_t vreinterpretq_p128_p16 (poly16x8_t)
++@end itemize
++
++
++@itemize @bullet
++@item poly128_t vreinterpretq_p128_f32 (float32x4_t)
++@end itemize
++
++
++@itemize @bullet
++@item poly128_t vreinterpretq_p128_p64 (poly64x2_t)
++@end itemize
++
++
++@itemize @bullet
++@item poly128_t vreinterpretq_p128_s64 (int64x2_t)
++@end itemize
++
++
++@itemize @bullet
++@item poly128_t vreinterpretq_p128_u64 (uint64x2_t)
++@end itemize
++
++
++@itemize @bullet
++@item poly128_t vreinterpretq_p128_s8 (int8x16_t)
++@end itemize
++
++
++@itemize @bullet
++@item poly128_t vreinterpretq_p128_s16 (int16x8_t)
++@end itemize
++
++
++@itemize @bullet
++@item poly128_t vreinterpretq_p128_s32 (int32x4_t)
++@end itemize
++
++
++@itemize @bullet
++@item poly128_t vreinterpretq_p128_u8 (uint8x16_t)
++@end itemize
++
++
++@itemize @bullet
++@item poly128_t vreinterpretq_p128_u16 (uint16x8_t)
++@end itemize
++
++
++@itemize @bullet
++@item poly128_t vreinterpretq_p128_u32 (uint32x4_t)
++@end itemize
++
++
++@itemize @bullet
++@item int64x2_t vreinterpretq_s64_p8 (poly8x16_t)
++@end itemize
++
++
++@itemize @bullet
++@item int64x2_t vreinterpretq_s64_p16 (poly16x8_t)
++@end itemize
++
++
++@itemize @bullet
++@item int64x2_t vreinterpretq_s64_f32 (float32x4_t)
++@end itemize
++
++
++@itemize @bullet
++@item int64x2_t vreinterpretq_s64_p64 (poly64x2_t)
++@end itemize
++
++
++@itemize @bullet
++@item int64x2_t vreinterpretq_s64_p128 (poly128_t)
++@end itemize
++
++
++@itemize @bullet
++@item int64x2_t vreinterpretq_s64_u64 (uint64x2_t)
++@end itemize
++
++
++@itemize @bullet
++@item int64x2_t vreinterpretq_s64_s8 (int8x16_t)
++@end itemize
++
++
++@itemize @bullet
++@item int64x2_t vreinterpretq_s64_s16 (int16x8_t)
++@end itemize
++
++
++@itemize @bullet
++@item int64x2_t vreinterpretq_s64_s32 (int32x4_t)
++@end itemize
++
++
++@itemize @bullet
++@item int64x2_t vreinterpretq_s64_u8 (uint8x16_t)
++@end itemize
++
++
++@itemize @bullet
++@item int64x2_t vreinterpretq_s64_u16 (uint16x8_t)
++@end itemize
++
++
++@itemize @bullet
++@item int64x2_t vreinterpretq_s64_u32 (uint32x4_t)
++@end itemize
++
++
++@itemize @bullet
++@item uint64x2_t vreinterpretq_u64_p8 (poly8x16_t)
++@end itemize
++
++
++@itemize @bullet
++@item uint64x2_t vreinterpretq_u64_p16 (poly16x8_t)
++@end itemize
++
++
++@itemize @bullet
++@item uint64x2_t vreinterpretq_u64_f32 (float32x4_t)
++@end itemize
++
++
++@itemize @bullet
++@item uint64x2_t vreinterpretq_u64_p64 (poly64x2_t)
++@end itemize
++
++
++@itemize @bullet
++@item uint64x2_t vreinterpretq_u64_p128 (poly128_t)
++@end itemize
++
++
++@itemize @bullet
++@item uint64x2_t vreinterpretq_u64_s64 (int64x2_t)
++@end itemize
++
++
++@itemize @bullet
++@item uint64x2_t vreinterpretq_u64_s8 (int8x16_t)
++@end itemize
++
++
++@itemize @bullet
++@item uint64x2_t vreinterpretq_u64_s16 (int16x8_t)
++@end itemize
++
++
++@itemize @bullet
++@item uint64x2_t vreinterpretq_u64_s32 (int32x4_t)
++@end itemize
++
++
++@itemize @bullet
++@item uint64x2_t vreinterpretq_u64_u8 (uint8x16_t)
++@end itemize
++
++
++@itemize @bullet
++@item uint64x2_t vreinterpretq_u64_u16 (uint16x8_t)
++@end itemize
++
++
++@itemize @bullet
++@item uint64x2_t vreinterpretq_u64_u32 (uint32x4_t)
++@end itemize
++
++
++@itemize @bullet
++@item int8x16_t vreinterpretq_s8_p8 (poly8x16_t)
++@end itemize
++
++
++@itemize @bullet
++@item int8x16_t vreinterpretq_s8_p16 (poly16x8_t)
++@end itemize
++
++
++@itemize @bullet
++@item int8x16_t vreinterpretq_s8_f32 (float32x4_t)
++@end itemize
++
++
++@itemize @bullet
++@item int8x16_t vreinterpretq_s8_p64 (poly64x2_t)
++@end itemize
++
++
++@itemize @bullet
++@item int8x16_t vreinterpretq_s8_p128 (poly128_t)
++@end itemize
++
++
++@itemize @bullet
++@item int8x16_t vreinterpretq_s8_s64 (int64x2_t)
++@end itemize
++
++
++@itemize @bullet
++@item int8x16_t vreinterpretq_s8_u64 (uint64x2_t)
++@end itemize
++
++
++@itemize @bullet
++@item int8x16_t vreinterpretq_s8_s16 (int16x8_t)
++@end itemize
++
++
++@itemize @bullet
++@item int8x16_t vreinterpretq_s8_s32 (int32x4_t)
++@end itemize
++
++
++@itemize @bullet
++@item int8x16_t vreinterpretq_s8_u8 (uint8x16_t)
++@end itemize
++
++
++@itemize @bullet
++@item int8x16_t vreinterpretq_s8_u16 (uint16x8_t)
++@end itemize
++
++
++@itemize @bullet
++@item int8x16_t vreinterpretq_s8_u32 (uint32x4_t)
++@end itemize
++
++
++@itemize @bullet
++@item int16x8_t vreinterpretq_s16_p8 (poly8x16_t)
++@end itemize
++
++
++@itemize @bullet
++@item int16x8_t vreinterpretq_s16_p16 (poly16x8_t)
++@end itemize
++
++
++@itemize @bullet
++@item int16x8_t vreinterpretq_s16_f32 (float32x4_t)
++@end itemize
++
++
++@itemize @bullet
++@item int16x8_t vreinterpretq_s16_p64 (poly64x2_t)
++@end itemize
++
++
++@itemize @bullet
++@item int16x8_t vreinterpretq_s16_p128 (poly128_t)
++@end itemize
++
++
++@itemize @bullet
++@item int16x8_t vreinterpretq_s16_s64 (int64x2_t)
++@end itemize
++
++
++@itemize @bullet
++@item int16x8_t vreinterpretq_s16_u64 (uint64x2_t)
++@end itemize
++
++
++@itemize @bullet
++@item int16x8_t vreinterpretq_s16_s8 (int8x16_t)
++@end itemize
++
++
++@itemize @bullet
++@item int16x8_t vreinterpretq_s16_s32 (int32x4_t)
++@end itemize
++
++
++@itemize @bullet
++@item int16x8_t vreinterpretq_s16_u8 (uint8x16_t)
++@end itemize
++
++
++@itemize @bullet
++@item int16x8_t vreinterpretq_s16_u16 (uint16x8_t)
++@end itemize
++
++
++@itemize @bullet
++@item int16x8_t vreinterpretq_s16_u32 (uint32x4_t)
++@end itemize
++
++
++@itemize @bullet
++@item int32x4_t vreinterpretq_s32_p8 (poly8x16_t)
++@end itemize
++
++
++@itemize @bullet
++@item int32x4_t vreinterpretq_s32_p16 (poly16x8_t)
++@end itemize
++
++
++@itemize @bullet
++@item int32x4_t vreinterpretq_s32_f32 (float32x4_t)
++@end itemize
++
++
++@itemize @bullet
++@item int32x4_t vreinterpretq_s32_p64 (poly64x2_t)
++@end itemize
++
++
++@itemize @bullet
++@item int32x4_t vreinterpretq_s32_p128 (poly128_t)
++@end itemize
++
++
++@itemize @bullet
++@item int32x4_t vreinterpretq_s32_s64 (int64x2_t)
++@end itemize
++
++
++@itemize @bullet
++@item int32x4_t vreinterpretq_s32_u64 (uint64x2_t)
++@end itemize
++
++
++@itemize @bullet
++@item int32x4_t vreinterpretq_s32_s8 (int8x16_t)
++@end itemize
++
++
++@itemize @bullet
++@item int32x4_t vreinterpretq_s32_s16 (int16x8_t)
++@end itemize
++
++
++@itemize @bullet
++@item int32x4_t vreinterpretq_s32_u8 (uint8x16_t)
++@end itemize
++
++
++@itemize @bullet
++@item int32x4_t vreinterpretq_s32_u16 (uint16x8_t)
++@end itemize
++
++
++@itemize @bullet
++@item int32x4_t vreinterpretq_s32_u32 (uint32x4_t)
++@end itemize
++
++
++@itemize @bullet
+ @item uint8x16_t vreinterpretq_u8_p8 (poly8x16_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint16x4_t vreinterpret_u16_u32 (uint32x2_t)
++@item uint8x16_t vreinterpretq_u8_p16 (poly16x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint16x4_t vreinterpret_u16_u8 (uint8x8_t)
++@item uint8x16_t vreinterpretq_u8_f32 (float32x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint16x4_t vreinterpret_u16_s32 (int32x2_t)
++@item uint8x16_t vreinterpretq_u8_p64 (poly64x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint16x4_t vreinterpret_u16_s16 (int16x4_t)
++@item uint8x16_t vreinterpretq_u8_p128 (poly128_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint16x4_t vreinterpret_u16_s8 (int8x8_t)
++@item uint8x16_t vreinterpretq_u8_s64 (int64x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint16x4_t vreinterpret_u16_u64 (uint64x1_t)
++@item uint8x16_t vreinterpretq_u8_u64 (uint64x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint16x4_t vreinterpret_u16_s64 (int64x1_t)
++@item uint8x16_t vreinterpretq_u8_s8 (int8x16_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint16x4_t vreinterpret_u16_f32 (float32x2_t)
++@item uint8x16_t vreinterpretq_u8_s16 (int16x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint16x4_t vreinterpret_u16_p16 (poly16x4_t)
++@item uint8x16_t vreinterpretq_u8_s32 (int32x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint16x4_t vreinterpret_u16_p8 (poly8x8_t)
++@item uint8x16_t vreinterpretq_u8_u16 (uint16x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint16x8_t vreinterpretq_u16_u32 (uint32x4_t)
++@item uint8x16_t vreinterpretq_u8_u32 (uint32x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint16x8_t vreinterpretq_u16_u8 (uint8x16_t)
++@item uint16x8_t vreinterpretq_u16_p8 (poly8x16_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint16x8_t vreinterpretq_u16_s32 (int32x4_t)
++@item uint16x8_t vreinterpretq_u16_p16 (poly16x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint16x8_t vreinterpretq_u16_s16 (int16x8_t)
++@item uint16x8_t vreinterpretq_u16_f32 (float32x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint16x8_t vreinterpretq_u16_s8 (int8x16_t)
++@item uint16x8_t vreinterpretq_u16_p64 (poly64x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint16x8_t vreinterpretq_u16_u64 (uint64x2_t)
++@item uint16x8_t vreinterpretq_u16_p128 (poly128_t)
+ @end itemize
+ 
+ 
+@@ -11259,77 +11838,77 @@
+ 
+ 
+ @itemize @bullet
+-@item uint16x8_t vreinterpretq_u16_f32 (float32x4_t)
++@item uint16x8_t vreinterpretq_u16_u64 (uint64x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint16x8_t vreinterpretq_u16_p16 (poly16x8_t)
++@item uint16x8_t vreinterpretq_u16_s8 (int8x16_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint16x8_t vreinterpretq_u16_p8 (poly8x16_t)
++@item uint16x8_t vreinterpretq_u16_s16 (int16x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint32x2_t vreinterpret_u32_u16 (uint16x4_t)
++@item uint16x8_t vreinterpretq_u16_s32 (int32x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint32x2_t vreinterpret_u32_u8 (uint8x8_t)
++@item uint16x8_t vreinterpretq_u16_u8 (uint8x16_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint32x2_t vreinterpret_u32_s32 (int32x2_t)
++@item uint16x8_t vreinterpretq_u16_u32 (uint32x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint32x2_t vreinterpret_u32_s16 (int16x4_t)
++@item uint32x4_t vreinterpretq_u32_p8 (poly8x16_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint32x2_t vreinterpret_u32_s8 (int8x8_t)
++@item uint32x4_t vreinterpretq_u32_p16 (poly16x8_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint32x2_t vreinterpret_u32_u64 (uint64x1_t)
++@item uint32x4_t vreinterpretq_u32_f32 (float32x4_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint32x2_t vreinterpret_u32_s64 (int64x1_t)
++@item uint32x4_t vreinterpretq_u32_p64 (poly64x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint32x2_t vreinterpret_u32_f32 (float32x2_t)
++@item uint32x4_t vreinterpretq_u32_p128 (poly128_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint32x2_t vreinterpret_u32_p16 (poly16x4_t)
++@item uint32x4_t vreinterpretq_u32_s64 (int64x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint32x2_t vreinterpret_u32_p8 (poly8x8_t)
++@item uint32x4_t vreinterpretq_u32_u64 (uint64x2_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint32x4_t vreinterpretq_u32_u16 (uint16x8_t)
++@item uint32x4_t vreinterpretq_u32_s8 (int8x16_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint32x4_t vreinterpretq_u32_u8 (uint8x16_t)
++@item uint32x4_t vreinterpretq_u32_s16 (int16x8_t)
+ @end itemize
+ 
+ 
+@@ -11339,39 +11918,91 @@
+ 
+ 
+ @itemize @bullet
+-@item uint32x4_t vreinterpretq_u32_s16 (int16x8_t)
++@item uint32x4_t vreinterpretq_u32_u8 (uint8x16_t)
+ @end itemize
+ 
+ 
+ @itemize @bullet
+-@item uint32x4_t vreinterpretq_u32_s8 (int8x16_t)
++@item uint32x4_t vreinterpretq_u32_u16 (uint16x8_t)
+ @end itemize
+ 
+ 
++
++
++
+ @itemize @bullet
+-@item uint32x4_t vreinterpretq_u32_u64 (uint64x2_t)
++@item poly128_t vldrq_p128(poly128_t const *)
+ @end itemize
+ 
++@itemize @bullet
++@item void vstrq_p128(poly128_t *, poly128_t)
++@end itemize
+ 
+ @itemize @bullet
+-@item uint32x4_t vreinterpretq_u32_s64 (int64x2_t)
++@item uint64x1_t vceq_p64 (poly64x1_t, poly64x1_t)
+ @end itemize
+ 
++@itemize @bullet
++@item uint64x1_t vtst_p64 (poly64x1_t, poly64x1_t)
++@end itemize
+ 
+ @itemize @bullet
+-@item uint32x4_t vreinterpretq_u32_f32 (float32x4_t)
++@item uint32_t vsha1h_u32 (uint32_t)
++@*@emph{Form of expected instruction(s):} @code{sha1h.32 @var{q0}, @var{q1}}
+ @end itemize
+ 
++@itemize @bullet
++@item uint32x4_t vsha1cq_u32 (uint32x4_t, uint32_t, uint32x4_t)
++@*@emph{Form of expected instruction(s):} @code{sha1c.32 @var{q0}, @var{q1}, @var{q2}}
++@end itemize
+ 
+ @itemize @bullet
+-@item uint32x4_t vreinterpretq_u32_p16 (poly16x8_t)
++@item uint32x4_t vsha1pq_u32 (uint32x4_t, uint32_t, uint32x4_t)
++@*@emph{Form of expected instruction(s):} @code{sha1p.32 @var{q0}, @var{q1}, @var{q2}}
+ @end itemize
+ 
++@itemize @bullet
++@item uint32x4_t vsha1mq_u32 (uint32x4_t, uint32_t, uint32x4_t)
++@*@emph{Form of expected instruction(s):} @code{sha1m.32 @var{q0}, @var{q1}, @var{q2}}
++@end itemize
+ 
+ @itemize @bullet
+-@item uint32x4_t vreinterpretq_u32_p8 (poly8x16_t)
++@item uint32x4_t vsha1su0q_u32 (uint32x4_t, uint32x4_t, uint32x4_t)
++@*@emph{Form of expected instruction(s):} @code{sha1su0.32 @var{q0}, @var{q1}, @var{q2}}
+ @end itemize
+ 
++@itemize @bullet
++@item uint32x4_t vsha1su1q_u32 (uint32x4_t, uint32x4_t)
++@*@emph{Form of expected instruction(s):} @code{sha1su1.32 @var{q0}, @var{q1}, @var{q2}}
++@end itemize
+ 
++@itemize @bullet
++@item uint32x4_t vsha256hq_u32 (uint32x4_t, uint32x4_t, uint32x4_t)
++@*@emph{Form of expected instruction(s):} @code{sha256h.32 @var{q0}, @var{q1}, @var{q2}}
++@end itemize
++ 
++@itemize @bullet
++@item uint32x4_t vsha256h2q_u32 (uint32x4_t, uint32x4_t, uint32x4_t)
++@*@emph{Form of expected instruction(s):} @code{sha256h2.32 @var{q0}, @var{q1}, @var{q2}}
++@end itemize
++ 
++@itemize @bullet
++@item uint32x4_t vsha256su0q_u32 (uint32x4_t, uint32x4_t)
++@*@emph{Form of expected instruction(s):} @code{sha256su0.32 @var{q0}, @var{q1}}
++@end itemize
++ 
++@itemize @bullet
++@item uint32x4_t vsha256su1q_u32 (uint32x4_t, uint32x4_t, uint32x4_t)
++@*@emph{Form of expected instruction(s):} @code{sha256su1.32 @var{q0}, @var{q1}, @var{q2}}
++@end itemize
+ 
++@itemize @bullet
++@item poly128_t vmull_p64 (poly64_t a, poly64_t b)
++@*@emph{Form of expected instruction(s):} @code{vmull.p64 @var{q0}, @var{d1}, @var{d2}}
++@end itemize
+ 
++@itemize @bullet
++@item poly128_t vmull_high_p64 (poly64x2_t a, poly64x2_t b)
++@*@emph{Form of expected instruction(s):} @code{vmull.p64 @var{q0}, @var{d1}, @var{d2}}
++@end itemize
++
 --- a/src/gcc/doc/md.texi
 +++ b/src/gcc/doc/md.texi
-@@ -1653,6 +1653,62 @@
- the meanings of that architecture's constraints.
+@@ -1711,9 +1711,6 @@
+ @item Z
+ Integer constant zero
  
- @table @emph
-+@item AArch64 family---@file{config/aarch64/constraints.md}
-+@table @code
-+@item k
-+The stack pointer register (@code{SP})
-+
-+@item w
-+Floating point or SIMD vector register
-+
-+@item I
-+Integer constant that is valid as an immediate operand in an @code{ADD}
-+instruction
-+
-+@item J
-+Integer constant that is valid as an immediate operand in a @code{SUB}
-+instruction (once negated)
-+
-+@item K
-+Integer constant that can be used with a 32-bit logical instruction
-+
-+@item L
-+Integer constant that can be used with a 64-bit logical instruction
-+
-+@item M
-+Integer constant that is valid as an immediate operand in a 32-bit @code{MOV}
-+pseudo instruction. The @code{MOV} may be assembled to one of several different
-+machine instructions depending on the value
-+
-+@item N
-+Integer constant that is valid as an immediate operand in a 64-bit @code{MOV}
-+pseudo instruction
-+
-+@item S
-+An absolute symbolic address or a label reference
-+
-+@item Y
-+Floating point constant zero
-+
-+@item Z
-+Integer constant zero
-+
-+@item Usa
-+An absolute symbolic address
-+
-+@item Ush
-+The high part (bits 12 and upwards) of the pc-relative address of a symbol
-+within 4GB of the instruction
-+
-+@item Q
-+A memory address which uses a single base register with no offset
-+
-+@item Ump
-+A memory address suitable for a load/store pair instruction in SI, DI, SF and
-+DF modes
-+
-+@end table
-+
- @item ARM family---@file{config/arm/arm.h}
- @table @code
- @item f
-@@ -4736,6 +4792,10 @@
- Vector shift and rotate instructions that take vectors as operand 2
- instead of a scalar type.
- 
-+@cindex @code{bswap@var{m}2} instruction pattern
-+@item @samp{bswap@var{m}2}
-+Reverse the order of bytes of operand 1 and store the result in operand 0.
-+
- @cindex @code{neg@var{m}2} instruction pattern
- @cindex @code{ssneg@var{m}2} instruction pattern
- @cindex @code{usneg@var{m}2} instruction pattern
-@@ -8888,6 +8948,7 @@
- @menu
- * Mode Iterators::         Generating variations of patterns for different modes.
- * Code Iterators::         Doing the same for codes.
-+* Int Iterators::          Doing the same for integers.
- @end menu
- 
- @node Mode Iterators
-@@ -9159,4 +9220,81 @@
- @dots{}
+-@item Usa
+-An absolute symbolic address
+-
+ @item Ush
+ The high part (bits 12 and upwards) of the pc-relative address of a symbol
+ within 4GB of the instruction
+@@ -8901,7 +8898,8 @@
+ (define_cond_exec
+   [@var{predicate-pattern}]
+   "@var{condition}"
+-  "@var{output-template}")
++  "@var{output-template}"
++  "@var{optional-insn-attribues}")
  @end smallexample
  
-+@node Int Iterators
-+@subsection Int Iterators
-+@cindex int iterators in @file{.md} files
-+@findex define_int_iterator
-+@findex define_int_attr
-+
-+Int iterators operate in a similar way to code iterators.  @xref{Code Iterators}.
-+
-+The construct:
-+
-+@smallexample
-+(define_int_iterator @var{name} [(@var{int1} "@var{cond1}") @dots{} (@var{intn} "@var{condn}")])
-+@end smallexample
-+
-+defines a pseudo integer constant @var{name} that can be instantiated as
-+@var{inti} if condition @var{condi} is true.  Each @var{int}
-+must have the same rtx format.  @xref{RTL Classes}. Int iterators can appear
-+in only those rtx fields that have 'i' as the specifier. This means that
-+each @var{int} has to be a constant defined using define_constant or
-+define_c_enum.
-+
-+As with mode and code iterators, each pattern that uses @var{name} will be
-+expanded @var{n} times, once with all uses of @var{name} replaced by
-+@var{int1}, once with all uses replaced by @var{int2}, and so on.
-+@xref{Defining Mode Iterators}.
-+
-+It is possible to define attributes for ints as well as for codes and modes.
-+Attributes are defined using:
-+
-+@smallexample
-+(define_int_attr @var{name} [(@var{int1} "@var{value1}") @dots{} (@var{intn} "@var{valuen}")])
-+@end smallexample
-+
-+Here's an example of int iterators in action, taken from the ARM port:
-+
-+@smallexample
-+(define_int_iterator QABSNEG [UNSPEC_VQABS UNSPEC_VQNEG])
-+
-+(define_int_attr absneg [(UNSPEC_VQABS "abs") (UNSPEC_VQNEG "neg")])
-+
-+(define_insn "neon_vq<absneg><mode>"
-+  [(set (match_operand:VDQIW 0 "s_register_operand" "=w")
-+	(unspec:VDQIW [(match_operand:VDQIW 1 "s_register_operand" "w")
-+		       (match_operand:SI 2 "immediate_operand" "i")]
-+		      QABSNEG))]
-+  "TARGET_NEON"
-+  "vq<absneg>.<V_s_elem>\t%<V_reg>0, %<V_reg>1"
-+  [(set_attr "neon_type" "neon_vqneg_vqabs")]
-+)
-+
-+@end smallexample
-+
-+This is equivalent to:
-+
-+@smallexample
-+(define_insn "neon_vqabs<mode>"
-+  [(set (match_operand:VDQIW 0 "s_register_operand" "=w")
-+	(unspec:VDQIW [(match_operand:VDQIW 1 "s_register_operand" "w")
-+		       (match_operand:SI 2 "immediate_operand" "i")]
-+		      UNSPEC_VQABS))]
-+  "TARGET_NEON"
-+  "vqabs.<V_s_elem>\t%<V_reg>0, %<V_reg>1"
-+  [(set_attr "neon_type" "neon_vqneg_vqabs")]
-+)
-+
-+(define_insn "neon_vqneg<mode>"
-+  [(set (match_operand:VDQIW 0 "s_register_operand" "=w")
-+	(unspec:VDQIW [(match_operand:VDQIW 1 "s_register_operand" "w")
-+		       (match_operand:SI 2 "immediate_operand" "i")]
-+		      UNSPEC_VQNEG))]
-+  "TARGET_NEON"
-+  "vqneg.<V_s_elem>\t%<V_reg>0, %<V_reg>1"
-+  [(set_attr "neon_type" "neon_vqneg_vqabs")]
-+)
-+
-+@end smallexample
-+
- @end ifset
---- a/src/gcc/doc/sourcebuild.texi
-+++ b/src/gcc/doc/sourcebuild.texi
-@@ -1502,11 +1502,19 @@
- @item arm_neon_hw
- Test system supports executing NEON instructions.
+ @var{predicate-pattern} is the condition that must be true for the
+@@ -8922,6 +8920,13 @@
+ @code{current_insn_predicate} that will contain the entire predicate
+ if the current insn is predicated, and will otherwise be @code{NULL}.
  
-+@item arm_neonv2_hw
-+Test system supports executing NEON v2 instructions.
++@var{optional-insn-attributes} is an optional vector of attributes that gets
++appended to the insn attributes of the produced cond_exec rtx. It can
++be used to add some distinguishing attribute to cond_exec rtxs produced
++that way. An example usage would be to use this attribute in conjunction
++with attributes on the main pattern to disable particular alternatives under
++certain conditions.
 +
- @item arm_neon_ok
- @anchor{arm_neon_ok}
- ARM Target supports @code{-mfpu=neon -mfloat-abi=softfp} or compatible
- options.  Some multilibs may be incompatible with these options.
+ When @code{define_cond_exec} is used, an implicit reference to
+ the @code{predicable} instruction attribute is made.
+ @xref{Insn Attributes}.  This attribute must be a boolean (i.e.@: have
+@@ -9678,7 +9683,7 @@
+ 		      QABSNEG))]
+   "TARGET_NEON"
+   "vq<absneg>.<V_s_elem>\t%<V_reg>0, %<V_reg>1"
+-  [(set_attr "neon_type" "neon_vqneg_vqabs")]
++  [(set_attr "type" "neon_vqneg_vqabs")]
+ )
  
-+@item arm_neonv2_ok
-+@anchor{arm_neon2_ok}
-+ARM Target supports @code{-mfpu=neon -mfloat-abi=softfp} or compatible
-+options.  Some multilibs may be incompatible with these options.
-+
- @item arm_neon_fp16_ok
- @anchor{arm_neon_fp16_ok}
- ARM Target supports @code{-mfpu=neon-fp16 -mfloat-abi=softfp} or compatible
+ @end smallexample
+@@ -9693,7 +9698,7 @@
+ 		      UNSPEC_VQABS))]
+   "TARGET_NEON"
+   "vqabs.<V_s_elem>\t%<V_reg>0, %<V_reg>1"
+-  [(set_attr "neon_type" "neon_vqneg_vqabs")]
++  [(set_attr "type" "neon_vqneg_vqabs")]
+ )
+ 
+ (define_insn "neon_vqneg<mode>"
+@@ -9703,7 +9708,7 @@
+ 		      UNSPEC_VQNEG))]
+   "TARGET_NEON"
+   "vqneg.<V_s_elem>\t%<V_reg>0, %<V_reg>1"
+-  [(set_attr "neon_type" "neon_vqneg_vqabs")]
++  [(set_attr "type" "neon_vqneg_vqabs")]
+ )
+ 
+ @end smallexample

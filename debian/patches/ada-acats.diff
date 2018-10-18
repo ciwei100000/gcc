@@ -78,35 +78,30 @@ Index: b/src/gcc/testsuite/ada/acats/run_all.sh
 ===================================================================
 --- a/src/gcc/testsuite/ada/acats/run_all.sh
 +++ b/src/gcc/testsuite/ada/acats/run_all.sh
-@@ -12,6 +12,10 @@
+@@ -12,6 +12,11 @@
  gccflags="-O2"
  gnatflags="-gnatws"
  
-+RTS=`cd $GNATTOOLS/../gcc/ada/rts-shared-zcx; ${PWDCMD-pwd}`
-+LD_LIBRARY_PATH=$RTS:$LIBGNATVSN:$LIBGNATPRJ
++SHARED_RTS=`cd $GNATTOOLS/../gcc/ada/rts-shared-zcx; ${PWDCMD-pwd}`
++RTS=`cd $GNATTOOLS/../gcc/ada/rts-static-zcx; ${PWDCMD-pwd}`
++LD_LIBRARY_PATH=$SHARED_RTS:$LIBGNATVSN:$LIBGNATPRJ
 +export LD_LIBRARY_PATH
 +
  target_run () {
    eval $EXPECT -f $testdir/run_test.exp $*
  }
-@@ -48,15 +52,25 @@
+@@ -48,12 +53,15 @@
  fi
  
  target_gnatchop () {
 -  gnatchop --GCC="$GCC_DRIVER" $*
-+  display ADA_INCLUDE_PATH=$GNATTOOLS/../../src/gcc/ada $GNATTOOLS/gnatchop --GCC="$GCC_DRIVER" $*
 +  ADA_INCLUDE_PATH=$GNATTOOLS/../../src/gcc/ada $GNATTOOLS/gnatchop --GCC="$GCC_DRIVER" $*
  }
  
  target_gnatmake () {
 -  echo gnatmake --GCC=\"$GCC\" $gnatflags $gccflags $* -largs $EXTERNAL_OBJECTS --GCC=\"$GCC\"
 -  gnatmake --GCC="$GCC" $gnatflags $gccflags $* -largs $EXTERNAL_OBJECTS --GCC="$GCC"
-+  RTS="$GNATTOOLS/../gcc/ada/rts-shared-zcx"
 +  EXTERNAL_OBJECTS="$EXTERNAL_OBJECTS $RTS/adaint.o $RTS/sysdep.o $RTS/init.o $RTS/raise-gcc.o"
-+  display $GNATTOOLS/gnatmake -I- -I$RTS -I. \
-+      --GCC=\"$GCC\" --GNATBIND="$GNATTOOLS/gnatbind" \
-+      --GNATLINK="$GNATTOOLS/gnatlink" $gnatflags $gccflags $* \
-+      -bargs -static -largs $EXTERNAL_OBJECTS --GCC=\"$GCC -I- -I$RTS -I.\"
 +  $GNATTOOLS/gnatmake -I- -I$RTS -I. \
 +      --GCC="$GCC" --GNATBIND="$GNATTOOLS/gnatbind" \
 +      --GNATLINK="$GNATTOOLS/gnatlink" $gnatflags $gccflags $* \
@@ -114,11 +109,7 @@ Index: b/src/gcc/testsuite/ada/acats/run_all.sh
  }
  
  target_gcc () {
-+  display $GCC $gccflags $*
-   $GCC $gccflags $*
- }
- 
-@@ -86,8 +100,8 @@
+@@ -86,8 +94,8 @@
  display `$GCC -v 2>&1`
  display host=`gcc -dumpmachine`
  display target=$target
@@ -133,7 +124,7 @@ Index: b/src/gcc/testsuite/lib/gnat.exp
 ===================================================================
 --- a/src/gcc/testsuite/lib/gnat.exp
 +++ b/src/gcc/testsuite/lib/gnat.exp
-@@ -89,18 +89,24 @@
+@@ -88,18 +88,24 @@
      global GNAT_UNDER_TEST
      global TOOL_EXECUTABLE
      global gnat_target_current

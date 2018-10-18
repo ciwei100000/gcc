@@ -25,7 +25,9 @@ debian-chmod:
 # ---------------------------------------------------------------------------
 
 gfdl_texinfo_files = \
+	gcc/doc/arm-acle-intrinsics.texi \
 	gcc/doc/arm-neon-intrinsics.texi \
+	gcc/doc/avr-mmcu.texi \
 	gcc/doc/bugreport.texi \
 	gcc/doc/c-tree.texi \
 	gcc/doc/cfg.texi \
@@ -120,14 +122,9 @@ $(unpack_stamp)-$(gcc_tarball): $(gcc_tarpath)
 	  false; \
 	fi
 	rm -rf $(gcc_srcdir)
-	case $(gcc_tarball) in \
-	  *.bz2)  tar -x --bzip2 -f $(gcc_tarpath);; \
-	  *.gz)   tar -x --gzip  -f $(gcc_tarpath);; \
-	  *.lzma) lzcat $(gcc_tarpath) | tar -x -f -;; \
-	  *.xz) xzcat $(gcc_tarpath) | tar -x -f -;; \
-	  *)     false; \
-	esac
+	tar -x -f $(gcc_tarpath)
 	mv $(gcc_srcdir) $(srcdir)
+	ln -sf libsanitizer $(srcdir)/libasan
 ifneq (,$(wildcard java-class-files.tar.xz.uue))
 # work around #533356
 #	uudecode -o - java-class-files.tar.xz.uue | tar -C src -xvz
@@ -211,47 +208,34 @@ endif
 
 # ---------------------------------------------------------------------------
 ifneq (,$(gdc_tarball))
-$(unpack_stamp)-$(gdc_tarball): $(gdc_tarpath)
-  ifneq ($(with_libphobos),yes)
-	echo >&2 "libphobos v2 needs porting: $(with_libphobos)"
-	false
-  endif
+$(unpack_stamp)-$(gdc_tarball): $(gdc_tarpath) $(unpack_stamp)-$(gcc_tarball)
 	: # unpack gdc tarball
-	-mkdir $(stampdir)
+	mkdir -p $(stampdir)
 	if [ -d $(srcdir)/gcc/d ]; then \
 	  echo >&2 "Source directory $(srcdir)/gcc/d exists. Delete by hand";\
 	  false; \
 	fi
 	#rm -rf $(gdc_srcdir)
-	rm -rf d
-	case $(gdc_tarball) in \
-	  *.bz2)  tar -x --bzip2 -f $(gdc_tarpath);; \
-	  *.gz)   tar -x --gzip  -f $(gdc_tarpath);; \
-	  *.lzma) lzcat $(gdc_tarpath) | tar -x -f -;; \
-	  *.xz) xzcat $(gdc_tarpath) | tar -x -f -;; \
-	 *)     false; \
-	esac
-	if [ -d d ]; then \
-	  mv d $(srcdir)/gcc/. ; \
-	else \
-	  mv $(gdc_srcdir)/d $(srcdir)/gcc/. ; \
-	  rm -rf $(gdc_srcdir)/CVS; \
-	  rmdir $(gdc_srcdir); \
-	fi
-  ifeq ($(with_libphobos),yes)
-	[ -d $(srcdir)/libphobos ] && rm -rf $(srcdir)/libphobos || true
-	mkdir $(srcdir)/libphobos && \
-	  cd $(srcdir)/libphobos && \
-	    ../symlink-tree ../gcc/d/phobos$(libphobos_version) 2>&1 && \
-	cd $(srcdir)
+	rm -rf $(srcdir)/gcc/d
+	rm -rf $(srcdir)/gcc/testsuite/gdc.test
+	rm -f $(srcdir)/gcc/testsuite/lib/gdc*.exp
+	rm -rf $(srcdir)/libphobos
+	tar -x -C $(srcdir) --strip-components=1 -f $(gdc_tarpath)
+ifeq ($(GFDL_INVARIANT_FREE),yes-now-purge-gfdl)
+  ifneq ($(single_package),yes)
+	for i in gcc/d/gdc.texi; do \
+	  n=$$(basename $$i .texi); \
+	  if [ -f $(srcdir)/$$i ]; then \
+	    sed "s/@name@/$$n/g" $(SOURCE_DIR)debian/gcc-dummy.texi \
+	      > $(srcdir)/$$i; \
+	  else \
+	    echo >&2 "$$i does not exist, fix debian/rules.unpack"; \
+	  fi; \
+	done
+	for i in gcc/d/gdc.1; do \
+	  touch $(srcdir)/$$i; \
+	done
   endif
-  ifeq ($(libphobos_version),2)
-	cd $(srcdir)/libphobos && \
-	    ../symlink-tree ../gcc/d/druntime 2>&1 && \
-	cd $(srcdir)
-	echo "D_LANGUAGE_VERSION=2" > $(srcdir)/gcc/d/d-make-include
-  else
-	echo "D_LANGUAGE_VERSION=1" > $(srcdir)/gcc/d/d-make-include
-  endif
+endif
 	echo "$(gdc_tarball) unpacked." > $@
 endif

@@ -12,7 +12,7 @@ Index: b/src/gnattools/Makefile.in
 ===================================================================
 --- a/src/gnattools/Makefile.in
 +++ b/src/gnattools/Makefile.in
-@@ -38,10 +38,11 @@
+@@ -41,10 +41,11 @@
  CFLAGS=-O2 -Wall
  INCLUDES = -I@srcdir@/../gcc/ada -I@srcdir@/../gcc
  ADA_CFLAGS=-O2 -gnatn
@@ -21,12 +21,12 @@ Index: b/src/gnattools/Makefile.in
  LIB_VERSION=$(strip $(shell grep ' Library_Version :' \
 -              @srcdir@/../gcc/ada/gnatvsn.ads | sed -e 's/.*"\(.*\)".*/\1/'))
 +              ../libgnatvsn/gnatvsn.ads | sed -e 's/.*"\(.*\)".*/\1/'))
- ADA_LIBS := -L../gcc/ada/rts -lgnat-$(LIB_VERSION)
-+ADA_LIBS += -L../libgnatvsn -lgnatvsn
- 
- # We will use the just-built compiler to compile and link everything.
- GCC=../gcc/xgcc -B../gcc/
-@@ -67,62 +68,34 @@
+ SHARED_ADA_LIBS := -L../gcc/ada/rts -lgnat-$(LIB_VERSION)
++SHARED_ADA_LIBS += -L../libgnatvsn -lgnatvsn
+ STATIC_ADA_LIBS := ../gcc/ada/rts/libgnat.a
+ STATIC_GCC_LIBS := ../gcc/libcommon-target.a ../gcc/libcommon.a ../libcpp/libcpp.a \
+ ../libbacktrace/.libs/libbacktrace.a ../libiberty/libiberty.a
+@@ -73,49 +74,27 @@
  # Since we don't have gnatmake, we must specify the full list of
  # object files necessary to build gnatmake and gnatlink.
  # TODO: remove from these lists the objects that are part of
@@ -49,7 +49,6 @@ Index: b/src/gnattools/Makefile.in
 -opt.o \
  osint.o \
 -output.o \
- prefix.o \
  rident.o \
  sdefault.o \
 -snames.o \
@@ -60,7 +59,6 @@ Index: b/src/gnattools/Makefile.in
 -tree_io.o \
 -types.o \
 -validsw.o \
--version.o \
 -widechar.o
 +validsw.o
  
@@ -68,6 +66,7 @@ Index: b/src/gnattools/Makefile.in
  ali-util.o \
  ali.o \
 -alloc.o \
+ aspects.o \
 -atree.o \
  binderr.o \
  butil.o \
@@ -77,8 +76,9 @@ Index: b/src/gnattools/Makefile.in
 -einfo.o\
 -elists.o \
  err_vars.o \
+ errout.o \
  erroutc.o \
- errutil.o \
+@@ -123,12 +102,7 @@
  fmap.o \
  fname-sf.o \
  fname-uf.o \
@@ -91,7 +91,7 @@ Index: b/src/gnattools/Makefile.in
  make.o \
  makeusg.o \
  makeutl.o \
-@@ -132,12 +105,8 @@
+@@ -138,12 +112,8 @@
  mlib-tgt-specific.o \
  mlib-utl.o \
  mlib.o \
@@ -101,16 +101,17 @@ Index: b/src/gnattools/Makefile.in
  osint-m.o \
  osint.o \
 -output.o \
- prefix.o \
  prj-attr-pm.o \
  prj-attr.o \
-@@ -155,47 +124,59 @@
- prj-util.o \
+ prj-com.o \
+@@ -163,47 +133,60 @@
  prj.o \
+ restrict.o \
  rident.o \
 -scans.o \
  scng.o \
  sdefault.o \
+ sem_aux.o \
  sfn_scan.o \
 -sinfo.o \
  sinput-c.o \
@@ -133,7 +134,6 @@ Index: b/src/gnattools/Makefile.in
 -urealp.o \
  usage.o \
  validsw.o \
--version.o \
 -widechar.o \
  $(EXTRA_GNATMAKE_OBJS)
  
@@ -174,7 +174,7 @@ Index: b/src/gnattools/Makefile.in
 +$(notdir $(SPECS) $(BODIES)): stamp-gnattools-sources
  
  stamp-gnattools-sources:
--	$(LN_S) ../gcc/ada/sdefault.adb .
+-	$(LN_S) ../gcc/ada/sdefault.adb ../gcc/ada/snames.ads ../gcc/ada/snames.adb .
 +	for file in $(BODIES) $(SPECS); do \
 +	   $(LN_S) -f $$file .; \
 +	done
@@ -182,7 +182,7 @@ Index: b/src/gnattools/Makefile.in
  	$(foreach PAIR,$(TOOLS_TARGET_PAIRS), \
  	          rm -f $(word 1,$(subst <, ,$(PAIR)));\
  	          $(LN_S) @srcdir@/../gcc/ada/$(word 2,$(subst <, ,$(PAIR))) \
-@@ -203,6 +184,7 @@
+@@ -211,6 +194,7 @@
  	touch $@
  
  gnattools-native: ../gcc/ada/rts/libgnat-$(LIB_VERSION).so
@@ -190,65 +190,63 @@ Index: b/src/gnattools/Makefile.in
  gnattools-native: stamp-gnattools-sources
  gnattools-native: $(TOOLS)
  
-@@ -210,18 +192,16 @@
+@@ -218,13 +202,13 @@
  
  vpath %.c @srcdir@/../gcc/ada:@srcdir@/../gcc
  vpath %.h @srcdir@/../gcc/ada
 -vpath %.adb .:@srcdir@/../gcc/ada
 -vpath %.ads @srcdir@/../gcc/ada
  
- # Because the just-built gcc is a host tool like us, we can use some
--# of its object files, e.g. prefix.o and version.o.
-+# of its object files, e.g. prefix.o.
- vpath prefix.o ../gcc
--vpath version.o ../gcc
- 
  # gnatlink
  
  gnatlink-static: $(GNATLINK_OBJS) b_gnatl.o link.o
- 	$(GCC) -o $@ $^ \
-+	   ../libgnatvsn/libgnatvsn.a \
- 	   ../gcc/ada/rts/libgnat.a \
- 	   ../libiberty/libiberty.a
+-	$(GCC) -o $@ $^ ../gcc/ada/rts/libgnat.a $(STATIC_GCC_LIBS)
++	$(GCC) -o $@ $^ \
++	  ../libgnatvsn/libgnatvsn.a \
++	  ../gcc/ada/rts/libgnat.a $(STATIC_GCC_LIBS)
  
-@@ -238,6 +218,7 @@
+ gnatlink: $(GNATLINK_OBJS) b_gnatl.o link.o
+ 	$(GCC) -o $@ $^ $(SHARED_ADA_LIBS) $(STATIC_GCC_LIBS)
+@@ -235,7 +219,9 @@
+ # gnatmake
  
  gnatmake-static: $(GNATMAKE_OBJS) b_gnatm.o link.o
- 	$(GCC) -o $@ $(ADA_CFLAGS) $^ \
-+	   ../libgnatvsn/libgnatvsn.a \
- 	   ../gcc/ada/rts/libgnat.a \
- 	   ../libiberty/libiberty.a
+-	$(GCC) -o $@ $(ADA_CFLAGS) $^ $(STATIC_ADA_LIBS) $(STATIC_GCC_LIBS)
++	$(GCC) -o $@ $(ADA_CFLAGS) $^ \
++	  ../libgnatvsn/libgnatvsn.a \
++	  $(STATIC_ADA_LIBS) $(STATIC_GCC_LIBS)
  
-@@ -251,7 +232,8 @@
- 	../gcc/gnatbind -C -o $@ $(ADA_INCLUDES) gnatmake.ali
+ gnatmake: $(GNATMAKE_OBJS) b_gnatm.o link.o
+ 	$(GCC) -o $@ $(ADA_CFLAGS) $^ $(SHARED_ADA_LIBS) $(STATIC_GCC_LIBS)
+@@ -245,6 +231,7 @@
  
  # Other tools
--gnatkr: version.o
-+gnatkr:
+ gnatkr:
 +	if [ ! -f $@.adb ] ; then $(LN_S) ../../src/gcc/ada/$@.ad[bs] .; fi
  	./gnatmake-static -c -b $@ $(ADA_CFLAGS) $(ADA_INCLUDES) \
  	   --GCC="$(GCC)" \
  	   --GNATBIND=../gcc/gnatbind
-@@ -262,7 +244,8 @@
- 	cp -lp $< $@
+@@ -256,6 +243,7 @@
  
  gnatbind gnatchop gnatclean gnatcmd gnatfind gnatls gnatname gnatprep gnatxref: \
--link.o version.o prefix.o
-+link.o prefix.o
+ link.o
 +	if [ ! -f $@.adb ] ; then $(LN_S) ../../src/gcc/ada/$@.ad[bs] .; fi
  	./gnatmake-static -c -b $@ $(ADA_CFLAGS) $(ADA_INCLUDES) \
  	   --GCC="$(GCC)" \
  	   --GNATBIND=../gcc/gnatbind
-@@ -284,6 +267,8 @@
- %.o: %.c
- 	$(GCC) -c -o $@ $< $(CFLAGS) $(INCLUDES)
+@@ -268,11 +256,6 @@
  
-+prefix.o:
-+
- # Other
- # -----
+ sdefault.adb: stamp-gnattools-sources
  
-@@ -325,13 +310,15 @@
+-# Because these sources don't exist when the Makefile is evaluated:
+-snames.o: snames.adb snames.ads
+-
+-snames.adb snames.ads: stamp-gnattools-sources
+-
+ %.o: %.adb
+ 	$(GCC) -c -o $@ $< $(ADA_CFLAGS) $(ADA_INCLUDES)
+ 
+@@ -323,13 +306,15 @@
  .PHONY: install install-strip install-info install-pdf install-html
  
  # Cleaning rules.
@@ -484,7 +482,7 @@ Index: b/src/Makefile.def
 ===================================================================
 --- a/src/Makefile.def
 +++ b/src/Makefile.def
-@@ -151,6 +151,13 @@
+@@ -117,6 +117,13 @@
  		missing= TAGS;
  		missing= install-info;
  		missing= installcheck; };
@@ -498,7 +496,7 @@ Index: b/src/Makefile.def
  host_modules= { module= gnattools; no_check=true;
  		missing= info;
  		missing= dvi;
-@@ -196,6 +203,13 @@
+@@ -164,6 +171,13 @@
  		   missing= TAGS;
  		   missing= install-info;
  		   missing= installcheck; };
@@ -510,9 +508,9 @@ Index: b/src/Makefile.def
 +		   missing= install-info;
 +		   missing= installcheck; };
  target_modules = { module= libgomp; bootstrap= true; lib_path=.libs; };
- 
- // These are (some of) the make targets to be done in each subdirectory.
-@@ -382,6 +396,8 @@
+ target_modules = { module= libitm; lib_path=.libs; };
+ target_modules = { module= libatomic; lib_path=.libs; };
+@@ -351,6 +365,8 @@
  dependencies = { module=all-fixincludes; on=all-libiberty; };
  
  dependencies = { module=all-gnattools; on=all-libada; };
@@ -525,7 +523,7 @@ Index: b/src/Makefile.in
 ===================================================================
 --- a/src/Makefile.in
 +++ b/src/Makefile.in
-@@ -951,6 +951,7 @@
+@@ -919,6 +919,7 @@
      maybe-configure-libtermcap \
      maybe-configure-utils \
      maybe-configure-libada \
@@ -533,15 +531,15 @@ Index: b/src/Makefile.in
      maybe-configure-gnattools \
      maybe-configure-lto-plugin
  .PHONY: configure-target
-@@ -977,6 +978,7 @@
-     maybe-configure-target-qthreads \
+@@ -943,6 +944,7 @@
+     maybe-configure-target-boehm-gc \
      maybe-configure-target-rda \
      maybe-configure-target-libada \
 +    maybe-configure-target-libgnatvsn \
-     maybe-configure-target-libgomp
- 
- # The target built for a native non-bootstrap build.
-@@ -1129,6 +1131,7 @@
+     maybe-configure-target-libgomp \
+     maybe-configure-target-libitm \
+     maybe-configure-target-libatomic
+@@ -1064,6 +1066,7 @@
  all-host: maybe-all-libtermcap
  all-host: maybe-all-utils
  all-host: maybe-all-libada
@@ -549,15 +547,15 @@ Index: b/src/Makefile.in
  all-host: maybe-all-gnattools
  @if lto-plugin-no-bootstrap
  all-host: maybe-all-lto-plugin
-@@ -1162,6 +1165,7 @@
- all-target: maybe-all-target-qthreads
+@@ -1097,6 +1100,7 @@
+ all-target: maybe-all-target-boehm-gc
  all-target: maybe-all-target-rda
  all-target: maybe-all-target-libada
 +all-target: maybe-all-target-libgnatvsn
  @if target-libgomp-no-bootstrap
  all-target: maybe-all-target-libgomp
  @endif target-libgomp-no-bootstrap
-@@ -1259,6 +1263,7 @@
+@@ -1162,6 +1166,7 @@
  info-host: maybe-info-libtermcap
  info-host: maybe-info-utils
  info-host: maybe-info-libada
@@ -565,15 +563,15 @@ Index: b/src/Makefile.in
  info-host: maybe-info-gnattools
  info-host: maybe-info-lto-plugin
  
-@@ -1286,6 +1291,7 @@
- info-target: maybe-info-target-qthreads
+@@ -1187,6 +1192,7 @@
+ info-target: maybe-info-target-boehm-gc
  info-target: maybe-info-target-rda
  info-target: maybe-info-target-libada
 +info-target: maybe-info-target-libgnatvsn
  info-target: maybe-info-target-libgomp
- 
- .PHONY: do-dvi
-@@ -1376,6 +1382,7 @@
+ info-target: maybe-info-target-libitm
+ info-target: maybe-info-target-libatomic
+@@ -1245,6 +1251,7 @@
  dvi-host: maybe-dvi-libtermcap
  dvi-host: maybe-dvi-utils
  dvi-host: maybe-dvi-libada
@@ -581,15 +579,15 @@ Index: b/src/Makefile.in
  dvi-host: maybe-dvi-gnattools
  dvi-host: maybe-dvi-lto-plugin
  
-@@ -1403,6 +1410,7 @@
- dvi-target: maybe-dvi-target-qthreads
+@@ -1270,6 +1277,7 @@
+ dvi-target: maybe-dvi-target-boehm-gc
  dvi-target: maybe-dvi-target-rda
  dvi-target: maybe-dvi-target-libada
 +dvi-target: maybe-dvi-target-libgnatvsn
  dvi-target: maybe-dvi-target-libgomp
- 
- .PHONY: do-pdf
-@@ -1493,6 +1501,7 @@
+ dvi-target: maybe-dvi-target-libitm
+ dvi-target: maybe-dvi-target-libatomic
+@@ -1328,6 +1336,7 @@
  pdf-host: maybe-pdf-libtermcap
  pdf-host: maybe-pdf-utils
  pdf-host: maybe-pdf-libada
@@ -597,15 +595,15 @@ Index: b/src/Makefile.in
  pdf-host: maybe-pdf-gnattools
  pdf-host: maybe-pdf-lto-plugin
  
-@@ -1520,6 +1529,7 @@
- pdf-target: maybe-pdf-target-qthreads
+@@ -1353,6 +1362,7 @@
+ pdf-target: maybe-pdf-target-boehm-gc
  pdf-target: maybe-pdf-target-rda
  pdf-target: maybe-pdf-target-libada
 +pdf-target: maybe-pdf-target-libgnatvsn
  pdf-target: maybe-pdf-target-libgomp
- 
- .PHONY: do-html
-@@ -1610,6 +1620,7 @@
+ pdf-target: maybe-pdf-target-libitm
+ pdf-target: maybe-pdf-target-libatomic
+@@ -1411,6 +1421,7 @@
  html-host: maybe-html-libtermcap
  html-host: maybe-html-utils
  html-host: maybe-html-libada
@@ -613,15 +611,15 @@ Index: b/src/Makefile.in
  html-host: maybe-html-gnattools
  html-host: maybe-html-lto-plugin
  
-@@ -1637,6 +1648,7 @@
- html-target: maybe-html-target-qthreads
+@@ -1436,6 +1447,7 @@
+ html-target: maybe-html-target-boehm-gc
  html-target: maybe-html-target-rda
  html-target: maybe-html-target-libada
 +html-target: maybe-html-target-libgnatvsn
  html-target: maybe-html-target-libgomp
- 
- .PHONY: do-TAGS
-@@ -1727,6 +1739,7 @@
+ html-target: maybe-html-target-libitm
+ html-target: maybe-html-target-libatomic
+@@ -1494,6 +1506,7 @@
  TAGS-host: maybe-TAGS-libtermcap
  TAGS-host: maybe-TAGS-utils
  TAGS-host: maybe-TAGS-libada
@@ -629,15 +627,15 @@ Index: b/src/Makefile.in
  TAGS-host: maybe-TAGS-gnattools
  TAGS-host: maybe-TAGS-lto-plugin
  
-@@ -1754,6 +1767,7 @@
- TAGS-target: maybe-TAGS-target-qthreads
+@@ -1519,6 +1532,7 @@
+ TAGS-target: maybe-TAGS-target-boehm-gc
  TAGS-target: maybe-TAGS-target-rda
  TAGS-target: maybe-TAGS-target-libada
 +TAGS-target: maybe-TAGS-target-libgnatvsn
  TAGS-target: maybe-TAGS-target-libgomp
- 
- .PHONY: do-install-info
-@@ -1844,6 +1858,7 @@
+ TAGS-target: maybe-TAGS-target-libitm
+ TAGS-target: maybe-TAGS-target-libatomic
+@@ -1577,6 +1591,7 @@
  install-info-host: maybe-install-info-libtermcap
  install-info-host: maybe-install-info-utils
  install-info-host: maybe-install-info-libada
@@ -645,15 +643,15 @@ Index: b/src/Makefile.in
  install-info-host: maybe-install-info-gnattools
  install-info-host: maybe-install-info-lto-plugin
  
-@@ -1871,6 +1886,7 @@
- install-info-target: maybe-install-info-target-qthreads
+@@ -1602,6 +1617,7 @@
+ install-info-target: maybe-install-info-target-boehm-gc
  install-info-target: maybe-install-info-target-rda
  install-info-target: maybe-install-info-target-libada
 +install-info-target: maybe-install-info-target-libgnatvsn
  install-info-target: maybe-install-info-target-libgomp
- 
- .PHONY: do-install-pdf
-@@ -1961,6 +1977,7 @@
+ install-info-target: maybe-install-info-target-libitm
+ install-info-target: maybe-install-info-target-libatomic
+@@ -1660,6 +1676,7 @@
  install-pdf-host: maybe-install-pdf-libtermcap
  install-pdf-host: maybe-install-pdf-utils
  install-pdf-host: maybe-install-pdf-libada
@@ -661,15 +659,15 @@ Index: b/src/Makefile.in
  install-pdf-host: maybe-install-pdf-gnattools
  install-pdf-host: maybe-install-pdf-lto-plugin
  
-@@ -1988,6 +2005,7 @@
- install-pdf-target: maybe-install-pdf-target-qthreads
+@@ -1685,6 +1702,7 @@
+ install-pdf-target: maybe-install-pdf-target-boehm-gc
  install-pdf-target: maybe-install-pdf-target-rda
  install-pdf-target: maybe-install-pdf-target-libada
 +install-pdf-target: maybe-install-pdf-target-libgnatvsn
  install-pdf-target: maybe-install-pdf-target-libgomp
- 
- .PHONY: do-install-html
-@@ -2078,6 +2096,7 @@
+ install-pdf-target: maybe-install-pdf-target-libitm
+ install-pdf-target: maybe-install-pdf-target-libatomic
+@@ -1743,6 +1761,7 @@
  install-html-host: maybe-install-html-libtermcap
  install-html-host: maybe-install-html-utils
  install-html-host: maybe-install-html-libada
@@ -677,15 +675,15 @@ Index: b/src/Makefile.in
  install-html-host: maybe-install-html-gnattools
  install-html-host: maybe-install-html-lto-plugin
  
-@@ -2105,6 +2124,7 @@
- install-html-target: maybe-install-html-target-qthreads
+@@ -1768,6 +1787,7 @@
+ install-html-target: maybe-install-html-target-boehm-gc
  install-html-target: maybe-install-html-target-rda
  install-html-target: maybe-install-html-target-libada
 +install-html-target: maybe-install-html-target-libgnatvsn
  install-html-target: maybe-install-html-target-libgomp
- 
- .PHONY: do-installcheck
-@@ -2195,6 +2215,7 @@
+ install-html-target: maybe-install-html-target-libitm
+ install-html-target: maybe-install-html-target-libatomic
+@@ -1826,6 +1846,7 @@
  installcheck-host: maybe-installcheck-libtermcap
  installcheck-host: maybe-installcheck-utils
  installcheck-host: maybe-installcheck-libada
@@ -693,15 +691,15 @@ Index: b/src/Makefile.in
  installcheck-host: maybe-installcheck-gnattools
  installcheck-host: maybe-installcheck-lto-plugin
  
-@@ -2222,6 +2243,7 @@
- installcheck-target: maybe-installcheck-target-qthreads
+@@ -1851,6 +1872,7 @@
+ installcheck-target: maybe-installcheck-target-boehm-gc
  installcheck-target: maybe-installcheck-target-rda
  installcheck-target: maybe-installcheck-target-libada
 +installcheck-target: maybe-installcheck-target-libgnatvsn
  installcheck-target: maybe-installcheck-target-libgomp
- 
- .PHONY: do-mostlyclean
-@@ -2312,6 +2334,7 @@
+ installcheck-target: maybe-installcheck-target-libitm
+ installcheck-target: maybe-installcheck-target-libatomic
+@@ -1909,6 +1931,7 @@
  mostlyclean-host: maybe-mostlyclean-libtermcap
  mostlyclean-host: maybe-mostlyclean-utils
  mostlyclean-host: maybe-mostlyclean-libada
@@ -709,15 +707,15 @@ Index: b/src/Makefile.in
  mostlyclean-host: maybe-mostlyclean-gnattools
  mostlyclean-host: maybe-mostlyclean-lto-plugin
  
-@@ -2339,6 +2362,7 @@
- mostlyclean-target: maybe-mostlyclean-target-qthreads
+@@ -1934,6 +1957,7 @@
+ mostlyclean-target: maybe-mostlyclean-target-boehm-gc
  mostlyclean-target: maybe-mostlyclean-target-rda
  mostlyclean-target: maybe-mostlyclean-target-libada
 +mostlyclean-target: maybe-mostlyclean-target-libgnatvsn
  mostlyclean-target: maybe-mostlyclean-target-libgomp
- 
- .PHONY: do-clean
-@@ -2429,6 +2453,7 @@
+ mostlyclean-target: maybe-mostlyclean-target-libitm
+ mostlyclean-target: maybe-mostlyclean-target-libatomic
+@@ -1992,6 +2016,7 @@
  clean-host: maybe-clean-libtermcap
  clean-host: maybe-clean-utils
  clean-host: maybe-clean-libada
@@ -725,15 +723,15 @@ Index: b/src/Makefile.in
  clean-host: maybe-clean-gnattools
  clean-host: maybe-clean-lto-plugin
  
-@@ -2456,6 +2481,7 @@
- clean-target: maybe-clean-target-qthreads
+@@ -2017,6 +2042,7 @@
+ clean-target: maybe-clean-target-boehm-gc
  clean-target: maybe-clean-target-rda
  clean-target: maybe-clean-target-libada
 +clean-target: maybe-clean-target-libgnatvsn
  clean-target: maybe-clean-target-libgomp
- 
- .PHONY: do-distclean
-@@ -2546,6 +2572,7 @@
+ clean-target: maybe-clean-target-libitm
+ clean-target: maybe-clean-target-libatomic
+@@ -2075,6 +2101,7 @@
  distclean-host: maybe-distclean-libtermcap
  distclean-host: maybe-distclean-utils
  distclean-host: maybe-distclean-libada
@@ -741,15 +739,15 @@ Index: b/src/Makefile.in
  distclean-host: maybe-distclean-gnattools
  distclean-host: maybe-distclean-lto-plugin
  
-@@ -2573,6 +2600,7 @@
- distclean-target: maybe-distclean-target-qthreads
+@@ -2100,6 +2127,7 @@
+ distclean-target: maybe-distclean-target-boehm-gc
  distclean-target: maybe-distclean-target-rda
  distclean-target: maybe-distclean-target-libada
 +distclean-target: maybe-distclean-target-libgnatvsn
  distclean-target: maybe-distclean-target-libgomp
- 
- .PHONY: do-maintainer-clean
-@@ -2663,6 +2691,7 @@
+ distclean-target: maybe-distclean-target-libitm
+ distclean-target: maybe-distclean-target-libatomic
+@@ -2158,6 +2186,7 @@
  maintainer-clean-host: maybe-maintainer-clean-libtermcap
  maintainer-clean-host: maybe-maintainer-clean-utils
  maintainer-clean-host: maybe-maintainer-clean-libada
@@ -757,15 +755,15 @@ Index: b/src/Makefile.in
  maintainer-clean-host: maybe-maintainer-clean-gnattools
  maintainer-clean-host: maybe-maintainer-clean-lto-plugin
  
-@@ -2690,6 +2719,7 @@
- maintainer-clean-target: maybe-maintainer-clean-target-qthreads
+@@ -2183,6 +2212,7 @@
+ maintainer-clean-target: maybe-maintainer-clean-target-boehm-gc
  maintainer-clean-target: maybe-maintainer-clean-target-rda
  maintainer-clean-target: maybe-maintainer-clean-target-libada
 +maintainer-clean-target: maybe-maintainer-clean-target-libgnatvsn
  maintainer-clean-target: maybe-maintainer-clean-target-libgomp
- 
- 
-@@ -2835,6 +2865,7 @@
+ maintainer-clean-target: maybe-maintainer-clean-target-libitm
+ maintainer-clean-target: maybe-maintainer-clean-target-libatomic
+@@ -2296,6 +2326,7 @@
      maybe-check-libtermcap \
      maybe-check-utils \
      maybe-check-libada \
@@ -773,15 +771,15 @@ Index: b/src/Makefile.in
      maybe-check-gnattools \
      maybe-check-lto-plugin
  
-@@ -2862,6 +2893,7 @@
-     maybe-check-target-qthreads \
+@@ -2321,6 +2352,7 @@
+     maybe-check-target-boehm-gc \
      maybe-check-target-rda \
      maybe-check-target-libada \
 +    maybe-check-target-libgnatvsn \
-     maybe-check-target-libgomp
- 
- do-check:
-@@ -2978,6 +3010,7 @@
+     maybe-check-target-libgomp \
+     maybe-check-target-libitm \
+     maybe-check-target-libatomic
+@@ -2405,6 +2437,7 @@
      maybe-install-libtermcap \
      maybe-install-utils \
      maybe-install-libada \
@@ -789,7 +787,7 @@ Index: b/src/Makefile.in
      maybe-install-gnattools \
      maybe-install-lto-plugin
  
-@@ -3060,6 +3093,7 @@
+@@ -2453,6 +2486,7 @@
      maybe-install-libtermcap \
      maybe-install-utils \
      maybe-install-libada \
@@ -797,15 +795,15 @@ Index: b/src/Makefile.in
      maybe-install-gnattools \
      maybe-install-lto-plugin
  
-@@ -3087,6 +3121,7 @@
-     maybe-install-target-qthreads \
+@@ -2478,6 +2512,7 @@
+     maybe-install-target-boehm-gc \
      maybe-install-target-rda \
      maybe-install-target-libada \
 +    maybe-install-target-libgnatvsn \
-     maybe-install-target-libgomp
- 
- uninstall:
-@@ -3196,6 +3231,7 @@
+     maybe-install-target-libgomp \
+     maybe-install-target-libitm \
+     maybe-install-target-libatomic
+@@ -2556,6 +2591,7 @@
      maybe-install-strip-libtermcap \
      maybe-install-strip-utils \
      maybe-install-strip-libada \
@@ -813,15 +811,15 @@ Index: b/src/Makefile.in
      maybe-install-strip-gnattools \
      maybe-install-strip-lto-plugin
  
-@@ -3223,6 +3259,7 @@
-     maybe-install-strip-target-qthreads \
+@@ -2581,6 +2617,7 @@
+     maybe-install-strip-target-boehm-gc \
      maybe-install-strip-target-rda \
      maybe-install-strip-target-libada \
 +    maybe-install-strip-target-libgnatvsn \
-     maybe-install-strip-target-libgomp
- 
- 
-@@ -45128,6 +45165,343 @@
+     maybe-install-strip-target-libgomp \
+     maybe-install-strip-target-libitm \
+     maybe-install-strip-target-libatomic
+@@ -29766,6 +29803,343 @@
  
  
  
@@ -872,7 +870,7 @@ Index: b/src/Makefile.in
 +	s=`cd $(srcdir); ${PWD_COMMAND}`; export s; \
 +	$(HOST_EXPORTS)  \
 +	(cd $(HOST_SUBDIR)/libgnatvsn && \
-+	  $(MAKE) $(BASE_FLAGS_TO_PASS) $(EXTRA_HOST_FLAGS)  \
++	  $(MAKE) $(BASE_FLAGS_TO_PASS) $(EXTRA_HOST_FLAGS) $(STAGE1_FLAGS_TO_PASS)  \
 +		$(TARGET-libgnatvsn))
 +@endif libgnatvsn
 +
@@ -1165,7 +1163,7 @@ Index: b/src/Makefile.in
  .PHONY: configure-gnattools maybe-configure-gnattools
  maybe-configure-gnattools:
  @if gcc-bootstrap
-@@ -57263,6 +57637,361 @@
+@@ -41482,6 +41856,361 @@
  
  
  
@@ -1230,7 +1228,7 @@ Index: b/src/Makefile.in
 +	s=`cd $(srcdir); ${PWD_COMMAND}`; export s; \
 +	$(NORMAL_TARGET_EXPORTS)  \
 +	(cd $(TARGET_SUBDIR)/libgnatvsn && \
-+	  $(MAKE) $(BASE_FLAGS_TO_PASS) $(EXTRA_TARGET_FLAGS)  \
++	  $(MAKE) $(BASE_FLAGS_TO_PASS) $(EXTRA_TARGET_FLAGS)   \
 +		$(TARGET-target-libgnatvsn))
 +@endif target-libgnatvsn
 +
@@ -1527,23 +1525,23 @@ Index: b/src/Makefile.in
  .PHONY: configure-target-libgomp maybe-configure-target-libgomp
  maybe-configure-target-libgomp:
  @if gcc-bootstrap
-@@ -60326,6 +61055,7 @@
- configure-target-qthreads: stage_last
+@@ -45535,6 +46264,7 @@
+ configure-target-boehm-gc: stage_last
  configure-target-rda: stage_last
  configure-target-libada: stage_last
 +configure-target-libgnatvsn: stage_last
  configure-stage1-target-libgomp: maybe-all-stage1-gcc
  configure-stage2-target-libgomp: maybe-all-stage2-gcc
  configure-stage3-target-libgomp: maybe-all-stage3-gcc
-@@ -60357,6 +61087,7 @@
- configure-target-qthreads: maybe-all-gcc
+@@ -45566,6 +46296,7 @@
+ configure-target-boehm-gc: maybe-all-gcc
  configure-target-rda: maybe-all-gcc
  configure-target-libada: maybe-all-gcc
 +configure-target-libgnatvsn: maybe-all-gcc
  configure-target-libgomp: maybe-all-gcc
- @endif gcc-no-bootstrap
- 
-@@ -60657,6 +61388,8 @@
+ configure-target-libitm: maybe-all-gcc
+ configure-target-libatomic: maybe-all-gcc
+@@ -45859,6 +46590,8 @@
  all-stagefeedback-libcpp: maybe-all-stagefeedback-intl
  all-fixincludes: maybe-all-libiberty
  all-gnattools: maybe-all-libada
@@ -1552,15 +1550,15 @@ Index: b/src/Makefile.in
  all-lto-plugin: maybe-all-libiberty
  
  all-stage1-lto-plugin: maybe-all-stage1-libiberty
-@@ -61201,6 +61934,7 @@
- configure-target-qthreads: maybe-all-target-libgcc
+@@ -46394,6 +47127,7 @@
+ configure-target-boehm-gc: maybe-all-target-libgcc
  configure-target-rda: maybe-all-target-libgcc
  configure-target-libada: maybe-all-target-libgcc
 +configure-target-libgnatvsn: maybe-all-target-libgcc
  configure-target-libgomp: maybe-all-target-libgcc
- @endif gcc-no-bootstrap
- 
-@@ -61247,6 +61981,8 @@
+ configure-target-libitm: maybe-all-target-libgcc
+ configure-target-libatomic: maybe-all-target-libgcc
+@@ -46438,6 +47172,8 @@
  
  configure-target-libada: maybe-all-target-newlib maybe-all-target-libgloss
  
@@ -1568,21 +1566,21 @@ Index: b/src/Makefile.in
 +
  configure-target-libgomp: maybe-all-target-newlib maybe-all-target-libgloss
  
- 
+ configure-target-libitm: maybe-all-target-newlib maybe-all-target-libgloss
 Index: b/src/configure.ac
 ===================================================================
 --- a/src/configure.ac
 +++ b/src/configure.ac
-@@ -168,7 +168,7 @@
+@@ -133,7 +133,7 @@
  
  # these libraries are used by various programs built for the host environment
  #
--host_libs="intl mmalloc libiberty opcodes bfd readline tcl tk itcl libgui zlib libcpp libdecnumber gmp mpfr mpc ppl cloog libelf libiconv libada"
-+host_libs="intl mmalloc libiberty opcodes bfd readline tcl tk itcl libgui zlib libcpp libdecnumber gmp mpfr mpc ppl cloog libelf libiconv libada libgnatvsn"
+-host_libs="intl libiberty opcodes bfd readline tcl tk itcl libgui zlib libbacktrace libcpp libdecnumber gmp mpfr mpc isl cloog libelf libiconv libada"
++host_libs="intl libiberty opcodes bfd readline tcl tk itcl libgui zlib libbacktrace libcpp libdecnumber gmp mpfr mpc isl cloog libelf libiconv libada libgnatvsn"
  
  # these tools are built for the host environment
  # Note, the powerpc-eabi build depends on sim occurring before gdb in order to
-@@ -201,6 +201,7 @@
+@@ -168,6 +168,7 @@
  		${libgcj} \
  		target-libobjc \
  		target-libada \
@@ -1590,16 +1588,16 @@ Index: b/src/configure.ac
  		target-libgo"
  
  # these tools are built using the target libraries, and are intended to
-@@ -302,7 +303,7 @@
+@@ -264,7 +265,7 @@
  
- # Similarly, some are only suitable for cross toolchains.
+ # Some are only suitable for cross toolchains.
  # Remove these if host=target.
 -cross_only="target-libgloss target-newlib target-opcodes target-libada"
 +cross_only="target-libgloss target-newlib target-opcodes target-libada target-libgnatvsn"
  
  case $is_cross_compiler in
    no) skipdirs="${skipdirs} ${cross_only}" ;;
-@@ -486,7 +487,7 @@
+@@ -420,7 +421,7 @@
  ENABLE_LIBADA=$enableval,
  ENABLE_LIBADA=yes)
  if test "${ENABLE_LIBADA}" != "yes" ; then
@@ -1612,7 +1610,7 @@ Index: b/src/gcc/ada/gcc-interface/config-lang.in
 ===================================================================
 --- a/src/gcc/ada/gcc-interface/config-lang.in
 +++ b/src/gcc/ada/gcc-interface/config-lang.in
-@@ -36,8 +36,8 @@
+@@ -34,8 +34,8 @@
  
  outputs="ada/gcc-interface/Makefile ada/Makefile"
  

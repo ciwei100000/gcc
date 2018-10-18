@@ -16,6 +16,9 @@ $(binary_stamp)-gcc-source:
 
 	dh_install -p$(p_source) $(gcc_tarball) usr/src/gcc$(pkg_ver)
 #	dh_install -p$(p_source) $(gcj_tarball) usr/src/gcc$(pkg_ver)
+ifneq (,$(gdc_tarball))
+	dh_install -p$(p_source) $(gdc_tarball) usr/src/gcc$(pkg_ver)
+endif
 	tar cf - $$(find './debian' -mindepth 1 \( \
 		-name .svn -prune -o \
 		-path './debian/gcc-*' -type d -prune -o \

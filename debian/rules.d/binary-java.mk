@@ -5,8 +5,6 @@ ifeq ($(with_separate_libgcj),yes)
   ifeq ($(PKGSOURCE),gcj-$(BASE_VERSION))
     arch_binaries  := $(arch_binaries) jbase
   endif
-else
-  arch_binaries  := $(arch_binaries) jbase
 endif
 
 ifeq ($(with_libgcj),yes)
@@ -16,7 +14,7 @@ ifeq ($(with_libgcj),yes)
   endif
 
   ifeq ($(with_javadev),yes)
-    arch_binaries  := $(arch_binaries) libgcjdev libgcjdbg
+    arch_binaries  := $(arch_binaries) gcjjdk libgcjdev libgcjdbg
     ifneq ($(DEB_CROSS),yes)
       indep_binaries := $(indep_binaries) libgcjsrc
       ifeq ($(with_libgcj_doc),yes)
@@ -32,6 +30,10 @@ endif
 endif
 
 p_jbase	= gcj$(pkg_ver)-base
+ifeq ($(with_separate_libgcj)-$(with_standalone_gcj),no-no)
+  p_jbase = gcc$(pkg_ver)-base
+endif
+p_gcj	= gcj$(pkg_ver)$(cross_bin_arch)
 p_jdk	= gcj$(pkg_ver)-jdk$(cross_bin_arch)
 p_jrehl	= gcj$(pkg_ver)-jre-headless$(cross_bin_arch)
 p_jre	= gcj$(pkg_ver)-jre$(cross_bin_arch)
@@ -46,6 +48,7 @@ p_jdev	= libgcj$(PKG_GCJ_EXT)-dev$(cross_lib_arch)
 p_jdoc	= libgcj-doc
 
 d_jbase	= debian/$(p_jbase)
+d_gcj	= debian/$(p_gcj)
 d_jdk	= debian/$(p_jdk)
 d_jrehl	= debian/$(p_jrehl)
 d_jar	= debian/$(p_jar)
@@ -66,6 +69,21 @@ gcj_vlibdir	= $(PF)/$(libdir)/gcj-$(BASE_VERSION)-$(GCJ_SONAME)
 jre_tools = java keytool orbd rmid rmiregistry tnameserv
 jdk_tools = appletviewer jar jarsigner javac javadoc javah native2ascii rmic serialver
 
+dirs_gcj = \
+	$(docdir)/$(p_jbase) \
+	$(PF)/bin \
+	$(PF)/share/man/man1 \
+	$(gcc_lexec_dir)
+
+files_gcj = \
+	$(PF)/bin/$(cmd_prefix)gcj$(pkg_ver) \
+	$(gcc_lexec_dir)/{ecj1,jc1,jvgenmain}
+
+ifneq ($(GFDL_INVARIANT_FREE),yes)
+  files_gcj += \
+	$(PF)/share/man/man1/$(cmd_prefix)gcj$(pkg_ver).1
+endif
+
 dirs_jdk = \
 	$(docdir)/$(p_jbase) \
 	$(PF)/bin \
@@ -75,9 +93,8 @@ dirs_jdk = \
 	$(jvm_dir)/bin
 
 files_jdk = \
-	$(PF)/bin/{gappletviewer,gjdoc,gcj,gc-analyze,gjar,gjarsigner,gcjh,gjavah,gnative2ascii,grmic,gserialver,jv-convert,jcf-dump}$(pkg_ver) \
+	$(PF)/bin/{gappletviewer,gjdoc,gc-analyze,gjar,gjarsigner,gcjh,gjavah,gnative2ascii,grmic,gserialver,jv-convert,jcf-dump}$(pkg_ver) \
 	$(PF)/share/man/man1/{gappletviewer,gjdoc,gjar,gjarsigner,gcjh,gjavah,gnative2ascii,gserialver}$(pkg_ver).1 \
-	$(gcc_lexec_dir)/{ecj1,jc1,jvgenmain} \
 	$(gcc_lib_dir)/include/{jni.h,jni_md.h,jvmpi.h} \
 	$(gcc_lib_dir)/include/{jawt.h,jawt_md.h} \
 	$(gcc_lib_dir)/include/gcj/libgcj-config.h \
@@ -90,7 +107,7 @@ files_jdk = \
 ifneq ($(GFDL_INVARIANT_FREE),yes)
   files_jdk += \
 	$(PF)/share/info/gcj* \
-	$(PF)/share/man/man1/{gcj,gc-analyze,grmic,jv-convert,jcf-dump}$(pkg_ver).1
+	$(PF)/share/man/man1/{gc-analyze,grmic,jv-convert,jcf-dump}$(pkg_ver).1
 endif
 
 dirs_jrehl = \
@@ -105,15 +122,23 @@ dirs_jrehl = \
 files_jrehl = \
 	$(PF)/bin/{gij,gcj-dbtool,gorbd,grmid,grmiregistry,gkeytool,gtnameserv}$(pkg_ver) \
 	$(PF)/share/man/man1/{gorbd,grmid,grmiregistry,gkeytool,gtnameserv}$(pkg_ver).1 \
-	$(jvm_dir)/jre \
+	$(jvm_dir)/jre/bin \
 	$(jvm_dir)/bin/{java,keytool,orbd,rmid,rmiregistry,tnameserv} \
 	$(jvm_dir)/jre/lib/rt.jar \
+	$(jvm_dir)/jre/lib/$(java_cpu)/{client,server} \
 	$(jvm_dir)/lib/tools.jar
 
 ifneq ($(GFDL_INVARIANT_FREE),yes)
   files_jrehl += \
 	$(PF)/share/man/man1/{gij,gcj-dbtool}$(pkg_ver).1
 endif
+
+dirs_jre = \
+	$(docdir)/$(p_jbase) \
+	$(jvm_dir)/jre/lib/$(java_cpu)
+
+files_jre = \
+	$(jvm_dir)/jre/lib/$(java_cpu)/libjawt.so
 
 dirs_jlib = \
 	$(docdir)/$(p_jbase) \
@@ -231,13 +256,53 @@ $(binary_stamp)-jbase: $(install_dependencies)
 	touch $@
 
 # ----------------------------------------------------------------------
+$(binary_stamp)-gcj: $(install_stamp)
+	dh_testdir
+	dh_testroot
+	mv $(install_stamp) $(install_stamp)-tmp
+
+	rm -rf $(d_gcj)
+	dh_installdirs -p$(p_gcj)  $(dirs_gcj)
+
+ifeq ($(DEB_CROSS),yes)
+	ln -sf ../../../gcc/$(DEB_HOST_GNU_TYPE)/$(BASE_VERSION)/ecj1 \
+		$(d)/$(gcc_lib_dir)/ecj1
+endif
+	$(dh_compat2) dh_movefiles -p$(p_gcj)  $(files_gcj)
+
+ifneq (,$(filter $(DEB_HOST_ARCH), arm armel))
+	ln -sf ../../ecj1 $(d_gcj)/$(gcc_lexec_dir)/ecj1
+endif
+ifneq ($(DEB_CROSS),yes)
+	ln -sf gcj$(pkg_ver) \
+	    $(d_gcj)/$(PF)/bin/$(TARGET_ALIAS)-gcj$(pkg_ver)
+  ifneq ($(GFDL_INVARIANT_FREE),yes)
+	ln -sf gcj$(pkg_ver).1 \
+	    $(d_gcj)/$(PF)/share/man/man1/$(TARGET_ALIAS)-gcj$(pkg_ver).1
+  endif
+endif
+	debian/dh_doclink -p$(p_gcj) $(p_jbase)
+	debian/dh_rmemptydirs -p$(p_gcj)
+
+	dh_strip -p$(p_gcj)
+	dh_compress -p$(p_gcj)
+	dh_fixperms -p$(p_gcj)
+	dh_shlibdeps -p$(p_gcj) -Xecj1
+	dh_gencontrol -p$(p_gcj) -- -v$(DEB_VERSION) $(common_substvars)
+	dh_installdeb -p$(p_gcj)
+	dh_md5sums -p$(p_gcj)
+	dh_builddeb -p$(p_gcj)
+
+	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
+
+# ----------------------------------------------------------------------
 $(binary_stamp)-libgcjjar: $(install_stamp)
 	dh_testdir
 	dh_testroot
 	mv $(install_stamp) $(install_stamp)-tmp
 
 	dh_installdirs -p$(p_jar) $(dirs_jar)
-	DH_COMPAT=2 dh_movefiles -p$(p_jar) $(files_jar)
+	$(dh_compat2) dh_movefiles -p$(p_jar) $(files_jar)
 
 	ln -sf libgcj-$(BASE_VERSION).jar \
 		$(d_jar)/$(PF)/share/java/libgcj-$(GCC_VERSION).jar
@@ -315,6 +380,7 @@ $(binary_stamp)-libgcjdoc: $(install_stamp) $(build_javadoc_stamp)
 	dh_testroot
 
 	dh_installdocs -p$(p_jdoc)
+	sed -i 's/gcc$(pkg_ver)-base/$(p_jbase)/' $(d_jdoc)/usr/share/doc-base/libgcj-doc
 	dh_installchangelogs -p$(p_jdoc)
 	mkdir -p $(d_jdoc)/usr/share/doc/$(p_jbase)
 	cp -al $(builddir)/html $(d_jdoc)/usr/share/doc/$(p_jbase)/api
@@ -349,18 +415,15 @@ $(binary_stamp)-java: $(install_stamp)
 	dh_installdirs -p$(p_jlib)  $(dirs_jlib)
 	dh_installdirs -p$(p_jlibx) $(dirs_jlibx)
 
-	DH_COMPAT=2 dh_movefiles -p$(p_jrehl)   $(files_jrehl)
-	DH_COMPAT=2 dh_movefiles -p$(p_jlib)  $(files_jlib)
-	DH_COMPAT=2 dh_movefiles -p$(p_jlibx) $(files_jlibx)
+	$(dh_compat2) dh_movefiles -p$(p_jrehl)   $(files_jrehl)
+	$(dh_compat2) dh_movefiles -p$(p_jlib)  $(files_jlib)
+	$(dh_compat2) dh_movefiles -p$(p_jlibx) $(files_jlibx)
 #ifneq (,$(findstring gtk, $(java_awt_peers)))
-#	DH_COMPAT=2 dh_movefiles -p$(p_jgtk) $(files_jgtk)
+#	$(dh_compat2) dh_movefiles -p$(p_jgtk) $(files_jgtk)
 #endif
 #ifneq (,$(findstring qt, $(java_awt_peers)))
-#	DH_COMPAT=2 dh_movefiles -p$(p_jqt) $(files_jqt)
+#	$(dh_compat2) dh_movefiles -p$(p_jqt) $(files_jqt)
 #endif
-
-# FIXME
-#	  $(jvm_dir) $(PF)/lib/jvm/$(jvm_name_long) \
 
 	dh_link -p$(p_jrehl) \
 	  $(jvm_dir) $(PF)/lib/jvm/java-gcj$(pkg_ver) \
@@ -385,9 +448,13 @@ ifneq ($(DEB_TARGET_ARCH_CPU),$(java_cpu))
 endif
 
 	dh_link -p$(p_jlib) \
-	  etc/java/cacerts-gcj $(jvm_dir)/jre/lib/cacerts \
+	  /etc/java/cacerts-gcj /$(jvm_dir)/jre/lib/cacerts \
 	  $(foreach i, jvm javamath, \
-		$(gcj_vlibdir)/lib$(i).so $(jvm_dir)/lib/lib$(i).so)
+		/$(gcj_vlibdir)/lib$(i).so /$(jvm_dir)/lib/lib$(i).so)
+
+	dh_link -p$(p_jlib) \
+	  /etc/java/security/classpath.security \
+	  /$(jvm_dir)/jre/lib/security/java.security
 
 	dh_link -p$(p_jlibx) \
 	  $(foreach i, jawt, $(gcj_vlibdir)/lib$(i).so $(jvm_dir)/lib/lib$(i).so)
@@ -416,9 +483,10 @@ endif
 	  done; \
 	) > $(d_jrehl)/usr/lib/jvm/.java-gcj$(pkg_ver).jinfo
 
+ifneq (,$(findstring gcj,$(p_jbase)))
 	cp -p $(srcdir)/libjava/{NEWS,README,THANKS} \
 		$(d_jrehl)/usr/share/doc/$(p_jbase)/
-
+endif
 	debian/dh_doclink -p$(p_jrehl) $(p_jbase)
 	debian/dh_doclink -p$(p_jlib)  $(p_jbase)
 	debian/dh_doclink -p$(p_jlibx) $(p_jbase)
@@ -460,6 +528,16 @@ endif
 		-p$(p_jrehl) -p$(p_jlib) -p$(p_jlibx) $(peer_pkgs)
 	rm -f $(d_jdbg)/$(gcc_lib_dir)/libgcj_bc.so
 
+	mkdir -p $(d_jlib)/usr/share/lintian/overrides
+	cp -p debian/$(p_jlib).overrides \
+		$(d_jlib)/usr/share/lintian/overrides/$(p_jlib)
+	mkdir -p $(d_jlibx)/usr/share/lintian/overrides
+	cp -p debian/$(p_jlibx).overrides \
+		$(d_jlibx)/usr/share/lintian/overrides/$(p_jlibx)
+	mkdir -p $(d_jrehl)/usr/share/lintian/overrides
+	cp -p debian/$(p_jrehl).overrides \
+		$(d_jrehl)/usr/share/lintian/overrides/$(p_jrehl)
+
 	dh_compress -p$(p_jrehl) -p$(p_jlib) -p$(p_jlibx) $(peer_pkgs)
 	dh_fixperms -p$(p_jrehl) -p$(p_jlib) -p$(p_jlibx) $(peer_pkgs)
 # the libstdc++ binary packages aren't built yet ...
@@ -488,16 +566,6 @@ endif
 		-p$(p_jrehl) -p$(p_jlib) -p$(p_jlibx) $(peer_pkgs) \
 		-- -v$(DEB_VERSION) $(common_substvars)
 
-	mkdir -p $(d_jlib)/usr/share/lintian/overrides
-	cp -p debian/$(p_jlib).overrides \
-		$(d_jlib)/usr/share/lintian/overrides/$(p_jlib)
-	mkdir -p $(d_jlibx)/usr/share/lintian/overrides
-	cp -p debian/$(p_jlibx).overrides \
-		$(d_jlibx)/usr/share/lintian/overrides/$(p_jlibx)
-	mkdir -p $(d_jrehl)/usr/share/lintian/overrides
-	cp -p debian/$(p_jrehl).overrides \
-		$(d_jrehl)/usr/share/lintian/overrides/$(p_jrehl)
-
 	dh_installdeb -p$(p_jrehl) -p$(p_jlib) -p$(p_jlibx) $(peer_pkgs)
 	dh_md5sums -p$(p_jrehl) -p$(p_jlib) -p$(p_jlibx) $(peer_pkgs)
 	dh_builddeb -p$(p_jrehl) -p$(p_jlib) -p$(p_jlibx) $(peer_pkgs)
@@ -505,7 +573,7 @@ endif
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 
 # ----------------------------------------------------------------------
-$(binary_stamp)-gcj: $(build_html_stamp) $(install_stamp)
+$(binary_stamp)-gcjjdk: $(build_html_stamp) $(install_stamp)
 	dh_testdir
 	dh_testroot
 	mv $(install_stamp) $(install_stamp)-tmp
@@ -525,7 +593,7 @@ ifeq ($(with_standalone_gcj),yes)
 	rm -f $(d)/$(PF)/$(libdir)/libgcc_s.so
 	ln -sf /$(libdir)/libgcc_s.so.$(GCC_SONAME) $(d)/$(gcc_lib_dir)/libgcc_s.so
 endif
-	DH_COMPAT=2 dh_movefiles -p$(p_jdk)  $(files_jdk)
+	$(dh_compat2) dh_movefiles -p$(p_jdk)  $(files_jdk)
 
 	for i in libgij libgcj libgcj-tools; do \
 	  dh_link -p$(p_jdk) \
@@ -534,18 +602,15 @@ endif
 	  rm -f $(d_jdk)/$(PF)/$(libdir)/$$i.{la,so}; \
 	done
 
-	ln -sf gcj$(pkg_ver) \
-	    $(d_jdk)/$(PF)/bin/$(TARGET_ALIAS)-gcj$(pkg_ver)
-
 	install -m755 debian/jdb.sh $(d_jdk)/$(jvm_dir)/bin/jdb
 
 	mv $(d_jdk)/$(PF)/$(libdir)/libgcj.spec $(d_jdk)/$(gcc_lib_dir)/
 
 	install -m 755 $(d)/$(PF)/$(libdir)/libgcj_bc.so.1 \
 		$(d_jdk)/$(gcc_lib_dir)/libgcj_bc.so
-	$(builddir)/gcc/xgcc -B$(builddir)/gcc/ -shared -fpic -xc /dev/null \
+	$(CC_FOR_TARGET) -shared -fpic -xc /dev/null \
 		-o build/libgcj.so -Wl,-soname,libgcj.so.$(GCJ_SONAME) -nostdlib
-	$(builddir)/gcc/xgcc -B$(builddir)/gcc/ -shared -fpic \
+	$(CC_FOR_TARGET) -shared -fpic \
 		$(srcdir)/libjava/libgcj_bc.c \
 		-o $(d_jdk)/$(gcc_lib_dir)/libgcj_bc.so \
 		-Wl,-soname,libgcj_bc.so.1 $(builddir)/libgcj.so -shared-libgcc 
@@ -554,8 +619,8 @@ endif
 	  $(gcc_lib_dir)/include/gcj $(jvm_dir)/include/gcj \
 	  usr/bin/ecj $(jvm_dir)/bin/javac \
 	  usr/bin/fastjar $(jvm_dir)/bin/jar \
-	  $(PF)/share/man/man1/ecj.1 $(jvm_dir)/man/man1/javac.1 \
-	  $(PF)/share/man/man1/fastjar.1 $(jvm_dir)/man/man1/jar.1
+	  $(PF)/share/man/man1/ecj.1.gz $(jvm_dir)/man/man1/javac.1.gz \
+	  $(PF)/share/man/man1/fastjar.1.gz $(jvm_dir)/man/man1/jar.1.gz
 
 	dh_link -p$(p_jdk) \
 	  $(PF)/bin/gcj$(pkg_ver) $(jvm_dir)/bin/gcj \
@@ -565,16 +630,9 @@ endif
 	  $(PF)/share/man/man1/gserialver$(pkg_ver).1 $(jvm_dir)/man/man1/serialver.1 \
 	  $(PF)/share/man/man1/gappletviewer$(pkg_ver).1 $(jvm_dir)/man/man1/appletviewer.1
 
-ifneq (,$(filter $(DEB_HOST_ARCH), arm armel))
-	ln -sf ../../ecj1 $(d_jdk)/$(gcc_lexec_dir)/ecj1
-endif
-
 ifneq ($(GFDL_INVARIANT_FREE),yes)
-	ln -sf gcj$(pkg_ver).1 \
-	    $(d_jdk)/$(PF)/share/man/man1/$(TARGET_ALIAS)-gcj$(pkg_ver).1
 	cp -p html/gcj.html $(d_jdk)/$(docdir)/$(p_jbase)/
 endif
-
 	debian/dh_doclink -p$(p_jdk) $(p_jbase)
 
 	cp -p debian/FAQ.gcj $(d_jdk)/$(docdir)/$(p_jbase)/
@@ -604,7 +662,7 @@ $(binary_stamp)-libgcjdev: $(build_html_stamp) $(install_stamp) $(binary_stamp)-
 
 	dh_installdirs -p$(p_jdev) $(dirs_jdev)
 
-	DH_COMPAT=2 dh_movefiles -p$(p_jdev) $(files_jdev)
+	$(dh_compat2) dh_movefiles -p$(p_jdev) $(files_jdev)
 
 ifeq ($(with_static_java),yes)
 	for i in libgij libgcj libgcj-tools; do \
@@ -677,10 +735,8 @@ $(binary_stamp)-gcjjre: $(install_stamp) $(binary_stamp)-java
 	dh_testroot
 	mv $(install_stamp) $(install_stamp)-tmp
 
-#	dh_installdirs -p$(p_jre) \
-#		$(PF)/bin \
-#		$(PF)/share/man/man1 \
-#		$(jvm_dir)/bin
+	dh_installdirs -p$(p_jre) $(dirs_jre)
+	$(dh_compat2) dh_movefiles -p$(p_jre)   $(files_jre)
 
 	debian/dh_doclink -p$(p_jre) $(p_jbase)
 	DH_COMPAT=5 dh_strip -p$(p_jre) --dbg-package=$(p_jdbg)

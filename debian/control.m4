@@ -18,8 +18,10 @@ ifdef(`PRI', `', `
 ')
 define(`MAINTAINER', `Debian GCC Maintainers <debian-gcc@lists.debian.org>')
 
+define(`depifenabled', `ifelse(index(enabled_languages, `$1'), -1, `', `$2')')
 define(`ifenabled', `ifelse(index(enabled_languages, `$1'), -1, `dnl', `$2')')
 
+ifdef(`TARGET',`ifdef(`CROSS_ARCH',`',`undefine(`MULTIARCH')')')
 define(`CROSS_ARCH', ifdef(`CROSS_ARCH', CROSS_ARCH, `all'))
 define(`libdep', `lib$2$1`'LS`'AQ (ifelse(`$3',`',`>=',`$3') ifelse(`$4',`',`${gcc:Version}',`$4'))')
 define(`libdevdep', `lib$2$1`'LS`'AQ (ifelse(`$3',`',`=',`$3') ifelse(`$4',`',`${gcc:Version}',`$4'))')
@@ -50,37 +52,36 @@ Uploaders: Iain Buclaw <ibuclaw@ubuntu.com>, Matthias Klose <doko@debian.org>
 ', `dnl
 Uploaders: Matthias Klose <doko@debian.org>
 ')dnl SRCNAME
-Standards-Version: 3.9.5
+Standards-Version: 3.9.6
 ifdef(`TARGET',`dnl cross
-Build-Depends: DPKG_BUILD_DEP debhelper (>= 5.0.62),
+Build-Depends: debhelper (>= 5.0.62), DPKG_BUILD_DEP
   LIBC_BUILD_DEP, LIBC_BIARCH_BUILD_DEP
   LIBUNWIND_BUILD_DEP LIBATOMIC_OPS_BUILD_DEP AUTOGEN_BUILD_DEP AUTO_BUILD_DEP
   SOURCE_BUILD_DEP CROSS_BUILD_DEP
   CLOOG_BUILD_DEP MPC_BUILD_DEP MPFR_BUILD_DEP GMP_BUILD_DEP,
   gawk, lzma, xz-utils, patchutils,
   zlib1g-dev, SDT_BUILD_DEP
-  BINUTILS_BUILD_DEP,
   bison (>= 1:2.3), flex, realpath (>= 1.9.12), lsb-release, quilt
 ',`dnl native
-Build-Depends: DPKG_BUILD_DEP debhelper (>= 5.0.62),
-  LIBC_BUILD_DEP, LIBC_BIARCH_BUILD_DEP
-  AUTO_BUILD_DEP AUTOGEN_BUILD_DEP
+Build-Depends: debhelper (>= 5.0.62), DPKG_BUILD_DEP GCC_MULTILIB_BUILD_DEP
+  LIBC_BUILD_DEP, LIBC_BIARCH_BUILD_DEP LIBC_DBG_DEP
+  kfreebsd-kernel-headers (>= 0.84) [kfreebsd-any],
+  AUTO_BUILD_DEP AUTOGEN_BUILD_DEP BASE_BUILD_DEP
   libunwind7-dev (>= 0.98.5-6) [ia64], libatomic-ops-dev [ia64],
   gawk, lzma, xz-utils, patchutils,
   zlib1g-dev, SDT_BUILD_DEP
-  binutils-hppa64 (>= BINUTILSBDV) [hppa],
+  BINUTILS_BUILD_DEP, binutils-hppa64-linux-gnu [hppa],
   gperf (>= 3.0.1), bison (>= 1:2.3), flex, gettext,
-  texinfo (>= 4.3), sharutils,
-  procps, FORTRAN_BUILD_DEP JAVA_BUILD_DEP GNAT_BUILD_DEP GO_BUILD_DEP GDC_BUILD_DEP SPU_BUILD_DEP
+  texinfo (>= 4.3), locales, sharutils,
+  procps, FORTRAN_BUILD_DEP JAVA_BUILD_DEP GNAT_BUILD_DEP GO_BUILD_DEP GDC_BUILD_DEP
   CLOOG_BUILD_DEP MPC_BUILD_DEP MPFR_BUILD_DEP GMP_BUILD_DEP
   CHECK_BUILD_DEP realpath (>= 1.9.12), chrpath, lsb-release, quilt
 Build-Depends-Indep: LIBSTDCXX_BUILD_INDEP JAVA_BUILD_INDEP
 ')dnl
-Build-Conflicts: binutils-gold (<< 2.23.52.20130727)
 ifelse(regexp(SRCNAME, `gnat'),0,`dnl
 Homepage: http://gcc.gnu.org/
 ', regexp(SRCNAME, `gdc'),0,`dnl
-Homepage: http://bitbucket.org/goshawk/gdc/
+Homepage: http://gdcproject.org/
 ', `dnl
 Homepage: http://gcc.gnu.org/
 ')dnl SRCNAME
@@ -96,6 +97,7 @@ Depends: binutils`'TS (>= ${binutils:Version}), ${dep:libcbiarchdev}, ${dep:libc
 Recommends: ${snap:recommends}
 Suggests: ${dep:gold}
 Provides: c++-compiler`'TS`'ifdef(`TARGET',`',`, c++abi2-dev')
+BUILT_USING`'dnl
 Description: A SNAPSHOT of the GNU Compiler Collection
  This package contains a recent development SNAPSHOT of all files
  contained in the GNU Compiler Collection (GCC).
@@ -121,18 +123,23 @@ define(`BASEDEP', `gcj`'PV-base (= ${gcj:Version})')
 define(`SOFTBASEDEP', `gcj`'PV-base (>= ${gcj:SoftVersion})')
 ')
 
-ifdef(`TARGET', `', `
+ifelse(index(SRCNAME, `gnat'), 0, `
+define(`BASEDEP', `gnat`'PV-base (= ${gnat:Version})')
+define(`SOFTBASEDEP', `gnat`'PV-base (>= ${gnat:SoftVersion})')
+')
+
 ifenabled(`gccbase',`
 
 Package: gcc`'PV-base
-Architecture: any
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
 ifdef(`MULTIARCH', `Multi-Arch: same
 ')`'dnl
 Section: libs
 Priority: PRI(required)
 Depends: ${misc:Depends}
 Replaces: ${base:Replaces}
-Breaks: gcc-4.4-base (<< 4.4.7), gcj-4.4-base (<< 4.4.6-9~), gnat-4.4-base (<< 4.4.6-3~), gcj-4.6-base (<< 4.6.1-4~), gnat-4.6 (<< 4.6.1-5~), dehydra (<= 0.9.hg20110609-2)
+Breaks: gcc-4.4-base (<< 4.4.7), gcj-4.4-base (<< 4.4.6-9~), gnat-4.4-base (<< 4.4.6-3~), gcj-4.6-base (<< 4.6.1-4~), gnat-4.6 (<< 4.6.1-5~), gcc-4.7-base (<< 4.7.3), dehydra (<= 0.9.hg20110609-2)
+BUILT_USING`'dnl
 Description: GCC, the GNU Compiler Collection (base package)
  This package contains files common to all languages and libraries
  contained in the GNU Compiler Collection (GCC).
@@ -141,8 +148,7 @@ ifdef(`BASE_ONLY', `dnl
  This version of GCC is not yet available for this architecture.
  Please use the compilers from the gcc-snapshot package for testing.
 ')`'dnl
-')`'dnl
-')`'dnl native
+')`'dnl gccbase
 
 ifenabled(`gccxbase',`
 dnl override default base package dependencies to cross version
@@ -199,7 +205,7 @@ Description: GCC, the GNU Compiler Collection (gcj base package)
 ')`'dnl java
 
 ifenabled(`ada',`
-Package: gnat`'PV-base
+Package: gnat`'PV-base`'TS
 Architecture: any
 Section: libs
 Priority: PRI(optional)
@@ -219,11 +225,11 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
 Section: ifdef(`TARGET',`devel',`libs')
 Priority: ifdef(`TARGET',`extra',required)
 Depends: BASEDEP, ${shlibs:Depends}, ${misc:Depends}
-ifdef(`TARGET',`Provides: libgcc1-TARGET-dcv1',
+ifdef(`TARGET',`Provides: libgcc1-TARGET-dcv1',`Provides: libgcc1-armel [armel], libgcc1-armhf [armhf]')
 ifdef(`MULTIARCH', `Multi-Arch: same
-Pre-Depends: multiarch-support
+Pre-Depends: ${misc:Pre-Depends}
 Breaks: ${multiarch:breaks}
-')`Provides: libgcc1-armel [armel], libgcc1-armhf [armhf]')
+')`'dnl
 BUILT_USING`'dnl
 Description: GCC support library`'ifdef(`TARGET)',` (TARGET)', `')
  Shared version of the support library, a library of internal subroutines
@@ -240,11 +246,10 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
 Section: debug
 Priority: extra
 Depends: BASEDEP, libdep(gcc1,,=,${gcc:EpochVersion}), ${misc:Depends}
-ifdef(`TARGET',`',`dnl
+ifdef(`TARGET',`',`Provides: libgcc1-dbg-armel [armel], libgcc1-dbg-armhf [armhf]
+')`'dnl
 ifdef(`MULTIARCH',`Multi-Arch: same
-')dnl
-Provides: libgcc1-dbg-armel [armel], libgcc1-dbg-armhf [armhf]
-')dnl
+')`'dnl
 BUILT_USING`'dnl
 Description: GCC support library (debug symbols)`'ifdef(`TARGET)',` (TARGET)', `')
  Debug symbols for the GCC support library.
@@ -260,10 +265,11 @@ Section: ifdef(`TARGET',`devel',`libs')
 Priority: ifdef(`TARGET',`extra',required)
 Depends: BASEDEP, ${shlibs:Depends}, ${misc:Depends}
 ifdef(`TARGET',`Provides: libgcc2-TARGET-dcv1
-',ifdef(`MULTIARCH', `Multi-Arch: same
-Pre-Depends: multiarch-support
+')`'dnl
+ifdef(`MULTIARCH', `Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
 Breaks: ${multiarch:breaks}
-'))`'dnl
+')`'dnl
 BUILT_USING`'dnl
 Description: GCC support library`'ifdef(`TARGET)',` (TARGET)', `')
  Shared version of the support library, a library of internal subroutines
@@ -279,9 +285,9 @@ Package: libgcc2-dbg`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`m68k')
 Section: debug
 Priority: extra
-Depends: BASEDEP, libdep(gcc2,,=,${gcc:EpochVersion}), ${misc:Depends}
-ifdef(`TARGET',`',ifdef(`MULTIARCH', `Multi-Arch: same
-'))`'dnl
+Depends: BASEDEP, libdep(gcc2,,=,${gcc:Version}), ${misc:Depends}
+ifdef(`MULTIARCH', `Multi-Arch: same
+')`'dnl
 BUILT_USING`'dnl
 Description: GCC support library (debug symbols)`'ifdef(`TARGET)',` (TARGET)', `')
  Debug symbols for the GCC support library.
@@ -298,23 +304,22 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
 Section: libdevel
 Priority: optional
 Recommends: ${dep:libcdev}
-Depends: BASEDEP, ${dep:libgcc}, ${dep:libssp}, ${dep:libgomp}, ${dep:libitm}, ${dep:libqmath}, ${dep:libunwinddev}, ${shlibs:Depends}, ${misc:Depends}
-Replaces: gcc`'PV (<< ${gcc:SplitVersion})
-ifdef(`TARGET',`',ifdef(`MULTIARCH', `Multi-Arch: same
-'))`'dnl
+Depends: BASEDEP, ${dep:libgcc}, ${dep:libssp}, ${dep:libgomp}, ${dep:libitm}, ${dep:libatomic}, ${dep:libbtrace}, ${dep:libasan}, ${dep:libtsan}, ${dep:libqmath}, ${dep:libunwinddev}, ${shlibs:Depends}, ${misc:Depends}
+ifdef(`MULTIARCH', `Multi-Arch: same
+')`'dnl
 BUILT_USING`'dnl
 Description: GCC support library (development files)
  This package contains the headers and static library files necessary for
  building C programs which use libgcc, libgomp, libquadmath, libssp or libitm.
-')`'dnl cdev
+')`'dnl libgcc
 
 ifenabled(`lib4gcc',`
 Package: libgcc4`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`hppa')
-ifdef(`TARGET',`',ifdef(`MULTIARCH', `Multi-Arch: same
-Pre-Depends: multiarch-support
+ifdef(`MULTIARCH', `Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
 Breaks: ${multiarch:breaks}
-'))`'dnl
+')`'dnl
 Section: ifdef(`TARGET',`devel',`libs')
 Priority: ifdef(`TARGET',`extra',required)
 Depends: ifdef(`STANDALONEJAVA',`gcj`'PV-base (>= ${gcj:Version})',`BASEDEP'), ${shlibs:Depends}, ${misc:Depends}
@@ -331,11 +336,11 @@ ifdef(`TARGET', `dnl
 
 Package: libgcc4-dbg`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`hppa')
-ifdef(`TARGET',`',ifdef(`MULTIARCH', `Multi-Arch: same
-'))`'dnl
+ifdef(`MULTIARCH', `Multi-Arch: same
+')`'dnl
 Section: debug
 Priority: extra
-Depends: BASEDEP, libdep(gcc4,,=,${gcc:EpochVersion}), ${misc:Depends}
+Depends: BASEDEP, libdep(gcc4,,=,${gcc:Version}), ${misc:Depends}
 BUILT_USING`'dnl
 Description: GCC support library (debug symbols)`'ifdef(`TARGET)',` (TARGET)', `')
  Debug symbols for the GCC support library.
@@ -354,7 +359,7 @@ Priority: ifdef(`TARGET',`extra',PRI(optional))
 Depends: BASEDEP, ${dep:libcbiarch}, ${misc:Depends}
 ifdef(`TARGET',`Provides: lib64gcc1-TARGET-dcv1
 ',`')`'dnl
-Conflicts: libgcc`'GCC_SO`'LS (<= 1:3.3-0pre9)
+Conflicts: libdep(gcc`'GCC_SO,,<=,1:3.3-0pre9)
 BUILT_USING`'dnl
 Description: GCC support library`'ifdef(`TARGET)',` (TARGET)', `') (64bit)
  Shared version of the support library, a library of internal subroutines
@@ -387,8 +392,7 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
 Section: libdevel
 Priority: optional
 Recommends: ${dep:libcdev}
-Depends: BASEDEP, ${dep:libgccbiarch}, ${dep:libsspbiarch}, ${dep:libgompbiarch}, ${dep:libitmbiarch}, ${dep:libqmathbiarch}, ${shlibs:Depends}, ${misc:Depends}
-Replaces: gcc`'PV-multilib (<< ${gcc:SplitVersion})
+Depends: BASEDEP, ${dep:libgccbiarch}, ${dep:libsspbiarch}, ${dep:libgompbiarch}, ${dep:libitmbiarch}, ${dep:libatomicbiarch}, ${dep:libbtracebiarch}, ${dep:libasanbiarch}, ${dep:libtsanbiarch}, ${dep:libqmathbiarch}, ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
 Description: GCC support library (64bit development files)
  This package contains the headers and static library files necessary for
@@ -436,8 +440,7 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
 Section: libdevel
 Priority: optional
 Recommends: ${dep:libcdev}
-Depends: BASEDEP, ${dep:libgccbiarch}, ${dep:libsspbiarch}, ${dep:libgompbiarch}, ${dep:libitmbiarch}, ${dep:libqmathbiarch}, ${shlibs:Depends}, ${misc:Depends}
-Replaces: gcc`'PV-multilib (<< ${gcc:SplitVersion})
+Depends: BASEDEP, ${dep:libgccbiarch}, ${dep:libsspbiarch}, ${dep:libgompbiarch}, ${dep:libitmbiarch}, ${dep:libatomicbiarch}, ${dep:libbtracebiarch}, ${dep:libasanbiarch}, ${dep:libtsanbiarch}, ${dep:libqmathbiarch}, ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
 Description: GCC support library (32 bit development files)
  This package contains the headers and static library files necessary for
@@ -503,8 +506,7 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
 Section: libdevel
 Priority: optional
 Recommends: ${dep:libcdev}
-Depends: BASEDEP, ${dep:libgccbiarch}, ${dep:libsspbiarch}, ${dep:libgompbiarch}, ${dep:libitmbiarch}, ${dep:libqmathbiarch}, ${shlibs:Depends}, ${misc:Depends}
-Replaces: gcc`'PV-multilib (<< ${gcc:SplitVersion})
+Depends: BASEDEP, ${dep:libgccbiarch}, ${dep:libsspbiarch}, ${dep:libgompbiarch}, ${dep:libitmbiarch}, ${dep:libatomicbiarch}, ${dep:libbtracebiarch}, ${dep:libasanbiarch}, ${dep:libtsanbiarch}, ${dep:libqmathbiarch}, ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
 Description: GCC support library (hard float ABI development files)
  This package contains the headers and static library files necessary for
@@ -555,8 +557,7 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
 Section: libdevel
 Priority: optional
 Recommends: ${dep:libcdev}
-Depends: BASEDEP, ${dep:libgccbiarch}, ${dep:libsspbiarch}, ${dep:libgompbiarch}, ${dep:libitmbiarch}, ${dep:libqmathbiarch}, ${shlibs:Depends}, ${misc:Depends}
-Replaces: gcc`'PV-multilib (<< ${gcc:SplitVersion})
+Depends: BASEDEP, ${dep:libgccbiarch}, ${dep:libsspbiarch}, ${dep:libgompbiarch}, ${dep:libitmbiarch}, ${dep:libatomicbiarch}, ${dep:libbtracebiarch}, ${dep:libasanbiarch}, ${dep:libtsanbiarch}, ${dep:libqmathbiarch}, ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
 Description: GCC support library (soft float ABI development files)
  This package contains the headers and static library files necessary for
@@ -570,9 +571,9 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
 Section: ifdef(`TARGET',`devel',`libs')
 Priority: ifdef(`TARGET',`extra',PRI(optional))
 Depends: BASEDEP, ${dep:libcbiarch}, ${misc:Depends}
+Conflicts: libdep(gcc`'GCC_SO,,<=,1:3.3-0pre9)
 ifdef(`TARGET',`Provides: libn32gcc1-TARGET-dcv1
 ',`')`'dnl
-Conflicts: libgcc`'GCC_SO`'LS (<= 1:3.3-0pre9)
 BUILT_USING`'dnl
 Description: GCC support library`'ifdef(`TARGET)',` (TARGET)', `') (n32)
  Shared version of the support library, a library of internal subroutines
@@ -605,8 +606,7 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
 Section: libdevel
 Priority: optional
 Recommends: ${dep:libcdev}
-Depends: BASEDEP, ${dep:libgccbiarch}, ${dep:libsspbiarch}, ${dep:libgompbiarch}, ${dep:libitmbiarch}, ${dep:libqmathbiarch}, ${shlibs:Depends}, ${misc:Depends}
-Replaces: gcc`'PV-multilib (<< ${gcc:SplitVersion})
+Depends: BASEDEP, ${dep:libgccbiarch}, ${dep:libsspbiarch}, ${dep:libgompbiarch}, ${dep:libitmbiarch}, ${dep:libatomicbiarch}, ${dep:libbtracebiarch}, ${dep:libasanbiarch}, ${dep:libtsanbiarch}, ${dep:libqmathbiarch}, ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
 Description: GCC support library (n32 development files)
  This package contains the headers and static library files necessary for
@@ -654,8 +654,7 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
 Section: libdevel
 Priority: optional
 Recommends: ${dep:libcdev}
-Depends: BASEDEP, ${dep:libgccbiarch}, ${dep:libsspbiarch}, ${dep:libgompbiarch}, ${dep:libitmbiarch}, ${dep:libqmathbiarch}, ${shlibs:Depends}, ${misc:Depends}
-Replaces: gcc`'PV-multilib (<< ${gcc:SplitVersion})
+Depends: BASEDEP, ${dep:libgccbiarch}, ${dep:libsspbiarch}, ${dep:libgompbiarch}, ${dep:libitmbiarch}, ${dep:libatomicbiarch}, ${dep:libbtracebiarch}, ${dep:libasanbiarch}, ${dep:libtsanbiarch}, ${dep:libqmathbiarch}, ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
 Description: GCC support library (x32 development files)
  This package contains the headers and static library files necessary for
@@ -668,7 +667,7 @@ ifenabled(`libgmath',`
 Package: libgccmath`'GCCMATH_SO`'LS
 Architecture: i386
 ifdef(`MULTIARCH', `Multi-Arch: same
-Pre-Depends: multiarch-support
+Pre-Depends: ${misc:Pre-Depends}
 ')`'dnl
 Section: libs
 Priority: PRI(optional)
@@ -702,10 +701,14 @@ Package: gcc`'PV`'TS
 Architecture: any
 Section: devel
 Priority: ifdef(`TARGET',`extra',`PRI(optional)')
-Depends: BASEDEP, cpp`'PV`'TS (= ${gcc:Version}), binutils`'TS (>= ${binutils:Version}), libdevdep(gcc`'PV-dev,,=), ${shlibs:Depends}, ${misc:Depends}
+Depends: cpp`'PV`'TS (= ${gcc:Version}),ifenabled(`gccbase',` BASEDEP,')
+  binutils`'TS (>= ${binutils:Version}),
+  ${dep:libgccdev}, ${shlibs:Depends}, ${misc:Depends}
 Recommends: ${dep:libcdev}
-Suggests: ${gcc:multilib}, libdevdep(mudflap`'MF_SO`'PV-dev,,>=,${gcc:Version}), gcc`'PV-doc (>= ${gcc:SoftVersion}), gcc`'PV-locales (>= ${gcc:SoftVersion}), libdbgdep(gcc`'GCC_SO-dbg,,>=,${libgcc:Version}), libdbgdep(gomp`'GOMP_SO-dbg), libdbgdep(itm`'ITM_SO-dbg), libdbgdep(quadmath`'QMATH_SO-dbg,), libdbgdep(mudflap`'MF_SO-dbg,), ${dep:libcloog}, ${dep:gold}
+Suggests: ${gcc:multilib}, gcc`'PV-doc (>= ${gcc:SoftVersion}), gcc`'PV-locales (>= ${gcc:SoftVersion}), libdbgdep(gcc`'GCC_SO-dbg,,>=,${libgcc:Version}), libdbgdep(gomp`'GOMP_SO-dbg,), libdbgdep(itm`'ITM_SO-dbg,), libdbgdep(atomic`'ATOMIC_SO-dbg,), libdbgdep(asan`'ASAN_SO-dbg,), libdbgdep(tsan`'TSAN_SO-dbg,), libdbgdep(quadmath`'QMATH_SO-dbg,), ${dep:libcloog}
 Provides: c-compiler`'TS
+ifdef(`TARGET',`Conflicts: gcc-multilib
+')`'dnl
 BUILT_USING`'dnl
 Description: GNU C compiler`'ifdef(`TARGET)',` (cross compiler for TARGET architecture)', `')
  This is the GNU C compiler, a fairly portable optimizing compiler for C.
@@ -720,13 +723,12 @@ Architecture: ifdef(`TARGET',`any',MULTILIB_ARCHS)
 Section: devel
 Priority: ifdef(`TARGET',`extra',`PRI(optional)')
 Depends: BASEDEP, gcc`'PV`'TS (= ${gcc:Version}), ${dep:libcbiarchdev}, ${dep:libgccbiarchdev}, ${shlibs:Depends}, ${misc:Depends}
-Suggests: ${dep:libmudflapbiarch}
 BUILT_USING`'dnl
-Description: GNU C compiler (multilib files)`'ifdef(`TARGET)',` (cross compiler for TARGET architecture)', `')
+Description: GNU C compiler (multilib support)`'ifdef(`TARGET)',` (cross compiler for TARGET architecture)', `')
  This is the GNU C compiler, a fairly portable optimizing compiler for C.
  .
- On architectures with multilib support, the package contains files
- and dependencies for the non-default multilib architecture(s).
+ This is a dependency package, depending on development packages
+ for the non-default multilib architecture(s).
 ')`'dnl multilib
 
 ifenabled(`plugindev',`
@@ -749,44 +751,10 @@ Architecture: ifdef(`TARGET',`any',hppa)
 Section: devel
 Priority: PRI(optional)
 Depends: BASEDEP, ${shlibs:Depends}, ${misc:Depends}
-Conflicts: gcc-3.3-hppa64 (<= 1:3.3.4-5), gcc-3.4-hppa64 (<= 3.4.1-3), gcc-4.8-hppa64 (<< 4.8.2-22), gcc-4.9-hppa64 (<< 4.9.0-2)
+Conflicts: gcc-3.3-hppa64 (<= 1:3.3.4-5), gcc-3.4-hppa64 (<= 3.4.1-3), gcc-4.7-hppa64 (<< 4.7.3-13), gcc-4.9-hppa64 (<< 4.9.0-2)
 BUILT_USING`'dnl
 Description: GNU C compiler (cross compiler for hppa64)
  This is the GNU C compiler, a fairly portable optimizing compiler for C.
-
-ifdef(`TARGET', `', `
-Package: gcc`'PV-spu
-Architecture: powerpc ppc64
-Section: devel
-Priority: PRI(optional)
-Depends: BASEDEP, binutils-spu (>= 2.18.1~cvs20080103-3), newlib-spu, ${shlibs:Depends}, ${misc:Depends}
-Provides: spu-gcc
-BUILT_USING`'dnl
-Description: SPU cross-compiler (preprocessor and C compiler)
- GNU Compiler Collection for the Cell Broadband Engine SPU (preprocessor
- and C compiler).
-
-Package: g++`'PV-spu
-Architecture: powerpc ppc64
-Section: devel
-Priority: PRI(optional)
-Depends: BASEDEP, gcc`'PV-spu (= ${gcc:Version}), ${shlibs:Depends}, ${misc:Depends}
-Provides: spu-g++
-BUILT_USING`'dnl
-Description: SPU cross-compiler (C++ compiler)
- GNU Compiler Collection for the Cell Broadband Engine SPU (C++ compiler).
-
-Package: gfortran`'PV-spu
-Architecture: powerpc ppc64
-Section: devel
-Priority: PRI(optional)
-Depends: BASEDEP, gcc`'PV-spu (= ${gcc:Version}), ${shlibs:Depends}, ${misc:Depends}
-Provides: spu-gfortran
-BUILT_USING`'dnl
-Description: SPU cross-compiler (Fortran compiler)
- GNU Compiler Collection for the Cell Broadband Engine SPU (Fortran compiler).
-
-')`'dnl native
 ')`'dnl cdev
 
 ifenabled(`cdev',`
@@ -843,7 +811,7 @@ Package: g++`'PV`'TS
 Architecture: any
 Section: devel
 Priority: ifdef(`TARGET',`extra',`PRI(optional)')
-Depends: BASEDEP, gcc`'PV`'TS (= ${gcc:Version}), libdevdep(stdc++CXX_SO`'PV-dev,,=,${gcc:Version}), ${shlibs:Depends}, ${misc:Depends}
+Depends: BASEDEP, gcc`'PV`'TS (= ${gcc:Version}), libdevdep(stdc++`'PV-dev,,=), ${shlibs:Depends}, ${misc:Depends}
 Provides: c++-compiler`'TS`'ifdef(`TARGET)',`',`, c++abi2-dev')
 Suggests: ${gxx:multilib}, gcc`'PV-doc (>= ${gcc:SoftVersion}), libdbgdep(stdc++CXX_SO`'PV-dbg,)
 BUILT_USING`'dnl
@@ -862,200 +830,21 @@ Priority: ifdef(`TARGET',`extra',`PRI(optional)')
 Depends: BASEDEP, g++`'PV`'TS (= ${gcc:Version}), gcc`'PV-multilib`'TS (= ${gcc:Version}), ${dep:libcxxbiarchdev}, ${shlibs:Depends}, ${misc:Depends}
 Suggests: ${dep:libcxxbiarchdbg}
 BUILT_USING`'dnl
-Description: GNU C++ compiler (multilib files)`'ifdef(`TARGET)',` (cross compiler for TARGET architecture)', `')
+Description: GNU C++ compiler (multilib support)`'ifdef(`TARGET)',` (cross compiler for TARGET architecture)', `')
  This is the GNU C++ compiler, a fairly portable optimizing compiler for C++.
  .
- On architectures with multilib support, the package contains files
- and dependencies for the non-default multilib architecture(s).
+ This is a dependency package, depending on development packages
+ for the non-default multilib architecture(s).
 ')`'dnl multilib
 ')`'dnl c++dev
 ')`'dnl c++
-
-ifenabled(`mudflap',`
-ifenabled(`libmudf',`
-Package: libmudflap`'MF_SO`'LS
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
-ifdef(`TARGET',`dnl',ifdef(`MULTIARCH', `Multi-Arch: same
-Pre-Depends: multiarch-support
-Breaks: ${multiarch:breaks}
-')`Provides: libmudflap'MF_SO`-armel [armel], libmudflap'MF_SO`-armhf [armhf]')
-Section: ifdef(`TARGET',`devel',`libs')
-Priority: ifdef(`TARGET',`extra',`PRI(optional)')
-Depends: BASEDEP, ${shlibs:Depends}, ${misc:Depends}
-BUILT_USING`'dnl
-Description: GCC mudflap shared support libraries
- The libmudflap libraries are used by GCC for instrumenting pointer and array
- dereferencing operations.
-
-Package: libmudflap`'MF_SO-dbg`'LS
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
-ifdef(`TARGET',`dnl',ifdef(`MULTIARCH', `Multi-Arch: same
-')`Provides: libmudflap'MF_SO`-dbg-armel [armel], libmudflap'MF_SO`-dbg-armhf [armhf]')
-Section: debug
-Priority: extra
-Depends: BASEDEP, libdep(mudflap`'MF_SO,,=), ${misc:Depends}
-BUILT_USING`'dnl
-Description: GCC mudflap shared support libraries (debug symbols)
- The libmudflap libraries are used by GCC for instrumenting pointer and array
- dereferencing operations.
-
-Package: lib32mudflap`'MF_SO`'LS
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
-Section: ifdef(`TARGET',`devel',`libs')
-Priority: ifdef(`TARGET',`extra',`PRI(optional)')
-Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
-Replaces: libmudflap0 (<< 4.1)
-Conflicts: ${confl:lib32}
-BUILT_USING`'dnl
-Description: GCC mudflap shared support libraries (32bit)
- The libmudflap libraries are used by GCC for instrumenting pointer and array
- dereferencing operations.
-
-Package: lib32mudflap`'MF_SO-dbg`'LS
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
-Section: debug
-Priority: extra
-Depends: BASEDEP, libdep(mudflap`'MF_SO,32,=), ${misc:Depends}
-BUILT_USING`'dnl
-Description: GCC mudflap shared support libraries (32 bit debug symbols)
- The libmudflap libraries are used by GCC for instrumenting pointer and array
- dereferencing operations.
-
-Package: lib64mudflap`'MF_SO`'LS
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
-Section: ifdef(`TARGET',`devel',`libs')
-Priority: ifdef(`TARGET',`extra',`PRI(optional)')
-Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
-Replaces: libmudflap0 (<< 4.1)
-BUILT_USING`'dnl
-Description: GCC mudflap shared support libraries (64bit)
- The libmudflap libraries are used by GCC for instrumenting pointer and array
- dereferencing operations.
-
-Package: lib64mudflap`'MF_SO-dbg`'LS
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
-Section: debug
-Priority: extra
-Depends: BASEDEP, libdep(mudflap`'MF_SO,64,=), ${misc:Depends}
-BUILT_USING`'dnl
-Description: GCC mudflap shared support libraries (64 bit debug symbols)
- The libmudflap libraries are used by GCC for instrumenting pointer and array
- dereferencing operations.
-
-Package: libn32mudflap`'MF_SO`'LS
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
-Section: ifdef(`TARGET',`devel',`libs')
-Priority: ifdef(`TARGET',`extra',`PRI(optional)')
-Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
-Replaces: libmudflap0 (<< 4.1)
-BUILT_USING`'dnl
-Description: GCC mudflap shared support libraries (n32)
- The libmudflap libraries are used by GCC for instrumenting pointer and array
- dereferencing operations.
-
-Package: libn32mudflap`'MF_SO-dbg`'LS
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
-Section: debug
-Priority: extra
-Depends: BASEDEP, libdep(mudflap`'MF_SO,n32,=), ${misc:Depends}
-BUILT_USING`'dnl
-Description: GCC mudflap shared support libraries (n32 debug symbols)
- The libmudflap libraries are used by GCC for instrumenting pointer and array
- dereferencing operations.
-
-ifenabled(`libx32mudflap',`
-Package: libx32mudflap`'MF_SO`'LS
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
-Section: ifdef(`TARGET',`devel',`libs')
-Priority: ifdef(`TARGET',`extra',`PRI(optional)')
-Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
-Replaces: libmudflap0 (<< 4.1)
-BUILT_USING`'dnl
-Description: GCC mudflap shared support libraries (x32)
- The libmudflap libraries are used by GCC for instrumenting pointer and array
- dereferencing operations.
-
-Package: libx32mudflap`'MF_SO-dbg`'LS
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
-Section: debug
-Priority: extra
-Depends: BASEDEP, libdep(mudflap`'MF_SO,x32,=), ${misc:Depends}
-BUILT_USING`'dnl
-Description: GCC mudflap shared support libraries (x32 debug symbols)
- The libmudflap libraries are used by GCC for instrumenting pointer and array
- dereferencing operations.
-')`'dnl libx32mudflap
-
-ifenabled(`libhfmudflap',`
-Package: libhfmudflap`'MF_SO`'LS
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
-Section: ifdef(`TARGET',`devel',`libs')
-Priority: ifdef(`TARGET',`extra',`PRI(optional)')
-ifdef(`TARGET',`dnl',`Conflicts: libmudflap`'MF_SO`'-armhf [biarchhf_archs]')
-Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
-BUILT_USING`'dnl
-Description: GCC mudflap shared support libraries (hard float)
- The libmudflap libraries are used by GCC for instrumenting pointer and array
- dereferencing operations.
-
-Package: libhfmudflap`'MF_SO-dbg`'LS
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
-Section: debug
-Priority: extra
-Depends: BASEDEP, libdep(mudflap`'MF_SO,hf,=), ${misc:Depends}
-ifdef(`TARGET',`dnl',`Conflicts: libmudflap`'MF_SO`'-dbg-armhf [biarchhf_archs]')
-BUILT_USING`'dnl
-Description: GCC mudflap shared support libraries (hard float debug symbols)
- The libmudflap libraries are used by GCC for instrumenting pointer and array
- dereferencing operations.
-')`'dnl libhfmudflap
-
-ifenabled(`libsfmudflap',`
-Package: libsfmudflap`'MF_SO`'LS
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
-Section: ifdef(`TARGET',`devel',`libs')
-Priority: ifdef(`TARGET',`extra',`PRI(optional)')
-Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
-ifdef(`TARGET',`dnl',`Conflicts: libmudflap`'MF_SO`'-armel [biarchsf_archs]')
-BUILT_USING`'dnl
-Description: GCC mudflap shared support libraries (soft float)
- The libmudflap libraries are used by GCC for instrumenting pointer and array
- dereferencing operations.
-
-Package: libsfmudflap`'MF_SO-dbg`'LS
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
-Section: debug
-Priority: extra
-Depends: BASEDEP, libdep(mudflap`'MF_SO,sf,=), ${misc:Depends}
-ifdef(`TARGET',`dnl',`Conflicts: libmudflap`'MF_SO`'-dbg-armel [biarchsf_archs]')
-BUILT_USING`'dnl
-Description: GCC mudflap shared support libraries (soft float debug symbols)
- The libmudflap libraries are used by GCC for instrumenting pointer and array
- dereferencing operations.
-')`'dnl libsfmudflap
-')`'dnl libmudf
-
-Package: libmudflap`'MF_SO`'PV-dev`'LS
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
-Section: ifdef(`TARGET',`devel',`libdevel')
-Priority: ifdef(`TARGET',`extra',`PRI(optional)')
-Depends: BASEDEP, libdevdep(mudflap`'MF_SO,,>=,${gcc:Version}), ${dep:libcdev}, ${shlibs:Depends}, ${misc:Depends}
-Suggests: ${sug:libmudflapdev}
-Conflicts: libmudflap0-dev
-BUILT_USING`'dnl
-Description: GCC mudflap support libraries (development files)
- The libmudflap libraries are used by GCC for instrumenting pointer and array
- dereferencing operations.
- .
- This package contains the headers and the static libraries.
-')`'dnl mudflap
 
 ifdef(`TARGET', `', `
 ifenabled(`ssp',`
 Package: libssp`'SSP_SO`'LS
 Architecture: any
 ifdef(`MULTIARCH', `Multi-Arch: same
-Pre-Depends: multiarch-support
+Pre-Depends: ${misc:Pre-Depends}
 ')`'dnl
 Section: libs
 Priority: PRI(optional)
@@ -1143,10 +932,12 @@ ifenabled(`libgomp',`
 Package: libgomp`'GOMP_SO`'LS
 Section: ifdef(`TARGET',`devel',`libs')
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
-ifdef(`TARGET',`dnl',ifdef(`MULTIARCH', `Multi-Arch: same
-Pre-Depends: multiarch-support
+ifdef(`TARGET',`',`Provides: libgomp'GOMP_SO`-armel [armel], libgomp'GOMP_SO`-armhf [armhf]
+')`'dnl
+ifdef(`MULTIARCH', `Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
 Breaks: ${multiarch:breaks}
-')`Provides: libgomp'GOMP_SO`-armel [armel], libgomp'GOMP_SO`-armhf [armhf]')
+')`'dnl
 Priority: ifdef(`TARGET',`extra',`PRI(optional)')
 Depends: BASEDEP, ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
@@ -1159,8 +950,10 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
 Section: debug
 Priority: extra
 Depends: BASEDEP, libdep(gomp`'GOMP_SO,,=), ${misc:Depends}
-ifdef(`TARGET',`dnl',ifdef(`MULTIARCH', `Multi-Arch: same
-')`Provides: libgomp'GOMP_SO`-dbg-armel [armel], libgomp'GOMP_SO`-dbg-armhf [armhf]')
+ifdef(`TARGET',`',`Provides: libgomp'GOMP_SO`-dbg-armel [armel], libgomp'GOMP_SO`-dbg-armhf [armhf]
+')`'dnl
+ifdef(`MULTIARCH', `Multi-Arch: same
+')`'dnl
 BUILT_USING`'dnl
 Description: GCC OpenMP (GOMP) support library (debug symbols)
  GOMP is an implementation of OpenMP for the C, C++, and Fortran compilers
@@ -1313,9 +1106,11 @@ ifenabled(`libitm',`
 Package: libitm`'ITM_SO`'LS
 Section: ifdef(`TARGET',`devel',`libs')
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
-ifdef(`TARGET',`dnl',ifdef(`MULTIARCH', `Multi-Arch: same
-Pre-Depends: multiarch-support
-')`Provides: libitm'ITM_SO`-armel [armel], libitm'ITM_SO`-armhf [armhf]')
+ifdef(`TARGET',`',`Provides: libitm'ITM_SO`-armel [armel], libitm'ITM_SO`-armhf [armhf]
+')`'dnl
+ifdef(`MULTIARCH', `Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+')`'dnl
 Priority: ifdef(`TARGET',`extra',`PRI(optional)')
 Depends: BASEDEP, ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
@@ -1329,8 +1124,10 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
 Section: debug
 Priority: extra
 Depends: BASEDEP, libdep(itm`'ITM_SO,,=), ${misc:Depends}
-ifdef(`TARGET',`dnl',ifdef(`MULTIARCH', `Multi-Arch: same
-')`Provides: libitm'ITM_SO`-dbg-armel [armel], libitm'ITM_SO`-dbg-armhf [armhf]')
+ifdef(`TARGET',`',`Provides: libitm'ITM_SO`-dbg-armel [armel], libitm'ITM_SO`-dbg-armhf [armhf]
+')`'dnl
+ifdef(`MULTIARCH', `Multi-Arch: same
+')`'dnl
 BUILT_USING`'dnl
 Description: GNU Transactional Memory Library (debug symbols)
  GNU Transactional Memory Library (libitm) provides transaction support for
@@ -1495,13 +1292,718 @@ Description: GNU Transactional Memory Library [neon optimized]
 ')`'dnl libneonitm
 ')`'dnl libitm
 
+ifenabled(`libatomic',`
+Package: libatomic`'ATOMIC_SO`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
+ifdef(`TARGET',`',`Provides: libatomic'ATOMIC_SO`-armel [armel], libatomic'ATOMIC_SO`-armhf [armhf]
+')`'dnl
+ifdef(`MULTIARCH', `Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+')`'dnl
+Priority: ifdef(`TARGET',`extra',`PRI(optional)')
+Depends: BASEDEP, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: support library providing __atomic built-in functions
+ library providing __atomic built-in functions. When an atomic call cannot
+ be turned into lock-free instructions, GCC will make calls into this library.
+
+Package: libatomic`'ATOMIC_SO-dbg`'LS
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
+Section: debug
+Priority: extra
+Depends: BASEDEP, libdep(atomic`'ATOMIC_SO,,=), ${misc:Depends}
+ifdef(`TARGET',`',`Provides: libatomic'ATOMIC_SO`-dbg-armel [armel], libatomic'ATOMIC_SO`-dbg-armhf [armhf]
+')`'dnl
+ifdef(`MULTIARCH', `Multi-Arch: same
+')`'dnl
+BUILT_USING`'dnl
+Description: support library providing __atomic built-in functions (debug symbols)
+ library providing __atomic built-in functions. When an atomic call cannot
+ be turned into lock-free instructions, GCC will make calls into this library.
+
+Package: lib32atomic`'ATOMIC_SO`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
+Priority: ifdef(`TARGET',`extra',`PRI(optional)')
+Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
+Conflicts: ${confl:lib32}
+BUILT_USING`'dnl
+Description: support library providing __atomic built-in functions (32bit)
+ library providing __atomic built-in functions. When an atomic call cannot
+ be turned into lock-free instructions, GCC will make calls into this library.
+
+Package: lib32atomic`'ATOMIC_SO-dbg`'LS
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
+Section: debug
+Priority: extra
+Depends: BASEDEP, libdep(atomic`'ATOMIC_SO,32,=), ${misc:Depends}
+BUILT_USING`'dnl
+Description: support library providing __atomic built-in functions (32 bit debug symbols)
+ library providing __atomic built-in functions. When an atomic call cannot
+ be turned into lock-free instructions, GCC will make calls into this library.
+
+Package: lib64atomic`'ATOMIC_SO`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
+Priority: ifdef(`TARGET',`extra',`PRI(optional)')
+Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: support library providing __atomic built-in functions (64bit)
+ library providing __atomic built-in functions. When an atomic call cannot
+ be turned into lock-free instructions, GCC will make calls into this library.
+
+Package: lib64atomic`'ATOMIC_SO-dbg`'LS
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
+Section: debug
+Priority: extra
+Depends: BASEDEP, libdep(atomic`'ATOMIC_SO,64,=), ${misc:Depends}
+BUILT_USING`'dnl
+Description: support library providing __atomic built-in functions (64bit debug symbols)
+ library providing __atomic built-in functions. When an atomic call cannot
+ be turned into lock-free instructions, GCC will make calls into this library.
+
+Package: libn32atomic`'ATOMIC_SO`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
+Priority: ifdef(`TARGET',`extra',`PRI(optional)')
+Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: support library providing __atomic built-in functions (n32)
+ library providing __atomic built-in functions. When an atomic call cannot
+ be turned into lock-free instructions, GCC will make calls into this library.
+
+Package: libn32atomic`'ATOMIC_SO-dbg`'LS
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
+Section: debug
+Priority: extra
+Depends: BASEDEP, libdep(atomic`'ATOMIC_SO,n32,=), ${misc:Depends}
+BUILT_USING`'dnl
+Description: support library providing __atomic built-in functions (n32 debug symbols)
+ library providing __atomic built-in functions. When an atomic call cannot
+ be turned into lock-free instructions, GCC will make calls into this library.
+
+ifenabled(`libx32atomic',`
+Package: libx32atomic`'ATOMIC_SO`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
+Priority: ifdef(`TARGET',`extra',`PRI(optional)')
+Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: support library providing __atomic built-in functions (x32)
+ library providing __atomic built-in functions. When an atomic call cannot
+ be turned into lock-free instructions, GCC will make calls into this library.
+
+Package: libx32atomic`'ATOMIC_SO-dbg`'LS
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
+Section: debug
+Priority: extra
+Depends: BASEDEP, libdep(atomic`'ATOMIC_SO,x32,=), ${misc:Depends}
+BUILT_USING`'dnl
+Description: support library providing __atomic built-in functions (x32 debug symbols)
+ library providing __atomic built-in functions. When an atomic call cannot
+ be turned into lock-free instructions, GCC will make calls into this library.
+')`'dnl libx32atomic
+
+ifenabled(`libhfatomic',`
+Package: libhfatomic`'ATOMIC_SO`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
+Priority: ifdef(`TARGET',`extra',`PRI(optional)')
+Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
+ifdef(`TARGET',`dnl',`Conflicts: libatomic'ATOMIC_SO`-armhf [biarchhf_archs]')
+BUILT_USING`'dnl
+Description: support library providing __atomic built-in functions (hard float ABI)
+ library providing __atomic built-in functions. When an atomic call cannot
+ be turned into lock-free instructions, GCC will make calls into this library.
+
+Package: libhfatomic`'ATOMIC_SO-dbg`'LS
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
+Section: debug
+Priority: extra
+Depends: BASEDEP, libdep(atomic`'ATOMIC_SO,hf,=), ${misc:Depends}
+ifdef(`TARGET',`dnl',`Conflicts: libatomic'ATOMIC_SO`-armel [biarchsf_archs]')
+BUILT_USING`'dnl
+Description: support library providing __atomic built-in functions (hard float ABI debug symbols)
+ library providing __atomic built-in functions. When an atomic call cannot
+ be turned into lock-free instructions, GCC will make calls into this library.
+')`'dnl libhfatomic
+
+ifenabled(`libsfatomic',`
+Package: libsfatomic`'ATOMIC_SO`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
+Priority: ifdef(`TARGET',`extra',`PRI(optional)')
+Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: support library providing __atomic built-in functions (soft float ABI)
+ library providing __atomic built-in functions. When an atomic call cannot
+ be turned into lock-free instructions, GCC will make calls into this library.
+
+Package: libsfatomic`'ATOMIC_SO-dbg`'LS
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
+Section: debug
+Priority: extra
+Depends: BASEDEP, libdep(atomic`'ATOMIC_SO,sf,=), ${misc:Depends}
+BUILT_USING`'dnl
+Description: support library providing __atomic built-in functions (soft float ABI debug symbols)
+ library providing __atomic built-in functions. When an atomic call cannot
+ be turned into lock-free instructions, GCC will make calls into this library.
+')`'dnl libsfatomic
+
+ifenabled(`libneonatomic',`
+Package: libatomic`'ATOMIC_SO-neon`'LS
+Architecture: NEON_ARCHS
+Section: libs
+Priority: extra
+Depends: BASEDEP, libc6-neon`'LS, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: support library providing __atomic built-in functions [neon optimized]
+ library providing __atomic built-in functions. When an atomic call cannot
+ be turned into lock-free instructions, GCC will make calls into this library.
+ .
+ This set of libraries is optimized to use a NEON coprocessor, and will
+ be selected instead when running under systems which have one.
+')`'dnl libneonatomic
+')`'dnl libatomic
+
+ifenabled(`libasan',`
+Package: libasan`'ASAN_SO`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
+ifdef(`TARGET',`',`Provides: libasan'ASAN_SO`-armel [armel], libasan'ASAN_SO`-armhf [armhf]
+')`'dnl
+ifdef(`MULTIARCH', `Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+')`'dnl
+Priority: ifdef(`TARGET',`extra',`PRI(optional)')
+Depends: BASEDEP, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: AddressSanitizer -- a fast memory error detector
+ AddressSanitizer (ASan) is a fast memory error detector.  It finds
+ use-after-free and {heap,stack,global}-buffer overflow bugs in C/C++ programs.
+
+Package: libasan`'ASAN_SO-dbg`'LS
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
+Section: debug
+Priority: extra
+Depends: BASEDEP, libdep(asan`'ASAN_SO,,=), ${misc:Depends}
+ifdef(`TARGET',`',`Provides: libasan'ASAN_SO`-dbg-armel [armel], libasan'ASAN_SO`-dbg-armhf [armhf]
+')`'dnl
+ifdef(`MULTIARCH', `Multi-Arch: same
+')`'dnl
+BUILT_USING`'dnl
+Description: AddressSanitizer -- a fast memory error detector (debug symbols)
+ AddressSanitizer (ASan) is a fast memory error detector.  It finds
+ use-after-free and {heap,stack,global}-buffer overflow bugs in C/C++ programs.
+
+Package: lib32asan`'ASAN_SO`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
+Priority: ifdef(`TARGET',`extra',`PRI(optional)')
+Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
+Conflicts: ${confl:lib32}
+BUILT_USING`'dnl
+Description: AddressSanitizer -- a fast memory error detector (32bit)
+ AddressSanitizer (ASan) is a fast memory error detector.  It finds
+ use-after-free and {heap,stack,global}-buffer overflow bugs in C/C++ programs.
+
+Package: lib32asan`'ASAN_SO-dbg`'LS
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
+Section: debug
+Priority: extra
+Depends: BASEDEP, libdep(asan`'ASAN_SO,32,=), ${misc:Depends}
+BUILT_USING`'dnl
+Description: AddressSanitizer -- a fast memory error detector (32 bit debug symbols)
+ AddressSanitizer (ASan) is a fast memory error detector.  It finds
+ use-after-free and {heap,stack,global}-buffer overflow bugs in C/C++ programs.
+
+Package: lib64asan`'ASAN_SO`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
+Priority: ifdef(`TARGET',`extra',`PRI(optional)')
+Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: AddressSanitizer -- a fast memory error detector (64bit)
+ AddressSanitizer (ASan) is a fast memory error detector.  It finds
+ use-after-free and {heap,stack,global}-buffer overflow bugs in C/C++ programs.
+
+Package: lib64asan`'ASAN_SO-dbg`'LS
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
+Section: debug
+Priority: extra
+Depends: BASEDEP, libdep(asan`'ASAN_SO,64,=), ${misc:Depends}
+BUILT_USING`'dnl
+Description: AddressSanitizer -- a fast memory error detector (64bit debug symbols)
+ AddressSanitizer (ASan) is a fast memory error detector.  It finds
+ use-after-free and {heap,stack,global}-buffer overflow bugs in C/C++ programs.
+
+#Package: libn32asan`'ASAN_SO`'LS
+#Section: ifdef(`TARGET',`devel',`libs')
+#Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
+#Priority: ifdef(`TARGET',`extra',`PRI(extra)')
+#Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
+#BUILT_USING`'dnl
+#Description: AddressSanitizer -- a fast memory error detector (n32)
+# AddressSanitizer (ASan) is a fast memory error detector.  It finds
+# use-after-free and {heap,stack,global}-buffer overflow bugs in C/C++ programs.
+
+#Package: libn32asan`'ASAN_SO-dbg`'LS
+#Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
+#Section: debug
+#Priority: extra
+#Depends: BASEDEP, libdep(asan`'ASAN_SO,n32,=), ${misc:Depends}
+#BUILT_USING`'dnl
+#Description: AddressSanitizer -- a fast memory error detector (n32 debug symbols)
+# AddressSanitizer (ASan) is a fast memory error detector.  It finds
+# use-after-free and {heap,stack,global}-buffer overflow bugs in C/C++ programs.
+
+ifenabled(`libx32asan',`
+Package: libx32asan`'ASAN_SO`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
+Priority: ifdef(`TARGET',`extra',`PRI(optional)')
+Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: AddressSanitizer -- a fast memory error detector (x32)
+ AddressSanitizer (ASan) is a fast memory error detector.  It finds
+ use-after-free and {heap,stack,global}-buffer overflow bugs in C/C++ programs.
+
+Package: libx32asan`'ASAN_SO-dbg`'LS
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
+Section: debug
+Priority: extra
+Depends: BASEDEP, libdep(asan`'ASAN_SO,x32,=), ${misc:Depends}
+BUILT_USING`'dnl
+Description: AddressSanitizer -- a fast memory error detector (x32 debug symbols)
+ AddressSanitizer (ASan) is a fast memory error detector.  It finds
+ use-after-free and {heap,stack,global}-buffer overflow bugs in C/C++ programs.
+')`'dnl libx32asan
+
+ifenabled(`libhfasan',`
+Package: libhfasan`'ASAN_SO`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
+Priority: ifdef(`TARGET',`extra',`PRI(extra)')
+Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
+ifdef(`TARGET',`dnl',`Conflicts: libasan'ASAN_SO`-armhf [biarchhf_archs]')
+BUILT_USING`'dnl
+Description: AddressSanitizer -- a fast memory error detector (hard float ABI)
+ AddressSanitizer (ASan) is a fast memory error detector.  It finds
+ use-after-free and {heap,stack,global}-buffer overflow bugs in C/C++ programs.
+
+Package: libhfasan`'ASAN_SO-dbg`'LS
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
+Section: debug
+Priority: extra
+Depends: BASEDEP, libdep(asan`'ASAN_SO,hf,=), ${misc:Depends}
+ifdef(`TARGET',`dnl',`Conflicts: libasan'ASAN_SO`-armel [biarchsf_archs]')
+BUILT_USING`'dnl
+Description: AddressSanitizer -- a fast memory error detector (hard float ABI debug symbols)
+ AddressSanitizer (ASan) is a fast memory error detector.  It finds
+ use-after-free and {heap,stack,global}-buffer overflow bugs in C/C++ programs.
+')`'dnl libhfasan
+
+ifenabled(`libsfasan',`
+Package: libsfasan`'ASAN_SO`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
+Priority: ifdef(`TARGET',`extra',`PRI(extra)')
+Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: AddressSanitizer -- a fast memory error detector (soft float ABI)
+ AddressSanitizer (ASan) is a fast memory error detector.  It finds
+ use-after-free and {heap,stack,global}-buffer overflow bugs in C/C++ programs.
+
+Package: libsfasan`'ASAN_SO-dbg`'LS
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
+Section: debug
+Priority: extra
+Depends: BASEDEP, libdep(asan`'ASAN_SO,sf,=), ${misc:Depends}
+BUILT_USING`'dnl
+Description: AddressSanitizer -- a fast memory error detector (soft float ABI debug symbols)
+ AddressSanitizer (ASan) is a fast memory error detector.  It finds
+ use-after-free and {heap,stack,global}-buffer overflow bugs in C/C++ programs.
+')`'dnl libsfasan
+
+ifenabled(`libneonasan',`
+Package: libasan`'ASAN_SO-neon`'LS
+Architecture: NEON_ARCHS
+Section: libs
+Priority: extra
+Depends: BASEDEP, libc6-neon`'LS, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: AddressSanitizer -- a fast memory error detector [neon optimized]
+ AddressSanitizer (ASan) is a fast memory error detector.  It finds
+ use-after-free and {heap,stack,global}-buffer overflow bugs in C/C++ programs.
+ .
+ This set of libraries is optimized to use a NEON coprocessor, and will
+ be selected instead when running under systems which have one.
+')`'dnl libneonasan
+')`'dnl libasan
+
+ifenabled(`libtsan',`
+Package: libtsan`'TSAN_SO`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
+ifdef(`TARGET',`',`Provides: libtsan'TSAN_SO`-armel [armel], libtsan'TSAN_SO`-armhf [armhf]
+')`'dnl
+ifdef(`MULTIARCH', `Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+')`'dnl
+Priority: ifdef(`TARGET',`extra',`PRI(optional)')
+Depends: BASEDEP, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: ThreadSanitizer -- a Valgrind-based detector of data races (runtime)
+ ThreadSanitizer (Tsan) is a data race detector for C/C++ programs. 
+ The Linux and Mac versions are based on Valgrind. 
+
+Package: libtsan`'TSAN_SO-dbg`'LS
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
+Section: debug
+Priority: extra
+Depends: BASEDEP, libdep(tsan`'TSAN_SO,,=), ${misc:Depends}
+ifdef(`TARGET',`',`Provides: libtsan'TSAN_SO`-dbg-armel [armel], libtsan'TSAN_SO`-dbg-armhf [armhf]
+')`'dnl
+ifdef(`MULTIARCH', `Multi-Arch: same
+')`'dnl
+BUILT_USING`'dnl
+Description: ThreadSanitizer -- a Valgrind-based detector of data races (debug symbols)
+ ThreadSanitizer (Tsan) is a data race detector for C/C++ programs. 
+ The Linux and Mac versions are based on Valgrind. 
+
+ifenabled(`lib32tsan',`
+Package: lib32tsan`'TSAN_SO`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
+Priority: ifdef(`TARGET',`extra',`PRI(optional)')
+Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
+Conflicts: ${confl:lib32}
+BUILT_USING`'dnl
+Description: ThreadSanitizer -- a Valgrind-based detector of data races (32bit)
+ ThreadSanitizer (Tsan) is a data race detector for C/C++ programs. 
+ The Linux and Mac versions are based on Valgrind. 
+
+Package: lib32tsan`'TSAN_SO-dbg`'LS
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
+Section: debug
+Priority: extra
+Depends: BASEDEP, libdep(tsan`'TSAN_SO,32,=), ${misc:Depends}
+BUILT_USING`'dnl
+Description: ThreadSanitizer -- a Valgrind-based detector of data races (32 bit debug symbols)
+ ThreadSanitizer (Tsan) is a data race detector for C/C++ programs. 
+ The Linux and Mac versions are based on Valgrind. 
+')`'dnl lib32tsan
+
+ifenabled(`lib64tsan',`
+Package: lib64tsan`'TSAN_SO`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
+Priority: ifdef(`TARGET',`extra',`PRI(optional)')
+Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: ThreadSanitizer -- a Valgrind-based detector of data races (64bit)
+ ThreadSanitizer (Tsan) is a data race detector for C/C++ programs. 
+ The Linux and Mac versions are based on Valgrind. 
+
+Package: lib64tsan`'TSAN_SO-dbg`'LS
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
+Section: debug
+Priority: extra
+Depends: BASEDEP, libdep(tsan`'TSAN_SO,64,=), ${misc:Depends}
+BUILT_USING`'dnl
+Description: ThreadSanitizer -- a Valgrind-based detector of data races (64bit debug symbols)
+ ThreadSanitizer (Tsan) is a data race detector for C/C++ programs. 
+ The Linux and Mac versions are based on Valgrind. 
+')`'dnl lib64tsan
+
+ifenabled(`libn32tsan',`
+Package: libn32tsan`'TSAN_SO`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
+Priority: ifdef(`TARGET',`extra',`PRI(optional)')
+Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: ThreadSanitizer -- a Valgrind-based detector of data races (n32)
+ ThreadSanitizer (Tsan) is a data race detector for C/C++ programs. 
+ The Linux and Mac versions are based on Valgrind. 
+
+Package: libn32tsan`'TSAN_SO-dbg`'LS
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
+Section: debug
+Priority: extra
+Depends: BASEDEP, libdep(tsan`'TSAN_SO,n32,=), ${misc:Depends}
+BUILT_USING`'dnl
+Description: ThreadSanitizer -- a Valgrind-based detector of data races (n32 debug symbols)
+ ThreadSanitizer (Tsan) is a data race detector for C/C++ programs. 
+ The Linux and Mac versions are based on Valgrind. 
+')`'dnl libn32tsan
+
+ifenabled(`libx32tsan',`
+Package: libx32tsan`'TSAN_SO`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
+Priority: ifdef(`TARGET',`extra',`PRI(optional)')
+Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: ThreadSanitizer -- a Valgrind-based detector of data races (x32)
+ ThreadSanitizer (Tsan) is a data race detector for C/C++ programs. 
+ The Linux and Mac versions are based on Valgrind. 
+
+Package: libx32tsan`'TSAN_SO-dbg`'LS
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
+Section: debug
+Priority: extra
+Depends: BASEDEP, libdep(tsan`'TSAN_SO,x32,=), ${misc:Depends}
+BUILT_USING`'dnl
+Description: ThreadSanitizer -- a Valgrind-based detector of data races (x32 debug symbols)
+ ThreadSanitizer (Tsan) is a data race detector for C/C++ programs. 
+ The Linux and Mac versions are based on Valgrind. 
+')`'dnl libx32tsan
+
+ifenabled(`libhftsan',`
+Package: libhftsan`'TSAN_SO`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
+Priority: ifdef(`TARGET',`extra',`PRI(optional)')
+Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
+ifdef(`TARGET',`dnl',`Conflicts: libtsan'TSAN_SO`-armhf [biarchhf_archs]')
+BUILT_USING`'dnl
+Description: ThreadSanitizer -- a Valgrind-based detector of data races (hard float ABI)
+ ThreadSanitizer (Tsan) is a data race detector for C/C++ programs. 
+ The Linux and Mac versions are based on Valgrind. 
+
+Package: libhftsan`'TSAN_SO-dbg`'LS
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
+Section: debug
+Priority: extra
+Depends: BASEDEP, libdep(tsan`'TSAN_SO,hf,=), ${misc:Depends}
+ifdef(`TARGET',`dnl',`Conflicts: libtsan'TSAN_SO`-armel [biarchsf_archs]')
+BUILT_USING`'dnl
+Description: ThreadSanitizer -- a Valgrind-based detector of data races (hard float ABI debug symbols)
+')`'dnl libhftsan
+
+ifenabled(`libsftsan',`
+Package: libsftsan`'TSAN_SO`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
+Priority: ifdef(`TARGET',`extra',`PRI(optional)')
+Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: ThreadSanitizer -- a Valgrind-based detector of data races (soft float ABI)
+ ThreadSanitizer (Tsan) is a data race detector for C/C++ programs. 
+ The Linux and Mac versions are based on Valgrind. 
+
+Package: libsftsan`'TSAN_SO-dbg`'LS
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
+Section: debug
+Priority: extra
+Depends: BASEDEP, libdep(tsan`'TSAN_SO,sf,=), ${misc:Depends}
+BUILT_USING`'dnl
+Description: ThreadSanitizer -- a Valgrind-based detector of data races (soft float ABI debug symbols)
+ ThreadSanitizer (Tsan) is a data race detector for C/C++ programs. 
+ The Linux and Mac versions are based on Valgrind. 
+')`'dnl libsftsan
+
+ifenabled(`libneontsan',`
+Package: libtsan`'TSAN_SO-neon`'LS
+Architecture: NEON_ARCHS
+Section: libs
+Priority: extra
+Depends: BASEDEP, libc6-neon`'LS, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: ThreadSanitizer -- a Valgrind-based detector of data races [neon optimized]
+ ThreadSanitizer (Tsan) is a data race detector for C/C++ programs. 
+ The Linux and Mac versions are based on Valgrind. 
+ .
+ This set of libraries is optimized to use a NEON coprocessor, and will
+ be selected instead when running under systems which have one.
+')`'dnl libneontsan
+')`'dnl libtsan
+
+ifenabled(`libbacktrace',`
+Package: libbacktrace`'BTRACE_SO`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
+ifdef(`TARGET',`',`Provides: libbacktrace'BTRACE_SO`-armel [armel], libbacktrace'BTRACE_SO`-armhf [armhf]
+')`'dnl
+ifdef(`MULTIARCH', `Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+')`'dnl
+Priority: ifdef(`TARGET',`extra',`PRI(optional)')
+Depends: BASEDEP, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: stack backtrace library
+ libbacktrace uses the GCC unwind interface to collect a stack trace,
+ and parses DWARF debug info to get file/line/function information.
+
+Package: libbacktrace`'BTRACE_SO-dbg`'LS
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
+Section: debug
+Priority: extra
+Depends: BASEDEP, libdep(backtrace`'BTRACE_SO,,=), ${misc:Depends}
+ifdef(`TARGET',`',`Provides: libbacktrace'BTRACE_SO`-dbg-armel [armel], libbacktrace'BTRACE_SO`-dbg-armhf [armhf]
+')`'dnl
+ifdef(`MULTIARCH', `Multi-Arch: same
+')`'dnl
+BUILT_USING`'dnl
+Description: stack backtrace library (debug symbols)
+ libbacktrace uses the GCC unwind interface to collect a stack trace,
+ and parses DWARF debug info to get file/line/function information.
+
+Package: lib32backtrace`'BTRACE_SO`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
+Priority: ifdef(`TARGET',`extra',`PRI(optional)')
+Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
+Conflicts: ${confl:lib32}
+BUILT_USING`'dnl
+Description: stack backtrace library (32bit)
+ libbacktrace uses the GCC unwind interface to collect a stack trace,
+ and parses DWARF debug info to get file/line/function information.
+
+Package: lib32backtrace`'BTRACE_SO-dbg`'LS
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
+Section: debug
+Priority: extra
+Depends: BASEDEP, libdep(backtrace`'BTRACE_SO,32,=), ${misc:Depends}
+BUILT_USING`'dnl
+Description: stack backtrace library (32 bit debug symbols)
+ libbacktrace uses the GCC unwind interface to collect a stack trace,
+ and parses DWARF debug info to get file/line/function information.
+
+Package: lib64backtrace`'BTRACE_SO`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
+Priority: ifdef(`TARGET',`extra',`PRI(optional)')
+Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: stack backtrace library (64bit)
+ libbacktrace uses the GCC unwind interface to collect a stack trace,
+ and parses DWARF debug info to get file/line/function information.
+
+Package: lib64backtrace`'BTRACE_SO-dbg`'LS
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
+Section: debug
+Priority: extra
+Depends: BASEDEP, libdep(backtrace`'BTRACE_SO,64,=), ${misc:Depends}
+BUILT_USING`'dnl
+Description: stack backtrace library (64bit debug symbols)
+ libbacktrace uses the GCC unwind interface to collect a stack trace,
+ and parses DWARF debug info to get file/line/function information.
+
+Package: libn32backtrace`'BTRACE_SO`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
+Priority: ifdef(`TARGET',`extra',`PRI(optional)')
+Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: stack backtrace library (n32)
+ libbacktrace uses the GCC unwind interface to collect a stack trace,
+ and parses DWARF debug info to get file/line/function information.
+
+Package: libn32backtrace`'BTRACE_SO-dbg`'LS
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
+Section: debug
+Priority: extra
+Depends: BASEDEP, libdep(backtrace`'BTRACE_SO,n32,=), ${misc:Depends}
+BUILT_USING`'dnl
+Description: stack backtrace library (n32 debug symbols)
+ libbacktrace uses the GCC unwind interface to collect a stack trace,
+ and parses DWARF debug info to get file/line/function information.
+
+ifenabled(`libx32backtrace',`
+Package: libx32backtrace`'BTRACE_SO`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
+Priority: ifdef(`TARGET',`extra',`PRI(optional)')
+Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: stack backtrace library (x32)
+ libbacktrace uses the GCC unwind interface to collect a stack trace,
+ and parses DWARF debug info to get file/line/function information.
+
+Package: libx32backtrace`'BTRACE_SO-dbg`'LS
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
+Section: debug
+Priority: extra
+Depends: BASEDEP, libdep(backtrace`'BTRACE_SO,x32,=), ${misc:Depends}
+BUILT_USING`'dnl
+Description: stack backtrace library (x32 debug symbols)
+ libbacktrace uses the GCC unwind interface to collect a stack trace,
+ and parses DWARF debug info to get file/line/function information.
+')`'dnl libx32backtrace
+
+ifenabled(`libhfbacktrace',`
+Package: libhfbacktrace`'BTRACE_SO`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
+Priority: ifdef(`TARGET',`extra',`PRI(optional)')
+Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
+ifdef(`TARGET',`dnl',`Conflicts: libbacktrace'BTRACE_SO`-armhf [biarchhf_archs]')
+BUILT_USING`'dnl
+Description: stack backtrace library (hard float ABI)
+ libbacktrace uses the GCC unwind interface to collect a stack trace,
+ and parses DWARF debug info to get file/line/function information.
+
+Package: libhfbacktrace`'BTRACE_SO-dbg`'LS
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
+Section: debug
+Priority: extra
+Depends: BASEDEP, libdep(backtrace`'BTRACE_SO,hf,=), ${misc:Depends}
+wifdef(`TARGET',`dnl',`Conflicts: libbacktrace'BTRACE_SO`-armel [biarchsf_archs]')
+BUILT_USING`'dnl
+Description: stack backtrace library (hard float ABI debug symbols)
+ libbacktrace uses the GCC unwind interface to collect a stack trace,
+ and parses DWARF debug info to get file/line/function information.
+')`'dnl libhfbacktrace
+
+ifenabled(`libsfbacktrace',`
+Package: libsfbacktrace`'BTRACE_SO`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
+Priority: ifdef(`TARGET',`extra',`PRI(optional)')
+Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: stack backtrace library (soft float ABI)
+ libbacktrace uses the GCC unwind interface to collect a stack trace,
+ and parses DWARF debug info to get file/line/function information.
+
+Package: libsfbacktrace`'BTRACE_SO-dbg`'LS
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
+Section: debug
+Priority: extra
+Depends: BASEDEP, libdep(backtrace`'BTRACE_SO,sf,=), ${misc:Depends}
+BUILT_USING`'dnl
+Description: stack backtrace library (soft float ABI debug symbols)
+ libbacktrace uses the GCC unwind interface to collect a stack trace,
+ and parses DWARF debug info to get file/line/function information.
+')`'dnl libsfbacktrace
+
+ifenabled(`libneonbacktrace',`
+Package: libbacktrace`'BTRACE_SO-neon`'LS
+Architecture: NEON_ARCHS
+Section: libs
+Priority: extra
+Depends: BASEDEP, libc6-neon`'LS, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: stack backtrace library [neon optimized]
+ libbacktrace uses the GCC unwind interface to collect a stack trace,
+ and parses DWARF debug info to get file/line/function information.
+ .
+ This set of libraries is optimized to use a NEON coprocessor, and will
+ be selected instead when running under systems which have one.
+')`'dnl libneonbacktrace
+')`'dnl libbacktrace
+
+
 ifenabled(`libqmath',`
 Package: libquadmath`'QMATH_SO`'LS
 Section: ifdef(`TARGET',`devel',`libs')
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
-ifdef(`TARGET',`dnl',ifdef(`MULTIARCH', `Multi-Arch: same
-Pre-Depends: multiarch-support
-'))`'dnl
+ifdef(`MULTIARCH', `Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+')`'dnl
 Priority: ifdef(`TARGET',`extra',`PRI(optional)')
 Depends: BASEDEP, ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
@@ -1515,8 +2017,8 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
 Section: debug
 Priority: extra
 Depends: BASEDEP, libdep(quadmath`'QMATH_SO,,=), ${misc:Depends}
-ifdef(`TARGET',`dnl',ifdef(`MULTIARCH', `Multi-Arch: same
-'))`'dnl
+ifdef(`MULTIARCH', `Multi-Arch: same
+')`'dnl
 BUILT_USING`'dnl
 Description: GCC Quad-Precision Math Library (debug symbols)
  A library, which provides quad-precision mathematical functions on targets
@@ -1678,12 +2180,12 @@ Section: devel
 Priority: ifdef(`TARGET',`extra',`PRI(optional)')
 Depends: BASEDEP, gobjc++`'PV`'TS (= ${gcc:Version}), g++`'PV-multilib`'TS (= ${gcc:Version}), gobjc`'PV-multilib`'TS (= ${gcc:Version}), ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
-Description: GNU Objective-C++ compiler (multilib files)
+Description: GNU Objective-C++ compiler (multilib support)
  This is the GNU Objective-C++ compiler, which compiles Objective-C++ on
  platforms supported by the gcc compiler.
  .
- On architectures with multilib support, the package contains files
- and dependencies for the non-default multilib architecture(s).
+ This is a dependency package, depending on development packages
+ for the non-default multilib architecture(s).
 ')`'dnl multilib
 ')`'dnl obcpp
 
@@ -1709,22 +2211,21 @@ Section: devel
 Priority: ifdef(`TARGET',`extra',`PRI(optional)')
 Depends: BASEDEP, gobjc`'PV`'TS (= ${gcc:Version}), gcc`'PV-multilib`'TS (= ${gcc:Version}), ${dep:libobjcbiarchdev}, ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
-Description: GNU Objective-C compiler (multilib files)`'ifdef(`TARGET)',` (cross compiler for TARGET architecture)', `')
+Description: GNU Objective-C compiler (multilib support)`'ifdef(`TARGET)',` (cross compiler for TARGET architecture)', `')
  This is the GNU Objective-C compiler, which compiles Objective-C on platforms
  supported by the gcc compiler.
  .
- On architectures with multilib support, the package contains files
- and dependencies for the non-default multilib architecture(s).
+ This is a dependency package, depending on development packages
+ for the non-default multilib architecture(s).
 ')`'dnl multilib
 
 Package: libobjc`'PV-dev`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
 Section: libdevel
 Priority: optional
-Depends: BASEDEP, libdevdep(gcc`'PV-dev,,=), libdep(objc`'OBJC_SO,,>=), ${shlibs:Depends}, ${misc:Depends}
-Replaces: gobjc`'PV (<< ${gcc:SplitVersion})
-ifdef(`TARGET',`',ifdef(`MULTIARCH', `Multi-Arch: same
-'))`'dnl
+Depends: BASEDEP, libdevdep(gcc`'PV-dev,), libdep(objc`'OBJC_SO,), ${shlibs:Depends}, ${misc:Depends}
+ifdef(`MULTIARCH', `Multi-Arch: same
+')`'dnl
 BUILT_USING`'dnl
 Description: Runtime library for GNU Objective-C applications (development files)
  This package contains the headers and static library files needed to build
@@ -1734,8 +2235,8 @@ Package: lib64objc`'PV-dev`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
 Section: libdevel
 Priority: optional
-Depends: BASEDEP, libdevdep(gcc`'PV-dev,64,=), libdep(objc`'OBJC_SO,64,>=), ${shlibs:Depends}, ${misc:Depends}
-Replaces: gobjc`'PV-multilib (<< ${gcc:SplitVersion})
+Depends: BASEDEP, libdevdep(gcc`'PV-dev,64), libdep(objc`'OBJC_SO,64), ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
 Description: Runtime library for GNU Objective-C applications (64bit development files)
  This package contains the headers and static library files needed to build
  GNU ObjC applications.
@@ -1744,8 +2245,7 @@ Package: lib32objc`'PV-dev`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
 Section: libdevel
 Priority: optional
-Depends: BASEDEP, libdevdep(gcc`'PV-dev,32,=), libdep(objc`'OBJC_SO,32,>=), ${shlibs:Depends}, ${misc:Depends}
-Replaces: gobjc`'PV-multilib (<< ${gcc:SplitVersion})
+Depends: BASEDEP, libdevdep(gcc`'PV-dev,32), libdep(objc`'OBJC_SO,32), ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
 Description: Runtime library for GNU Objective-C applications (32bit development files)
  This package contains the headers and static library files needed to build
@@ -1755,8 +2255,7 @@ Package: libn32objc`'PV-dev`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
 Section: libdevel
 Priority: optional
-Depends: BASEDEP, libdevdep(gcc`'PV-dev,n32,=), libdep(objc`'OBJC_SO,n32,>=), ${shlibs:Depends}, ${misc:Depends}
-Replaces: gobjc`'PV-multilib (<< ${gcc:SplitVersion})
+Depends: BASEDEP, libdevdep(gcc`'PV-dev,n32), libdep(objc`'OBJC_SO,n32), ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
 Description: Runtime library for GNU Objective-C applications (n32 development files)
  This package contains the headers and static library files needed to build
@@ -1767,8 +2266,7 @@ Package: libx32objc`'PV-dev`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
 Section: libdevel
 Priority: optional
-Depends: BASEDEP, libdevdep(gcc`'PV-dev,x32,=), libdep(objc`'OBJC_SO,x32,>=), ${shlibs:Depends}, ${misc:Depends}
-Replaces: gobjc`'PV-multilib (<< ${gcc:SplitVersion})
+Depends: BASEDEP, libdevdep(gcc`'PV-dev,x32), libdep(objc`'OBJC_SO,x32), ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
 Description: Runtime library for GNU Objective-C applications (x32 development files)
  This package contains the headers and static library files needed to build
@@ -1780,8 +2278,7 @@ Package: libhfobjc`'PV-dev`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
 Section: libdevel
 Priority: optional
-Depends: BASEDEP, libdevdep(gcc`'PV-dev,hf,=), libdep(objc`'OBJC_SO,hf,>=), ${shlibs:Depends}, ${misc:Depends}
-Replaces: gobjc`'PV-multilib (<< ${gcc:SplitVersion})
+Depends: BASEDEP, libdevdep(gcc`'PV-dev,hf), libdep(objc`'OBJC_SO,hf), ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
 Description: Runtime library for GNU Objective-C applications (hard float ABI development files)
  This package contains the headers and static library files needed to build
@@ -1793,8 +2290,7 @@ Package: libsfobjc`'PV-dev`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
 Section: libdevel
 Priority: optional
-Depends: BASEDEP, libdevdep(gcc`'PV-dev,sf,=), libdep(objc`'OBJC_SO,sf,>=), ${shlibs:Depends}, ${misc:Depends}
-Replaces: gobjc`'PV-multilib (<< ${gcc:SplitVersion})
+Depends: BASEDEP, libdevdep(gcc`'PV-dev,sf), libdep(objc`'OBJC_SO,sf), ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
 Description: Runtime library for GNU Objective-C applications (soft float development files)
  This package contains the headers and static library files needed to build
@@ -1806,10 +2302,12 @@ ifenabled(`libobjc',`
 Package: libobjc`'OBJC_SO`'LS
 Section: ifdef(`TARGET',`devel',`libs')
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
-ifdef(`TARGET',`dnl',ifdef(`MULTIARCH', `Multi-Arch: same
-Pre-Depends: multiarch-support
+ifdef(`TARGET',`',`Provides: libobjc'OBJC_SO`-armel [armel], libobjc'OBJC_SO`-armhf [armhf]
+')`'dnl
+ifdef(`MULTIARCH', `Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
 ifelse(OBJC_SO,`2',`Breaks: ${multiarch:breaks}
-',`')')`Provides: libobjc'OBJC_SO`-armel [armel], libobjc'OBJC_SO`-armhf [armhf]')
+',`')')`'dnl
 Priority: ifdef(`TARGET',`extra',`PRI(optional)')
 Depends: BASEDEP, ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
@@ -1819,8 +2317,10 @@ Description: Runtime library for GNU Objective-C applications
 Package: libobjc`'OBJC_SO-dbg`'LS
 Section: debug
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
-ifdef(`TARGET',`dnl',ifdef(`MULTIARCH', `Multi-Arch: same
-')`Provides: libobjc'OBJC_SO`-dbg-armel [armel], libobjc'OBJC_SO`-dbg-armhf [armhf]')
+ifdef(`TARGET',`',`Provides: libobjc'OBJC_SO`-dbg-armel [armel], libobjc'OBJC_SO`-dbg-armhf [armhf]
+')`'dnl
+ifdef(`MULTIARCH', `Multi-Arch: same
+')`'dnl
 Priority: extra
 Depends: BASEDEP, libdep(objc`'OBJC_SO,,=), libdbgdep(gcc`'GCC_SO-dbg,,>=,${libgcc:Version}), ${misc:Depends}
 BUILT_USING`'dnl
@@ -1974,7 +2474,7 @@ Package: gfortran`'PV`'TS
 Architecture: any
 Priority: ifdef(`TARGET',`extra',`PRI(optional)')
 Depends: BASEDEP, gcc`'PV`'TS (= ${gcc:Version}), libdevdep(gfortran`'PV-dev,,=), ${dep:libcdev}, ${shlibs:Depends}, ${misc:Depends}
-Provides: fortran95-compiler
+Provides: fortran95-compiler, ${fortran:mod-version}
 Suggests: ${gfortran:multilib}, gfortran`'PV-doc, libdbgdep(gfortran`'FORTRAN_SO-dbg,)
 BUILT_USING`'dnl
 Description: GNU Fortran compiler
@@ -1989,12 +2489,12 @@ Section: devel
 Priority: ifdef(`TARGET',`extra',`PRI(optional)')
 Depends: BASEDEP, gfortran`'PV`'TS (= ${gcc:Version}), gcc`'PV-multilib`'TS (= ${gcc:Version}), ${dep:libgfortranbiarchdev}, ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
-Description: GNU Fortran compiler (multilib files)`'ifdef(`TARGET)',` (cross compiler for TARGET architecture)', `')
+Description: GNU Fortran compiler (multilib support)`'ifdef(`TARGET)',` (cross compiler for TARGET architecture)', `')
  This is the GNU Fortran compiler, which compiles Fortran on platforms
  supported by the gcc compiler.
  .
- On architectures with multilib support, the package contains files
- and dependencies for the non-default multilib architecture(s).
+ This is a dependency package, depending on development packages
+ for the non-default multilib architecture(s).
 ')`'dnl multilib
 
 ifenabled(`gfdldoc',`
@@ -2011,11 +2511,9 @@ Package: libgfortran`'PV-dev`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
 Section: ifdef(`TARGET',`devel',`libdevel')
 Priority: optional
-Depends: BASEDEP, libdep(gfortran`'FORTRAN_SO,), ${shlibs:Depends}, ${misc:Depends}
-Replaces: gfortran`'PV (<< ${gcc:SplitVersion})
-Breaks: gfortran`'PV (<< ${gcc:SplitVersion})
-ifdef(`TARGET',`',ifdef(`MULTIARCH', `Multi-Arch: same
-'))`'dnl
+Depends: BASEDEP, libdevdep(gcc`'PV-dev`',), libdep(gfortran`'FORTRAN_SO,), ${shlibs:Depends}, ${misc:Depends}
+ifdef(`MULTIARCH', `Multi-Arch: same
+')`'dnl
 BUILT_USING`'dnl
 Description: Runtime library for GNU Fortran applications (development files)
  This package contains the headers and static library files needed to build
@@ -2025,9 +2523,7 @@ Package: lib64gfortran`'PV-dev`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
 Section: libdevel
 Priority: optional
-Depends: BASEDEP, libdep(gfortran`'FORTRAN_SO,64,>=), ${shlibs:Depends}, ${misc:Depends}
-Replaces: gfortran`'PV-multilib (<< ${gcc:SplitVersion})
-Breaks: gfortran`'PV-multilib (<< ${gcc:SplitVersion})
+Depends: BASEDEP, libdevdep(gcc`'PV-dev`',64), libdep(gfortran`'FORTRAN_SO,64), ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
 Description: Runtime library for GNU Fortran applications (64bit development files)
  This package contains the headers and static library files needed to build
@@ -2037,9 +2533,7 @@ Package: lib32gfortran`'PV-dev`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
 Section: libdevel
 Priority: optional
-Depends: BASEDEP, libdep(gfortran`'FORTRAN_SO,32,>=), ${shlibs:Depends}, ${misc:Depends}
-Replaces: gfortran`'PV-multilib (<< ${gcc:SplitVersion})
-Breaks: gfortran`'PV-multilib (<< ${gcc:SplitVersion})
+Depends: BASEDEP, libdevdep(gcc`'PV-dev`',32), libdep(gfortran`'FORTRAN_SO,32), ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
 Description: Runtime library for GNU Fortran applications (32bit development files)
  This package contains the headers and static library files needed to build
@@ -2049,9 +2543,7 @@ Package: libn32gfortran`'PV-dev`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
 Section: libdevel
 Priority: optional
-Depends: BASEDEP, libdep(gfortran`'FORTRAN_SO,n32,>=), ${shlibs:Depends}, ${misc:Depends}
-Replaces: gfortran`'PV-multilib (<< ${gcc:SplitVersion})
-Breaks: gfortran`'PV-multilib (<< ${gcc:SplitVersion})
+Depends: BASEDEP, libdevdep(gcc`'PV-dev`',n32), libdep(gfortran`'FORTRAN_SO,n32), ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
 Description: Runtime library for GNU Fortran applications (n32 development files)
  This package contains the headers and static library files needed to build
@@ -2062,9 +2554,7 @@ Package: libx32gfortran`'PV-dev`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
 Section: libdevel
 Priority: optional
-Depends: BASEDEP, libdep(gfortran`'FORTRAN_SO,x32,>=), ${shlibs:Depends}, ${misc:Depends}
-Replaces: gfortran`'PV-multilib (<< ${gcc:SplitVersion})
-Breaks: gfortran`'PV-multilib (<< ${gcc:SplitVersion})
+Depends: BASEDEP, libdevdep(gcc`'PV-dev`',x32), libdep(gfortran`'FORTRAN_SO,x32), ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
 Description: Runtime library for GNU Fortran applications (x32 development files)
  This package contains the headers and static library files needed to build
@@ -2076,9 +2566,7 @@ Package: libhfgfortran`'PV-dev`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
 Section: libdevel
 Priority: optional
-Depends: BASEDEP, libdep(gfortran`'FORTRAN_SO,hf,>=), ${shlibs:Depends}, ${misc:Depends}
-Replaces: gfortran`'PV-multilib (<< ${gcc:SplitVersion})
-Breaks: gfortran`'PV-multilib (<< ${gcc:SplitVersion})
+Depends: BASEDEP, libdevdep(gcc`'PV-dev`',hf), libdep(gfortran`'FORTRAN_SO,hf), ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
 Description: Runtime library for GNU Fortran applications (hard float ABI development files)
  This package contains the headers and static library files needed to build
@@ -2090,9 +2578,7 @@ Package: libsfgfortran`'PV-dev`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
 Section: libdevel
 Priority: optional
-Depends: BASEDEP, libdep(gfortran`'FORTRAN_SO,sf,>=), ${shlibs:Depends}, ${misc:Depends}
-Replaces: gfortran`'PV-multilib (<< ${gcc:SplitVersion})
-Breaks: gfortran`'PV-multilib (<< ${gcc:SplitVersion})
+Depends: BASEDEP, libdevdep(gcc`'PV-dev`',sf), libdep(gfortran`'FORTRAN_SO,sf), ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
 Description: Runtime library for GNU Fortran applications (soft float ABI development files)
  This package contains the headers and static library files needed to build
@@ -2104,10 +2590,12 @@ ifenabled(`libgfortran',`
 Package: libgfortran`'FORTRAN_SO`'LS
 Section: ifdef(`TARGET',`devel',`libs')
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
-ifdef(`TARGET',`dnl',ifdef(`MULTIARCH', `Multi-Arch: same
-Pre-Depends: multiarch-support
+ifdef(`TARGET',`',`Provides: libgfortran'FORTRAN_SO`-armel [armel], libgfortran'FORTRAN_SO`-armhf [armhf]
+')`'dnl
+ifdef(`MULTIARCH', `Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
 Breaks: ${multiarch:breaks}
-')`Provides: libgfortran'FORTRAN_SO`-armel [armel], libgfortran'FORTRAN_SO`-armhf [armhf]')
+')`'dnl
 Priority: ifdef(`TARGET',`extra',PRI(optional))
 Depends: BASEDEP, ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
@@ -2118,8 +2606,10 @@ Description: Runtime library for GNU Fortran applications
 Package: libgfortran`'FORTRAN_SO-dbg`'LS
 Section: debug
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
-ifdef(`TARGET',`dnl',ifdef(`MULTIARCH', `Multi-Arch: same
-')`Provides: libgfortran'FORTRAN_SO`-dbg-armel [armel], libgfortran'FORTRAN_SO`-dbg-armhf [armhf]')
+ifdef(`TARGET',`',`Provides: libgfortran'FORTRAN_SO`-dbg-armel [armel], libgfortran'FORTRAN_SO`-dbg-armhf [armhf]
+')`'dnl
+ifdef(`MULTIARCH', `Multi-Arch: same
+')`'dnl
 Priority: extra
 Depends: BASEDEP, libdep(gfortran`'FORTRAN_SO,,=), libdbgdep(gcc`'GCC_SO-dbg,,>=,${libgcc:Version}), ${misc:Depends}
 BUILT_USING`'dnl
@@ -2270,7 +2760,7 @@ Package: libgfortran`'FORTRAN_SO-neon`'LS
 Section: libs
 Architecture: NEON_ARCHS
 ifdef(`MULTIARCH', `Multi-Arch: same
-Pre-Depends: multiarch-support
+Pre-Depends: ${misc:Pre-Depends}
 Breaks: ${multiarch:breaks}
 ')`'dnl
 Priority: extra
@@ -2290,10 +2780,9 @@ ifenabled(`godev',`
 Package: gccgo`'PV`'TS
 Architecture: any
 Priority: ifdef(`TARGET',`extra',`PRI(optional)')
-Depends: BASEDEP, ifdef(`STANDALONEGO',,`gcc`'PV`'TS (= ${gcc:Version}), ')libdep(go`'GO_SO`',,>=), ${dep:libcdev}, ${shlibs:Depends}, ${misc:Depends}
+Depends: BASEDEP, ifdef(`STANDALONEGO',,`gcc`'PV`'TS (= ${gcc:Version}), ')libdep(go`'GO_SO,), ${dep:libcdev}, ${shlibs:Depends}, ${misc:Depends}
 Provides: go-compiler
 Suggests: ${go:multilib}, gccgo`'PV-doc, libdbgdep(go`'GO_SO-dbg,)
-Replaces: gcc-4.7-doc (<< 4.7.2-11)
 BUILT_USING`'dnl
 Description: GNU Go compiler
  This is the GNU Go compiler, which compiles Go on platforms supported
@@ -2307,12 +2796,12 @@ Priority: ifdef(`TARGET',`extra',`PRI(optional)')
 Depends: BASEDEP, gccgo`'PV`'TS (= ${gcc:Version}), ifdef(`STANDALONEGO',,`gcc`'PV-multilib`'TS (= ${gcc:Version}), ')${dep:libgobiarch}, ${shlibs:Depends}, ${misc:Depends}
 Suggests: ${dep:libgobiarchdbg}
 BUILT_USING`'dnl
-Description: GNU Go compiler (multilib files)`'ifdef(`TARGET)',` (cross compiler for TARGET architecture)', `')
+Description: GNU Go compiler (multilib support)`'ifdef(`TARGET)',` (cross compiler for TARGET architecture)', `')
  This is the GNU Go compiler, which compiles Go on platforms supported
  by the gcc compiler.
  .
- On architectures with multilib support, the package contains files
- and dependencies for the non-default multilib architecture(s).
+ This is a dependency package, depending on development packages
+ for the non-default multilib architecture(s).
 ')`'dnl multilib
 
 ifenabled(`gfdldoc',`
@@ -2331,11 +2820,14 @@ ifenabled(`libggo',`
 Package: libgo`'GO_SO`'LS
 Section: ifdef(`TARGET',`devel',`libs')
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
-ifdef(`TARGET',`dnl',ifdef(`MULTIARCH', `Multi-Arch: same
-Pre-Depends: multiarch-support
-')`Provides: libgo'GO_SO`-armel [armel], libgo'GO_SO`-armhf [armhf]')
+ifdef(`TARGET',`',`Provides: libgo'GO_SO`-armel [armel], libgo'GO_SO`-armhf [armhf]
+')`'dnl
+ifdef(`MULTIARCH', `Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+')`'dnl
 Priority: ifdef(`TARGET',`extra',PRI(optional))
 Depends: BASEDEP, ${shlibs:Depends}, ${misc:Depends}
+Replaces: libgo3`'LS
 BUILT_USING`'dnl
 Description: Runtime library for GNU Go applications
  Library needed for GNU Go applications linked against the
@@ -2344,14 +2836,17 @@ Description: Runtime library for GNU Go applications
 Package: libgo`'GO_SO-dbg`'LS
 Section: debug
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
-ifdef(`TARGET',`dnl',ifdef(`MULTIARCH', `Multi-Arch: same
-')`Provides: libgo'GO_SO`-dbg-armel [armel], libgo'GO_SO`-dbg-armhf [armhf]')
+ifdef(`TARGET',`',`Provides: libgo'GO_SO`-dbg-armel [armel], libgo'GO_SO`-dbg-armhf [armhf]
+')`'dnl
+ifdef(`MULTIARCH', `Multi-Arch: same
+')`'dnl
 Priority: extra
 Depends: BASEDEP, libdep(go`'GO_SO,,=), ${misc:Depends}
 BUILT_USING`'dnl
 Description: Runtime library for GNU Go applications (debug symbols)
  Library needed for GNU Go applications linked against the
- shared library.
+ shared library. This currently is an empty package, because the
+ library is completely unstripped.
 ')`'dnl libgo
 
 ifenabled(`lib64ggo',`
@@ -2360,6 +2855,7 @@ Section: ifdef(`TARGET',`devel',`libs')
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
 Priority: ifdef(`TARGET',`extra',PRI(optional))
 Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
+Replaces: lib64go3`'LS
 BUILT_USING`'dnl
 Description: Runtime library for GNU Go applications (64bit)
  Library needed for GNU Go applications linked against the
@@ -2373,7 +2869,8 @@ Depends: BASEDEP, libdep(go`'GO_SO,64,=), ${misc:Depends}
 BUILT_USING`'dnl
 Description: Runtime library for GNU Go applications (64bit debug symbols)
  Library needed for GNU Go applications linked against the
- shared library.
+ shared library. This currently is an empty package, because the
+ library is completely unstripped.
 ')`'dnl lib64go
 
 ifenabled(`lib32ggo',`
@@ -2383,6 +2880,7 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
 Priority: ifdef(`TARGET',`extra',PRI(optional))
 Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
 Conflicts: ${confl:lib32}
+Replaces: lib32go3`'LS
 BUILT_USING`'dnl
 Description: Runtime library for GNU Go applications (32bit)
  Library needed for GNU Go applications linked against the
@@ -2396,7 +2894,8 @@ Depends: BASEDEP, libdep(go`'GO_SO,32,=), ${misc:Depends}
 BUILT_USING`'dnl
 Description: Runtime library for GNU Go applications (32 bit debug symbols)
  Library needed for GNU Go applications linked against the
- shared library.
+ shared library. This currently is an empty package, because the
+ library is completely unstripped.
 ')`'dnl lib32go
 
 ifenabled(`libn32ggo',`
@@ -2405,6 +2904,7 @@ Section: ifdef(`TARGET',`devel',`libs')
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
 Priority: ifdef(`TARGET',`extra',PRI(optional))
 Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
+Replaces: libn32go3`'LS
 BUILT_USING`'dnl
 Description: Runtime library for GNU Go applications (n32)
  Library needed for GNU Go applications linked against the
@@ -2418,7 +2918,8 @@ Depends: BASEDEP, libdep(go`'GO_SO,n32,=), ${misc:Depends}
 BUILT_USING`'dnl
 Description: Runtime library for GNU Go applications (n32 debug symbols)
  Library needed for GNU Go applications linked against the
- shared library.
+ shared library. This currently is an empty package, because the
+ library is completely unstripped.
 ')`'dnl libn32go
 
 ifenabled(`libx32ggo',`
@@ -2427,6 +2928,7 @@ Section: ifdef(`TARGET',`devel',`libs')
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
 Priority: ifdef(`TARGET',`extra',PRI(optional))
 Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
+Replaces: libx32go3`'LS
 BUILT_USING`'dnl
 Description: Runtime library for GNU Go applications (x32)
  Library needed for GNU Go applications linked against the
@@ -2440,31 +2942,26 @@ Depends: BASEDEP, libdep(go`'GO_SO,x32,=), ${misc:Depends}
 BUILT_USING`'dnl
 Description: Runtime library for GNU Go applications (x32 debug symbols)
  Library needed for GNU Go applications linked against the
- shared library.
+ shared library. This currently is an empty package, because the
+ library is completely unstripped.
 ')`'dnl libx32go
 ')`'dnl ggo
 
 ifenabled(`java',`
 ifenabled(`gcj',`
-Package: gcj`'PV-jdk`'TS
+Package: gcj`'PV`'TS
 Section: java
 Architecture: any
 Priority: ifdef(`TARGET',`extra',`PRI(optional)')
-Depends: BASEDEP, ${dep:gcj}, ${dep:libcdev}, gcj`'PV-jre`'TS (= ${gcj:Version}), libdevdep(gcj`'GCJ_SO-dev,,=,${gcj:Version}), ${dep:ecj}, fastjar, libgcj-bc`'LS, java-common, libantlr-java, ${shlibs:Depends}, dpkg (>= 1.15.4) | install-info, ${misc:Depends}
+Depends: BASEDEP, ${dep:gcj}, ${dep:gcjcross}, ${dep:libcdev}, ${dep:ecj}, ${shlibs:Depends}, dpkg (>= 1.15.4) | install-info, ${misc:Depends}
 Recommends: libecj-java-gcj
-Suggests: gcj`'PV-source (>= ${gcj:SoftVersion}), libdbgdep(gcj`'GCJ_SO-dbg,)
-Provides: java-compiler, java-sdk, java2-sdk, java5-sdk
 Conflicts: gcj-4.4, cpp-4.1 (<< 4.1.1), gcc-4.1 (<< 4.1.1)
-Replaces: libgcj11 (<< 4.5-20100101-1)
+Replaces: libgcj11 (<< 4.5-20100101-1), gcj`'PV-jdk`'TS (<< 4.8.1-4)
 BUILT_USING`'dnl
-Description: gcj and classpath development tools for Java(TM)
+Description: GCJ byte code and native compiler for Java(TM)
  GCJ is a front end to the GCC compiler which can natively compile both
  Java(tm) source and bytecode files. The compiler can also generate class
- files. Other java development tools from classpath are included in this
- package.
- .
- The package contains as well a collection of wrapper scripts and symlinks.
- It is meant to provide a Java-SDK-like interface to the GCJ tool set.
+ files.
 ')`'dnl gcj
 
 ifenabled(`libgcj',`
@@ -2478,8 +2975,29 @@ Conflicts: classpath (<= 0.04-4)
 Replaces: java-gcj-compat (<< 1.0.65-3), java-gcj-compat-dev (<< 1.0.65-3)
 BUILT_USING`'dnl
 Description: Java runtime library (common files)
- This package contains files shared by classpath and libgcj libraries.
+ This package contains files shared by Classpath and libgcj libraries.
 ')`'dnl libgcjcommon
+
+
+Package: gcj`'PV-jdk`'TS
+Section: java
+Architecture: any
+Priority: ifdef(`TARGET',`extra',`PRI(optional)')
+Depends: BASEDEP, ${dep:gcj}, ${dep:libcdev}, gcj`'PV`'TS (= ${gcj:Version}), gcj`'PV-jre`'TS (= ${gcj:Version}), libdevdep(gcj`'GCJ_SO-dev,,=,${gcj:Version}), fastjar, libgcj-bc`'LS, java-common, libantlr-java, ${shlibs:Depends}, dpkg (>= 1.15.4) | install-info, ${misc:Depends}
+Recommends: libecj-java-gcj
+Suggests: gcj`'PV-source (>= ${gcj:SoftVersion}), libdbgdep(gcj`'GCJ_SO-dbg,)
+Provides: java-compiler, java-sdk, java2-sdk, java5-sdk
+Conflicts: gcj-4.4, cpp-4.1 (<< 4.1.1), gcc-4.1 (<< 4.1.1)
+Replaces: libgcj11 (<< 4.5-20100101-1)
+BUILT_USING`'dnl
+Description: GCJ and Classpath development tools for Java(TM)
+ GCJ is a front end to the GCC compiler which can natively compile both
+ Java(tm) source and bytecode files. The compiler can also generate class
+ files. Other java development tools from classpath are included in this
+ package.
+ .
+ The package contains as well a collection of wrapper scripts and symlinks.
+ It is meant to provide a Java-SDK-like interface to the GCJ tool set.
 
 Package: gcj`'PV-jre-headless`'TS
 Priority: ifdef(`TARGET',`extra',`PRI(optional)')
@@ -2488,10 +3006,10 @@ Architecture: any
 Depends: BASEDEP, gcj`'PV-jre-lib`'TS (>= ${gcj:SoftVersion}), libdep(gcj`'LIBGCJ_EXT,,=,${gcj:Version}), ${dep:prctl}, ${shlibs:Depends}, ${misc:Depends}
 Suggests: fastjar, gcj`'PV-jdk`'TS (= ${gcj:Version}), libdep(gcj`'LIBGCJ_EXT-awt,,=,${gcj:Version})
 Conflicts: gij-4.4, java-gcj-compat (<< 1.0.76-4)
-Replaces: gcj-4.7-jre-lib`'TS (<< 4.7.2-10)
+Replaces: gcj-4.8-jre-lib`'TS (<< 4.8-20121219-0)
 Provides: java5-runtime-headless, java2-runtime-headless, java1-runtime-headless, java-runtime-headless
 BUILT_USING`'dnl
-Description: Java runtime environment using GIJ/classpath (headless version)
+Description: Java runtime environment using GIJ/Classpath (headless version)
  GIJ is a Java bytecode interpreter, not limited to interpreting bytecode.
  It includes a class loader which can dynamically load shared objects, so
  it is possible to give it the name of a class which has been compiled and
@@ -2507,8 +3025,9 @@ Architecture: any
 Priority: ifdef(`TARGET',`extra',`PRI(optional)')
 Depends: BASEDEP, gcj`'PV-jre-headless`'TS (= ${gcj:Version}), libdep(gcj`'LIBGCJ_EXT-awt,,=,${gcj:Version}), ${shlibs:Depends}, ${misc:Depends}
 Provides: java5-runtime, java2-runtime, java1-runtime, java-runtime
+Replaces: gcj-4.8-jre-headless`'TS (<< 4.8.2-2)
 BUILT_USING`'dnl
-Description: Java runtime environment using GIJ/classpath
+Description: Java runtime environment using GIJ/Classpath
  GIJ is a Java bytecode interpreter, not limited to interpreting bytecode.
  It includes a class loader which can dynamically load shared objects, so
  it is possible to give it the name of a class which has been compiled and
@@ -2521,13 +3040,13 @@ Package: libgcj`'LIBGCJ_EXT`'LS
 Section: libs
 Architecture: any
 Priority: PRI(optional)
-ifdef(`MULTIARCH', `Pre-Depends: multiarch-support
+ifdef(`MULTIARCH', `Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
 ')`'dnl
 Depends: SOFTBASEDEP, libgcj-common (>= 1:4.1.1-21), ${shlibs:Depends}, ${misc:Depends}
 Recommends: gcj`'PV-jre-lib`'TS (>= ${gcj:SoftVersion})
 Suggests: libdbgdep(gcj`'GCJ_SO-dbg,), libdep(gcj`'LIBGCJ_EXT-awt,,=,${gcj:Version})
-Replaces: gij-4.4 (<< 4.4.0-1)
+Replaces: gij-4.4 (<< 4.4.0-1), gcj-4.8-jre-headless`'TS (<< 4.8.2-5)
 BUILT_USING`'dnl
 Description: Java runtime library for use with gcj
  This is the runtime that goes along with the gcj front end to
@@ -2551,7 +3070,7 @@ Package: libgcj-bc
 Section: java
 Architecture: any
 Priority: PRI(optional)
-ifdef(`MULTIARCH', `Pre-Depends: multiarch-support
+ifdef(`MULTIARCH', `Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
 ')`'dnl
 Depends: BASEDEP, libdep(gcj`'LIBGCJ_EXT,,>=,${gcj:Version}), ${misc:Depends}
@@ -2567,7 +3086,7 @@ Package: libgcj`'LIBGCJ_EXT-awt`'LS
 Section: libs
 Architecture: any
 Priority: PRI(optional)
-ifdef(`MULTIARCH', `Pre-Depends: multiarch-support
+ifdef(`MULTIARCH', `Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
 ')`'dnl
 Depends: SOFTBASEDEP, libdep(gcj`'LIBGCJ_EXT,,=,${gcj:Version}), ${shlibs:Depends}, ${misc:Depends}
@@ -2583,7 +3102,7 @@ Package: libgcj`'GCJ_SO-awt-gtk`'LS
 Section: libs
 Architecture: any
 Priority: PRI(optional)
-ifdef(`MULTIARCH', `Pre-Depends: multiarch-support
+ifdef(`MULTIARCH', `Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
 ')`'dnl
 Depends: SOFTBASEDEP, libgcj`'LIBGCJ_EXT-awt`'LS (= ${gcj:Version}), ${shlibs:Depends}, ${misc:Depends}
@@ -2598,7 +3117,7 @@ Package: libgcj`'GCJ_SO-awt-qt`'LS
 Section: libs
 Architecture: any
 Priority: PRI(optional)
-ifdef(`MULTIARCH', `Pre-Depends: multiarch-support
+ifdef(`MULTIARCH', `Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
 ')`'dnl
 Depends: SOFTBASEDEP, libdep(gcj`'LIBGCJ_EXT-awt,,=,${gcj:Version}), ${shlibs:Depends}, ${misc:Depends}
@@ -2616,7 +3135,7 @@ Architecture: any
 ifdef(`MULTIARCH', `Multi-Arch: same
 ')`'dnl
 Priority: PRI(optional)
-Depends: BASEDEP, gcj`'PV-jdk`'TS (= ${gcj:Version}), gcj`'PV-jre-lib`'TS (>= ${gcj:SoftVersion}), libdep(gcj`'LIBGCJ_EXT-awt,,=,${gcj:Version}), libgcj-bc`'LS, ${pkg:gcjgtk}, ${pkg:gcjqt}, zlib1g-dev, ${shlibs:Depends}, ${misc:Depends}
+Depends: BASEDEP, libdep(gcj`'LIBGCJ_EXT-awt,,=,${gcj:Version}), libgcj-bc`'LS, ${pkg:gcjgtk}, ${pkg:gcjqt}, zlib1g-dev, ${shlibs:Depends}, ${misc:Depends}
 Suggests: libgcj-doc
 BUILT_USING`'dnl
 Description: Java development headers for use with gcj
@@ -2628,7 +3147,7 @@ Package: libgcj`'GCJ_SO-dbg`'LS
 Section: debug
 Architecture: any
 Priority: extra
-ifdef(`MULTIARCH', `Pre-Depends: multiarch-support
+ifdef(`MULTIARCH', `Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
 ')`'dnl
 Depends: BASEDEP, libdep(gcj`'LIBGCJ_EXT,,=,${gcj:Version}), ${misc:Depends}
@@ -2645,7 +3164,7 @@ Package: gcj`'PV-source
 Section: java
 Architecture: all
 Priority: PRI(optional)
-Depends: gcj`'PV-base (>= ${gcj:SoftVersion}), gcj`'PV-jdk (>= ${gcj:SoftVersion}), ${misc:Depends}
+Depends: SOFTBASEDEP, gcj`'PV-jdk (>= ${gcj:SoftVersion}), ${misc:Depends}
 BUILT_USING`'dnl
 Description: GCJ java sources for use in IDEs like eclipse and netbeans
  These are the java source files packaged as a zip file for use in development
@@ -2657,13 +3176,13 @@ Package: libgcj-doc
 Section: doc
 Architecture: all
 Priority: PRI(optional)
-Depends: gcj`'PV-base (>= ${gcj:SoftVersion}), ${misc:Depends}
+Depends: SOFTBASEDEP, ${misc:Depends}
 Enhances: libgcj`'GCJ_SO-dev
 Provides: classpath-doc
 BUILT_USING`'dnl
 Description: libgcj API documentation and example programs
  Autogenerated documentation describing the API of the libgcj library.
- Sources and precompiled example programs from the classpath library.
+ Sources and precompiled example programs from the Classpath library.
 ')`'dnl gcjdoc
 ')`'dnl libgcjdev
 ')`'dnl java
@@ -2675,13 +3194,13 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
 Section: ifdef(`TARGET',`devel',`libs')
 Priority: ifdef(`TARGET',`extra',PRI(important))
 Depends: BASEDEP, ${dep:libc}, ${shlibs:Depends}, ${misc:Depends}
-ifdef(`TARGET',`Provides: libstdc++CXX_SO-TARGET-dcv1',
+ifdef(`TARGET',`Provides: libstdc++CXX_SO-TARGET-dcv1',`Provides: libstdc++'CXX_SO`-armel [armel], libstdc++'CXX_SO`-armhf [armhf]')
 ifdef(`MULTIARCH', `Multi-Arch: same
-Pre-Depends: multiarch-support
+Pre-Depends: ${misc:Pre-Depends}
 Breaks: ${multiarch:breaks}
-')`Provides: libstdc++'CXX_SO`-armel [armel], libstdc++'CXX_SO`-armhf [armhf]')
+')`'dnl
 Conflicts: scim (<< 1.4.2-1)
-Replaces: libstdc++CXX_SO`'PV-dbg`'LS (<< 4.7.3-14)
+Replaces: libstdc++CXX_SO`'PV-dbg`'LS (<< 4.8.2-22)
 BUILT_USING`'dnl
 Description: GNU Standard C++ Library v3`'ifdef(`TARGET)',` (TARGET)', `')
  This package contains an additional runtime library for C++ programs
@@ -2850,19 +3369,18 @@ Description: GNU Standard C++ Library v3 [NEON version]
 ')`'dnl
 
 ifenabled(`c++dev',`
-Package: libstdc++CXX_SO`'PV-dev`'LS
+Package: libstdc++`'PV-dev`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
-ifdef(`TARGET',`',ifdef(`MULTIARCH', `Multi-Arch: same
-'))`'dnl
+ifdef(`MULTIARCH', `Multi-Arch: same
+')`'dnl
 Section: ifdef(`TARGET',`devel',`libdevel')
 Priority: ifdef(`TARGET',`extra',PRI(optional))
 Depends: BASEDEP, libdevdep(gcc`'PV-dev,,=), libdep(stdc++CXX_SO,,>=), ${dep:libcdev}, ${misc:Depends}
 ifdef(`TARGET',`',`dnl native
 Conflicts: libg++27-dev, libg++272-dev (<< 2.7.2.8-1), libstdc++2.8-dev, libg++2.8-dev, libstdc++2.9-dev, libstdc++2.9-glibc2.1-dev, libstdc++2.10-dev (<< 1:2.95.3-2), libstdc++3.0-dev
-Replaces: g++`'PV (<< ${gcc:SplitVersion})
-Suggests: libstdc++CXX_SO`'PV-doc
+Suggests: libstdc++`'PV-doc
 ')`'dnl native
-Provides: libstdc++-dev`'LS`'ifdef(`TARGET',`, libstdc++-dev-TARGET-dcv1, libstdc++CXX_SO-dev-TARGET-dcv1')
+Provides: libstdc++-dev`'LS`'ifdef(`TARGET',`, libstdc++-dev-TARGET-dcv1')
 BUILT_USING`'dnl
 Description: GNU Standard C++ Library v3 (development files)`'ifdef(`TARGET)',` (TARGET)', `')
  This package contains the headers and static library files necessary for
@@ -2877,14 +3395,14 @@ ifdef(`TARGET', `dnl
  environment.
 ')`'dnl
 
-Package: libstdc++CXX_SO`'PV-pic`'LS
+Package: libstdc++`'PV-pic`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
-ifdef(`TARGET',`',ifdef(`MULTIARCH', `Multi-Arch: same
-'))`'dnl
+ifdef(`MULTIARCH', `Multi-Arch: same
+')`'dnl
 Section: ifdef(`TARGET',`devel',`libdevel')
 Priority: extra
-Depends: BASEDEP, libdep(stdc++CXX_SO,,>=), libdevdep(stdc++CXX_SO`'PV-dev,,=), ${misc:Depends}
-ifdef(`TARGET',`Provides: libstdc++CXX_SO-pic-TARGET-dcv1
+Depends: BASEDEP, libdep(stdc++CXX_SO,), libdevdep(stdc++`'PV-dev,), ${misc:Depends}
+ifdef(`TARGET',`Provides: libstdc++-pic-TARGET-dcv1
 ',`')`'dnl
 BUILT_USING`'dnl
 Description: GNU Standard C++ Library v3 (shared library subset kit)`'ifdef(`TARGET)',` (TARGET)', `')
@@ -2902,13 +3420,12 @@ Package: libstdc++CXX_SO`'PV-dbg`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
 Section: debug
 Priority: extra
-Depends: BASEDEP, libdep(stdc++CXX_SO,,>=), libdbgdep(gcc`'GCC_SO-dbg,,>=,${libgcc:Version}), ${shlibs:Depends}, ${misc:Depends}
-ifdef(`TARGET',`Provides: libstdc++CXX_SO-dbg-TARGET-dcv1',`dnl
-ifdef(`MULTIARCH', `Multi-Arch: same',`dnl')
-Provides: libstdc++'CXX_SO`'PV`-dbg-armel [armel], libstdc++'CXX_SO`'PV`-dbg-armhf [armhf]dnl
-')
-Recommends: libdevdep(stdc++CXX_SO`'PV-dev,,=)
-Conflicts: libstdc++5-dbg`'LS, libstdc++5-3.3-dbg`'LS, libstdc++6-dbg`'LS, libstdc++6-4.0-dbg`'LS, libstdc++6-4.1-dbg`'LS, libstdc++6-4.2-dbg`'LS, libstdc++6-4.3-dbg`'LS, libstdc++6-4.4-dbg`'LS, libstdc++6-4.5-dbg`'LS, libstdc++6-4.6-dbg`'LS
+Depends: BASEDEP, libdep(stdc++CXX_SO,), libdbgdep(gcc`'GCC_SO-dbg,,>=,${libgcc:Version}), ${shlibs:Depends}, ${misc:Depends}
+ifdef(`TARGET',`Provides: libstdc++CXX_SO-dbg-TARGET-dcv1',`Provides: libstdc++'CXX_SO`'PV`-dbg-armel [armel], libstdc++'CXX_SO`'PV`-dbg-armhf [armhf]')
+ifdef(`MULTIARCH', `Multi-Arch: same
+')`'dnl
+Recommends: libdevdep(stdc++`'PV-dev,)
+Conflicts: libstdc++5-dbg`'LS, libstdc++5-3.3-dbg`'LS, libstdc++6-dbg`'LS, libstdc++6-4.0-dbg`'LS, libstdc++6-4.1-dbg`'LS, libstdc++6-4.2-dbg`'LS, libstdc++6-4.3-dbg`'LS, libstdc++6-4.4-dbg`'LS, libstdc++6-4.5-dbg`'LS, libstdc++6-4.6-dbg`'LS, libstdc++6-4.7-dbg`'LS
 BUILT_USING`'dnl
 Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET)',` (TARGET)', `')
  This package contains the shared library of libstdc++ compiled with
@@ -2919,15 +3436,11 @@ ifdef(`TARGET', `dnl
  environment.
 ')`'dnl
 
-Package: lib32stdc++CXX_SO`'PV-dev`'LS
+Package: lib32stdc++`'PV-dev`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
 Section: ifdef(`TARGET',`devel',`libdevel')
 Priority: ifdef(`TARGET',`extra',PRI(optional))
-Depends: BASEDEP, libdevdep(gcc`'PV-dev,32,=), libdep(stdc++CXX_SO,32,>=), libdevdep(stdc++CXX_SO`'PV-dev,,=), ${misc:Depends}
-ifdef(`TARGET',`',`dnl native
-Replaces: libstdc++CXX_SO`'PV-dev (<< ${gcc:SplitVersion}), g++`'PV-multilib (<< ${gcc:SplitVersion})
-Breaks: libstdc++CXX_SO`'PV-dev (<< ${gcc:SplitVersion}), g++`'PV-multilib (<< ${gcc:SplitVersion})
-')`'dnl native
+Depends: BASEDEP, libdevdep(gcc`'PV-dev,32), libdep(stdc++CXX_SO,32), libdevdep(stdc++`'PV-dev,), ${misc:Depends}
 BUILT_USING`'dnl
 Description: GNU Standard C++ Library v3 (development files)`'ifdef(`TARGET',` (TARGET)', `')
  This package contains the headers and static library files necessary for
@@ -2946,10 +3459,10 @@ Package: lib32stdc++CXX_SO`'PV-dbg`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
 Section: debug
 Priority: extra
-Depends: BASEDEP, libdep(stdc++CXX_SO,32,>=), libdevdep(stdc++CXX_SO`'PV-dev,,=), libdbgdep(gcc`'GCC_SO-dbg,32,>=,${gcc:EpochVersion}), ${shlibs:Depends}, ${misc:Depends}
+Depends: BASEDEP, libdep(stdc++CXX_SO,32), libdevdep(stdc++`'PV-dev,), libdbgdep(gcc`'GCC_SO-dbg,32,>=,${gcc:EpochVersion}), ${shlibs:Depends}, ${misc:Depends}
 ifdef(`TARGET',`Provides: lib32stdc++CXX_SO-dbg-TARGET-dcv1
 ',`')`'dnl
-Conflicts: lib32stdc++6-dbg`'LS, lib32stdc++6-4.0-dbg`'LS, lib32stdc++6-4.1-dbg`'LS, lib32stdc++6-4.2-dbg`'LS, lib32stdc++6-4.3-dbg`'LS, lib32stdc++6-4.4-dbg`'LS, lib32stdc++6-4.5-dbg`'LS, lib32stdc++6-4.6-dbg`'LS
+Conflicts: lib32stdc++6-dbg`'LS, lib32stdc++6-4.0-dbg`'LS, lib32stdc++6-4.1-dbg`'LS, lib32stdc++6-4.2-dbg`'LS, lib32stdc++6-4.3-dbg`'LS, lib32stdc++6-4.4-dbg`'LS, lib32stdc++6-4.5-dbg`'LS, lib32stdc++6-4.6-dbg`'LS, lib32stdc++6-4.7-dbg`'LS,
 BUILT_USING`'dnl
 Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET)',` (TARGET)', `')
  This package contains the shared library of libstdc++ compiled with
@@ -2960,15 +3473,11 @@ ifdef(`TARGET', `dnl
  environment.
 ')`'dnl
 
-Package: lib64stdc++CXX_SO`'PV-dev`'LS
+Package: lib64stdc++`'PV-dev`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
 Section: ifdef(`TARGET',`devel',`libdevel')
 Priority: ifdef(`TARGET',`extra',PRI(optional))
-Depends: BASEDEP, libdevdep(gcc`'PV-dev,64,=), libdep(stdc++CXX_SO,64,>=), libdevdep(stdc++CXX_SO`'PV-dev,,=), ${misc:Depends}
-ifdef(`TARGET',`',`dnl native
-Replaces: libstdc++CXX_SO`'PV-dev (<< ${gcc:SplitVersion}), g++`'PV-multilib (<< ${gcc:SplitVersion})
-Breaks: libstdc++CXX_SO`'PV-dev (<< ${gcc:SplitVersion}), g++`'PV-multilib (<< ${gcc:SplitVersion})
-')`'dnl native
+Depends: BASEDEP, libdevdep(gcc`'PV-dev,64), libdep(stdc++CXX_SO,64), libdevdep(stdc++`'PV-dev,), ${misc:Depends}
 BUILT_USING`'dnl
 Description: GNU Standard C++ Library v3 (development files)`'ifdef(`TARGET',` (TARGET)', `')
  This package contains the headers and static library files necessary for
@@ -2987,10 +3496,10 @@ Package: lib64stdc++CXX_SO`'PV-dbg`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
 Section: debug
 Priority: extra
-Depends: BASEDEP, libdep(stdc++CXX_SO,64,>=), libdevdep(stdc++CXX_SO`'PV-dev,,=), libdbgdep(gcc`'GCC_SO-dbg,64,>=,${gcc:EpochVersion}), ${shlibs:Depends}, ${misc:Depends}
+Depends: BASEDEP, libdep(stdc++CXX_SO,64), libdevdep(stdc++`'PV-dev,), libdbgdep(gcc`'GCC_SO-dbg,64,>=,${gcc:EpochVersion}), ${shlibs:Depends}, ${misc:Depends}
 ifdef(`TARGET',`Provides: lib64stdc++CXX_SO-dbg-TARGET-dcv1
 ',`')`'dnl
-Conflicts: lib64stdc++6-dbg`'LS, lib64stdc++6-4.0-dbg`'LS, lib64stdc++6-4.1-dbg`'LS, lib64stdc++6-4.2-dbg`'LS, lib64stdc++6-4.3-dbg`'LS, lib64stdc++6-4.4-dbg`'LS, lib64stdc++6-4.5-dbg`'LS, lib64stdc++6-4.6-dbg`'LS
+Conflicts: lib64stdc++6-dbg`'LS, lib64stdc++6-4.0-dbg`'LS, lib64stdc++6-4.1-dbg`'LS, lib64stdc++6-4.2-dbg`'LS, lib64stdc++6-4.3-dbg`'LS, lib64stdc++6-4.4-dbg`'LS, lib64stdc++6-4.5-dbg`'LS, lib64stdc++6-4.6-dbg`'LS, lib64stdc++6-4.7-dbg`'LS
 BUILT_USING`'dnl
 Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET)',` (TARGET)', `')
  This package contains the shared library of libstdc++ compiled with
@@ -3001,15 +3510,11 @@ ifdef(`TARGET', `dnl
  environment.
 ')`'dnl
 
-Package: libn32stdc++CXX_SO`'PV-dev`'LS
+Package: libn32stdc++`'PV-dev`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
 Section: ifdef(`TARGET',`devel',`libdevel')
 Priority: ifdef(`TARGET',`extra',PRI(optional))
-Depends: BASEDEP, libdevdep(gcc`'PV-dev,n32,=), libdep(stdc++CXX_SO,n32,>=), libdevdep(stdc++CXX_SO`'PV-dev,,=), ${misc:Depends}
-ifdef(`TARGET',`',`dnl native
-Replaces: libstdc++CXX_SO`'PV-dev (<< ${gcc:SplitVersion}), g++`'PV-multilib (<< ${gcc:SplitVersion})
-Breaks: libstdc++CXX_SO`'PV-dev (<< ${gcc:SplitVersion}), g++`'PV-multilib (<< ${gcc:SplitVersion})
-')`'dnl native
+Depends: BASEDEP, libdevdep(gcc`'PV-dev,n32), libdep(stdc++CXX_SO,n32), libdevdep(stdc++`'PV-dev,), ${misc:Depends}
 BUILT_USING`'dnl
 Description: GNU Standard C++ Library v3 (development files)`'ifdef(`TARGET',` (TARGET)', `')
  This package contains the headers and static library files necessary for
@@ -3028,10 +3533,10 @@ Package: libn32stdc++CXX_SO`'PV-dbg`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
 Section: debug
 Priority: extra
-Depends: BASEDEP, libdep(stdc++CXX_SO,n32,>=), libdevdep(stdc++CXX_SO`'PV-dev,,=), libdbgdep(gcc`'GCC_SO-dbg,n32,>=,${gcc:EpochVersion}), ${shlibs:Depends}, ${misc:Depends}
+Depends: BASEDEP, libdep(stdc++CXX_SO,n32), libdevdep(stdc++`'PV-dev,), libdbgdep(gcc`'GCC_SO-dbg,n32,>=,${gcc:EpochVersion}), ${shlibs:Depends}, ${misc:Depends}
 ifdef(`TARGET',`Provides: libn32stdc++CXX_SO-dbg-TARGET-dcv1
 ',`')`'dnl
-Conflicts: libn32stdc++6-dbg`'LS, libn32stdc++6-4.0-dbg`'LS, libn32stdc++6-4.1-dbg`'LS, libn32stdc++6-4.2-dbg`'LS, libn32stdc++6-4.3-dbg`'LS, libn32stdc++6-4.4-dbg`'LS, libn32stdc++6-4.5-dbg`'LS, libn32stdc++6-4.6-dbg`'LS
+Conflicts: libn32stdc++6-dbg`'LS, libn32stdc++6-4.0-dbg`'LS, libn32stdc++6-4.1-dbg`'LS, libn32stdc++6-4.2-dbg`'LS, libn32stdc++6-4.3-dbg`'LS, libn32stdc++6-4.4-dbg`'LS, libn32stdc++6-4.5-dbg`'LS, libn32stdc++6-4.6-dbg`'LS, libn32stdc++6-4.7-dbg`'LS
 BUILT_USING`'dnl
 Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET)',` (TARGET)', `')
  This package contains the shared library of libstdc++ compiled with
@@ -3043,15 +3548,11 @@ ifdef(`TARGET', `dnl
 ')`'dnl
 
 ifenabled(`x32dev',`
-Package: libx32stdc++CXX_SO`'PV-dev`'LS
+Package: libx32stdc++`'PV-dev`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
 Section: ifdef(`TARGET',`devel',`libdevel')
 Priority: ifdef(`TARGET',`extra',PRI(optional))
-Depends: BASEDEP, libdevdep(gcc`'PV-dev,x32,=), libdep(stdc++CXX_SO,x32,>=), libdevdep(stdc++CXX_SO`'PV-dev,,=), ${misc:Depends}
-ifdef(`TARGET',`',`dnl native
-Replaces: libstdc++CXX_SO`'PV-dev (<< ${gcc:SplitVersion}), g++`'PV-multilib (<< ${gcc:SplitVersion})
-Breaks: libstdc++CXX_SO`'PV-dev (<< ${gcc:SplitVersion}), g++`'PV-multilib (<< ${gcc:SplitVersion})
-')`'dnl native
+Depends: BASEDEP, libdevdep(gcc`'PV-dev,x32), libdep(stdc++CXX_SO,x32), libdevdep(stdc++`'PV-dev,), ${misc:Depends}
 BUILT_USING`'dnl
 Description: GNU Standard C++ Library v3 (development files)`'ifdef(`TARGET',` (TARGET)', `')
  This package contains the headers and static library files necessary for
@@ -3072,10 +3573,10 @@ Package: libx32stdc++CXX_SO`'PV-dbg`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
 Section: debug
 Priority: extra
-Depends: BASEDEP, libdep(stdc++CXX_SO,x32,>=), libdevdep(stdc++CXX_SO`'PV-dev,,=), libdbgdep(gcc`'GCC_SO-dbg,x32,>=,${gcc:EpochVersion}), ${shlibs:Depends}, ${misc:Depends}
+Depends: BASEDEP, libdep(stdc++CXX_SO,x32), libdevdep(stdc++`'PV-dev,), libdbgdep(gcc`'GCC_SO-dbg,x32,>=,${gcc:EpochVersion}), ${shlibs:Depends}, ${misc:Depends}
 ifdef(`TARGET',`Provides: libx32stdc++CXX_SO-dbg-TARGET-dcv1
 ',`')`'dnl
-Conflicts: libx32stdc++6-dbg`'LS, libx32stdc++6-4.0-dbg`'LS, libx32stdc++6-4.1-dbg`'LS, libx32stdc++6-4.2-dbg`'LS, libx32stdc++6-4.3-dbg`'LS, libx32stdc++6-4.4-dbg`'LS, libx32stdc++6-4.5-dbg`'LS, libx32stdc++6-4.6-dbg`'LS
+Conflicts: libx32stdc++6-dbg`'LS, libx32stdc++6-4.6-dbg`'LS, libx32stdc++6-4.7-dbg`'LS
 BUILT_USING`'dnl
 Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET)',` (TARGET)', `')
  This package contains the shared library of libstdc++ compiled with
@@ -3088,15 +3589,11 @@ ifdef(`TARGET', `dnl
 ')`'dnl libx32dbgcxx
 
 ifenabled(`libhfdbgcxx',`
-Package: libhfstdc++CXX_SO`'PV-dev`'LS
+Package: libhfstdc++`'PV-dev`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
 Section: ifdef(`TARGET',`devel',`libdevel')
 Priority: ifdef(`TARGET',`extra',PRI(optional))
-Depends: BASEDEP, libdevdep(gcc`'PV-dev,hf,=), libdep(stdc++CXX_SO,,>=), libdevdep(stdc++CXX_SO`'PV-dev,,=), ${misc:Depends}
-ifdef(`TARGET',`',`dnl native
-Replaces: libstdc++CXX_SO`'PV-dev (<< ${gcc:SplitVersion}), g++`'PV-multilib (<< ${gcc:SplitVersion})
-Breaks: libstdc++CXX_SO`'PV-dev (<< ${gcc:SplitVersion}), g++`'PV-multilib (<< ${gcc:SplitVersion})
-')`'dnl native
+Depends: BASEDEP, libdevdep(gcc`'PV-dev,hf), libdep(stdc++CXX_SO,hf), libdevdep(stdc++`'PV-dev,), ${misc:Depends}
 BUILT_USING`'dnl
 Description: GNU Standard C++ Library v3 (development files)`'ifdef(`TARGET',` (TARGET)', `')
  This package contains the headers and static library files necessary for
@@ -3115,10 +3612,10 @@ Package: libhfstdc++CXX_SO`'PV-dbg`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
 Section: debug
 Priority: extra
-Depends: BASEDEP, libdep(stdc++CXX_SO,hf,>=), libdevdep(stdc++CXX_SO`'PV-dev,,=), libdbgdep(gcc`'GCC_SO-dbg,hf,>=,${gcc:EpochVersion}), ${shlibs:Depends}, ${misc:Depends}
+Depends: BASEDEP, libdep(stdc++CXX_SO,hf), libdevdep(stdc++`'PV-dev,), libdbgdep(gcc`'GCC_SO-dbg,hf,>=,${gcc:EpochVersion}), ${shlibs:Depends}, ${misc:Depends}
 ifdef(`TARGET',`Provides: libhfstdc++CXX_SO-dbg-TARGET-dcv1
 ',`')`'dnl
-ifdef(`TARGET',`dnl',`Conflicts: libhfstdc++6-dbg`'LS, libhfstdc++6-4.3-dbg`'LS, libhfstdc++6-4.4-dbg`'LS, libhfstdc++6-4.5-dbg`'LS, libhfstdc++6-4.6-dbg`'LS, libstdc++'CXX_SO`-armhf [biarchhf_archs]')
+ifdef(`TARGET',`dnl',`Conflicts: libhfstdc++6-dbg`'LS, libhfstdc++6-4.3-dbg`'LS, libhfstdc++6-4.4-dbg`'LS, libhfstdc++6-4.5-dbg`'LS, libhfstdc++6-4.6-dbg`'LS, libhfstdc++6-4.7-dbg`'LS, libstdc++'CXX_SO`-armhf [biarchhf_archs]')
 BUILT_USING`'dnl
 Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET)',` (TARGET)', `')
  This package contains the shared library of libstdc++ compiled with
@@ -3131,15 +3628,11 @@ ifdef(`TARGET', `dnl
 ')`'dnl libhfdbgcxx
 
 ifenabled(`libsfdbgcxx',`
-Package: libsfstdc++CXX_SO`'PV-dev`'LS
+Package: libsfstdc++`'PV-dev`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
 Section: ifdef(`TARGET',`devel',`libdevel')
 Priority: ifdef(`TARGET',`extra',PRI(optional))
-Depends: BASEDEP, libdevdep(gcc`'PV-dev,sf,=), libdep(stdc++CXX_SO,sf,>=), libdevdep(stdc++CXX_SO`'PV-dev,,=), ${misc:Depends}
-ifdef(`TARGET',`',`dnl native
-Replaces: libstdc++CXX_SO`'PV-dev (<< ${gcc:SplitVersion}), g++`'PV-multilib (<< ${gcc:SplitVersion})
-Breaks: libstdc++CXX_SO`'PV-dev (<< ${gcc:SplitVersion}), g++`'PV-multilib (<< ${gcc:SplitVersion})
-')`'dnl native
+Depends: BASEDEP, libdevdep(gcc`'PV-dev,sf), libdep(stdc++CXX_SO,sf), libdevdep(stdc++`'PV-dev,), ${misc:Depends}
 BUILT_USING`'dnl
 Description: GNU Standard C++ Library v3 (development files)`'ifdef(`TARGET',` (TARGET)', `')
  This package contains the headers and static library files necessary for
@@ -3158,10 +3651,10 @@ Package: libsfstdc++CXX_SO`'PV-dbg`'LS
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
 Section: debug
 Priority: extra
-Depends: BASEDEP, libdep(stdc++CXX_SO,sf,>=), libdevdep(stdc++CXX_SO`'PV-dev,,=), libdbgdep(gcc`'GCC_SO-dbg,sf,>=,${gcc:EpochVersion}), ${shlibs:Depends}, ${misc:Depends}
+Depends: BASEDEP, libdep(stdc++CXX_SO,sf), libdevdep(stdc++`'PV-dev,), libdbgdep(gcc`'GCC_SO-dbg,sf,>=,${gcc:EpochVersion}), ${shlibs:Depends}, ${misc:Depends}
 ifdef(`TARGET',`Provides: libsfstdc++CXX_SO-dbg-TARGET-dcv1
 ',`')`'dnl
-ifdef(`TARGET',`dnl',`Conflicts: libsfstdc++6-dbg`'LS, libsfstdc++6-4.3-dbg`'LS, libsfstdc++6-4.4-dbg`'LS, libsfstdc++6-4.5-dbg`'LS, libsfstdc++6-4.6-dbg`'LS, libstdc++'CXX_SO`-armel [biarchsf_archs]')
+ifdef(`TARGET',`dnl',`Conflicts: libsfstdc++6-dbg`'LS, libsfstdc++6-4.3-dbg`'LS, libsfstdc++6-4.4-dbg`'LS, libsfstdc++6-4.5-dbg`'LS, libsfstdc++6-4.6-dbg`'LS, libsfstdc++6-4.7-dbg`'LS, libstdc++'CXX_SO`-armel [biarchsf_archs]')
 BUILT_USING`'dnl
 Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET)',` (TARGET)', `')
  This package contains the shared library of libstdc++ compiled with
@@ -3174,12 +3667,12 @@ ifdef(`TARGET', `dnl
 ')`'dnl libsfdbgcxx
 
 ifdef(`TARGET', `', `
-Package: libstdc++CXX_SO`'PV-doc
+Package: libstdc++`'PV-doc
 Architecture: all
 Section: doc
 Priority: PRI(optional)
 Depends: gcc`'PV-base (>= ${gcc:SoftVersion}), ${misc:Depends}
-Conflicts: libstdc++5-doc, libstdc++5-3.3-doc, libstdc++6-doc, libstdc++6-4.0-doc, libstdc++6-4.1-doc, libstdc++6-4.2-doc, libstdc++6-4.3-doc, libstdc++6-4.4-doc, libstdc++6-4.5-doc, libstdc++6-4.6-doc
+Conflicts: libstdc++5-doc, libstdc++5-3.3-doc, libstdc++6-doc, libstdc++6-4.0-doc, libstdc++6-4.1-doc, libstdc++6-4.2-doc, libstdc++6-4.3-doc, libstdc++6-4.4-doc, libstdc++6-4.5-doc, libstdc++6-4.6-doc, libstdc++6-4.7-doc
 Description: GNU Standard C++ Library v3 (documentation files)
  This package contains documentation files for the GNU stdc++ library.
  .
@@ -3192,14 +3685,13 @@ Description: GNU Standard C++ Library v3 (documentation files)
 ')`'dnl c++
 
 ifenabled(`ada',`
-Package: gnat`'-GNAT_V
+Package: gnat`'-GNAT_V`'TS
 Architecture: any
-Priority: PRI(optional)
-ifdef(`MULTIARCH', `Pre-Depends: multiarch-support
+Priority: ifdef(`TARGET',`extra',`PRI(optional)')
+ifdef(`MULTIARCH', `Pre-Depends: ${misc:Pre-Depends}
 ')`'dnl
-Depends: gnat`'PV-base (= ${gnat:Version}), gcc`'PV (>= ${gcc:SoftVersion}), ${dep:libgnat}, ${dep:libcdev}, ${shlibs:Depends}, ${misc:Depends}
+Depends: BASEDEP, gcc`'PV`'TS (>= ${gcc:SoftVersion}), ${dep:libgnat}, ${dep:libcdev}, ${shlibs:Depends}, ${misc:Depends}
 Suggests: gnat`'PV-doc, ada-reference-manual-html, ada-reference-manual-info, ada-reference-manual-pdf, ada-reference-manual-text, gnat`'-GNAT_V-sjlj
-Provides: ada-compiler
 Conflicts: gnat (<< 4.1), gnat-3.1, gnat-3.2, gnat-3.3, gnat-3.4, gnat-3.5, gnat-4.0, gnat-4.1, gnat-4.2, gnat-4.3, gnat-4.4, gnat-4.6
 BUILT_USING`'dnl
 Description: GNU Ada compiler
@@ -3209,12 +3701,12 @@ Description: GNU Ada compiler
  This package provides the compiler, tools and runtime library that handles
  exceptions using the default zero-cost mechanism.
 
-Package: gnat`'-GNAT_V-sjlj
+Package: gnat`'-GNAT_V-sjlj`'TS
 Architecture: any
 Priority: extra
-ifdef(`MULTIARCH', `Pre-Depends: multiarch-support
+ifdef(`MULTIARCH', `Pre-Depends: ${misc:Pre-Depends}
 ')`'dnl
-Depends: gnat`'PV-base (= ${gnat:Version}), gnat`'-GNAT_V (= ${gnat:Version}), ${misc:Depends}
+Depends: BASEDEP, gnat`'-GNAT_V`'TS (= ${gnat:Version}), ${misc:Depends}
 BUILT_USING`'dnl
 Description: GNU Ada compiler (setjump/longjump runtime library)
  GNAT is a compiler for the Ada programming language. It produces optimized
@@ -3225,14 +3717,14 @@ Description: GNU Ada compiler (setjump/longjump runtime library)
  only).  You can install it to supplement the normal compiler.
 
 ifenabled(`libgnat',`
-Package: libgnat`'-GNAT_V
-Section: libs
-Architecture: any
-ifdef(`TARGET',`dnl',ifdef(`MULTIARCH', `Multi-Arch: same
-Pre-Depends: multiarch-support
-'))`'dnl
+Package: libgnat`'-GNAT_V`'LS
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
+ifdef(`MULTIARCH', `Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+')`'dnl
 Priority: PRI(optional)
-Depends: gnat`'PV-base (= ${gnat:Version}), ${shlibs:Depends}, ${misc:Depends}
+Depends: BASEDEP, ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
 Description: runtime for applications compiled with GNAT (shared library)
  GNAT is a compiler for the Ada programming language. It produces optimized
@@ -3243,14 +3735,14 @@ Description: runtime for applications compiled with GNAT (shared library)
  .
  This package contains the runtime shared library.
 
-Package: libgnat`'-GNAT_V-dbg
+Package: libgnat`'-GNAT_V-dbg`'LS
 Section: debug
-Architecture: any
-ifdef(`TARGET',`dnl',ifdef(`MULTIARCH', `Multi-Arch: same
-Pre-Depends: multiarch-support
-'))`'dnl
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
+ifdef(`MULTIARCH', `Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+')`'dnl
 Priority: extra
-Depends: gnat`'PV-base (= ${gnat:Version}), libgnat`'-GNAT_V (= ${gnat:Version}), ${misc:Depends}
+Depends: BASEDEP, libgnat`'-GNAT_V`'LS (= ${gnat:Version}), ${misc:Depends}
 BUILT_USING`'dnl
 Description: runtime for applications compiled with GNAT (debugging symbols)
  GNAT is a compiler for the Ada programming language. It produces optimized
@@ -3261,12 +3753,12 @@ Description: runtime for applications compiled with GNAT (debugging symbols)
  .
  This package contains the debugging symbols.
 
-Package: libgnatvsn`'GNAT_V-dev
+Package: libgnatvsn`'GNAT_V-dev`'LS
 Section: libdevel
-Architecture: any
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
 Priority: extra
-Depends: gnat`'PV-base (= ${gnat:Version}), gnat`'PV (= ${gnat:Version}), ada-compiler,
- libgnatvsn`'GNAT_V (= ${gnat:Version}), ${misc:Depends}
+Depends: BASEDEP, gnat`'PV`'LS (= ${gnat:Version}),
+ libgnatvsn`'GNAT_V`'LS (= ${gnat:Version}), ${misc:Depends}
 Conflicts: libgnatvsn-dev (<< `'GNAT_V), libgnatvsn4.1-dev, libgnatvsn4.3-dev, libgnatvsn4.4-dev, libgnatvsn4.5-dev, libgnatvsn4.6-dev
 BUILT_USING`'dnl
 Description: GNU Ada compiler selected components (development files)
@@ -3279,14 +3771,14 @@ Description: GNU Ada compiler selected components (development files)
  .
  This package contains the development files and static library.
 
-Package: libgnatvsn`'GNAT_V
-Architecture: any
-ifdef(`TARGET',`dnl',ifdef(`MULTIARCH', `Multi-Arch: same
-Pre-Depends: multiarch-support
-'))`'dnl
+Package: libgnatvsn`'GNAT_V`'LS
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
+ifdef(`MULTIARCH', `Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+')`'dnl
 Priority: PRI(optional)
-Section: libs
-Depends: gnat`'PV-base (= ${gnat:Version}), libgnat`'-GNAT_V (= ${gnat:Version}), ${misc:Depends}
+Section: ifdef(`TARGET',`devel',`libs')
+Depends: BASEDEP, libgnat`'-GNAT_V`'LS (= ${gnat:Version}), ${misc:Depends}
 BUILT_USING`'dnl
 Description: GNU Ada compiler selected components (shared library)
  GNAT is a compiler for the Ada programming language. It produces optimized
@@ -3298,15 +3790,15 @@ Description: GNU Ada compiler selected components (shared library)
  .
  This package contains the runtime shared library.
 
-Package: libgnatvsn`'GNAT_V-dbg
-Architecture: any
-ifdef(`TARGET',`dnl',ifdef(`MULTIARCH', `Multi-Arch: same
-Pre-Depends: multiarch-support
-'))`'dnl
+Package: libgnatvsn`'GNAT_V-dbg`'LS
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
+ifdef(`MULTIARCH', `Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+')`'dnl
 Priority: extra
 Section: debug
-Depends: gnat`'PV-base (= ${gnat:Version}), libgnatvsn`'GNAT_V (= ${gnat:Version}), ${misc:Depends}
-Suggests: gnat, ada-compiler
+Depends: BASEDEP, libgnatvsn`'GNAT_V`'LS (= ${gnat:Version}), ${misc:Depends}
+Suggests: gnat
 BUILT_USING`'dnl
 Description: GNU Ada compiler selected components (debugging symbols)
  GNAT is a compiler for the Ada programming language. It produces optimized
@@ -3318,12 +3810,13 @@ Description: GNU Ada compiler selected components (debugging symbols)
  .
  This package contains the debugging symbols.
 
-Package: libgnatprj`'GNAT_V-dev
+Package: libgnatprj`'GNAT_V-dev`'LS
 Section: libdevel
-Architecture: any
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
 Priority: extra
-Depends: gnat`'PV-base (= ${gnat:Version}), gnat`'PV (= ${gnat:Version}), ada-compiler,
- libgnatprj`'GNAT_V (= ${gnat:Version}), libgnatvsn`'GNAT_V-dev (= ${gnat:Version}), ${misc:Depends}
+Depends: BASEDEP, gnat`'PV`'TS (= ${gnat:Version}),
+ libgnatprj`'GNAT_V`'LS (= ${gnat:Version}),
+ libgnatvsn`'GNAT_V-dev`'LS (= ${gnat:Version}), ${misc:Depends}
 Conflicts: libgnatprj-dev (<< `'GNAT_V), libgnatprj4.1-dev, libgnatprj4.3-dev, libgnatprj4.4-dev, libgnatprj4.5-dev, libgnatprj4.6-dev
 BUILT_USING`'dnl
 Description: GNU Ada compiler Project Manager (development files)
@@ -3339,14 +3832,14 @@ Description: GNU Ada compiler Project Manager (development files)
  .
  This package contains the development files and static library.
 
-Package: libgnatprj`'GNAT_V
-Architecture: any
-ifdef(`TARGET',`dnl',ifdef(`MULTIARCH', `Multi-Arch: same
-Pre-Depends: multiarch-support
-'))`'dnl
+Package: libgnatprj`'GNAT_V`'LS
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
+ifdef(`MULTIARCH', `Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+')`'dnl
 Priority: PRI(optional)
-Section: libs
-Depends: gnat`'PV-base (= ${gnat:Version}), libgnat`'-GNAT_V (= ${gnat:Version}), libgnatvsn`'GNAT_V (= ${gnat:Version}), ${misc:Depends}
+Section: ifdef(`TARGET',`devel',`libs')
+Depends: BASEDEP, libgnat`'-GNAT_V`'LS (= ${gnat:Version}), libgnatvsn`'GNAT_V`'LS (= ${gnat:Version}), ${misc:Depends}
 BUILT_USING`'dnl
 Description: GNU Ada compiler Project Manager (shared library)
  GNAT is a compiler for the Ada programming language. It produces optimized
@@ -3361,15 +3854,15 @@ Description: GNU Ada compiler Project Manager (shared library)
  .
  This package contains the runtime shared library.
 
-Package: libgnatprj`'GNAT_V-dbg
-Architecture: any
-ifdef(`TARGET',`dnl',ifdef(`MULTIARCH', `Multi-Arch: same
-Pre-Depends: multiarch-support
-'))`'dnl
+Package: libgnatprj`'GNAT_V-dbg`'LS
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
+ifdef(`MULTIARCH', `Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+')`'dnl
 Priority: extra
 Section: debug
-Depends: gnat`'PV-base (= ${gnat:Version}), libgnatprj`'GNAT_V (= ${gnat:Version}), ${misc:Depends}
-Suggests: gnat, ada-compiler
+Depends: BASEDEP, libgnatprj`'GNAT_V`'LS (= ${gnat:Version}), ${misc:Depends}
+Suggests: gnat
 BUILT_USING`'dnl
 Description: GNU Ada compiler Project Manager (debugging symbols)
  GNAT is a compiler for the Ada programming language. It produces optimized
@@ -3390,7 +3883,7 @@ Package: lib64gnat`'-GNAT_V
 Section: libs
 Architecture: biarch64_archs
 Priority: PRI(optional)
-Depends: gnat`'PV-base (= ${gnat:Version}), ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
+Depends: BASEDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
 Description: runtime for applications compiled with GNAT (64 bits shared library)
  GNAT is a compiler for the Ada programming language. It produces optimized
@@ -3423,10 +3916,10 @@ Description: GNU Ada compiler (documentation)
 ')`'dnl ada
 
 ifenabled(`d ',`
-Package: gdc`'PV
+Package: gdc`'PV`'TS
 Architecture: any
-Priority: PRI(optional)
-Depends: SOFTBASEDEP, g++`'PV (>= ${gcc:SoftVersion}), libphobos`'PHOBOS_V`'PV-dev (= ${gdc:Version}) [libphobos_no_archs], ${shlibs:Depends}, ${misc:Depends}
+Priority: ifdef(`TARGET',`extra',`PRI(optional)')
+Depends: SOFTBASEDEP, g++`'PV`'TS (>= ${gcc:SoftVersion}), ${dep:gdccross}, ${dep:phobosdev}, ${shlibs:Depends}, ${misc:Depends}
 Provides: gdc, d-compiler, d-v2-compiler
 Replaces: gdc (<< 4.4.6-5)
 BUILT_USING`'dnl
@@ -3437,29 +3930,30 @@ Description: GNU D compiler (version 2), based on the GCC backend
  This compiler supports D language version 2.
 
 ifenabled(`libphobos',`
-Package: libphobos`'PHOBOS_V`'PV`'TS-dev
-Architecture: any
+Package: libphobos`'PV-dev`'LS
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`libphobos_archs')
 Section: libdevel
 Priority: PRI(optional)
-Depends: gdc`'PV`'TS (= ${gdc:Version}), zlib1g-dev, ${shlibs:Depends}, ${misc:Depends}
-Provides: libphobos`'PHOBOS_V`'TS-dev
+Depends: BASEDEP, zlib1g-dev, ${shlibs:Depends}, ${misc:Depends}
+Provides: libphobos-dev
+Replaces: gdc`'PV`'TS (<< 4.8.2-19)
 BUILT_USING`'dnl
 Description: Phobos D standard library
  This is the Phobos standard library that comes with the D2 compiler.
  .
- For more information check http://www.d-programming-language.org/phobos/
+ For more information check http://www.dlang.org/phobos/
 
 #Package: libphobos`'PHOBOS_V`'PV`'TS-dbg
 #Section: debug
-#Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
+#Architecture: ifdef(`TARGET',`CROSS_ARCH',`libphobos_archs')
 #Priority: extra
-#Depends: gdc`'PV`'TS (= ${gdc:Version}), libphobos`'PHOBOS_V`'PV-dev (= ${gdc:Version}), ${misc:Depends}
+#Depends: BASEDEP, libphobos`'PHOBOS_V`'PV-dev (= ${gdc:Version}), ${misc:Depends}
 #Provides: libphobos`'PHOBOS_V`'TS-dbg
 #BUILT_USING`'dnl
 #Description: The Phobos D standard library (debug symbols)
 # This is the Phobos standard library that comes with the D2 compiler.
 # .
-# For more information check http://www.d-programming-language.org/phobos/
+# For more information check http://www.dlang.org/phobos/
 ')`'dnl libphobos
 ')`'dnl d
 
@@ -3468,7 +3962,7 @@ ifenabled(`libs',`
 #Package: gcc`'PV-soft-float
 #Architecture: arm armel armhf
 #Priority: PRI(optional)
-#Depends: BASEDEP, ifenabled(`cdev',`gcc`'PV (= ${gcc:Version}),') ${shlibs:Depends}, ${misc:Depends}
+#Depends: BASEDEP, depifenabled(`cdev',`gcc`'PV (= ${gcc:Version}),') ${shlibs:Depends}, ${misc:Depends}
 #Conflicts: gcc-4.4-soft-float, gcc-4.5-soft-float, gcc-4.6-soft-float
 #BUILT_USING`'dnl
 #Description: GCC soft-floating-point gcc libraries (ARM)
@@ -3528,7 +4022,7 @@ ifenabled(`source',`
 Package: gcc`'PV-source
 Architecture: all
 Priority: PRI(optional)
-Depends: make (>= 3.81), autoconf2.64, automake, quilt, patchutils, gawk, ${misc:Depends}
+Depends: make, autoconf2.64, quilt, patchutils, gawk, ${misc:Depends}
 Description: Source of the GNU Compiler Collection
  This package contains the sources and patches which are needed to
  build the GNU Compiler Collection (GCC).

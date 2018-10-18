@@ -14,7 +14,7 @@ Index: b/src/gcc/gcc.c
 ===================================================================
 --- a/src/gcc/gcc.c
 +++ b/src/gcc/gcc.c
-@@ -604,6 +604,14 @@
+@@ -654,6 +654,14 @@
  #define LINK_GCC_C_SEQUENCE_SPEC "%G %L %G"
  #endif
  
@@ -29,7 +29,7 @@ Index: b/src/gcc/gcc.c
  #ifndef LINK_SSP_SPEC
  #ifdef TARGET_LIBC_PROVIDES_SSP
  #define LINK_SSP_SPEC "%{fstack-protector:}"
-@@ -714,6 +722,7 @@
+@@ -780,6 +788,7 @@
  static const char *cc1plus_spec = CC1PLUS_SPEC;
  static const char *link_gcc_c_sequence_spec = LINK_GCC_C_SEQUENCE_SPEC;
  static const char *link_ssp_spec = LINK_SSP_SPEC;
@@ -37,7 +37,7 @@ Index: b/src/gcc/gcc.c
  static const char *asm_spec = ASM_SPEC;
  static const char *asm_final_spec = ASM_FINAL_SPEC;
  static const char *link_spec = LINK_SPEC;
-@@ -772,7 +781,7 @@
+@@ -838,7 +847,7 @@
  static const char *cpp_options =
  "%(cpp_unique_options) %1 %{m*} %{std*&ansi&trigraphs} %{W*&pedantic*} %{w}\
   %{f*} %{g*:%{!g0:%{g*} %{!fno-working-directory:-fworking-directory}}} %{O*}\
@@ -46,7 +46,7 @@ Index: b/src/gcc/gcc.c
  
  /* This contains cpp options which are not passed when the preprocessor
     output will be used by another program.  */
-@@ -951,9 +960,9 @@
+@@ -1018,9 +1027,9 @@
        %{save-temps*|traditional-cpp|no-integrated-cpp:%(trad_capable_cpp) \
  	  %(cpp_options) -o %{save-temps*:%b.i} %{!save-temps*:%g.i} \n\
  	    cc1 -fpreprocessed %{save-temps*:%b.i} %{!save-temps*:%g.i} \
@@ -58,7 +58,7 @@ Index: b/src/gcc/gcc.c
        %{!fsyntax-only:%(invoke_as)}}}}", 0, 0, 1},
    {"-",
     "%{!E:%e-E or -x required when input is from standard input}\
-@@ -976,7 +985,7 @@
+@@ -1043,7 +1052,7 @@
                      %W{o*:--output-pch=%*}}%V}}}}}}", 0, 0, 0},
    {".i", "@cpp-output", 0, 0, 0},
    {"@cpp-output",
@@ -67,7 +67,7 @@ Index: b/src/gcc/gcc.c
    {".s", "@assembler", 0, 0, 0},
    {"@assembler",
     "%{!M:%{!MM:%{!E:%{!S:as %(asm_debug) %(asm_options) %i %A }}}}", 0, 0, 0},
-@@ -1204,6 +1213,7 @@
+@@ -1270,6 +1279,7 @@
    INIT_STATIC_SPEC ("cc1plus",			&cc1plus_spec),
    INIT_STATIC_SPEC ("link_gcc_c_sequence",	&link_gcc_c_sequence_spec),
    INIT_STATIC_SPEC ("link_ssp",			&link_ssp_spec),
@@ -79,7 +79,7 @@ Index: b/src/gcc/cp/lang-specs.h
 ===================================================================
 --- a/src/gcc/cp/lang-specs.h
 +++ b/src/gcc/cp/lang-specs.h
-@@ -47,7 +47,7 @@
+@@ -46,7 +46,7 @@
  		%(cpp_options) %2 -o %{save-temps*:%b.ii} %{!save-temps*:%g.ii} \n}\
        cc1plus %{save-temps*|no-integrated-cpp:-fpreprocessed %{save-temps*:%b.ii} %{!save-temps*:%g.ii}}\
  	      %{!save-temps*:%{!no-integrated-cpp:%(cpp_unique_options)}}\
@@ -88,7 +88,7 @@ Index: b/src/gcc/cp/lang-specs.h
  	%{!fsyntax-only:%{!fdump-ada-spec*:-o %g.s %{!o*:--output-pch=%i.gch}\
          %W{o*:--output-pch=%*}}%V}}}}",
       CPLUSPLUS_CPP_SPEC, 0, 0},
-@@ -58,11 +58,11 @@
+@@ -57,11 +57,11 @@
  		%(cpp_options) %2 -o %{save-temps*:%b.ii} %{!save-temps*:%g.ii} \n}\
        cc1plus %{save-temps*|no-integrated-cpp:-fpreprocessed %{save-temps*:%b.ii} %{!save-temps*:%g.ii}}\
  	      %{!save-temps*:%{!no-integrated-cpp:%(cpp_unique_options)}}\
@@ -106,7 +106,7 @@ Index: b/src/gcc/params.def
 ===================================================================
 --- a/src/gcc/params.def
 +++ b/src/gcc/params.def
-@@ -672,7 +672,7 @@
+@@ -662,7 +662,7 @@
  DEFPARAM (PARAM_SSP_BUFFER_SIZE,
  	  "ssp-buffer-size",
  	  "The lower bound for a buffer to be considered for stack smashing protection",
@@ -119,7 +119,7 @@ Index: b/src/gcc/objc/lang-specs.h
 ===================================================================
 --- a/src/gcc/objc/lang-specs.h
 +++ b/src/gcc/objc/lang-specs.h
-@@ -30,9 +30,9 @@
+@@ -29,9 +29,9 @@
  	%{traditional|traditional-cpp:\
  %eGNU Objective C no longer supports traditional compilation}\
  	%{save-temps*|no-integrated-cpp:cc1obj -E %(cpp_options) -o %{save-temps*:%b.mi} %{!save-temps*:%g.mi} \n\
@@ -131,7 +131,7 @@ Index: b/src/gcc/objc/lang-specs.h
          %{!fsyntax-only:%(invoke_as)}}}}", 0, 0, 0},
    {"@objective-c-header",
       "%{E|M|MM:cc1obj -E %{traditional|traditional-cpp:-traditional-cpp}\
-@@ -41,18 +41,18 @@
+@@ -40,18 +40,18 @@
  	%{traditional|traditional-cpp:\
  %eGNU Objective C no longer supports traditional compilation}\
  	%{save-temps*|no-integrated-cpp:cc1obj -E %(cpp_options) -o %{save-temps*:%b.mi} %{!save-temps*:%g.mi} \n\
@@ -191,7 +191,7 @@ Index: b/src/gcc/doc/invoke.texi
 ===================================================================
 --- a/src/gcc/doc/invoke.texi
 +++ b/src/gcc/doc/invoke.texi
-@@ -8508,6 +8508,10 @@
+@@ -8877,6 +8877,10 @@
  when a function is entered and then checked when the function exits.
  If a guard check fails, an error message is printed and the program exits.
  
@@ -202,8 +202,8 @@ Index: b/src/gcc/doc/invoke.texi
  @item -fstack-protector-all
  @opindex fstack-protector-all
  Like @option{-fstack-protector} except that all functions are protected.
-@@ -9086,6 +9090,9 @@
- The minimum size of buffers (i.e.@: arrays) that will receive stack smashing
+@@ -9461,6 +9465,9 @@
+ The minimum size of buffers (i.e.@: arrays) that receive stack smashing
  protection when @option{-fstack-protection} is used.
  
 +This default before Ubuntu 10.10 was "8". Currently it is "4", to increase

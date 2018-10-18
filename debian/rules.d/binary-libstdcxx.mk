@@ -73,8 +73,8 @@ p_libn32= libn32stdc++$(CXX_SONAME)$(cross_lib_arch)
 p_libx32= libx32stdc++$(CXX_SONAME)$(cross_lib_arch)
 p_libhf	= libhfstdc++$(CXX_SONAME)$(cross_lib_arch)
 p_libsf	= libsfstdc++$(CXX_SONAME)$(cross_lib_arch)
-p_dev	= libstdc++$(CXX_SONAME)$(libstdc_ext)-dev$(cross_lib_arch)
-p_pic	= libstdc++$(CXX_SONAME)$(libstdc_ext)-pic$(cross_lib_arch)
+p_dev	= libstdc++$(libstdc_ext)-dev$(cross_lib_arch)
+p_pic	= libstdc++$(libstdc_ext)-pic$(cross_lib_arch)
 p_dbg	= libstdc++$(CXX_SONAME)$(libstdc_ext)-dbg$(cross_lib_arch)
 p_dbg64	= lib64stdc++$(CXX_SONAME)$(libstdc_ext)-dbg$(cross_lib_arch)
 p_dbg32	= lib32stdc++$(CXX_SONAME)$(libstdc_ext)-dbg$(cross_lib_arch)
@@ -82,7 +82,7 @@ p_dbgn32= libn32stdc++$(CXX_SONAME)$(libstdc_ext)-dbg$(cross_lib_arch)
 p_dbgx32= libx32stdc++$(CXX_SONAME)$(libstdc_ext)-dbg$(cross_lib_arch)
 p_dbghf	= libhfstdc++$(CXX_SONAME)$(libstdc_ext)-dbg$(cross_lib_arch)
 p_dbgsf	= libsfstdc++$(CXX_SONAME)$(libstdc_ext)-dbg$(cross_lib_arch)
-p_libd	= libstdc++$(CXX_SONAME)$(libstdc_ext)-doc
+p_libd	= libstdc++$(libstdc_ext)-doc
 
 d_lib	= debian/$(p_lib)
 d_lib64	= debian/$(p_lib64)
@@ -115,7 +115,7 @@ ifeq ($(with_multiarch_cxxheaders),yes)
   dirs_dev += \
 	$(PF)/include/$(DEB_TARGET_MULTIARCH)/c++/$(BASE_VERSION)
   files_dev += \
-	$(PF)/include/$(DEB_TARGET_MULTIARCH)/c++/$(BASE_VERSION)/bits
+	$(PF)/include/$(DEB_TARGET_MULTIARCH)/c++/$(BASE_VERSION)/{bits,ext}
 endif
 
 dirs_dbg = \
@@ -183,12 +183,12 @@ define __do_libstdcxx
 		$(usr_lib$(2)) \
 		$(PF)/share/gdb/auto-load/$(usr_lib$(2))
 
-	$(if $(DEB_CROSS),,$(if $(2),,
+	$(if $(2),,
 	dh_installdirs -p$(p_l) \
 		$(PF)/share/gcc-$(BASE_VERSION)/python
-	DH_COMPAT=2 dh_movefiles -p$(p_l) \
+	$(dh_compat2) dh_movefiles -p$(p_l) \
 		$(PF)/share/gcc-$(BASE_VERSION)/python/libstdcxx
-	))
+	)
 	cp -p $(d)/$(usr_lib$(2))/libstdc++.so.*.py \
 		$(d_l)/$(PF)/share/gdb/auto-load/$(usr_lib$(2))/.
 	sed -i -e "/^libdir *=/s,=.*,= '/$(usr_lib$(2))'," \
@@ -204,10 +204,11 @@ define __do_libstdcxx
 	dh_compress -p$(p_l)
 	dh_fixperms -p$(p_l)
 
-	$(cross_makeshlibs) dh_makeshlibs -p$(p_l) || echo FIXME: libstdc++ symbols
+	$(cross_makeshlibs) dh_makeshlibs -p$(p_l) || echo 'FIXME: libstdc++ symbols file'
 	$(call cross_mangle_shlibs,$(p_l))
 	$(ignshld)DIRNAME=$(subst n,,$(2)) $(cross_shlibdeps) dh_shlibdeps -p$(p_l) \
-		$(call shlibdirs_to_search,$(subst stdc++$(CXX_SONAME),gcc$(GCC_SONAME),$(p_l)),$(2))
+		$(call shlibdirs_to_search,$(subst stdc++$(CXX_SONAME),gcc$(GCC_SONAME),$(p_l)),$(2)) \
+		$(if $(filter yes, $(with_common_libs)),,-- -Ldebian/shlibs.common$(2))
 	$(call cross_mangle_substvars,$(p_l))
 
 	$(cross_gencontrol) dh_gencontrol -p$(p_l) -- -v$(DEB_VERSION) $(common_substvars)
@@ -243,12 +244,13 @@ define __do_libstdcxx_dbg
 
 	$(if $(filter yes,$(with_debug)),
 		mkdir -p $(d_d)/$(usr_lib$(2))/debug;
-                mv $(d)/$(usr_lib$(2))/debug/libstdc++* $(d_d)/$(usr_lib$(2))/debug;
+		mv $(d)/$(usr_lib$(2))/debug/libstdc++* $(d_d)/$(usr_lib$(2))/debug;
 		rm -f $(d_d)/$(usr_lib$(2))/debug/libstdc++_pic.a
 	)
 
 	$(ignshld)DIRNAME=$(subst n,,$(2)) $(cross_shlibdeps) dh_shlibdeps -p$(p_d) \
-		$(call shlibdirs_to_search,$(subst $(pkg_ver),,$(subst stdc++$(CXX_SONAME),gcc$(GCC_SONAME),$(p_l))),$(2))
+		$(call shlibdirs_to_search,$(subst $(pkg_ver),,$(subst stdc++$(CXX_SONAME),gcc$(GCC_SONAME),$(p_l))),$(2)) \
+		$(if $(filter yes, $(with_common_libs)),,-- -Ldebian/shlibs.common$(2))
 	$(call cross_mangle_substvars,$(p_d))
 
 	debian/dh_doclink -p$(p_d) $(p_base)
@@ -277,7 +279,7 @@ define __do_libstdcxx_dev
 	rm -rf $(d_l)
 	dh_installdirs -p$(p_l) $(gcc_lib_dir$(2))
 
-	DH_COMPAT=2 dh_movefiles -p$(p_l) \
+	$(dh_compat2) dh_movefiles -p$(p_l) \
 		$(gcc_lib_dir$(2))/libstdc++.a \
 		$(gcc_lib_dir$(2))/libsupc++.a \
 		$(if $(with_multiarch_cxxheaders),$(PF)/include/$(DEB_TARGET_MULTIARCH)/c++/$(BASE_VERSION)/$(2))
@@ -289,7 +291,8 @@ define __do_libstdcxx_dev
 	dh_strip -p$(p_l)
 	dh_compress -p$(p_l)
 	dh_fixperms -p$(p_l)
-	dh_shlibdeps -p$(p_l)
+	dh_shlibdeps -p$(p_l) \
+		$(call shlibdirs_to_search,$(subst stdc++$(CXX_SONAME),gcc$(GCC_SONAME),$(p_l)),$(2))
 	$(cross_gencontrol) dh_gencontrol -p$(p_l) -- -v$(DEB_VERSION) $(common_substvars)
 	dh_installdeb -p$(p_l)
 	dh_md5sums -p$(p_l)
@@ -300,7 +303,7 @@ endef
 
 do_libstdcxx = $(call __do_libstdcxx,lib$(1)stdc++$(CXX_SONAME),$(1))
 do_libstdcxx_dbg = $(call __do_libstdcxx_dbg,lib$(1)stdc++$(CXX_SONAME)$(libstdc_ext),$(1))
-do_libstdcxx_dev = $(call __do_libstdcxx_dev,lib$(1)stdc++$(CXX_SONAME)-$(BASE_VERSION)-dev,$(1))
+do_libstdcxx_dev = $(call __do_libstdcxx_dev,lib$(1)stdc++-$(BASE_VERSION)-dev,$(1))
 
 # ----------------------------------------------------------------------
 $(binary_stamp)-libstdcxx: $(install_stamp)
@@ -395,10 +398,10 @@ $(binary_stamp)-libstdcxx-dev: $(libcxxdev_deps)
 	  if [ -d $$i ]; then mv $$i $$i-gnu; fi; \
 	done
 
-	DH_COMPAT=2 dh_movefiles -p$(p_dev) $(files_dev)
-	DH_COMPAT=2 dh_movefiles -p$(p_pic) $(files_pic)
+	$(dh_compat2) dh_movefiles -p$(p_dev) $(files_dev)
+	$(dh_compat2) dh_movefiles -p$(p_pic) $(files_pic)
 ifeq ($(with_debug),yes)
-	DH_COMPAT=2 dh_movefiles -p$(p_dbg) $(files_dbg)
+	$(dh_compat2) dh_movefiles -p$(p_dbg) $(files_dbg)
 endif
 
 	dh_link -p$(p_dev) \
@@ -449,13 +452,9 @@ endif
 
 	dh_compress -p$(p_dev) -p$(p_pic) -p$(p_dbg) -X.txt
 	dh_fixperms -p$(p_dev) -p$(p_pic) -p$(p_dbg)
-# XXX: what about biarchn32?
-#ifeq ($(biarch64),yes)
-#	$(ignshld)DIRNAME=$(subst n,,$(2)) $(cross_shlibdeps) dh_shlibdeps -p$(p_dev) -p$(p_pic) -p$(p_dbg) -Xlib64
-#else
-#	$(ignshld)DIRNAME=$(subst n,,$(2)) $(cross_shlibdeps) dh_shlibdeps -p$(p_dev) -p$(p_pic) -p$(p_dbg) -Xlib32/debug
-#endif
-	$(ignshld)DIRNAME=$(subst n,,$(2)) $(cross_shlibdeps) dh_shlibdeps -p$(p_dev) -p$(p_pic) -p$(p_dbg)
+	$(ignshld)DIRNAME=$(subst n,,$(2)) $(cross_shlibdeps) dh_shlibdeps -p$(p_dev) -p$(p_pic) -p$(p_dbg) \
+		$(call shlibdirs_to_search,,) \
+		$(if $(filter yes, $(with_common_libs)),,-- -Ldebian/shlibs.common$(2))
 	$(call cross_mangle_substvars,$(p_dbg))
 	$(cross_gencontrol) dh_gencontrol -p$(p_dev) -p$(p_pic) -p$(p_dbg) \
 		-- -v$(DEB_VERSION) $(common_substvars)
@@ -493,12 +492,20 @@ $(binary_stamp)-libstdcxx-doc: $(install_stamp) doxygen-docs
 	dh_installdocs -p$(p_libd)
 	rm -f $(d_libd)/$(docdir)/$(p_base)/copyright
 
-	cp -a $(srcdir)/libstdc++-v3/doc/html \
+	cp -a $(srcdir)/libstdc++-v3/doc/html/* \
 		$(d_libd)/$(docdir)/$(p_base)/libstdc++/.
 	cp -a $(doxygen_doc_dir)/doxygen/html \
-		$(d_libd)/$(docdir)/$(p_base)/libstdc++/.
+		$(d_libd)/$(docdir)/$(p_base)/libstdc++/user
 	find $(d_libd)/$(docdir)/$(p_base)/libstdc++ -name '*.md5' \
 		| xargs -r rm -f
+
+# Broken docs ... see #766499
+#	rm -f $(d_libd)/$(docdir)/$(p_base)/libstdc++/*/jquery.js
+#	dh_link -p$(p_libd) \
+#		/usr/share/javascript/jquery/jquery.js \
+#		/$(docdir)/$(p_base)/libstdc++/html/jquery.js \
+#		/usr/share/javascript/jquery/jquery.js \
+#		/$(docdir)/$(p_base)/libstdc++/user/jquery.js
 
 	: FIXME: depending on the doxygen version
 	if [ -d $(doxygen_doc_dir)/doxygen/man/man3cxx ]; then \
@@ -525,7 +532,7 @@ $(binary_stamp)-libstdcxx-doc: $(install_stamp) doxygen-docs
 
 	dh_compress -p$(p_libd) -Xhtml/17_intro -X.txt -X.tag -X.map
 	dh_fixperms -p$(p_libd)
-	$(cross_gencontrol) dh_gencontrol -p$(p_libd) -- -v$(DEB_VERSION) $(common_substvars)
+	dh_gencontrol -p$(p_libd) -- -v$(DEB_VERSION) $(common_substvars)
 
 	dh_installdeb -p$(p_libd)
 	dh_md5sums -p$(p_libd)
