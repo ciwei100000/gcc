@@ -50,18 +50,16 @@ libffi/
 	* src/arm/sysv.S: Likewise.
 
 ---
+ boehm-gc/ia64_save_regs_in_stack.S   |   15 +++++++++++++++
  boehm-gc/ia64_save_regs_in_stack.s   |   12 ------------
- gcc/config/ia64/crtbegin.asm         |    4 ++++
- gcc/config/ia64/crtend.asm           |    4 ++++
- gcc/config/ia64/crti.asm             |    4 ++++
- gcc/config/ia64/crtn.asm             |    4 ++++
- gcc/config/ia64/lib1funcs.asm        |    4 ++++
- gcc/config/ia64/linux.h              |    2 ++
+ gcc/config/ia64/linux.h              |    3 +++
  gcc/config/rs6000/ppc-asm.h          |    2 +-
- libffi/src/ia64/unix.S               |    4 ++++
- libffi/src/powerpc/linux64.S         |    4 ++++
- libffi/src/powerpc/linux64_closure.S |    4 ++++
- 11 files changed, 35 insertions(+), 13 deletions(-)
+ libgcc/config/ia64/crtbegin.S        |    4 ++++
+ libgcc/config/ia64/crtend.S          |    4 ++++
+ libgcc/config/ia64/crti.S            |    4 ++++
+ libgcc/config/ia64/crtn.S            |    4 ++++
+ libgcc/config/ia64/lib1funcs.S       |    4 ++++
+ 9 files changed, 39 insertions(+), 13 deletions(-)
 
 --- a/src/boehm-gc/ia64_save_regs_in_stack.s
 +++ /dev/null
@@ -96,8 +94,8 @@ libffi/
 +#ifdef __linux__
 +	.section .note.GNU-stack,"",@progbits
 +#endif
---- a/src/gcc/config/ia64/crtbegin.asm
-+++ b/src/gcc/config/ia64/crtbegin.asm
+--- a/src/libgcc/config/ia64/crtbegin.S
++++ b/src/libgcc/config/ia64/crtbegin.S
 @@ -252,3 +252,7 @@
  .weak __cxa_finalize
  #endif
@@ -106,8 +104,8 @@ libffi/
 +#ifdef __linux__
 +.section .note.GNU-stack; .previous
 +#endif
---- a/src/gcc/config/ia64/crtend.asm
-+++ b/src/gcc/config/ia64/crtend.asm
+--- a/src/libgcc/config/ia64/crtend.S
++++ b/src/libgcc/config/ia64/crtend.S
 @@ -119,3 +119,7 @@
  
  	br.ret.sptk.many rp
@@ -116,28 +114,28 @@ libffi/
 +#ifdef __linux__
 +.section .note.GNU-stack; .previous
 +#endif
---- a/src/gcc/config/ia64/crti.asm
-+++ b/src/gcc/config/ia64/crti.asm
+--- a/src/libgcc/config/ia64/crti.S
++++ b/src/libgcc/config/ia64/crti.S
 @@ -51,3 +51,7 @@
  	.body
  
- # end of crti.asm
+ # end of crti.S
 +
 +#ifdef __linux__
 +.section .note.GNU-stack; .previous
 +#endif
---- a/src/gcc/config/ia64/crtn.asm
-+++ b/src/gcc/config/ia64/crtn.asm
+--- a/src/libgcc/config/ia64/crtn.S
++++ b/src/libgcc/config/ia64/crtn.S
 @@ -41,3 +41,7 @@
  	br.ret.sptk.many b0
  
- # end of crtn.asm
+ # end of crtn.S
 +
 +#ifdef __linux__
 +.section .note.GNU-stack; .previous
 +#endif
---- a/src/gcc/config/ia64/lib1funcs.asm
-+++ b/src/gcc/config/ia64/lib1funcs.asm
+--- a/src/libgcc/config/ia64/lib1funcs.S
++++ b/src/libgcc/config/ia64/lib1funcs.S
 @@ -793,3 +793,7 @@
  	.endp __floattitf
  #endif
@@ -148,15 +146,13 @@ libffi/
 +#endif
 --- a/src/gcc/config/ia64/linux.h
 +++ b/src/gcc/config/ia64/linux.h
-@@ -29,6 +29,8 @@
+@@ -86,3 +86,6 @@
  
- #define TARGET_VERSION fprintf (stderr, " (IA-64) Linux");
- 
-+#define TARGET_ASM_FILE_END file_end_indicate_exec_stack
+ #undef TARGET_INIT_LIBFUNCS
+ #define TARGET_INIT_LIBFUNCS ia64_soft_fp_init_libfuncs
 +
- /* This is for -profile to use -lc_p instead of -lc.  */
- #undef CC1_SPEC
- #define CC1_SPEC "%{profile:-p} %{G*}"
++#undef TARGET_ASM_FILE_END
++#define TARGET_ASM_FILE_END file_end_indicate_exec_stack
 --- a/src/gcc/config/rs6000/ppc-asm.h
 +++ b/src/gcc/config/rs6000/ppc-asm.h
 @@ -352,7 +352,7 @@

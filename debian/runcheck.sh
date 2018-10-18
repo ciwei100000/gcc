@@ -2,19 +2,22 @@
 
 mkdir -p build
 
-cat >build/runcheck.c <<EOF
+abi=${CC##* }
+base=build/runcheck$abi
+
+cat >$base.c <<EOF
 #include <stdio.h>
 int main()
 {
-	return printf("yes\n") != 4;
+	printf("$abi");
+	return 0;
 }
 EOF
 
-if m=$(${CC:-gcc} -o build/runcheck build/runcheck.c 2>&1); then
-    m=$(build/runcheck 2>&1)
-    echo ${m#* } > build/runcheck.out
-    echo ${m#* }
-else
-    echo ${m##*:} > build/runcheck.out
-    echo ${m##*:}
+
+if ${CC:-gcc} -o $base $base.c 2>/dev/null; then
+  if [ "$($base 2>&1)" = "$abi" ]; then
+    printf "%s" $abi > $base.out
+    printf "%s" $abi
+  fi
 fi

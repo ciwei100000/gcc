@@ -3,10 +3,10 @@ $(lib_binaries) += base
 # ---------------------------------------------------------------------------
 # gcc-base
 
-ifneq (,$(filter $(distrelease),oneiric))
-  additional_links = 4.6.1
-#else ifneq (,$(filter $(distrelease),wheezy sid precise))
-#  additional_links = 4.6.2
+ifneq (,$(filter $(distrelease),oneiric precise wheezy sid))
+  additional_links =
+else ifneq (,$(filter $(distrelease),))
+  additional_links =
 else
   additional_links =
 endif
@@ -36,11 +36,12 @@ endif
 ifeq ($(with_spu),yes)
 	mkdir -p $(d_base)/$(gcc_spu_lexec_dir)
 	mkdir -p $(d_base)/$(gcc_spu_lib_dir)
-	ln -sf $(BASE_VERSION) $(d_base)/$(spulibexecdir)/gcc/spu/$(GCC_VERSION)
-	ln -sf $(BASE_VERSION) $(d_base)/usr/spu/lib/gcc/spu/$(GCC_VERSION)
+	ln -sf $(BASE_VERSION) $(d_base)/$(spulibexecdir)/$(gcc_spu_subdir_name)/spu/$(GCC_VERSION)
+	ln -sf $(BASE_VERSION) $(d_base)/usr/spu/lib/$(gcc_spu_subdir_name)/spu/$(GCC_VERSION)
 endif
 
 	dh_installdocs -p$(p_base) debian/README.Debian.$(DEB_TARGET_ARCH)
+	rm -f $(d_base)/usr/share/doc/$(p_base)/README.Debian
 	dh_installchangelogs -p$(p_base)
 	dh_compress -p$(p_base)
 	dh_fixperms -p$(p_base)

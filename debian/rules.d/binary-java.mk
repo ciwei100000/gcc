@@ -17,9 +17,11 @@ ifeq ($(with_libgcj),yes)
 
   ifeq ($(with_javadev),yes)
     arch_binaries  := $(arch_binaries) libgcjdev libgcjdbg
-    indep_binaries := $(indep_binaries) libgcjsrc
-    ifeq ($(with_libgcj_doc),yes)
-      indep_binaries := $(indep_binaries) libgcjdoc
+    ifneq ($(DEB_CROSS),yes)
+      indep_binaries := $(indep_binaries) libgcjsrc
+      ifeq ($(with_libgcj_doc),yes)
+        indep_binaries := $(indep_binaries) libgcjdoc
+      endif
     endif
   endif
 endif
@@ -30,17 +32,17 @@ endif
 endif
 
 p_jbase	= gcj$(pkg_ver)-base
-p_jdk	= gcj$(pkg_ver)-jdk
-p_jrehl	= gcj$(pkg_ver)-jre-headless
-p_jre	= gcj$(pkg_ver)-jre
-p_jar	= gcj$(pkg_ver)-jre-lib
+p_jdk	= gcj$(pkg_ver)-jdk$(cross_bin_arch)
+p_jrehl	= gcj$(pkg_ver)-jre-headless$(cross_bin_arch)
+p_jre	= gcj$(pkg_ver)-jre$(cross_bin_arch)
+p_jar	= gcj$(pkg_ver)-jre-lib$(cross_bin_arch)
 p_jsrc	= gcj$(pkg_ver)-source
-p_jlib	= libgcj$(PKG_LIBGCJ_EXT)
-p_jdbg	= libgcj$(PKG_GCJ_EXT)-dbg
-p_jlibx	= libgcj$(PKG_LIBGCJ_EXT)-awt
-p_jgtk	= libgcj$(PKG_GCJ_EXT)-awt-gtk
-p_jqt	= libgcj$(PKG_GCJ_EXT)-awt-qt
-p_jdev	= libgcj$(PKG_GCJ_EXT)-dev
+p_jlib	= libgcj$(PKG_LIBGCJ_EXT)$(cross_lib_arch)
+p_jdbg	= libgcj$(PKG_GCJ_EXT)-dbg$(cross_lib_arch)
+p_jlibx	= libgcj$(PKG_LIBGCJ_EXT)-awt$(cross_lib_arch)
+p_jgtk	= libgcj$(PKG_GCJ_EXT)-awt-gtk$(cross_lib_arch)
+p_jqt	= libgcj$(PKG_GCJ_EXT)-awt-qt$(cross_lib_arch)
+p_jdev	= libgcj$(PKG_GCJ_EXT)-dev$(cross_lib_arch)
 p_jdoc	= libgcj-doc
 
 d_jbase	= debian/$(p_jbase)
@@ -96,6 +98,8 @@ dirs_jrehl = \
 	$(PF)/bin \
 	$(PF)/share/man/man1 \
 	$(jvm_dir)/bin \
+	$(jvm_dir)/jre/lib \
+	$(jvm_dir)/lib \
 	var/lib/gcj$(pkg_ver)
 
 files_jrehl = \
@@ -103,6 +107,8 @@ files_jrehl = \
 	$(PF)/share/man/man1/{gorbd,grmid,grmiregistry,gkeytool,gtnameserv}$(pkg_ver).1 \
 	$(jvm_dir)/jre \
 	$(jvm_dir)/bin/{java,keytool,orbd,rmid,rmiregistry,tnameserv} \
+	$(jvm_dir)/jre/lib/rt.jar \
+	$(jvm_dir)/lib/tools.jar
 
 ifneq ($(GFDL_INVARIANT_FREE),yes)
   files_jrehl += \
@@ -131,14 +137,11 @@ ifeq ($(with_java_alsa),yes)
 endif
 
 dirs_jar = \
-	$(PF)/share/java \
-	$(jvm_dir)/lib \
+	$(PF)/share/java
 
 files_jar = \
 	$(PF)/share/java/libgcj-$(BASE_VERSION).jar \
-	$(PF)/share/java/libgcj-tools-$(BASE_VERSION).jar \
-	$(jvm_dir)/jre/lib/rt.jar \
-	$(jvm_dir)/lib/tools.jar
+	$(PF)/share/java/libgcj-tools-$(BASE_VERSION).jar
 
 dirs_jlibx = \
 	$(PF)/$(libdir) \
@@ -188,29 +191,7 @@ ifeq ($(with_standalone_gcj),yes)
 	$(gcc_lexec_dir)/{collect2,lto1,lto-wrapper} \
 	$(gcc_lexec_dir)/liblto_plugin.so{,.0,.0.0.0} \
 	$(gcc_lib_dir)/{libgcc*,libgcov.a,*.o} \
-	$(gcc_lib_dir)/include/std*.h \
-	$(shell for h in \
-		    README features.h arm_neon.h \
-		    {cpuid,decfloat,float,iso646,limits,mm3dnow,mm_malloc}.h \
-		    {ppu_intrinsics,paired,spu2vmx,vec_types,si2vmx}.h \
-		    {,a,b,e,i,n,p,s,t,w,x}mmintrin.h mmintrin-common.h \
-		    {abm,avx,bmi,fma4,ia32,lwp,popcnt,tbm,x86,xop,}intrin.h \
-		    {cross-stdarg,syslimits,unwind,varargs}.h; \
-		do \
-		  test -e $(d)/$(gcc_lib_dir)/include/$$h \
-		    && echo $(gcc_lib_dir)/include/$$h; \
-		  test -e $(d)/$(gcc_lib_dir)/include-fixed/$$h \
-		    && echo $(gcc_lib_dir)/include-fixed/$$h; \
-		done) \
-	$(shell for d in \
-		  asm bits gnu linux $(TARGET_ALIAS) \
-		  $(subst $(DEB_TARGET_GNU_CPU),$(biarch_cpu),$(TARGET_ALIAS)); \
-		do \
-		  test -e $(d)/$(gcc_lib_dir)/include/$$d \
-		    && echo $(gcc_lib_dir)/include/$$d; \
-		  test -e $(d)/$(gcc_lib_dir)/include-fixed/$$d \
-		    && echo $(gcc_lib_dir)/include-fixed/$$d; \
-		done) \
+	$(header_files) \
 	$(shell test -e $(d)/$(gcc_lib_dir)/SYSCALLS.c.X \
 		&& echo $(gcc_lib_dir)/SYSCALLS.c.X)
 
@@ -228,19 +209,9 @@ ifeq ($(with_standalone_gcj),yes)
   ifeq ($(biarchn32),yes)
     files_gcj += $(gcc_lib_dir)/$(biarchn32subdir)/{libgcc*,libgcov.a,*.o}
   endif
-
-  ifeq ($(DEB_HOST_ARCH),ia64)
-    files_gcj += $(gcc_lib_dir)/include/ia64intrin.h
+  ifeq ($(biarchx32),yes)
+    files_gcj += $(gcc_lib_dir)/$(biarchx32subdir)/{libgcc*,libgcov.a,*.o}
   endif
-
-  ifeq ($(DEB_HOST_ARCH),m68k)
-    files_gcj += $(gcc_lib_dir)/include/math-68881.h
-  endif
-
-  ifeq ($(DEB_TARGET_ARCH),$(findstring $(DEB_TARGET_ARCH),powerpc ppc64 powerpcspe))
-    files_gcj += $(gcc_lib_dir)/include/{altivec.h,ppc-asm.h,spe.h}
-  endif
-
 endif
 
 # ----------------------------------------------------------------------
@@ -379,7 +350,6 @@ $(binary_stamp)-java: $(install_stamp)
 	dh_installdirs -p$(p_jlibx) $(dirs_jlibx)
 
 	DH_COMPAT=2 dh_movefiles -p$(p_jrehl)   $(files_jrehl)
-	rm -f $(d_jrehl)/$(jvm_dir)/jre/lib/rt.jar
 	DH_COMPAT=2 dh_movefiles -p$(p_jlib)  $(files_jlib)
 	DH_COMPAT=2 dh_movefiles -p$(p_jlibx) $(files_jlibx)
 #ifneq (,$(findstring gtk, $(java_awt_peers)))
@@ -486,7 +456,7 @@ endif
 #	dh_makeshlibs -p$(p_jqt) -V '$(p_jqt) (>= $(DEB_GCJ_SOVERSION))'
 #endif
 
-	dh_strip --dbg-package=$(p_jdbg) \
+	dh_strip -X/bin/ --dbg-package=$(p_jdbg) \
 		-p$(p_jrehl) -p$(p_jlib) -p$(p_jlibx) $(peer_pkgs)
 	rm -f $(d_jdbg)/$(gcc_lib_dir)/libgcj_bc.so
 

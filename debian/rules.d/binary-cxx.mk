@@ -1,10 +1,10 @@
-ifneq (,$(filter yes, $(biarch64) $(biarch32) $(biarchn32) $(biarchhf) $(biarchsf)))
+ifneq (,$(filter yes, $(biarch64) $(biarch32) $(biarchn32) $(biarchx32) $(biarchhf) $(biarchsf)))
   arch_binaries  := $(arch_binaries) cxx-multi
 endif
 arch_binaries  := $(arch_binaries) cxx
 
 dirs_cxx = \
-	$(docdir)/$(p_base)/C++ \
+	$(docdir)/$(p_xbase)/C++ \
 	$(PF)/bin \
 	$(PF)/share/info \
 	$(gcc_lexec_dir) \
@@ -51,23 +51,23 @@ ifneq ($(GFDL_INVARIANT_FREE),yes)
   endif
 endif
 
-	debian/dh_doclink -p$(p_cxx) $(p_base)
-	cp -p debian/README.C++ $(d_cxx)/$(docdir)/$(p_base)/C++/
+	debian/dh_doclink -p$(p_cxx) $(p_xbase)
+	cp -p debian/README.C++ $(d_cxx)/$(docdir)/$(p_xbase)/C++/
 	cp -p $(srcdir)/gcc/cp/ChangeLog \
-		$(d_cxx)/$(docdir)/$(p_base)/C++/changelog
+		$(d_cxx)/$(docdir)/$(p_xbase)/C++/changelog
 	debian/dh_rmemptydirs -p$(p_cxx)
 
-	mkdir -p $(d_cxx)/$(docdir)/$(p_base)/test-summaries
+	mkdir -p $(d_cxx)/$(docdir)/$(p_xbase)/test-summaries
 	echo "TEST COMPARE BEGIN"
 ifeq ($(with_check),yes)
 	cp -p $$(find $(builddir) -mindepth 3 -name '*.sum') \
-		$(d_cxx)/$(docdir)/$(p_base)/test-summaries/
+		$(d_cxx)/$(docdir)/$(p_xbase)/test-summaries/
   ifeq (0,1)
 	cd $(builddir); \
-	for i in $(CURDIR)/$(d_cxx)/$(docdir)/$(p_base)/test-summaries/*.sum; do \
+	for i in $(CURDIR)/$(d_cxx)/$(docdir)/$(p_xbase)/test-summaries/*.sum; do \
 	  b=$$(basename $$i); \
-	  if [ -f /usr/share/doc/$(p_base)/test-summaries/$$b.gz ]; then \
-	    zcat /usr/share/doc/$(p_base)/test-summaries/$$b.gz > /tmp/$$b; \
+	  if [ -f /usr/share/doc/$(p_xbase)/test-summaries/$$b.gz ]; then \
+	    zcat /usr/share/doc/$(p_xbase)/test-summaries/$$b.gz > /tmp/$$b; \
 	    if sh $(srcdir)/contrib/test_summary /tmp/$$b $$i; then \
 	      echo "$$b: OK"; \
 	    else \
@@ -95,20 +95,6 @@ endif
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 
-# ----------------------------------------------------------------------
-define do_cxx
-	dh_installdirs -p$(p_cxx_m) $(gcc_lib_dir($1))
-	mv $(d)/$(usr_lib$(1))/lib*c++*.{a,so} $(d)/$(gcc_lib_dir$(1))/.
-	DH_COMPAT=2 dh_movefiles -p$(p_cxx_m) \
-		$(gcc_lib_dir$(1))/libstdc++.{a,so} \
-	        $(gcc_lib_dir$(1))/libsupc++.a \
-		$(gcc_lib_dir$(1))/libstdc++_pic.a
-	dh_link -p$(p_cxx_m) \
-		/$(usr_lib$(1))/libstdc++.so.$(CXX_SONAME) \
-		/$(gcc_lib_dir$(1))/libstdc++.so
-
-endef
-
 $(binary_stamp)-cxx-multi: $(install_stamp)
 	dh_testdir
 	dh_testroot
@@ -118,10 +104,7 @@ $(binary_stamp)-cxx-multi: $(install_stamp)
 	dh_installdirs -p$(p_cxx_m) \
 		$(docdir)
 
-	$(foreach flavour,$(flavours), \
-		$(call do_cxx,$(flavour)))
-
-	debian/dh_doclink -p$(p_cxx_m) $(p_base)
+	debian/dh_doclink -p$(p_cxx_m) $(p_xbase)
 	debian/dh_rmemptydirs -p$(p_cxx_m)
 
 	dh_strip -p$(p_cxx_m)

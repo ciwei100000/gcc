@@ -212,6 +212,10 @@ endif
 # ---------------------------------------------------------------------------
 ifneq (,$(gdc_tarball))
 $(unpack_stamp)-$(gdc_tarball): $(gdc_tarpath)
+  ifneq ($(with_libphobos),yes)
+	echo >&2 "libphobos v2 needs porting: $(with_libphobos)"
+	false
+  endif
 	: # unpack gdc tarball
 	-mkdir $(stampdir)
 	if [ -d $(srcdir)/gcc/d ]; then \
@@ -234,12 +238,20 @@ $(unpack_stamp)-$(gdc_tarball): $(gdc_tarpath)
 	  rm -rf $(gdc_srcdir)/CVS; \
 	  rmdir $(gdc_srcdir); \
 	fi
+  ifeq ($(with_libphobos),yes)
 	[ -d $(srcdir)/libphobos ] && rm -rf $(srcdir)/libphobos || true
-	mkdir $(srcdir)/libphobos
+	mkdir $(srcdir)/libphobos && \
+	  cd $(srcdir)/libphobos && \
+	    ../symlink-tree ../gcc/d/phobos$(libphobos_version) 2>&1 && \
+	cd $(srcdir)
+  endif
+  ifeq ($(libphobos_version),2)
 	cd $(srcdir)/libphobos && \
-		../symlink-tree ../gcc/d/phobos$(libphobos_version)
-	cd $(srcdir)/libphobos && \
-	    ../symlink-tree ../gcc/d/druntime
+	    ../symlink-tree ../gcc/d/druntime 2>&1 && \
+	cd $(srcdir)
 	echo "D_LANGUAGE_VERSION=2" > $(srcdir)/gcc/d/d-make-include
+  else
+	echo "D_LANGUAGE_VERSION=1" > $(srcdir)/gcc/d/d-make-include
+  endif
 	echo "$(gdc_tarball) unpacked." > $@
 endif

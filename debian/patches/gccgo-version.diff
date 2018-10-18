@@ -1,27 +1,25 @@
 # DP: Omit the subminor number from the go libdir
 
+Index: b/src/gcc/go/Make-lang.in
+===================================================================
 --- a/src/gcc/go/Make-lang.in
 +++ b/src/gcc/go/Make-lang.in
-@@ -223,13 +223,15 @@
- go/go-backend.o: go/go-backend.c $(CONFIG_H) $(SYSTEM_H) coretypes.h \
- 	$(TM_H) $(RTL_H) $(TREE_H) $(TM_P_H) $(TARGET_H)
+@@ -243,7 +243,9 @@
+ 	$(TM_H) $(RTL_H) $(TREE_H) $(TM_P_H) output.h $(TARGET_H) \
+ 	$(COMMON_TARGET_H)
  
+-CFLAGS-go/go-lang.o += -DDEFAULT_TARGET_VERSION=\"$(version)\" \
 +short_version := $(shell echo $(version) | sed -r 's/([0-9]+\.[0-9]+).*/\1/')
 +
++CFLAGS-go/go-lang.o += -DDEFAULT_TARGET_VERSION=\"$(short_version)\" \
+ 	-DDEFAULT_TARGET_MACHINE=\"$(target_noncanonical)\"
  go/go-lang.o: go/go-lang.c $(CONFIG_H) $(SYSTEM_H) coretypes.h $(OPTS_H) \
  		$(TREE_H) $(GIMPLE_H) $(GGC_H) $(TOPLEV_H) debug.h options.h \
- 		$(FLAGS_H) convert.h $(DIAGNOSTIC_H) langhooks.h \
- 		$(LANGHOOKS_DEF_H) $(EXCEPT_H) $(TARGET_H) $(GO_C_H) \
- 		gt-go-go-lang.h gtype-go.h
- 	$(COMPILER) $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) \
--	  -DDEFAULT_TARGET_VERSION=\"$(version)\" \
-+	  -DDEFAULT_TARGET_VERSION=\"$(short_version)\" \
- 	  -DDEFAULT_TARGET_MACHINE=\"$(target_noncanonical)\" \
- 	  -c $< $(OUTPUT_OPTION)
- 
+Index: b/src/libgo/Makefile.in
+===================================================================
 --- a/src/libgo/Makefile.in
 +++ b/src/libgo/Makefile.in
-@@ -469,7 +469,7 @@
+@@ -411,14 +411,14 @@
  SUFFIXES = .c .go .gox .o .obj .lo .a
  @LIBGO_IS_RTEMS_TRUE@subdirs = testsuite
  SUBDIRS = ${subdirs}
@@ -30,15 +28,16 @@
  MAINT_CHARSET = latin1
  mkinstalldirs = $(SHELL) $(toplevel_srcdir)/mkinstalldirs
  PWD_COMMAND = $${PWDCMD-pwd}
-@@ -539,7 +539,7 @@
- FLAGS_TO_PASS = $(AM_MAKEFLAGS)
- toolexeclib_LTLIBRARIES = libgo.la
- toolexeclib_LIBRARIES = libgobegin.a
--toolexeclibgodir = $(toolexeclibdir)/go/$(gcc_version)/$(target_alias)
-+toolexeclibgodir = $(toolexeclibdir)/go/$(short_version)
- toolexeclibgo_DATA = \
- 	asn1.gox \
- 	big.gox \
+ STAMP = echo timestamp >
+ toolexecdir = $(glibgo_toolexecdir)
+ toolexeclibdir = $(glibgo_toolexeclibdir)
+-toolexeclibgodir = $(nover_glibgo_toolexeclibdir)/go/$(gcc_version)/$(target_alias)
++toolexeclibgodir = $(nover_glibgo_toolexeclibdir)/go/$(short_version)
+ WARN_CFLAGS = $(WARN_FLAGS) $(WERROR)
+ 
+ # -I/-D flags to pass when compiling.
+Index: b/src/libgo/Makefile.am
+===================================================================
 --- a/src/libgo/Makefile.am
 +++ b/src/libgo/Makefile.am
 @@ -15,7 +15,7 @@
@@ -50,12 +49,12 @@
  
  MAINT_CHARSET = latin1
  
-@@ -97,7 +97,7 @@
- toolexeclib_LTLIBRARIES = libgo.la
- toolexeclib_LIBRARIES = libgobegin.a
+@@ -25,7 +25,7 @@
  
--toolexeclibgodir = $(toolexeclibdir)/go/$(gcc_version)/$(target_alias)
-+toolexeclibgodir = $(toolexeclibdir)/go/$(short_version)
+ toolexecdir = $(glibgo_toolexecdir)
+ toolexeclibdir = $(glibgo_toolexeclibdir)
+-toolexeclibgodir = $(nover_glibgo_toolexeclibdir)/go/$(gcc_version)/$(target_alias)
++toolexeclibgodir = $(nover_glibgo_toolexeclibdir)/go/$(short_version)
  
- toolexeclibgo_DATA = \
- 	asn1.gox \
+ LIBFFI = @LIBFFI@
+ LIBFFIINCS = @LIBFFIINCS@

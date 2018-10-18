@@ -1,17 +1,23 @@
-# DP: Set base version to 4.6, introduce full version 4.6.x.
+# DP: Set base version to 4.7, introduce full version 4.7.x.
 
+Index: b/src/gcc/BASE-VER
+===================================================================
 --- a/src/gcc/BASE-VER
 +++ b/src/gcc/BASE-VER
 @@ -1 +1 @@
--4.6.4
-+4.6
+-4.7.4
++4.7
+Index: b/src/gcc/FULL-VER
+===================================================================
 --- /dev/null
 +++ b/src/gcc/FULL-VER
 @@ -0,0 +1 @@
-+4.6.4
++4.7.4
+Index: b/src/gcc/Makefile.in
+===================================================================
 --- a/src/gcc/Makefile.in
 +++ b/src/gcc/Makefile.in
-@@ -832,11 +832,13 @@
+@@ -808,11 +808,13 @@ GTM_H     = tm.h      $(tm_file_list) in
  TM_H      = $(GTM_H) insn-flags.h $(OPTIONS_H)
  
  # Variables for version information.
@@ -26,7 +32,7 @@
  BASEVER_c   := $(shell cat $(BASEVER))
  DEVPHASE_c  := $(shell cat $(DEVPHASE))
  DATESTAMP_c := $(shell cat $(DATESTAMP))
-@@ -855,7 +857,7 @@
+@@ -831,7 +833,7 @@ version     := $(BASEVER_c)
  # development phase collapsed to the empty string in release mode
  # (i.e. if DEVPHASE_c is empty).  The space immediately after the
  # comma in the $(if ...) constructs is significant - do not remove it.
@@ -35,32 +41,34 @@
  DEVPHASE_s  := "\"$(if $(DEVPHASE_c), ($(DEVPHASE_c)))\""
  DATESTAMP_s := "\"$(if $(DEVPHASE_c), $(DATESTAMP_c))\""
  PKGVERSION_s:= "\"@PKGVERSION@\""
-@@ -2184,9 +2186,9 @@
+@@ -2083,9 +2085,9 @@ incpath.o: incpath.c incpath.h $(CONFIG_
+ 		intl.h prefix.h coretypes.h $(TM_H) cppdefault.h $(TARGET_H) \
  		$(MACHMODE_H)
  
- prefix.o: prefix.c $(CONFIG_H) $(SYSTEM_H) coretypes.h $(TM_H) prefix.h \
--	Makefile $(BASEVER)
-+	Makefile $(FULLVER)
- 	$(COMPILER) $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) \
--	-DPREFIX=\"$(prefix)\" -DBASEVER=$(BASEVER_s) \
-+	-DPREFIX=\"$(prefix)\" -DBASEVER=$(FULLVER_s) \
- 	  -c $(srcdir)/prefix.c $(OUTPUT_OPTION)
+-CFLAGS-prefix.o += -DPREFIX=\"$(prefix)\" -DBASEVER=$(BASEVER_s)
++CFLAGS-prefix.o += -DPREFIX=\"$(prefix)\" -DBASEVER=$(FULLVER_s)
+ prefix.o: prefix.c $(CONFIG_H) $(SYSTEM_H) coretypes.h prefix.h \
+-	$(COMMON_TARGET_H) Makefile $(BASEVER)
++	$(COMMON_TARGET_H) Makefile $(FULLVER)
  
  # Language-independent files.
-@@ -2257,9 +2259,9 @@
+ 
+@@ -2163,11 +2165,11 @@ options-save.o: options-save.c $(CONFIG_
  
  dumpvers: dumpvers.c
  
--version.o: version.c version.h $(REVISION) $(DATESTAMP) $(BASEVER) $(DEVPHASE)
-+version.o: version.c version.h $(REVISION) $(DATESTAMP) $(FULLVER) $(DEVPHASE)
- 	$(COMPILER) $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) \
--	-DBASEVER=$(BASEVER_s) -DDATESTAMP=$(DATESTAMP_s) \
-+	-DBASEVER=$(FULLVER_s) -DDATESTAMP=$(DATESTAMP_s) \
+-CFLAGS-version.o += -DBASEVER=$(BASEVER_s) -DDATESTAMP=$(DATESTAMP_s) \
++CFLAGS-version.o += -DBASEVER=$(FULLVER_s) -DDATESTAMP=$(DATESTAMP_s) \
  	-DREVISION=$(REVISION_s) \
  	-DDEVPHASE=$(DEVPHASE_s) -DPKGVERSION=$(PKGVERSION_s) \
- 	-DBUGURL=$(BUGURL_s) -c $(srcdir)/version.c $(OUTPUT_OPTION)
-@@ -2798,10 +2800,10 @@
-    tree-ssa-alias.h $(TREE_FLOW_H)
+ 	-DBUGURL=$(BUGURL_s)
+-version.o: version.c version.h $(REVISION) $(DATESTAMP) $(BASEVER) $(DEVPHASE)
++version.o: version.c version.h $(REVISION) $(DATESTAMP) $(FULLVER) $(DEVPHASE)
+ 
+ gtype-desc.o: gtype-desc.c $(CONFIG_H) $(SYSTEM_H) coretypes.h $(TM_H) \
+ 	$(HASHTAB_H) $(SPLAY_TREE_H) $(OBSTACK_H) $(BITMAP_H) \
+@@ -2753,10 +2755,10 @@ common/common-targhooks.o : common/commo
+    coretypes.h $(INPUT_H) $(TM_H) $(COMMON_TARGET_H) common/common-targhooks.h
  
  bversion.h: s-bversion; @true
 -s-bversion: BASE-VER
@@ -74,7 +82,7 @@
  	echo "#define BUILDING_GCC_VERSION (BUILDING_GCC_MAJOR * 1000 + BUILDING_GCC_MINOR)" >> bversion.h
  	$(STAMP) s-bversion
  
-@@ -3802,9 +3804,9 @@
+@@ -3808,9 +3810,9 @@ build/%.o :  # dependencies provided by
  ## build/version.o is compiled by the $(COMPILER_FOR_BUILD) but needs
  ## several C macro definitions, just like version.o
  build/version.o:  version.c version.h \
@@ -86,16 +94,16 @@
  	-DREVISION=$(REVISION_s) \
  	-DDEVPHASE=$(DEVPHASE_s) -DPKGVERSION=$(PKGVERSION_s) \
  	-DBUGURL=$(BUGURL_s) -o $@ $<
-@@ -3965,7 +3967,7 @@
- cppbuiltin.o: cppbuiltin.c $(CONFIG_H) $(SYSTEM_H) coretypes.h $(TM_H) \
- 	cppbuiltin.h Makefile
- 	$(COMPILER) $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) \
--	  $(PREPROCESSOR_DEFINES) -DBASEVER=$(BASEVER_s) \
-+	  $(PREPROCESSOR_DEFINES) -DBASEVER=$(FULLVER_s) \
- 	  -c $(srcdir)/cppbuiltin.c $(OUTPUT_OPTION)
+@@ -3986,7 +3988,7 @@ PREPROCESSOR_DEFINES = \
+   -DSTANDARD_EXEC_PREFIX=\"$(libdir)/gcc/\" \
+   @TARGET_SYSTEM_ROOT_DEFINE@
  
- cppdefault.o: cppdefault.c $(CONFIG_H) $(SYSTEM_H) coretypes.h $(TM_H) \
-@@ -3986,8 +3988,8 @@
+-CFLAGS-cppbuiltin.o += $(PREPROCESSOR_DEFINES) -DBASEVER=$(BASEVER_s)
++CFLAGS-cppbuiltin.o += $(PREPROCESSOR_DEFINES) -DBASEVER=$(FULLVER_s)
+ cppbuiltin.o: cppbuiltin.c $(CONFIG_H) $(SYSTEM_H) coretypes.h $(TM_H) \
+ 	$(TREE_H) cppbuiltin.h Makefile
+ 
+@@ -4006,8 +4008,8 @@ build/gcov-iov$(build_exeext): build/gco
  		build/gcov-iov.o -o $@
  
  gcov-iov.h: s-iov
@@ -106,7 +114,7 @@
  	    > tmp-gcov-iov.h
  	$(SHELL) $(srcdir)/../move-if-change tmp-gcov-iov.h gcov-iov.h
  	$(STAMP) s-iov
-@@ -4211,8 +4213,8 @@
+@@ -4272,8 +4274,8 @@ TEXI_GCCINSTALL_FILES = install.texi ins
  TEXI_CPPINT_FILES = cppinternals.texi gcc-common.texi gcc-vers.texi
  
  # gcc-vers.texi is generated from the version files.
@@ -117,7 +125,7 @@
  	 if [ "$(DEVPHASE_c)" = "experimental" ]; \
  	 then echo "@set DEVELOPMENT"; \
  	 else echo "@clear DEVELOPMENT"; \
-@@ -4579,9 +4581,11 @@
+@@ -4647,9 +4649,11 @@ install-common: native lang.install-comm
  install-driver: installdirs xgcc$(exeext)
  	-rm -f $(DESTDIR)$(bindir)/$(GCC_INSTALL_NAME)$(exeext)
  	-$(INSTALL_PROGRAM) xgcc$(exeext) $(DESTDIR)$(bindir)/$(GCC_INSTALL_NAME)$(exeext)
@@ -129,9 +137,11 @@
  	-if [ -f gcc-cross$(exeext) ] ; then \
  	  if [ -d $(DESTDIR)$(gcc_tooldir)/bin/. ] ; then \
  	    rm -f $(DESTDIR)$(gcc_tooldir)/bin/gcc$(exeext); \
+Index: b/src/libjava/Makefile.am
+===================================================================
 --- a/src/libjava/Makefile.am
 +++ b/src/libjava/Makefile.am
-@@ -775,7 +775,7 @@
+@@ -775,7 +775,7 @@ install_data_local_split = 50
  install-data-local:
  	$(PRE_INSTALL)
  ## Install the .pc file.
@@ -140,9 +150,11 @@
  	file="libgcj-$${pc_version}.pc"; \
  	$(mkinstalldirs) $(DESTDIR)$(pkgconfigdir); \
  	echo "  $(INSTALL_DATA) libgcj.pc $(DESTDIR)$(pkgconfigdir)/$$file"; \
+Index: b/src/libjava/Makefile.in
+===================================================================
 --- a/src/libjava/Makefile.in
 +++ b/src/libjava/Makefile.in
-@@ -12412,7 +12412,7 @@
+@@ -12413,7 +12413,7 @@ install-exec-hook: install-binPROGRAMS i
  @BUILD_ECJ1_TRUE@	mv $(DESTDIR)$(libexecsubdir)/`echo ecjx | sed 's,^.*/,,;$(transform);s/$$/$(EXEEXT)/'` $(DESTDIR)$(libexecsubdir)/ecj1$(host_exeext)
  install-data-local:
  	$(PRE_INSTALL)
@@ -151,9 +163,11 @@
  	file="libgcj-$${pc_version}.pc"; \
  	$(mkinstalldirs) $(DESTDIR)$(pkgconfigdir); \
  	echo "  $(INSTALL_DATA) libgcj.pc $(DESTDIR)$(pkgconfigdir)/$$file"; \
+Index: b/src/libgcc/Makefile.in
+===================================================================
 --- a/src/libgcc/Makefile.in
 +++ b/src/libgcc/Makefile.in
-@@ -201,7 +201,7 @@
+@@ -207,7 +207,7 @@ export slibdir
  export toolexecdir
  export toolexeclibdir
  
@@ -162,3 +176,16 @@
  
  ifeq ($(decimal_float),yes)
  ifeq ($(enable_decimal_float),bid)
+Index: b/src/libjava/testsuite/lib/libjava.exp
+===================================================================
+--- a/src/libjava/testsuite/lib/libjava.exp
++++ b/src/libjava/testsuite/lib/libjava.exp
+@@ -177,7 +177,7 @@ proc libjava_init { args } {
+ 
+     set text [eval exec "$GCJ_UNDER_TEST -B$specdir -v 2>@ stdout"]
+     regexp " version \[^\n\r\]*" $text version
+-    set libjava_version [lindex $version 1]
++    set libjava_version 4.7
+ 
+     verbose "version: $libjava_version"
+ 

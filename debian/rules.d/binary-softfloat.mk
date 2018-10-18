@@ -23,7 +23,7 @@ $(binary_stamp)-softfloat: $(install_stamp)
 	rm -rf $(d_softfloat)/$(PFL)/$(libdir)/soft-float/libssp.so*
 	mv $(d_softfloat)/$(PFL)/$(libdir)/soft-float/libssp.a \
 		$(d_softfloat)/$(PFL)/$(libdir)/soft-float/libssp_nonshared.a
-	debian/dh_doclink -p$(p_softfloat) $(p_base)
+	debian/dh_doclink -p$(p_softfloat) $(p_xbase)
 	dh_strip -p$(p_softfloat) -Xlibgcj.a
 	dh_compress -p$(p_softfloat)
 	dh_fixperms -p$(p_softfloat)

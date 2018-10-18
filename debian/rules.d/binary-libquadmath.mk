@@ -8,6 +8,9 @@ endif
 ifeq ($(with_libn32qmath),yes)
   $(lib_binaries)	+= libn32qmath
 endif
+ifeq ($(with_libx32qmath),yes)
+  $(lib_binaries)	+= libx32qmath
+endif
 ifeq ($(with_libhfqmath),yes)
   $(lib_binaries)	+= libhfqmath
 endif
@@ -21,8 +24,8 @@ define __do_qmath
 	mv $(install_stamp) $(install_stamp)-tmp
 
 	rm -rf $(d_l) $(d_d)
-	dh_installdirs -p$(p_l) $(2)
-	DH_COMPAT=2 dh_movefiles -p$(p_l) $(2)/libquadmath.so.*
+	dh_installdirs -p$(p_l) $(usr_lib$(2))
+	DH_COMPAT=2 dh_movefiles -p$(p_l) $(usr_lib$(2))/libquadmath.so.*
 
 	debian/dh_doclink -p$(p_l) $(p_base)
 	debian/dh_doclink -p$(p_d) $(p_base)
@@ -30,11 +33,12 @@ define __do_qmath
 	dh_strip -p$(p_l) --dbg-package=$(p_d)
 	dh_compress -p$(p_l) -p$(p_d)
 	dh_fixperms -p$(p_l) -p$(p_d)
-	dh_makeshlibs -p$(p_l)
+	$(cross_makeshlibs) dh_makeshlibs -p$(p_l)
 	$(call cross_mangle_shlibs,$(p_l))
-	$(cross_shlibdeps) dh_shlibdeps -p$(p_l)
+	$(cross_shlibdeps) dh_shlibdeps -p$(p_l) \
+		$(call shlibdirs_to_search,,$(2))
 	$(call cross_mangle_substvars,$(p_l))
-	dh_gencontrol -p$(p_l) -p$(p_d)	\
+	$(cross_gencontrol) dh_gencontrol -p$(p_l) -p$(p_d)	\
 		-- -v$(DEB_VERSION) $(common_substvars)
 	$(call cross_mangle_control,$(p_l))
 	dh_installdeb -p$(p_l) -p$(p_d)
@@ -46,7 +50,7 @@ endef
 
 # ----------------------------------------------------------------------
 
-do_qmath = $(call __do_qmath,lib$(1)quadmath$(QMATH_SONAME),$(usr_lib$(1)))
+do_qmath = $(call __do_qmath,lib$(1)quadmath$(QMATH_SONAME),$(1))
 
 $(binary_stamp)-libqmath: $(install_stamp)
 	$(call do_qmath,)
@@ -59,6 +63,9 @@ $(binary_stamp)-lib32qmath: $(install_stamp)
 
 $(binary_stamp)-libn32qmath: $(install_stamp)
 	$(call do_qmath,n32)
+
+$(binary_stamp)-libx32qmath: $(install_stamp)
+	$(call do_qmath,x32)
 
 $(binary_stamp)-libhfqmath: $(install_stamp)
 	$(call do_qmath,hf)

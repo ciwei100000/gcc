@@ -13,6 +13,9 @@ ifeq ($(with_libmudflap),yes)
   ifeq ($(with_libn32mudflap),yes)
     $(lib_binaries)	+= libn32mudflap
   endif
+  ifeq ($(with_libx32mudflap),yes)
+    $(lib_binaries)	+= libx32mudflap
+  endif
   ifeq ($(with_libhfmudflap),yes)
     $(lib_binaries)	+= libhfmudflap
   endif
@@ -41,11 +44,12 @@ define __do_mudflap
 	dh_strip -p$(p_l) --dbg-package=$(p_d)
 	dh_compress -p$(p_l) -p$(p_d)
 	dh_fixperms -p$(p_l) -p$(p_d)
-	dh_makeshlibs -p$(p_l) -V '$(p_l) (>= $(DEB_SOVERSION))'
+	$(cross_makeshlibs) dh_makeshlibs -p$(p_l) -V '$(p_l) (>= $(DEB_SOVERSION))'
 	$(call cross_mangle_shlibs,$(p_l))
-	DIRNAME=$(subst n,,$(2)) $(cross_shlibdeps) dh_shlibdeps -p$(p_l)
+	$(ignshld)DIRNAME=$(subst n,,$(2)) $(cross_shlibdeps) dh_shlibdeps -p$(p_l) \
+		$(call shlibdirs_to_search,,$(2))
 	$(call cross_mangle_substvars,$(p_l))
-	dh_gencontrol -p$(p_l) -p$(p_d) \
+	$(cross_gencontrol) dh_gencontrol -p$(p_l) -p$(p_d) \
 		-- -v$(DEB_VERSION) $(common_substvars)
 	$(call cross_mangle_control,$(p_l))
 	dh_installdeb -p$(p_l) -p$(p_d)
@@ -83,6 +87,9 @@ $(binary_stamp)-lib32mudflap: $(install_stamp)
 $(binary_stamp)-libn32mudflap: $(install_stamp)
 	$(call do_mudflap,n32)
 
+$(binary_stamp)-libx32mudflap: $(install_stamp)
+	$(call do_mudflap,x32)
+
 $(binary_stamp)-libhfmudflap: $(install_stamp)
 	$(call do_mudflap,hf)
 
@@ -109,6 +116,9 @@ endif
 ifeq ($(with_libn32mudflap),yes)
 	$(call do_mudflap_dev,n32)
 endif
+ifeq ($(with_libx32mudflap),yes)
+	$(call do_mudflap_dev,x32)
+endif
 ifeq ($(with_libhfmudflap),yes)
 	$(call do_mudflap_dev,hf)
 endif
@@ -125,8 +135,8 @@ endif
 	dh_strip -p$(p_mfd)
 	dh_compress -p$(p_mfd)
 	dh_fixperms -p$(p_mfd)
-	dh_shlibdeps -p$(p_mfd)
-	dh_gencontrol -p$(p_mfd) \
+	$(cross_shlibdeps) dh_shlibdeps -p$(p_mfd)
+	$(cross_gencontrol) dh_gencontrol -p$(p_mfd) \
 		-- -v$(DEB_VERSION) $(common_substvars)
 	dh_installdeb -p$(p_mfd)
 	dh_md5sums -p$(p_mfd)

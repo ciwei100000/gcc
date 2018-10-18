@@ -70,6 +70,20 @@ $(binary_stamp)-snapshot: $(install_snap_stamp) \
 	find $(d_snap) -name '*.gch' -type d | xargs -r rm -rf
 	find $(d_snap) -name '*.la' -o -name '*.lai' | xargs -r rm -f
 
+	: # FIXME: libbacktrace is not installed by default
+	for d in . 32 n32 64 sf hf; do \
+	  if [ -f $(buildlibdir)/$$d/libbacktrace/.libs/libbacktrace.a ]; then \
+	    install -m644 $(buildlibdir)/$$d/libbacktrace/.libs/libbacktrace.a \
+	      $(d_snap)/$(gcc_lib_dir)/$$d; \
+	  fi; \
+	done
+	if [ -f $(buildlibdir)/libbacktrace/backtrace-supported.h ]; then \
+	  install -m644 $(buildlibdir)/libbacktrace/backtrace-supported.h \
+	    $(d_snap)/$(gcc_lib_dir)/include/; \
+	  install -m644 $(srcdir)/libbacktrace/backtrace.h \
+	    $(d_snap)/$(gcc_lib_dir)/include/; \
+	fi
+
 	rm -rf $(d_snap)/$(PF)/lib/nof
 ifeq ($(with_java),yes)
 	mv $(d)/usr/lib/jvm $(d_snap)/usr/lib/
@@ -196,7 +210,7 @@ endif
 	  echo 'libgnarl-$(GNAT_SONAME) 1 ${p_snap} (>= $(DEB_VERSION))'; \
 	) > debian/shlibs.local
 
-	DIRNAME=$(subst n,,$(2)) $(cross_shlibdeps)  \
+	$(ignshld)DIRNAME=$(subst n,,$(2)) $(cross_shlibdeps)  \
 	  dh_shlibdeps -p$(p_snap) -l$(CURDIR)/$(d_snap)/$(PF)/lib:$(CURDIR)/$(d_snap)/$(PF)/$(if $(filter $(DEB_TARGET_ARCH),amd64 ppc64),lib32,lib64):/usr/$(DEB_TARGET_GNU_TYPE)/lib -Xlibgcj-tools -Xlibmudflap
 	-sed -i -e 's/$(p_snap)[^,]*, //g' debian/$(p_snap).substvars
 

@@ -15,6 +15,7 @@ dirs_spugcc = \
 
 files_spugcc = \
 	$(PF)/bin/spu-{cpp,gcc}$(pkg_ver) \
+	$(PF)/bin/spu-{gcc-ar,gcc-ranlib,gcc-nm}$(pkg_ver) \
 	$(gcc_spu_lexec_dir)/{cc1,collect2,lto1,lto-wrapper} \
 	$(gcc_spu_lexec_dir)/liblto_plugin.so{,.0,.0.0.0} \
 	$(gcc_spu_lib_dir)/{include,include-fixed} \
@@ -68,12 +69,13 @@ files_spuf95 = \
 	$(PF)/bin/spu-gfortran$(pkg_ver) \
 	$(gcc_spu_lexec_dir)/f951 \
 	$(gcc_spu_lib_dir)/finclude \
+	$(gcc_spu_lib_dir)/libcaf_single.a \
 	$(gcc_spu_lib_dir)/libgfortran.spec \
-	$(gcc_spu_lib_dir)/libgfortranbegin.a \
 	$(gcc_spu_lib_dir)/libgfortran{,begin}.a
 
 ifeq ($(with_spumea64),yes)
     files_spuf95 += \
+	$(gcc_spu_lib_dir)/mea64/libcaf_single.a \
 	$(gcc_spu_lib_dir)/mea64/libgfortranbegin.a \
 	$(gcc_spu_lib_dir)/mea64/libgfortran{,begin}.a
 endif
@@ -93,7 +95,7 @@ $(binary_stamp)-spu: $(install_spu_stamp)
 	dh_installdirs -p$(p_spugcc) $(dirs_spugcc)
 	DH_COMPAT=2 dh_movefiles --sourcedir=$(d_spu) -p$(p_spugcc) $(files_spugcc)
 
-	debian/dh_doclink -p$(p_spugcc) $(p_base)
+	debian/dh_doclink -p$(p_spugcc) $(p_xbase)
 	debian/dh_rmemptydirs -p$(p_spugcc)
 
 	-dh_strip -p$(p_spugcc) -X.o -Xlibgcc.a -Xlibgcov.a
@@ -118,7 +120,7 @@ $(binary_stamp)-spu-cxx: $(install_spu_stamp)
 
 	ln -sf $(BASE_VERSION) $(d_spucxx)/usr/spu/include/c++/$(GCC_VERSION)
 
-	debian/dh_doclink -p$(p_spucxx) $(p_base)
+	debian/dh_doclink -p$(p_spucxx) $(p_xbase)
 	debian/dh_rmemptydirs -p$(p_spucxx)
 
 	-dh_strip -p$(p_spucxx)
@@ -143,7 +145,7 @@ $(binary_stamp)-spu-fortran: $(install_spu_stamp)
 
 	DH_COMPAT=2 dh_movefiles --sourcedir=$(d_spu) -p$(p_spuf95) $(files_spuf95)
 
-	debian/dh_doclink -p$(p_spuf95) $(p_base)
+	debian/dh_doclink -p$(p_spuf95) $(p_xbase)
 	debian/dh_rmemptydirs -p$(p_spuf95)
 
 	-dh_strip -p$(p_spuf95)

@@ -1,4 +1,5 @@
-# DP: Turn on -D_FORTIFY_SOURCE=2 by default for C, C++, ObjC, ObjC++.
+# DP: Turn on -D_FORTIFY_SOURCE=2 by default for C, C++, ObjC, ObjC++,
+# DP: if the optimization level is > 0
 
 ---
  gcc/doc/invoke.texi          |    6 ++++++
@@ -22,12 +23,13 @@
  Optimize yet more.  @option{-O3} turns on all optimizations specified
 --- a/src/gcc/c-family/c-cppbuiltin.c
 +++ b/src/gcc/c-family/c-cppbuiltin.c
-@@ -731,6 +731,9 @@
+@@ -731,6 +731,10 @@
    builtin_define_with_value ("__REGISTER_PREFIX__", REGISTER_PREFIX, 0);
    builtin_define_with_value ("__USER_LABEL_PREFIX__", user_label_prefix, 0);
  
-+  /* Fortify Source enabled by default */
-+  builtin_define_with_int_value ("_FORTIFY_SOURCE", 2);
++  /* Fortify Source enabled by default for optimization levels > 0 */
++  if (optimize)
++    builtin_define_with_int_value ("_FORTIFY_SOURCE", 2);
 +
    /* Misc.  */
    if (flag_gnu89_inline)

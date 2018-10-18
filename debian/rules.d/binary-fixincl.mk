@@ -4,7 +4,7 @@ p_fix	= fixincludes
 d_fix	= debian/$(p_fix)
 
 dirs_fix = \
-	$(docdir)/$(p_base)/fixincludes \
+	$(docdir)/$(p_xbase)/fixincludes \
 	$(PF)/share/man/man1 \
 	$(PF)/bin \
 	$(gcc_lexec_dir) \
@@ -29,12 +29,12 @@ $(binary_stamp)-fixincl: $(install_stamp)
 #		> $(d_fix)/$(PF)/lib/fixincludes/fixinc.sh
 #	chmod 755 $(d_fix)/$(PF)/lib/fixincludes/fixinc.sh
 	$(IR) $(srcdir)/fixincludes/README \
-	    $(d_fix)/$(docdir)/$(p_base)/fixincludes
+	    $(d_fix)/$(docdir)/$(p_xbase)/fixincludes
 	sed -e 's,@LIBEXECDIR@,$(gcc_lexec_dir),g' debian/fixincludes.in \
 	    > $(d_fix)/$(PF)/bin/fixincludes
 	chmod 755 $(d_fix)/$(PF)/bin/fixincludes
 
-	debian/dh_doclink -p$(p_fix) $(p_base)
+	debian/dh_doclink -p$(p_fix) $(p_xbase)
 	dh_strip -p$(p_fix)
 	dh_compress -p$(p_fix)
 	dh_fixperms -p$(p_fix)

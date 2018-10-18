@@ -13,11 +13,11 @@ $(binary_stamp)-hppa64: $(install_hppa64_stamp)
 	: # provide as and ld links
 	dh_link -p $(p_hppa64) \
 		/usr/bin/hppa64-linux-gnu-as \
-		/$(hppa64libexecdir)/gcc/hppa64-linux-gnu/$(GCC_VERSION)/as \
+		/$(hppa64libexecdir)/gcc/hppa64-linux-gnu/$(versiondir)/as \
 		/usr/bin/hppa64-linux-gnu-ld \
-		/$(hppa64libexecdir)/gcc/hppa64-linux-gnu/$(GCC_VERSION)/ld
+		/$(hppa64libexecdir)/gcc/hppa64-linux-gnu/$(versiondir)/ld
 
-	debian/dh_doclink -p$(p_hppa64) $(p_base)
+	debian/dh_doclink -p$(p_hppa64) $(p_xbase)
 	debian/dh_rmemptydirs -p$(p_hppa64)
 
 	dh_strip -p$(p_hppa64) -X.o -Xlibgcc.a -Xlibgcov.a

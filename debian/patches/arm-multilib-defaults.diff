@@ -1,8 +1,10 @@
 # DP: Set MULTILIB_DEFAULTS for ARM multilib builds
 
+Index: b/src/gcc/config.gcc
+===================================================================
 --- a/src/gcc/config.gcc
-+++ a/src/gcc/config.gcc
-@@ -3013,10 +3013,18 @@
++++ b/src/gcc/config.gcc
+@@ -3128,10 +3128,18 @@ case "${target}" in
  		esac
  
  		case "$with_float" in
@@ -23,7 +25,7 @@
  		*)
  			echo "Unknown floating point type used in --with-float=$with_float" 1>&2
  			exit 1
-@@ -3060,6 +3068,9 @@
+@@ -3175,6 +3183,9 @@ case "${target}" in
  		"" \
  		| arm | thumb )
  			#OK
@@ -33,11 +35,13 @@
  			;;
  		*)
  			echo "Unknown mode used in --with-mode=$with_mode"
+Index: b/src/gcc/config/arm/linux-eabi.h
+===================================================================
 --- a/src/gcc/config/arm/linux-eabi.h
 +++ b/src/gcc/config/arm/linux-eabi.h
-@@ -35,7 +35,21 @@
-    target hardware.  If you override this to use the hard-float ABI then
-    change the setting of GLIBC_DYNAMIC_LINKER_DEFAULT as well.  */
+@@ -34,7 +34,21 @@
+ /* We default to a soft-float ABI so that binaries can run on all
+    target hardware.  */
  #undef  TARGET_DEFAULT_FLOAT_ABI
 +#ifdef TARGET_CONFIGURED_FLOAT_ABI
 +#if TARGET_CONFIGURED_FLOAT_ABI == 2
@@ -47,34 +51,19 @@
 +#define TARGET_DEFAULT_FLOAT_ABI ARM_FLOAT_ABI_SOFTFP
 +#define MULTILIB_DEFAULT_FLOAT_ABI "mfloat-abi=softfp"
 +#else
- #define TARGET_DEFAULT_FLOAT_ABI ARM_FLOAT_ABI_SOFT
++#define TARGET_DEFAULT_FLOAT_ABI ARM_FLOAT_ABI_SOFT
 +#define MULTILIB_DEFAULT_FLOAT_ABI "mfloat-abi=soft"
 +#endif
 +#else
-+#define TARGET_DEFAULT_FLOAT_ABI ARM_FLOAT_ABI_SOFT
+ #define TARGET_DEFAULT_FLOAT_ABI ARM_FLOAT_ABI_SOFT
 +#define MULTILIB_DEFAULT_FLOAT_ABI "mfloat-abi=soft"
 +#endif
  
  /* We default to the "aapcs-linux" ABI so that enums are int-sized by
     default.  */
-@@ -71,13 +85,43 @@
- #undef  GLIBC_DYNAMIC_LINKER
- #define GLIBC_DYNAMIC_LINKER_SOFT_FLOAT "/lib/ld-linux.so.3"
- #define GLIBC_DYNAMIC_LINKER_HARD_FLOAT "/lib/ld-linux-armhf.so.3"
-+#ifdef TARGET_CONFIGURED_FLOAT_ABI
-+#if TARGET_CONFIGURED_FLOAT_ABI == 2
-+#define GLIBC_DYNAMIC_LINKER_DEFAULT GLIBC_DYNAMIC_LINKER_HARD_FLOAT
-+#else
- #define GLIBC_DYNAMIC_LINKER_DEFAULT GLIBC_DYNAMIC_LINKER_SOFT_FLOAT
-+#endif
-+#else
-+#define GLIBC_DYNAMIC_LINKER_DEFAULT GLIBC_DYNAMIC_LINKER_SOFT_FLOAT
-+#endif
- 
- #define GLIBC_DYNAMIC_LINKER \
+@@ -68,6 +82,28 @@
     "%{mfloat-abi=hard:" GLIBC_DYNAMIC_LINKER_HARD_FLOAT "} \
-     %{mfloat-abi=soft*:" GLIBC_DYNAMIC_LINKER_SOFT_FLOAT "} \
-     %{!mfloat-abi=*:" GLIBC_DYNAMIC_LINKER_DEFAULT "}"
+     %{!mfloat-abi=hard:" GLIBC_DYNAMIC_LINKER_SOFT_FLOAT "}"
  
 +/* Set the multilib defaults according the configuration, needed to
 +   let gcc -print-multi-dir do the right thing.  */

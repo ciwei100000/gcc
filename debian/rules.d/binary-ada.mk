@@ -30,7 +30,7 @@ GNAT_TOOLS = gnat gnatbind gnatchop gnatclean gnatfind gnatkr gnatlink \
              gnatls gnatmake gnatname gnatprep gnatxref gnathtml
 
 dirs_gnat = \
-	$(docdir)/$(p_base) \
+	$(docdir)/$(p_xbase) \
 	$(PF)/bin \
 	$(PF)/share/man/man1 \
 	$(gcc_lib_dir) \
@@ -62,8 +62,8 @@ ifeq ($(PKGSOURCE),gnat-$(BASE_VERSION))
   endif
 endif
 ifeq ($(PKGSOURCE),gnat-$(BASE_VERSION))
-	mkdir -p $(d_gbase)/$(docdir)/$(p_base)
-	ln -sf ../$(p_gbase) $(d_gbase)/$(docdir)/$(p_base)/Ada
+	mkdir -p $(d_gbase)/$(docdir)/$(p_xbase)
+	ln -sf ../$(p_gbase) $(d_gbase)/$(docdir)/$(p_xbase)/Ada
 endif
 	dh_installchangelogs -p$(p_gbase) src/gcc/ada/ChangeLog
 	dh_compress -p$(p_gbase)

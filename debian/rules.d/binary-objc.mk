@@ -1,4 +1,4 @@
-ifneq (,$(filter yes, $(biarch64) $(biarch32) $(biarchn32) $(biarchhf) $(biarchsf)))
+ifneq (,$(filter yes, $(biarch64) $(biarch32) $(biarchn32) $(biarchx32) $(biarchhf) $(biarchsf)))
   arch_binaries  := $(arch_binaries) objc-multi
 endif
 arch_binaries := $(arch_binaries) objc
@@ -10,24 +10,11 @@ p_objc_m= gobjc$(pkg_ver)-multilib$(cross_bin_arch)
 d_objc_m= debian/$(p_objc_m)
 
 dirs_objc = \
-	$(docdir)/$(p_base)/ObjC \
-	$(gcc_lexec_dir) \
-	$(gcc_lib_dir)/include
+	$(docdir)/$(p_xbase)/ObjC \
+	$(gcc_lexec_dir)
 
 files_objc = \
-	$(gcc_lexec_dir)/cc1obj \
-	$(gcc_lib_dir)/include/objc
-
-define do_objc
-	dh_installdirs -p$(2) $(gcc_lib_dir$(1))
-	$(call install_gcc_lib,libobjc,$(OBJC_SONAME),$(1),$(2))
-	$(if $(filter yes,$(with_objc_gc)),
-		dh_link -p$(2) \
-		  /$(usr_lib$(1))/libobjc_gc.so.$(OBJC_SONAME) \
-		  /$(gcc_lib_dir$(1))/libobjc_gc.so
-	)
-
-endef
+	$(gcc_lexec_dir)/cc1obj
 
 $(binary_stamp)-objc: $(install_stamp)
 	dh_testdir
@@ -38,15 +25,13 @@ $(binary_stamp)-objc: $(install_stamp)
 	dh_installdirs -p$(p_objc) $(dirs_objc)
 	DH_COMPAT=2 dh_movefiles -p$(p_objc) $(files_objc)
 
-	$(call do_objc,,$(p_objc))
-
 	cp -p $(srcdir)/libobjc/{README*,THREADS*} \
-		$(d_objc)/$(docdir)/$(p_base)/ObjC/.
+		$(d_objc)/$(docdir)/$(p_xbase)/ObjC/.
 
 	cp -p $(srcdir)/libobjc/ChangeLog \
-		$(d_objc)/$(docdir)/$(p_base)/ObjC/changelog.libobjc
+		$(d_objc)/$(docdir)/$(p_xbase)/ObjC/changelog.libobjc
 
-	debian/dh_doclink -p$(p_objc) $(p_base)
+	debian/dh_doclink -p$(p_objc) $(p_xbase)
 
 	debian/dh_rmemptydirs -p$(p_objc)
 
@@ -70,10 +55,7 @@ $(binary_stamp)-objc-multi: $(install_stamp)
 	rm -rf $(d_objc_m)
 	dh_installdirs -p$(p_objc_m) $(docdir)
 
-	$(foreach flavour,$(flavours), \
-		$(call do_objc,$(flavour),$(p_objc_m)))
-
-	debian/dh_doclink -p$(p_objc_m) $(p_base)
+	debian/dh_doclink -p$(p_objc_m) $(p_xbase)
 
 	dh_strip -p$(p_objc_m)
 	dh_compress -p$(p_objc_m)

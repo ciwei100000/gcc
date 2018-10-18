@@ -42,9 +42,18 @@ ifneq ($(DEB_CROSS),yes)
 	ln -sf cpp$(pkg_ver).1 \
 	    $(d_cpp)/$(PF)/share/man/man1/$(TARGET_ALIAS)-cpp$(pkg_ver).1
   endif
+else
+  ifeq ($(with_deps_on_target_arch_pkgs),yes)
+    # Copy docs (including copyright) that would be included in gcc-4.7-base
+	dh_installdocs -p$(p_xbase) debian/README.Debian.$(DEB_TARGET_ARCH)
+	rm -f $(d_xbase)/usr/share/doc/$(p_xbase)/README.Debian
+	dh_installchangelogs -p$(p_xbase)
+  endif
 endif
 
-	debian/dh_doclink -p$(p_cpp) $(p_base)
+  ifneq ($(DEB_CROSS)-$(with_deps_on_target_arch_pkgs),yes-yes)
+	debian/dh_doclink -p$(p_cpp) $(p_xbase)
+  endif
 	debian/dh_rmemptydirs -p$(p_cpp)
 
 	dh_strip -p$(p_cpp)
@@ -66,14 +75,14 @@ $(binary_stamp)-cpp-doc: $(build_html_stamp) $(install_stamp)
 
 	rm -rf $(d_cppd)
 	dh_installdirs -p$(p_cppd) \
-		$(docdir)/$(p_base) \
+		$(docdir)/$(p_xbase) \
 		$(PF)/share/info
 	DH_COMPAT=2 dh_movefiles -p$(p_cppd) \
 		$(PF)/share/info/cpp*
 
-	debian/dh_doclink -p$(p_cppd) $(p_base)
+	debian/dh_doclink -p$(p_cppd) $(p_xbase)
 	dh_installdocs -p$(p_cppd) html/cpp.html html/cppinternals.html
-	rm -f $(d_cppd)/$(docdir)/$(p_base)/copyright
+	rm -f $(d_cppd)/$(docdir)/$(p_xbase)/copyright
 	debian/dh_rmemptydirs -p$(p_cppd)
 
 	dh_compress -p$(p_cppd)

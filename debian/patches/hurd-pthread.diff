@@ -1,5 +1,7 @@
 # Fix pthread support in a/src/boehm-gc
 
+Index: b/src/boehm-gc/dyn_load.c
+===================================================================
 --- a/src/boehm-gc/dyn_load.c
 +++ b/src/boehm-gc/dyn_load.c
 @@ -26,7 +26,7 @@
@@ -11,8 +13,10 @@
      /* Can't test LINUX, since this must be define before other includes */
  #   define _GNU_SOURCE
  #endif
---- a/src/boehm-gc/pthread_support.c.orig	2009-02-07 22:27:11.828527000 +0000
-+++ b/src/boehm-gc/pthread_support.c	2009-02-07 22:27:18.279505000 +0000
+Index: b/src/boehm-gc/pthread_support.c
+===================================================================
+--- a/src/boehm-gc/pthread_support.c
++++ b/src/boehm-gc/pthread_support.c
 @@ -885,7 +885,7 @@
  	  GC_nprocs = pthread_num_processors_np();
  #       endif
@@ -22,8 +26,10 @@
  	  GC_nprocs = sysconf(_SC_NPROCESSORS_ONLN);
  	  if (GC_nprocs <= 0) GC_nprocs = 1;
  #	endif
---- a/src/boehm-gc/include/gc_config_macros.h.orig	2009-02-07 22:25:08.240177000 +0000
-+++ b/src/boehm-gc/include/gc_config_macros.h	2009-02-07 22:28:40.648347000 +0000
+Index: b/src/boehm-gc/include/gc_config_macros.h
+===================================================================
+--- a/src/boehm-gc/include/gc_config_macros.h
++++ b/src/boehm-gc/include/gc_config_macros.h
 @@ -6,7 +6,8 @@
  		             || defined(GC_SOLARIS_PTHREADS) \
  			     || defined(GC_HPUX_THREADS) \
@@ -44,8 +50,10 @@
  #   define GC_PTHREADS
  # endif
  
---- a/src/boehm-gc/threadlibs.c.orig	2009-02-07 22:34:42.429201000 +0000
-+++ b/src/boehm-gc/threadlibs.c	2009-02-07 22:34:49.530544000 +0000
+Index: b/src/boehm-gc/threadlibs.c
+===================================================================
+--- a/src/boehm-gc/threadlibs.c
++++ b/src/boehm-gc/threadlibs.c
 @@ -12,7 +12,8 @@
  #   endif
  #   if defined(GC_LINUX_THREADS) || defined(GC_IRIX_THREADS) \
@@ -56,10 +64,12 @@
          printf("-lpthread\n");
  #   endif
  #   if defined(GC_FREEBSD_THREADS)
---- a/src/boehm-gc/configure.ac.orig	2009-02-07 22:30:12.000000000 +0000
-+++ b/src/boehm-gc/configure.ac	2009-02-07 22:35:31.717091000 +0000
-@@ -180,6 +180,11 @@
- 	AM_CPPFLAGS="$AM_CPPFLAGS -pthread"
+Index: b/src/boehm-gc/configure.ac
+===================================================================
+--- a/src/boehm-gc/configure.ac
++++ b/src/boehm-gc/configure.ac
+@@ -181,6 +181,11 @@
+ 	THREADCFLAGS=-pthread
  	THREADLIBS=-pthread
        	;;
 +     *-*-gnu*)
@@ -70,31 +80,10 @@
       *-*-solaris2.8*)
  	AC_DEFINE(GC_SOLARIS_PTHREADS,1,[support for Solaris pthreads])
  	# Need to use alternate thread library, otherwise gctest hangs
---- a/src/boehm-gc/configure.orig	2009-02-07 22:32:34.000000000 +0000
-+++ b/src/boehm-gc/configure	2009-02-07 22:35:28.065650000 +0000
-@@ -14893,6 +14893,20 @@
- 	AM_CPPFLAGS="$AM_CPPFLAGS -pthread"
- 	THREADLIBS=-pthread
-       	;;
-+     *-*-gnu*)
-+cat >>confdefs.h <<\_ACEOF
-+#define GC_GNU_THREADS 1
-+_ACEOF
-+
-+       cat >>confdefs.h <<\_ACEOF
-+#define _REENTRANT 1
-+_ACEOF
-+
-+cat >>confdefs.h <<\_ACEOF
-+#define THREAD_LOCAL_ALLOC 1
-+_ACEOF
-+
-+      	;;
-      *-*-solaris2.8*)
- 
- $as_echo "#define GC_SOLARIS_PTHREADS 1" >>confdefs.h
---- a/src/boehm-gc/os_dep.c.orig	2009-02-07 22:37:20.000000000 +0000
-+++ b/src/boehm-gc/os_dep.c	2009-02-07 22:37:40.000000000 +0000
+Index: b/src/boehm-gc/os_dep.c
+===================================================================
+--- a/src/boehm-gc/os_dep.c
++++ b/src/boehm-gc/os_dep.c
 @@ -312,7 +312,7 @@
    /* for recent Linux versions.  This seems to be the easiest way to	*/
    /* cover all versions.						*/
@@ -113,8 +102,10 @@
        /* Try the easy approaches first:	*/
        if ((ptr_t)__data_start != 0) {
  	  GC_data_start = (ptr_t)(__data_start);
---- a/src/boehm-gc/include/private/gcconfig.h.orig	2009-02-07 22:29:18.000000000 +0000
-+++ b/src/boehm-gc/include/private/gcconfig.h	2009-02-07 22:41:24.598684000 +0000
+Index: b/src/boehm-gc/include/private/gcconfig.h
+===================================================================
+--- a/src/boehm-gc/include/private/gcconfig.h
++++ b/src/boehm-gc/include/private/gcconfig.h
 @@ -1316,8 +1316,9 @@
  #     define OS_TYPE "HURD"
  #     define STACK_GROWS_DOWN
@@ -127,7 +118,7 @@
        extern int   _end[];
  #     define DATAEND ( (ptr_t) (_end))
  /* #     define MPROTECT_VDB  Not quite working yet? */
-@@ -2153,7 +2154,8 @@
+@@ -2169,7 +2170,8 @@
  # if defined(SVR4) || defined(LINUX) || defined(IRIX5) || defined(HPUX) \
  	    || defined(OPENBSD) || defined(NETBSD) || defined(FREEBSD) \
  	    || defined(DGUX) || defined(BSD) || defined(SUNOS4) \
@@ -137,7 +128,7 @@
  #   define UNIX_LIKE   /* Basic Unix-like system calls work.	*/
  # endif
  
-@@ -2209,7 +2211,7 @@
+@@ -2225,7 +2227,7 @@
  #   define CACHE_LINE_SIZE 32	/* Wild guess	*/
  # endif
  
@@ -146,7 +137,7 @@
  #   define REGISTER_LIBRARIES_EARLY
      /* We sometimes use dl_iterate_phdr, which may acquire an internal	*/
      /* lock.  This isn't safe after the world has stopped.  So we must	*/
-@@ -2244,6 +2246,9 @@
+@@ -2260,6 +2262,9 @@
  # if defined(GC_AIX_THREADS) && !defined(_AIX)
  	--> inconsistent configuration
  # endif
@@ -156,8 +147,10 @@
  # if defined(GC_WIN32_THREADS) && !defined(MSWIN32) && !defined(CYGWIN32)
  	--> inconsistent configuration
  # endif
---- a/src/boehm-gc/include/gc_config.h.in.orig	2009-02-08 01:51:09.707191000 +0000
-+++ b/src/boehm-gc/include/gc_config.h.in	2009-02-08 01:54:06.298757000 +0000
+Index: b/src/boehm-gc/include/gc_config.h.in
+===================================================================
+--- a/src/boehm-gc/include/gc_config.h.in
++++ b/src/boehm-gc/include/gc_config.h.in
 @@ -33,6 +33,9 @@
  /* include support for gcj */
  #undef GC_GCJ_SUPPORT
@@ -168,8 +161,10 @@
  /* enables support for HP/UX 11 pthreads */
  #undef GC_HPUX_THREADS
  
---- a/src/boehm-gc/specific.c.orig	2009-02-08 03:44:40.833287000 +0000
-+++ b/src/boehm-gc/specific.c	2009-02-08 03:44:50.865199000 +0000
+Index: b/src/boehm-gc/specific.c
+===================================================================
+--- a/src/boehm-gc/specific.c
++++ b/src/boehm-gc/specific.c
 @@ -13,7 +13,7 @@
  
  #include "private/gc_priv.h" /* For GC_compare_and_exchange, GC_memory_barrier */

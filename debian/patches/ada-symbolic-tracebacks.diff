@@ -34,7 +34,7 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
  
  ADA_INCLUDES = -I- -I. -I$(srcdir)/ada
  
-@@ -2243,7 +2243,7 @@
+@@ -2235,7 +2235,7 @@
    a-nucoar.o a-nurear.o i-forbla.o i-forlap.o s-gearop.o
  
  GNATRTL_OBJS = $(GNATRTL_NONTASKING_OBJS) $(GNATRTL_TASKING_OBJS) \
@@ -43,7 +43,7 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
  
  # Default run time files
  
-@@ -2366,7 +2366,6 @@
+@@ -2358,7 +2358,6 @@
  	for file in $(RTSDIR)/*.ali; do \
  	    $(INSTALL_DATA_DATE) $$file $(DESTDIR)$(ADA_RTL_OBJ_DIR); \
  	done
@@ -51,7 +51,7 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
  	-cd $(RTSDIR); for file in *$(arext);do \
  	    $(INSTALL_DATA) $$file $(DESTDIR)$(ADA_RTL_OBJ_DIR); \
  	    $(RANLIB_FOR_TARGET) $(DESTDIR)$(ADA_RTL_OBJ_DIR)/$$file; \
-@@ -2508,7 +2507,7 @@
+@@ -2469,7 +2468,7 @@
  	        $(GNATRTL_OBJS)
  	$(RM) $(RTSDIR)/libgnat$(arext) $(RTSDIR)/libgnarl$(arext)
  	$(AR_FOR_TARGET) $(AR_FLAGS) $(RTSDIR)/libgnat$(arext) \
@@ -60,7 +60,7 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
  	$(RANLIB_FOR_TARGET) $(RTSDIR)/libgnat$(arext)
  	$(AR_FOR_TARGET) $(AR_FLAGS) $(RTSDIR)/libgnarl$(arext) \
  	   $(addprefix $(RTSDIR)/,$(GNATRTL_TASKING_OBJS))
-@@ -2538,6 +2537,7 @@
+@@ -2499,6 +2498,7 @@
  		$(TARGET_LIBGCC2_CFLAGS) \
  		-o libgnat$(hyphen)$(LIBRARY_VERSION)$(soext) \
  		$(GNATRTL_NONTASKING_OBJS) $(LIBGNAT_OBJS) \
@@ -68,7 +68,7 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
  		$(SO_OPTS)libgnat$(hyphen)$(LIBRARY_VERSION)$(soext) \
  		$(MISCLIB) -lm
  	cd $(RTSDIR); ../../xgcc -B../../ -shared $(GNATLIBCFLAGS) \
-@@ -2800,6 +2800,7 @@
+@@ -2761,6 +2761,7 @@
  sysdep.o  : sysdep.c
  raise-gcc.o : raise-gcc.c raise.h
  raise.o   : raise.c raise.h
@@ -325,16 +325,3 @@ Index: b/src/gcc/ada/g-trasym.adb
  
        use type System.Address;
  
-Index: b/src/gcc/ada/tracebak.c
-===================================================================
---- a/src/gcc/ada/tracebak.c
-+++ b/src/gcc/ada/tracebak.c
-@@ -320,7 +320,7 @@
- /* Starting with GCC 4.6, -fomit-frame-pointer is turned on by default for
-    32-bit x86/Linux as well and DWARF 2 unwind tables are emitted instead.
-    See the x86-64 case below for the drawbacks with this approach.  */
--#if defined (linux) && (__GNUC__ * 10 + __GNUC_MINOR__ > 45)
-+#if (defined (linux) || defined(__GNU__) || defined(__kFreeBSD_kernel__)) && (__GNUC__ * 10 + __GNUC_MINOR__ > 45)
- #define USE_GCC_UNWINDER
- #else
- #define USE_GENERIC_UNWINDER

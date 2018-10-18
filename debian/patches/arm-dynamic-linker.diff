@@ -1,56 +1,21 @@
 # DP: For ARM hard float, set the dynamic linker to
 # DP: /lib/ld-linux-armhf.so.3.
 
-2012-05-01  Richard Earnshaw  <rearnsha@arm.com>
-
-	* arm/linux-eabi.h (GLIBC_DYNAMIC_LINKER_DEFAULT): Avoid ifdef
-	comparing enumeration values.  Update comments.
-
-2012-04-26  Michael Hope  <michael.hope@linaro.org>
-	    Richard Earnshaw  <rearnsha@arm.com>
-
-	* config/arm/linux-eabi.h (GLIBC_DYNAMIC_LINKER_SOFT_FLOAT): Define.
-	(GLIBC_DYNAMIC_LINKER_HARD_FLOAT): Define.
-	(GLIBC_DYNAMIC_LINKER_DEFAULT): Define.
-	(GLIBC_DYNAMIC_LINKER):	Redefine to use the hard float path.
-
+diff --git a/gcc/config/arm/linux-eabi.h b/gcc/config/arm/linux-eabi.h
+index 80bd825..8c9d2e7 100644
 --- a/src/gcc/config/arm/linux-eabi.h
 +++ b/src/gcc/config/arm/linux-eabi.h
-@@ -32,7 +32,8 @@
-   while (false)
- 
- /* We default to a soft-float ABI so that binaries can run on all
--   target hardware.  */
-+   target hardware.  If you override this to use the hard-float ABI then
-+   change the setting of GLIBC_DYNAMIC_LINKER_DEFAULT as well.  */
- #undef  TARGET_DEFAULT_FLOAT_ABI
- #define TARGET_DEFAULT_FLOAT_ABI ARM_FLOAT_ABI_SOFT
- 
-@@ -59,11 +60,24 @@
- #undef  SUBTARGET_EXTRA_LINK_SPEC
- #define SUBTARGET_EXTRA_LINK_SPEC " -m " TARGET_LINKER_EMULATION
- 
--/* Use ld-linux.so.3 so that it will be possible to run "classic"
--   GNU/Linux binaries on an EABI system.  */
-+/* GNU/Linux on ARM currently supports three dynamic linkers:
-+   - ld-linux.so.2 - for the legacy ABI
-+   - ld-linux.so.3 - for the EABI-derived soft-float ABI
-+   - ld-linux-armhf.so.3 - for the EABI-derived hard-float ABI.
-+   All the dynamic linkers live in /lib.
-+   We default to soft-float, but this can be overridden by changing both
-+   GLIBC_DYNAMIC_LINKER_DEFAULT and TARGET_DEFAULT_FLOAT_ABI.  */
-+
+@@ -62,7 +62,11 @@
+ /* Use ld-linux.so.3 so that it will be possible to run "classic"
+    GNU/Linux binaries on an EABI system.  */
  #undef  GLIBC_DYNAMIC_LINKER
 -#define GLIBC_DYNAMIC_LINKER "/lib/ld-linux.so.3"
 +#define GLIBC_DYNAMIC_LINKER_SOFT_FLOAT "/lib/ld-linux.so.3"
 +#define GLIBC_DYNAMIC_LINKER_HARD_FLOAT "/lib/ld-linux-armhf.so.3"
-+#define GLIBC_DYNAMIC_LINKER_DEFAULT GLIBC_DYNAMIC_LINKER_SOFT_FLOAT
- 
 +#define GLIBC_DYNAMIC_LINKER \
 +   "%{mfloat-abi=hard:" GLIBC_DYNAMIC_LINKER_HARD_FLOAT "} \
-+    %{mfloat-abi=soft*:" GLIBC_DYNAMIC_LINKER_SOFT_FLOAT "} \
-+    %{!mfloat-abi=*:" GLIBC_DYNAMIC_LINKER_DEFAULT "}"
-+
++    %{!mfloat-abi=hard:" GLIBC_DYNAMIC_LINKER_SOFT_FLOAT "}"
+
  /* At this point, bpabi.h will have clobbered LINK_SPEC.  We want to
     use the GNU/Linux version, not the generic BPABI version.  */
- #undef  LINK_SPEC
+
