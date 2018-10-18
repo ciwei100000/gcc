@@ -25,11 +25,10 @@ define __do_asan
 
 	rm -rf $(d_l) $(d_d)
 	dh_installdirs -p$(p_l) $(usr_lib$(2))
-	$(if $(empty_sanitizer_packages),, \
-	$(dh_compat2) dh_movefiles -p$(p_l) $(usr_lib$(2))/libasan.so.* )
+	$(dh_compat2) dh_movefiles -p$(p_l) $(usr_lib$(2))/libasan.so.*
 
-	debian/dh_doclink -p$(p_l) $(p_base)
-	debian/dh_doclink -p$(p_d) $(p_base)
+	debian/dh_doclink -p$(p_l) $(p_lbase)
+	debian/dh_doclink -p$(p_d) $(p_lbase)
 
 	if [ -f debian/$(p_l).overrides ]; then \
 		mkdir -p debian/$(p_l)/usr/share/lintian/overrides; \
@@ -37,9 +36,7 @@ define __do_asan
 	fi
 
 	dh_strip -p$(p_l) --dbg-package=$(p_d)
-	dh_compress -p$(p_l) -p$(p_d)
-	dh_fixperms -p$(p_l) -p$(p_d)
-	$(cross_makeshlibs) dh_makeshlibs -p$(p_l)
+	$(cross_makeshlibs) dh_makeshlibs $(ldconfig_arg) -p$(p_l)
 	$(call cross_mangle_shlibs,$(p_l))
 	$(ignshld)DIRNAME=$(subst n,,$(2)) $(cross_shlibdeps) dh_shlibdeps -p$(p_l) \
 		$(call shlibdirs_to_search, \
@@ -48,12 +45,7 @@ define __do_asan
 		,$(2)) \
 		$(if $(filter yes, $(with_common_libs)),,-- -Ldebian/shlibs.common$(2))
 	$(call cross_mangle_substvars,$(p_l))
-	$(cross_gencontrol) dh_gencontrol -p$(p_l) -p$(p_d)	\
-		-- -v$(DEB_VERSION) $(common_substvars)
-	$(call cross_mangle_control,$(p_l))
-	dh_installdeb -p$(p_l) -p$(p_d)
-	dh_md5sums -p$(p_l) -p$(p_d)
-	dh_builddeb -p$(p_l) -p$(p_d)
+	echo $(p_l) $(p_d) >> debian/$(lib_binaries)
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 endef

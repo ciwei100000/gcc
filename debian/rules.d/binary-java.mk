@@ -29,7 +29,7 @@ ifeq ($(with_gcj),yes)
 endif
 endif
 
-ifneq ($(DEB_CROSS),yes)
+ifneq (,$(filter $(build_type), build-native cross-build-native))
   p_jbase = gcj$(pkg_ver)-base
   ifeq ($(with_separate_libgcj)-$(with_standalone_gcj),no-no)
     p_jbase = gcc$(pkg_ver)-base
@@ -85,7 +85,14 @@ dirs_gcj = \
 
 files_gcj = \
 	$(PF)/bin/$(cmd_prefix)gcj$(pkg_ver) \
-	$(gcc_lexec_dir)/{ecj1,jc1,jvgenmain}
+	$(gcc_lexec_dir)/{jc1,jvgenmain}
+
+# FIXME: this really should be included, or else the cross compiler
+# can only be used to build libjava itself.
+ifneq (,$(filter $(build_type), build-native cross-build-native))
+  files_gcj += \
+	$(PF)/$(libdir)/libgcj.spec
+endif
 
 ifneq ($(GFDL_INVARIANT_FREE),yes)
   files_gcj += \
@@ -107,7 +114,6 @@ files_jdk = \
 	$(gcc_lib_dir)/include/{jawt.h,jawt_md.h} \
 	$(gcc_lib_dir)/include/gcj/libgcj-config.h \
 	$(PF)/$(libdir)/lib{gij,gcj,gcj-tools}.so \
-	$(PF)/$(libdir)/libgcj.spec \
 	$(jvm_dir)/include \
 	$(jvm_dir)/bin/{appletviewer,jar,jarsigner,javadoc,javah,native2ascii,rmic,serialver} \
 	$(PF)/lib/jvm-exports
@@ -195,8 +201,8 @@ dirs_jdev = \
 	$(jvm_dir)/include
 
 files_jdev = \
-	$(cxx_inc_dir)/{org,gcj,java,javax} \
-	$(cxx_inc_dir)/gnu/{awt,classpath,gcj,java,javax} \
+	$(PF)/include/c++/$(BASE_VERSION)/{org,gcj,java,javax} \
+	$(PF)/include/c++/$(BASE_VERSION)/gnu/{awt,classpath,gcj,java,javax} \
 	$(PF)/$(libdir)/pkgconfig/libgcj-$(BASE_VERSION).pc \
 	$(gcj_vlibdir)/lib*peer.so
 
@@ -272,14 +278,14 @@ $(binary_stamp)-gcj: $(install_stamp)
 	rm -rf $(d_gcj)
 	dh_installdirs -p$(p_gcj)  $(dirs_gcj)
 
-ifeq ($(DEB_CROSS),yes)
-	ln -sf ../../../gcc/$(DEB_HOST_GNU_TYPE)/$(BASE_VERSION)/ecj1 \
-		$(d)/$(gcc_lib_dir)/ecj1
-endif
 	$(dh_compat2) dh_movefiles -p$(p_gcj)  $(files_gcj)
+ifneq (,$(filter $(build_type), build-native cross-build-native))
+	mv $(d_gcj)/$(PF)/$(libdir)/libgcj.spec $(d_gcj)/$(gcc_lib_dir)/
+endif
 
-ifneq (,$(filter $(DEB_HOST_ARCH), arm armel))
-	ln -sf ../../ecj1 $(d_gcj)/$(gcc_lexec_dir)/ecj1
+ifeq ($(with_external_ecj1),yes)
+	dh_link -p$(p_gcj) \
+		/$(PF)/lib/$(DEB_HOST_MULTIARCH)/gcc/ecj1 /$(gcc_lexec_dir)/ecj1
 endif
 ifneq ($(DEB_CROSS),yes)
 	ln -sf gcj$(pkg_ver) \
@@ -289,17 +295,20 @@ ifneq ($(DEB_CROSS),yes)
 	    $(d_gcj)/$(PF)/share/man/man1/$(TARGET_ALIAS)-gcj$(pkg_ver).1
   endif
 endif
+
+ifeq ($(GFDL_INVARIANT_FREE),yes)
+	mkdir -p $(d_gcj)/usr/share/lintian/overrides
+	echo '$(p_gcj) binary: binary-without-manpage' \
+	  >> $(d_gcj)/usr/share/lintian/overrides/$(p_gcj)
+endif
+
 	debian/dh_doclink -p$(p_gcj) $(p_jbase)
 	debian/dh_rmemptydirs -p$(p_gcj)
 
-	dh_strip -p$(p_gcj)
-	dh_compress -p$(p_gcj)
-	dh_fixperms -p$(p_gcj)
+	dh_strip -p$(p_gcj) \
+	  $(if $(unstripped_exe),-X/jc1)
 	dh_shlibdeps -p$(p_gcj) -Xecj1
-	dh_gencontrol -p$(p_gcj) -- -v$(DEB_VERSION) $(common_substvars)
-	dh_installdeb -p$(p_gcj)
-	dh_md5sums -p$(p_gcj)
-	dh_builddeb -p$(p_gcj)
+	echo $(p_gcj) >> debian/arch_binaries
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 
@@ -318,18 +327,13 @@ $(binary_stamp)-libgcjjar: $(install_stamp)
 		$(d_jar)/$(PF)/share/java/libgcj-tools-$(GCC_VERSION).jar
 	debian/dh_doclink -p$(p_jar) $(p_jbase)
 	debian/dh_rmemptydirs -p$(p_jar)
-	dh_compress -p$(p_jar)
-	dh_fixperms -p$(p_jar)
-	dh_gencontrol -p$(p_jar) -- -v$(DEB_VERSION) $(common_substvars)
-	dh_installdeb -p$(p_jar)
-	dh_md5sums -p$(p_jar)
-	dh_builddeb -p$(p_jar)
+	echo $(p_jar) >> debian/indep_binaries
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 
 # ----------------------------------------------------------------------
 $(build_javasrc_stamp): $(build_stamp)
-	PATH=$(PWD)/bin:$$PATH \
+	PATH=$(CURDIR)/bin:$$PATH \
 	  $(MAKE) -C $(buildlibdir)/libjava src.zip
 	touch $@
 
@@ -345,12 +349,7 @@ $(binary_stamp)-libgcjsrc: $(install_stamp) $(build_javasrc_stamp)
 		$(jvm_dir)/src.zip
 	debian/dh_doclink -p$(p_jsrc) $(p_jbase)
 	debian/dh_rmemptydirs -p$(p_jsrc)
-	dh_compress -p$(p_jsrc)
-	dh_fixperms -p$(p_jsrc)
-	dh_gencontrol -p$(p_jsrc) -- -v$(DEB_VERSION) $(common_substvars)
-	dh_installdeb -p$(p_jsrc)
-	dh_md5sums -p$(p_jsrc)
-	dh_builddeb -p$(p_jsrc)
+	echo $(p_jsrc) >> debian/indep_binaries
 
 	touch $@
 
@@ -395,12 +394,7 @@ $(binary_stamp)-libgcjdoc: $(install_stamp) $(build_javadoc_stamp)
 	ln -sf api $(d_jdoc)/usr/share/doc/$(p_jbase)/html
 	ln -sf ../$(p_jbase)/api $(d_jdoc)/usr/share/doc/$(p_jdoc)/api
 	ln -sf ../$(p_jbase)/html $(d_jdoc)/usr/share/doc/$(p_jdoc)/html
-	dh_compress -p$(p_jdoc) -X.java -X.c
-	dh_fixperms -p$(p_jdoc)
-	dh_gencontrol -p$(p_jdoc) -- -v$(DEB_VERSION) $(common_substvars)
-	dh_installdeb -p$(p_jdoc)
-	dh_md5sums -p$(p_jdoc)
-	dh_builddeb -p$(p_jdoc)
+	echo $(p_jdoc) >> debian/indep_binaries
 
 	touch $@
 
@@ -519,17 +513,17 @@ endif
 
 	mkdir -p $(d_jrehl)/var/lib/gcj$(pkg_ver)
 
-	dh_makeshlibs -p$(p_jlib) -V '$(p_jlib) (>= $(DEB_GCJ_SOVERSION))'
+	dh_makeshlibs $(ldconfig_arg) -p$(p_jlib) -V '$(p_jlib) (>= $(DEB_GCJ_SOVERSION))'
 	echo "libgcj_bc 1 libgcj-bc (>= 4.2.2-1)" >> debian/$(p_jlib)/DEBIAN/shlibs
 	cat debian/$(p_jlib)/DEBIAN/shlibs >> debian/shlibs.local
 
-	dh_makeshlibs -p$(p_jlibx) -V '$(p_jlibx) (>= $(DEB_GCJ_SOVERSION))'
+	dh_makeshlibs $(ldconfig_arg) -p$(p_jlibx) -V '$(p_jlibx) (>= $(DEB_GCJ_SOVERSION))'
 
 #ifneq (,$(findstring gtk, $(java_awt_peers)))
-#	dh_makeshlibs -p$(p_jgtk) -V '$(p_jgtk) (>= $(DEB_GCJ_SOVERSION))'
+#	dh_makeshlibs $(ldconfig_arg) -p$(p_jgtk) -V '$(p_jgtk) (>= $(DEB_GCJ_SOVERSION))'
 #endif
 #ifneq (,$(findstring qt, $(java_awt_peers)))
-#	dh_makeshlibs -p$(p_jqt) -V '$(p_jqt) (>= $(DEB_GCJ_SOVERSION))'
+#	dh_makeshlibs $(ldconfig_arg) -p$(p_jqt) -V '$(p_jqt) (>= $(DEB_GCJ_SOVERSION))'
 #endif
 
 	dh_strip -X/bin/ --dbg-package=$(p_jdbg) \
@@ -546,8 +540,6 @@ endif
 	cp -p debian/$(p_jrehl).overrides \
 		$(d_jrehl)/usr/share/lintian/overrides/$(p_jrehl)
 
-	dh_compress -p$(p_jrehl) -p$(p_jlib) -p$(p_jlibx) $(peer_pkgs)
-	dh_fixperms -p$(p_jrehl) -p$(p_jlib) -p$(p_jlibx) $(peer_pkgs)
 # the libstdc++ binary packages aren't built yet ...
 	echo 'libstdc++ $(CXX_SONAME) libstdc++$(CXX_SONAME) (>= $(DEB_STDCXX_SOVERSION))' \
 	    >> debian/shlibs.local
@@ -570,13 +562,7 @@ endif
 	    && mv -f debian/$(p_jlib).substvars.tmp debian/$(p_jlib).substvars
 	rm -f debian/shlibs.local
 
-	dh_gencontrol \
-		-p$(p_jrehl) -p$(p_jlib) -p$(p_jlibx) $(peer_pkgs) \
-		-- -v$(DEB_VERSION) $(common_substvars)
-
-	dh_installdeb -p$(p_jrehl) -p$(p_jlib) -p$(p_jlibx) $(peer_pkgs)
-	dh_md5sums -p$(p_jrehl) -p$(p_jlib) -p$(p_jlibx) $(peer_pkgs)
-	dh_builddeb -p$(p_jrehl) -p$(p_jlib) -p$(p_jlibx) $(peer_pkgs)
+	echo $(p_jrehl) $(p_jlib) $(p_jlibx) $(subst -p,,$(peer_pkgs)) >> debian/arch_binaries
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 
@@ -612,13 +598,11 @@ endif
 
 	install -m755 debian/jdb.sh $(d_jdk)/$(jvm_dir)/bin/jdb
 
-	mv $(d_jdk)/$(PF)/$(libdir)/libgcj.spec $(d_jdk)/$(gcc_lib_dir)/
-
 	install -m 755 $(d)/$(PF)/$(libdir)/libgcj_bc.so.1 \
 		$(d_jdk)/$(gcc_lib_dir)/libgcj_bc.so
-	$(CC_FOR_TARGET) -shared -fpic -xc /dev/null \
+	$(CC_FOR_TARGET) $(LDFLAGS_FOR_TARGET) -shared -fpic -xc /dev/null \
 		-o build/libgcj.so -Wl,-soname,libgcj.so.$(GCJ_SONAME) -nostdlib
-	$(CC_FOR_TARGET) -shared -fpic \
+	$(CC_FOR_TARGET) $(LDFLAGS_FOR_TARGET) -shared -fpic \
 		$(srcdir)/libjava/libgcj_bc.c \
 		-o $(d_jdk)/$(gcc_lib_dir)/libgcj_bc.so \
 		-Wl,-soname,libgcj_bc.so.1 $(builddir)/libgcj.so -shared-libgcc 
@@ -652,13 +636,8 @@ endif
 	debian/dh_rmemptydirs -p$(p_jdk)
 
 	dh_strip -p$(p_jdk)
-	dh_compress -p$(p_jdk) -X.java
-	dh_fixperms -p$(p_jdk)
 	dh_shlibdeps -p$(p_jdk) -l$(d_lib)/$(PF)/$(libdir):$(d_jlib)/$(PF)/lib -Xecj1
-	dh_gencontrol -p$(p_jdk) -- -v$(DEB_VERSION) $(common_substvars)
-	dh_installdeb -p$(p_jdk)
-	dh_md5sums -p$(p_jdk)
-	dh_builddeb -p$(p_jdk)
+	echo $(p_jdk) >> debian/arch_binaries
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 
@@ -692,8 +671,6 @@ endif
 #		$(d_jdev)/usr/share/lintian/overrides/$(p_jdev)
 
 	DH_COMPAT=5 dh_strip -p$(p_jdev) --dbg-package=$(p_jdbg)
-	dh_compress -p$(p_jdev) -X.java
-	dh_fixperms -p$(p_jdev)
 ifeq ($(with_separate_libgcj)-$(with_standalone_gcj),yes-no)
 	dh_shlibdeps \
 		-l$(d_lib)/$(PF)/$(libdir):$(d_jlib)/$(PF)/$(libdir) \
@@ -704,10 +681,7 @@ else
 		-l:$(d)/$(PF)/$(libdir):$(d_lib)/$(PF)/$(libdir):$(d_jlib)/$(PF)/$(libdir):$(d_lgcc)/lib \
 		-p$(p_jdev)
 endif
-	dh_gencontrol -p$(p_jdev) -- -v$(DEB_VERSION) $(common_substvars)
-	dh_installdeb -p$(p_jdev)
-	dh_md5sums -p$(p_jdev)
-	dh_builddeb -p$(p_jdev)
+	echo $(p_jdev) >> debian/arch_binaries
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 
@@ -727,13 +701,7 @@ $(binary_stamp)-libgcjdbg: $(install_stamp) $(binary_stamp)-java $(binary_stamp)
 	done
 #	ln -sf libgconfpeer.so.0.0.0 \
 #	  $(d_jdbg)/usr/lib/debug/$(gcj_vlibdir)/libgconfpeer.so.0
-
-	dh_compress -p$(p_jdbg)
-	dh_fixperms -p$(p_jdbg)
-	dh_gencontrol -p$(p_jdbg) -- -v$(DEB_VERSION) $(common_substvars)
-	dh_installdeb -p$(p_jdbg)
-	dh_md5sums -p$(p_jdbg)
-	dh_builddeb -p$(p_jdbg)
+	echo $(p_jdbg) >> debian/arch_binaries
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 
@@ -748,11 +716,6 @@ $(binary_stamp)-gcjjre: $(install_stamp) $(binary_stamp)-java
 
 	debian/dh_doclink -p$(p_jre) $(p_jbase)
 	DH_COMPAT=5 dh_strip -p$(p_jre) --dbg-package=$(p_jdbg)
-	dh_compress -p$(p_jre)
-	dh_fixperms -p$(p_jre)
-	dh_gencontrol -p$(p_jre) -- -v$(DEB_VERSION) $(common_substvars)
-	dh_installdeb -p$(p_jre)
-	dh_md5sums -p$(p_jre)
-	dh_builddeb -p$(p_jre)
+	echo $(p_jre) >> debian/arch_binaries
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)

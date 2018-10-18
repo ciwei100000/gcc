@@ -1,0 +1,41 @@
+# DP: Fix PR preprocessor/71183, taken from the trunk
+
+gcc/c-family/
+2016-06-13  Jakub Jelinek  <jakub@redhat.com>
+
+	PR preprocessor/71183
+	* c-ppoutput.c (init_pp_output): Set cb->get_source_date_epoch
+	to cb_get_source_date_epoch.
+
+gcc/testsuite/
+2016-06-13  Jakub Jelinek  <jakub@redhat.com>
+
+	PR preprocessor/71183
+	* gcc.dg/cpp/source_date_epoch-3.c: New test.
+ 
+Index: b/src/gcc/c-family/c-ppoutput.c
+===================================================================
+--- a/src/gcc/c-family/c-ppoutput.c
++++ b/src/gcc/c-family/c-ppoutput.c
+@@ -162,6 +162,7 @@ init_pp_output (FILE *out_stream)
+     }
+ 
+   cb->has_attribute = c_common_has_attribute;
++  cb->get_source_date_epoch = cb_get_source_date_epoch;
+ 
+   /* Initialize the print structure.  */
+   print.src_line = 1;
+Index: b/src/gcc/testsuite/gcc.dg/cpp/source_date_epoch-3.c
+===================================================================
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.dg/cpp/source_date_epoch-3.c
+@@ -0,0 +1,9 @@
++/* PR preprocessor/71183 */
++/* { dg-do preprocess } */
++/* { dg-set-compiler-env-var SOURCE_DATE_EPOCH "630333296" } */
++
++const char *date = __DATE__;
++const char *time = __TIME__;
++
++/* { dg-final { scan-file source_date_epoch-3.i "Dec 22 1989" } } */
++/* { dg-final { scan-file source_date_epoch-3.i "12:34:56" } } */

@@ -1,17 +1,17 @@
 # DP: - When running the ACATS, look for the gnat tools in their new
 # DP:   directory (build/gnattools), and for the shared libraries in
-# DP:   build/gcc/ada/rts-shared-zcx, build/libgnatvsn and build/libgnatprj.
+# DP:   build/gcc/ada/rts, build/libgnatvsn and build/libgnatprj.
 
 Index: b/src/gcc/testsuite/ada/acats/run_acats
 ===================================================================
 --- a/src/gcc/testsuite/ada/acats/run_acats
 +++ b/src/gcc/testsuite/ada/acats/run_acats
-@@ -20,52 +20,29 @@
+@@ -20,52 +20,30 @@ which () {
      return 1
  }
  
 +echo '#!/bin/sh' > host_gnatchop
-+echo exec /usr/bin/gnatchop '$*' >> host_gnatchop
++echo exec /usr/bin/gnatchop --GCC=gcc-5 '$*' >> host_gnatchop
 +
 +chmod +x host_gnatchop
 +
@@ -48,10 +48,11 @@ Index: b/src/gcc/testsuite/ada/acats/run_acats
 -   exit 1
 -fi
 -
-+GNATTOOLS=`cd $BASE/../gnattools; ${PWDCMD-pwd}`
-+LIBGNATVSN=`cd $BASE/../libgnatvsn; ${PWDCMD-pwd}`
-+LIBGNATPRJ=`cd $BASE/../libgnatprj; ${PWDCMD-pwd}`
  GCC_DRIVER="$BASE/xgcc"
++TARGET=`${GCC_DRIVER} -v  2>&1 |grep '^Target:' | cut -d' ' -f2`
++GNATTOOLS=`cd $BASE/../gnattools; ${PWDCMD-pwd}`
++LIBGNATVSN=`cd $BASE/../${TARGET}/libgnatvsn; ${PWDCMD-pwd}`
++LIBGNATPRJ=`cd $BASE/../${TARGET}/libgnatprj; ${PWDCMD-pwd}`
  GCC="$BASE/xgcc -B$BASE/"
  export PATH ADA_INCLUDE_PATH ADA_OBJECTS_PATH GCC_DRIVER GCC LD_LIBRARY_PATH
 -
@@ -78,19 +79,24 @@ Index: b/src/gcc/testsuite/ada/acats/run_all.sh
 ===================================================================
 --- a/src/gcc/testsuite/ada/acats/run_all.sh
 +++ b/src/gcc/testsuite/ada/acats/run_all.sh
-@@ -12,6 +12,11 @@
+@@ -1,4 +1,5 @@
+ #!/bin/sh
++
+ # Run ACATS with the GNU Ada compiler
+ 
+ # The following functions are to be customized if you run in cross
+@@ -12,6 +13,10 @@
  gccflags="-O2"
  gnatflags="-gnatws"
  
-+SHARED_RTS=`cd $GNATTOOLS/../gcc/ada/rts-shared-zcx; ${PWDCMD-pwd}`
-+RTS=`cd $GNATTOOLS/../gcc/ada/rts-static-zcx; ${PWDCMD-pwd}`
-+LD_LIBRARY_PATH=$SHARED_RTS:$LIBGNATVSN:$LIBGNATPRJ
++RTS=`cd $GNATTOOLS/../gcc/ada/rts; ${PWDCMD-pwd}`
++LD_LIBRARY_PATH=$RTS:$LIBGNATVSN:$LIBGNATPRJ
 +export LD_LIBRARY_PATH
 +
  target_run () {
    eval $EXPECT -f $testdir/run_test.exp $*
  }
-@@ -48,12 +53,15 @@
+@@ -63,12 +68,15 @@ if [ "$dir" = "$testdir" ]; then
  fi
  
  target_gnatchop () {
@@ -109,7 +115,7 @@ Index: b/src/gcc/testsuite/ada/acats/run_all.sh
  }
  
  target_gcc () {
-@@ -86,8 +94,8 @@
+@@ -101,8 +109,8 @@ display target gcc is $GCC
  display `$GCC -v 2>&1`
  display host=`gcc -dumpmachine`
  display target=$target
@@ -119,12 +125,21 @@ Index: b/src/gcc/testsuite/ada/acats/run_all.sh
 +$GNATTOOLS/gnatls -I- -I$RTS -v >> $dir/acats.log
  display ""
  
- display "		=== acats support ==="
+ if [ -n "$GCC_RUNTEST_PARALLELIZE_DIR" ]; then
+@@ -129,7 +137,7 @@ cp $testdir/support/*.ada $testdir/suppo
+ # Find out the size in bit of an address on the target
+ target_gnatmake $testdir/support/impbit.adb >> $dir/acats.log 2>&1
+ target_run $dir/support/impbit > $dir/support/impbit.out 2>&1
+-target_bit=`cat $dir/support/impbit.out`
++target_bit=`cat $dir/support/impbit.out | sed -e 's/ //g' -e 's/\r//g'`
+ echo target_bit="$target_bit" >> $dir/acats.log
+ 
+ # Find out a suitable asm statement
 Index: b/src/gcc/testsuite/lib/gnat.exp
 ===================================================================
 --- a/src/gcc/testsuite/lib/gnat.exp
 +++ b/src/gcc/testsuite/lib/gnat.exp
-@@ -88,18 +88,24 @@
+@@ -88,18 +88,25 @@ proc gnat_init { args } {
      global GNAT_UNDER_TEST
      global TOOL_EXECUTABLE
      global gnat_target_current
@@ -141,22 +156,23 @@ Index: b/src/gcc/testsuite/lib/gnat.exp
 -	    set GNAT_UNDER_TEST "[local_find_gnatmake]"
 -	}
 -    }
-+    set GNAT_UNDER_TEST "$rootme/../gnattools/gnatmake -I$rootme/ada/rts-shared-zcx --GCC=$rootme/xgcc --GNATBIND=$rootme/../gnattools/gnatbind --GNATLINK=$rootme/../gnattools/gnatlink -cargs -B$rootme -largs --GCC=$rootme/xgcc -B$rootme -margs"
-+    append ld_library_path ":$rootme/ada/rts-shared-zcx"
-+    append ld_library_path ":$rootme/../libgnatvsn"
-+    append ld_library_path ":$rootme/../libgnatprj"
++    set target [target_info name]
++    set GNAT_UNDER_TEST "$rootme/../gnattools/gnatmake -I$rootme/ada/rts --GCC=$rootme/xgcc --GNATBIND=$rootme/../gnattools/gnatbind --GNATLINK=$rootme/../gnattools/gnatlink -cargs -B$rootme -largs --GCC=$rootme/xgcc -B$rootme -margs"
++    append ld_library_path ":$rootme/ada/rts"
++    append ld_library_path ":$rootme/../$target/libgnatvsn"
++    append ld_library_path ":$rootme/../$target/libgnatprj"
 +    set_ld_library_path_env_vars
 +
 +    # gnatlink looks for system.ads itself and has no --RTS option, so
 +    # specify via environment
-+    verbose -log "ADA_INCLUDE_PATH=$rootme/ada/rts-shared-zcx"
-+    verbose -log "ADA_OBJECTS_PATH=$rootme/ada/rts-shared-zcx"
-+    setenv ADA_INCLUDE_PATH "$rootme/ada/rts-shared-zcx"
-+    setenv ADA_OBJECTS_PATH "$rootme/ada/rts-shared-zcx"
++    verbose -log "ADA_INCLUDE_PATH=$rootme/ada/rts"
++    verbose -log "ADA_OBJECTS_PATH=$rootme/ada/rts"
++    setenv ADA_INCLUDE_PATH "$rootme/ada/rts"
++    setenv ADA_OBJECTS_PATH "$rootme/ada/rts"
  
      if ![info exists tmpdir] then {
  	set tmpdir /tmp
-@@ -121,31 +127,6 @@
+@@ -121,31 +128,6 @@ proc gnat_target_compile { source dest t
  	return [gcc_target_compile $source $dest $type $options]
      }
  

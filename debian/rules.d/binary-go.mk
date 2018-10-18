@@ -14,13 +14,15 @@ ifeq ($(with_libx32go),yes)
   $(lib_binaries) += libx32go
 endif
 
-arch_binaries  := $(arch_binaries) gccgo
-ifneq (,$(filter yes, $(biarch64) $(biarch32) $(biarchn32) $(biarchx32)))
-  arch_binaries  := $(arch_binaries) gccgo-multi
-endif
-ifneq ($(DEB_CROSS),yes)
-  ifneq ($(GFDL_INVARIANT_FREE),yes)
-    indep_binaries := $(indep_binaries) go-doc
+ifneq ($(DEB_STAGE),rtlibs)
+  arch_binaries  := $(arch_binaries) gccgo
+  ifneq (,$(filter yes, $(biarch64) $(biarch32) $(biarchn32) $(biarchx32)))
+    arch_binaries  := $(arch_binaries) gccgo-multi
+  endif
+  ifneq ($(DEB_CROSS),yes)
+    ifneq ($(GFDL_INVARIANT_FREE),yes)
+      indep_binaries := $(indep_binaries) go-doc
+    endif
   endif
 endif
 
@@ -45,6 +47,13 @@ files_go = \
 	$(PF)/bin/$(cmd_prefix)gccgo$(pkg_ver) \
 	$(gcc_lexec_dir)/go1
 
+ifneq (,$(filter $(build_type), build-native cross-build-native))
+  files_go += \
+	$(PF)/bin/{go,gofmt}$(pkg_ver) \
+	$(gcc_lexec_dir)/cgo \
+	$(PF)/share/man/man1/{go,gofmt}$(pkg_ver).1
+endif
+
 ifneq ($(GFDL_INVARIANT_FREE),yes)
   files_go += \
 	$(PF)/share/man/man1/$(cmd_prefix)gccgo$(pkg_ver).1
@@ -67,6 +76,11 @@ ifeq ($(with_standalone_go),yes)
 	$(header_files) \
 	$(shell test -e $(d)/$(gcc_lib_dir)/SYSCALLS.c.X \
 		&& echo $(gcc_lib_dir)/SYSCALLS.c.X)
+
+  ifeq ($(with_cc1),yes)
+    files_go += \
+	$(gcc_lib_dir)/plugin/libcc1plugin.so{,.0,.0.0.0}
+  endif
 
   ifneq ($(GFDL_INVARIANT_FREE),yes)
     files_go += \
@@ -96,15 +110,18 @@ define __do_gccgo
 	rm -rf $(d_l) $(d_d)
 	dh_installdirs -p$(p_l) $(usr_lib$(2))
 	$(dh_compat2) dh_movefiles -p$(p_l) \
-		$(usr_lib$(2))/libgo.so.* $(usr_lib$(2))/go
+		$(usr_lib$(2))/libgo.so.*
 
-	debian/dh_doclink -p$(p_l) $(p_base)
-	debian/dh_doclink -p$(p_d) $(p_base)
+	debian/dh_doclink -p$(p_l) $(p_lbase)
+	debian/dh_doclink -p$(p_d) $(p_lbase)
 
-	dh_strip -p$(p_l) --dbg-package=$(p_d)
-	dh_compress -p$(p_l) -p$(p_d)
-	dh_fixperms -p$(p_l) -p$(p_d)
-	$(cross_makeshlibs) dh_makeshlibs -p$(p_l)
+	mkdir -p debian/$(p_l)/usr/share/lintian/overrides
+	echo '$(p_l) binary: unstripped-binary-or-object' \
+	  >> debian/$(p_l)/usr/share/lintian/overrides/$(p_l)
+
+	: # don't strip: https://gcc.gnu.org/ml/gcc-patches/2015-02/msg01722.html
+	: # dh_strip -p$(p_l) --dbg-package=$(p_d)
+	$(cross_makeshlibs) dh_makeshlibs $(ldconfig_arg) -p$(p_l)
 	$(call cross_mangle_shlibs,$(p_l))
 	$(ignshld)DIRNAME=$(subst n,,$(2)) $(cross_shlibdeps) dh_shlibdeps -p$(p_l) \
 		$(call shlibdirs_to_search, \
@@ -113,12 +130,7 @@ define __do_gccgo
 		,$(2)) \
 		$(if $(filter yes, $(with_common_libs)),,-- -Ldebian/shlibs.common$(2))
 	$(call cross_mangle_substvars,$(p_l))
-	$(cross_gencontrol) dh_gencontrol -p$(p_l) -p$(p_d) \
-		-- -v$(DEB_VERSION) $(common_substvars)
-	$(call cross_mangle_control,$(p_l))
-	dh_installdeb -p$(p_l) -p$(p_d)
-	dh_md5sums -p$(p_l) -p$(p_d)
-	dh_builddeb -p$(p_l) -p$(p_d)
+	echo $(p_l) $(p_d) >> debian/$(lib_binaries)
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 endef
@@ -127,6 +139,7 @@ do_gccgo = $(call __do_gccgo,lib$(1)go$(GO_SONAME),$(1))
 
 define install_gccgo_lib
 	mv $(d)/$(usr_lib$(3))/$(1).a debian/$(4)/$(gcc_lib_dir$(3))/
+	mv $(d)/$(usr_lib$(3))/$(1)libbegin.a debian/$(4)/$(gcc_lib_dir$(3))/
 	rm -f $(d)/$(usr_lib$(3))/$(1)*.{la,so}
 	dh_link -p$(4) \
 	  /$(usr_lib$(3))/$(1).so.$(2) /$(gcc_lib_dir$(3))/$(1).so
@@ -152,9 +165,12 @@ define __do_gccgo_libgcc
 endef
 
 define do_go_dev
-	dh_installdirs -p$(2) $(gcc_lib_dir$(1))
+	dh_installdirs -p$(2) $(gcc_lib_dir$(1)) $(usr_lib$(1))
 	$(dh_compat2) dh_movefiles -p$(2) \
-		$(gcc_lib_dir$(1))/libgobegin.a
+		$(gcc_lib_dir$(1))/{libgobegin,libnetgo}.a \
+		$(usr_lib$(1))/go
+	$(if $(filter yes, $(with_standalone_go)), \
+	  $(call install_gccgo_lib,libgomp,$(GOMP_SONAME),$(1),$(2)))
 	$(call install_gccgo_lib,libgo,$(GO_SONAME),$(1),$(2))
 	$(call __do_gccgo_libgcc,$(1),$(2),$(gcc_lib_dir$(1)),$(d)/$(usr_lib$(1)))
 endef
@@ -183,22 +199,22 @@ $(binary_stamp)-gccgo: $(install_stamp)
 	rm -rf $(d_go)
 	dh_installdirs -p$(p_go) $(dirs_go)
 
-	mv $(d)/$(usr_lib)/libgobegin.a \
+	mv $(d)/$(usr_lib)/{libgobegin,libnetgo}.a \
 		$(d)/$(gcc_lib_dir)/
 	if [ -f $(d)/$(usr_lib64)/libgobegin.a ]; then \
-	    mv $(d)/$(usr_lib64)/libgobegin.a \
+	    mv $(d)/$(usr_lib64)/{libgobegin,libnetgo}.a \
 		$(d)/$(gcc_lib_dir)/64/; \
 	fi
 	if [ -f $(d)/$(usr_lib32)/libgobegin.a ]; then \
-	    mv $(d)/$(usr_lib32)/libgobegin.a \
+	    mv $(d)/$(usr_lib32)/{libgobegin,libnetgo}.a \
 		$(d)/$(gcc_lib_dir)/32/; \
 	fi
 	if [ -f $(d)/$(usr_libn32)/libgobegin.a ]; then \
-	    mv $(d)/$(usr_libn32)/libgobegin.a \
+	    mv $(d)/$(usr_libn32)/{libgobegin,libnetgo}.a \
 		$(d)/$(gcc_lib_dir)/n32/; \
 	fi
 	if [ -f $(d)/$(usr_libx32)/libgobegin.a ]; then \
-	    mv $(d)/$(usr_libx32)/libgobegin.a \
+	    mv $(d)/$(usr_libx32)/{libgobegin,libnetgo}.a \
 		$(d)/$(gcc_lib_dir)/x32/; \
 	fi
 
@@ -208,7 +224,7 @@ $(binary_stamp)-gccgo: $(install_stamp)
 
 ifneq (,$(findstring gccgo,$(PKGSOURCE)))
 	rm -rf $(d_go)/$(gcc_lib_dir)/include/cilk
-	rm -rf $(d_go)/$(gcc_lib_dir)/include/omp.h
+	rm -rf $(d_go)/$(gcc_lib_dir)/include/openacc.h
 endif
 
 ifneq ($(DEB_CROSS),yes)
@@ -225,22 +241,38 @@ endif
 endif
 
 ifeq ($(with_standalone_go),yes)
-ifneq ($(DEB_CROSS),yes)
+  ifneq ($(DEB_CROSS),yes)
 	for i in gcc gcov gcc-ar gcc-nm gcc-ranlib; do \
 	  ln -sf $$i$(pkg_ver) \
 	    $(d_go)/$(PF)/bin/$(DEB_TARGET_GNU_TYPE)-$$i$(pkg_ver); \
 	  ln -sf $$i$(pkg_ver) \
 	    $(d_go)/$(PF)/bin/$(TARGET_ALIAS)-$$i$(pkg_ver); \
 	done
-ifneq ($(GFDL_INVARIANT_FREE),yes)
+    ifneq ($(GFDL_INVARIANT_FREE),yes)
 	for i in gcc gcov gcc-ar gcc-nm gcc-ranlib; do \
 	  ln -sf gcc$(pkg_ver).1 \
 	    $(d_go)/$(PF)/share/man/man1/$(DEB_TARGET_GNU_TYPE)-$$i$(pkg_ver).1; \
 	  ln -sf $$i$(pkg_ver).1 \
 	    $(d_go)/$(PF)/share/man/man1/$(TARGET_ALIAS)-$$i$(pkg_ver).1; \
 	done
+    endif
+  endif
+  ifeq ($(with_gomp),yes)
+	mv $(d)/$(usr_lib)/libgomp*.spec $(d_go)/$(gcc_lib_dir)/
+  endif
+  ifeq ($(with_cc1),yes)
+	rm -f $(d)/$(usr_lib)/libcc1.so
+	dh_link -p$(p_go) \
+		/$(usr_lib)/libcc1.so.$(CC1_SONAME) /$(gcc_lib_dir)/libcc1.so
+  endif
 endif
-endif
+
+	mkdir -p $(d_go)/usr/share/lintian/overrides
+	echo '$(p_go) binary: hardening-no-pie' \
+	  > $(d_go)/usr/share/lintian/overrides/$(p_go)
+ifeq ($(GFDL_INVARIANT_FREE),yes)
+	echo '$(p_go) binary: binary-without-manpage' \
+	  >> $(d_go)/usr/share/lintian/overrides/$(p_go)
 endif
 
 	debian/dh_doclink -p$(p_go) $(p_xbase)
@@ -249,14 +281,10 @@ endif
 #		$(d_go)/$(docdir)/$(p_base)/go/changelog
 	debian/dh_rmemptydirs -p$(p_go)
 
-	dh_strip -p$(p_go)
-	dh_compress -p$(p_go)
-	dh_fixperms -p$(p_go)
+	dh_strip -v -p$(p_go) -X/cgo -X/go$(pkg_ver) -X/gofmt$(pkg_ver) \
+	  $(if $(unstripped_exe),-X/go1)
 	dh_shlibdeps -p$(p_go)
-	dh_gencontrol -p$(p_go) -- -v$(DEB_VERSION) $(common_substvars)
-	dh_installdeb -p$(p_go)
-	dh_md5sums -p$(p_go)
-	dh_builddeb -p$(p_go)
+	echo $(p_go) >> debian/arch_binaries
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 
@@ -275,13 +303,8 @@ $(binary_stamp)-gccgo-multi: $(install_stamp)
 	debian/dh_doclink -p$(p_go_m) $(p_xbase)
 	debian/dh_rmemptydirs -p$(p_go_m)
 	dh_strip -p$(p_go_m)
-	dh_compress -p$(p_go_m)
-	dh_fixperms -p$(p_go_m)
 	dh_shlibdeps -p$(p_go_m)
-	dh_gencontrol -p$(p_go_m) -- -v$(DEB_VERSION) $(common_substvars)
-	dh_installdeb -p$(p_go_m)
-	dh_md5sums -p$(p_go_m)
-	dh_builddeb -p$(p_go_m)
+	echo $(p_go_m) >> debian/arch_binaries
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 
@@ -302,12 +325,6 @@ $(binary_stamp)-go-doc: $(build_html_stamp) $(install_stamp)
 	dh_installdocs -p$(p_god)
 	rm -f $(d_god)/$(docdir)/$(p_xbase)/copyright
 	cp -p html/gccgo.html $(d_god)/$(docdir)/$(p_xbase)/go/
-
-	dh_compress -p$(p_god)
-	dh_fixperms -p$(p_god)
-	dh_installdeb -p$(p_god)
-	dh_gencontrol -p$(p_god) -- -v$(DEB_VERSION) $(common_substvars)
-	dh_md5sums -p$(p_god)
-	dh_builddeb -p$(p_god)
+	echo $(p_god) >> debian/indep_binaries
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)

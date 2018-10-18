@@ -163,7 +163,8 @@ ifeq ($(with_check),yes)
 		$(d_snap)/$(docdir)/$(p_snap)/test-summaries/
   endif
 	if which xz 2>&1 >/dev/null; then \
-		xz -7v $(d_snap)/$(docdir)/$(p_snap)/test-summaries/*; \
+	  echo -n $(d_snap)/$(docdir)/$(p_snap)/test-summaries/* \
+	    | xargs -d ' ' -L 1 -P $(USE_CPUS)	xz -7v; \
 	fi
 else
 	dh_installdocs -p$(p_snap)
@@ -179,9 +180,11 @@ endif
 		$(d_snap)/$(docdir)/$(p_snap)/
 	dh_installchangelogs -p$(p_snap)
 ifeq ($(DEB_TARGET_ARCH),hppa)
-	dh_strip -p$(p_snap) -Xdebug -X.o -X.a
+	dh_strip -p$(p_snap) -Xdebug -X.o -X.a -X/cgo -Xbin/go -Xbin/gofmt \
+	  $(if $(unstripped_exe),$(foreach i,cc1 cc1obj cc1objplus cc1plus cc1d f951 go1 jc1 lto1, -X/$(i)))
 else
-	dh_strip -p$(p_snap) -Xdebug
+	dh_strip -p$(p_snap) -Xdebug -X/cgo -Xbin/go -Xbin/gofmt \
+	  $(if $(unstripped_exe),$(foreach i,cc1 cc1obj cc1objplus cc1plus cc1d f951 go1 jc1 lto1, -X/$(i)))
 endif
 	dh_compress -p$(p_snap) -X README.Bugs -X.log.xz -X.sum.xz
 	-find $(d_snap) -type d ! -perm 755 -exec chmod 755 {} \;

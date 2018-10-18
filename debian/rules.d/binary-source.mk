@@ -7,7 +7,7 @@ else
 endif
 d_source= debian/$(p_source)
 
-$(binary_stamp)-gcc-source:
+$(binary_stamp)-gcc-source: $(install_stamp)
 	dh_testdir
 	dh_testroot
 
@@ -15,7 +15,6 @@ $(binary_stamp)-gcc-source:
 	dh_installchangelogs -p$(p_source)
 
 	dh_install -p$(p_source) $(gcc_tarball) usr/src/gcc$(pkg_ver)
-#	dh_install -p$(p_source) $(gcj_tarball) usr/src/gcc$(pkg_ver)
 ifneq (,$(gdc_tarball))
 	dh_install -p$(p_source) $(gdc_tarball) usr/src/gcc$(pkg_ver)
 endif
@@ -29,6 +28,7 @@ endif
 		-path './debian/tmp*' -prune -o \
 		-path './debian/files' -prune -o \
 		-path './debian/rules.d/*' -prune -o \
+		-path './debian/rules.parameters' -prune -o \
 		-path './debian/soname-cache' -prune -o \
 		-path './debian/*substvars*' -prune -o \
 		-path './debian/gcc-snapshot*' -prune -o \
@@ -39,18 +39,14 @@ endif
 	# FIXME: Remove generated files
 	find $(d_source)/usr/src/gcc$(pkg_ver) -name '*.debhelper.log' -o -name .svn | xargs rm -rf
 
+	touch $(d_source)/usr/src/gcc$(pkg_ver)/debian/rules.parameters
+
 	dh_link -p$(p_source) \
 		/usr/src/gcc$(pkg_ver)/debian/patches /usr/src/gcc$(pkg_ver)/patches
 
 	mkdir -p $(d_source)/usr/share/lintian/overrides
 	cp -p debian/$(p_source).overrides \
 		$(d_source)/usr/share/lintian/overrides/$(p_source)
-
-	dh_fixperms -p$(p_source)
-	dh_compress -p$(p_source)
-	dh_gencontrol -p$(p_source) -- -v$(DEB_VERSION) $(common_substvars)
-	dh_installdeb -p$(p_source)
-	dh_md5sums -p$(p_source)
-	dh_builddeb -p$(p_source)
+	echo $(p_source) >> debian/indep_binaries
 
 	touch $@

@@ -1,18 +1,24 @@
-ifneq (,$(filter yes, $(biarch64) $(biarch32) $(biarchn32) $(biarchx32) $(biarchhf) $(biarchsf)))
-  arch_binaries  := $(arch_binaries) gcc-multi
-endif
-ifeq ($(with_plugins),yes)
-  arch_binaries  := $(arch_binaries) gcc-plugindev
-endif
-
-arch_binaries  := $(arch_binaries) gcc
-
-ifneq ($(DEB_CROSS),yes)
-  ifneq ($(GFDL_INVARIANT_FREE),yes)
-    indep_binaries := $(indep_binaries) gcc-doc
+ifneq ($(DEB_STAGE),rtlibs)
+  ifneq (,$(filter yes, $(biarch64) $(biarch32) $(biarchn32) $(biarchx32) $(biarchhf) $(biarchsf)))
+    arch_binaries  := $(arch_binaries) gcc-multi
   endif
-  ifeq ($(with_nls),yes)
-    indep_binaries := $(indep_binaries) gcc-locales
+  ifeq ($(with_plugins),yes)
+    arch_binaries  := $(arch_binaries) gcc-plugindev
+  endif
+
+  arch_binaries  := $(arch_binaries) gcc
+
+  ifneq ($(DEB_CROSS),yes)
+    ifneq ($(GFDL_INVARIANT_FREE),yes)
+      indep_binaries := $(indep_binaries) gcc-doc
+    endif
+    ifeq ($(with_nls),yes)
+      indep_binaries := $(indep_binaries) gcc-locales
+    endif
+  endif
+
+  ifeq ($(build_type),build-native)
+    arch_binaries  := $(arch_binaries) testresults
   endif
 endif
 
@@ -21,7 +27,7 @@ endif
 # but it becomes difficult to name all these files ...
 
 dirs_gcc = \
-	$(docdir)/$(p_xbase)/{gcc,libssp,gomp,itm,quadmath,sanitizer,cilkrts} \
+	$(docdir)/$(p_xbase)/{gcc,libssp,gomp,itm,quadmath,sanitizer,cilkrts,mpx} \
 	$(PF)/bin \
 	$(gcc_lexec_dir) \
 	$(gcc_lib_dir)/{include,include-fixed} \
@@ -29,12 +35,17 @@ dirs_gcc = \
 
 # XXX: what about triarch mapping?
 files_gcc = \
-	$(PF)/bin/$(cmd_prefix){gcc,gcov}$(pkg_ver) \
+	$(PF)/bin/$(cmd_prefix){gcc,gcov,gcov-tool,gcov-dump}$(pkg_ver) \
 	$(PF)/bin/$(cmd_prefix)gcc-{ar,ranlib,nm}$(pkg_ver) \
 	$(PF)/share/man/man1/$(cmd_prefix)gcc-{ar,nm,ranlib}$(pkg_ver).1 \
 	$(gcc_lexec_dir)/{collect2,lto1,lto-wrapper} \
 	$(shell test -e $(d)/$(gcc_lib_dir)/SYSCALLS.c.X \
 		&& echo $(gcc_lib_dir)/SYSCALLS.c.X)
+
+ifeq ($(with_cc1),yes)
+    files_gcc += \
+	$(gcc_lib_dir)/plugin/libcc1plugin.so{,.0,.0.0.0}
+endif
 
 ifeq ($(DEB_STAGE),stage1)
     files_gcc += \
@@ -53,8 +64,7 @@ ifneq ($(GFDL_INVARIANT_FREE),yes)
 endif
 
 usr_doc_files = debian/README.Bugs \
-	$(shell test -f $(srcdir)/FAQ && echo $(srcdir)/FAQ) \
-	$(shell test -f test-summary && echo test-summary)
+	$(shell test -f $(srcdir)/FAQ && echo $(srcdir)/FAQ)
 
 p_loc	= gcc$(pkg_ver)-locales
 d_loc	= debian/$(p_loc)
@@ -64,6 +74,9 @@ d_gcc_m	= debian/$(p_gcc_m)
 
 p_pld	= gcc$(pkg_ver)-plugin-dev$(cross_bin_arch)
 d_pld	= debian/$(p_pld)
+
+p_tst	= gcc$(pkg_ver)-test-results
+d_tst	= debian/$(p_tst)
 
 # ----------------------------------------------------------------------
 $(binary_stamp)-gcc: $(install_dependencies)
@@ -99,22 +112,32 @@ ifeq ($(with_qmath),yes)
 		$(d_gcc)/$(docdir)/$(p_xbase)/quadmath/changelog
 endif
 ifeq ($(with_asan),yes)
-  ifneq ($(empty_sanitizer_packages),yes)
 	mv $(d)/$(usr_lib)/libsanitizer*.spec $(d_gcc)/$(gcc_lib_dir)/
 	cp -p $(srcdir)/libsanitizer/ChangeLog \
 		$(d_gcc)/$(docdir)/$(p_xbase)/sanitizer/changelog
-  endif
 endif
 ifeq ($(with_cilkrts),yes)
 	mv $(d)/$(usr_lib)/libcilkrts.spec $(d_gcc)/$(gcc_lib_dir)/
 	cp -p $(srcdir)/libcilkrts/ChangeLog \
 		$(d_gcc)/$(docdir)/$(p_xbase)/cilkrts/changelog
 endif
+ifeq ($(with_mpx),yes)
+	mv $(d)/$(usr_lib)/libmpx.spec $(d_gcc)/$(gcc_lib_dir)/
+	cp -p $(srcdir)/libmpx/ChangeLog \
+		$(d_gcc)/$(docdir)/$(p_xbase)/mpx/changelog
+endif
+ifeq ($(with_cc1),yes)
+	rm -f $(d)/$(usr_lib)/libcc1.so
+	rm -f $(d)/$(PF)/lib/$(DEB_HOST_MULTIARCH)/libcc1.so
+	dh_link -p$(p_gcc) \
+	  /$(PF)/lib/$(DEB_HOST_MULTIARCH)/libcc1.so.$(CC1_SONAME) \
+	  /$(gcc_lib_dir)/libcc1.so
+endif
 
 	$(dh_compat2) dh_movefiles -p$(p_gcc) $(files_gcc)
 
 ifneq ($(DEB_CROSS),yes)
-	for i in gcc gcov gcc-ar gcc-nm gcc-ranlib; do \
+	for i in gcc gcov gcov-dump gcov-tool gcc-ar gcc-nm gcc-ranlib; do \
 	  ln -sf $$i$(pkg_ver) \
 	    $(d_gcc)/$(PF)/bin/$(DEB_TARGET_GNU_TYPE)-$$i$(pkg_ver); \
 	  ln -sf $$i$(pkg_ver) \
@@ -133,12 +156,10 @@ endif
 #	dh_installdebconf
 	debian/dh_doclink -p$(p_gcc) $(p_xbase)
 	cp -p $(usr_doc_files) $(d_gcc)/$(docdir)/$(p_xbase)/.
-	if [ -f testsuite-comparision ]; then \
-	  cp -p testsuite-comparision $(d_gcc)/$(docdir)/$(p_xbase)/. ; \
-	fi
 	cp -p debian/README.ssp $(d_gcc)/$(docdir)/$(p_xbase)/
 	cp -p debian/NEWS.gcc $(d_gcc)/$(docdir)/$(p_xbase)/NEWS
 	cp -p debian/NEWS.html $(d_gcc)/$(docdir)/$(p_xbase)/NEWS.html
+	cp -p debian/gcc.css $(d_gcc)/$(docdir)/$(p_xbase)/gcc.css
 	cp -p $(srcdir)/ChangeLog $(d_gcc)/$(docdir)/$(p_xbase)/changelog
 	cp -p $(srcdir)/gcc/ChangeLog \
 		$(d_gcc)/$(docdir)/$(p_xbase)/gcc/changelog
@@ -154,23 +175,22 @@ endif
 	else \
 	  true; \
 	fi
+
+	mkdir -p $(d_gcc)/usr/share/lintian/overrides
+	echo '$(p_gcc) binary: hardening-no-pie' \
+	  > $(d_gcc)/usr/share/lintian/overrides/$(p_gcc)
+ifeq ($(GFDL_INVARIANT_FREE),yes)
+	echo '$(p_gcc) binary: binary-without-manpage' \
+	  >> $(d_gcc)/usr/share/lintian/overrides/$(p_gcc)
+endif
+
 	debian/dh_rmemptydirs -p$(p_gcc)
-	dh_strip -p$(p_gcc)
-	dh_compress -p$(p_gcc) -X README.Bugs
-	dh_fixperms -p$(p_gcc)
+	dh_strip -p$(p_gcc) \
+	  # save some disk space $(if $(unstripped_exe),-X/lto1)
 	dh_shlibdeps -p$(p_gcc)
-	dh_gencontrol -p$(p_gcc) -- -v$(DEB_VERSION) $(common_substvars)
-	dh_installdeb -p$(p_gcc)
-	dh_md5sums -p$(p_gcc)
-	dh_builddeb -p$(p_gcc)
+	echo $(p_gcc) >> debian/arch_binaries
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
-
-	: # remove empty directories, when all components are in place
-	-find $(d) -type d -empty -delete
-
-	@echo "Listing installed files not included in any package:"
-	-find $(d) ! -type d
 
 # ----------------------------------------------------------------------
 
@@ -186,13 +206,8 @@ $(binary_stamp)-gcc-multi: $(install_dependencies)
 	debian/dh_rmemptydirs -p$(p_gcc_m)
 
 	dh_strip -p$(p_gcc_m)
-	dh_compress -p$(p_gcc_m)
 	dh_shlibdeps -p$(p_gcc_m)
-	dh_fixperms -p$(p_gcc_m)
-	dh_installdeb -p$(p_gcc_m)
-	dh_gencontrol -p$(p_gcc_m) -- -v$(DEB_VERSION) $(common_substvars)
-	dh_md5sums -p$(p_gcc_m)
-	dh_builddeb -p$(p_gcc_m)
+	echo $(p_gcc_m) >> debian/arch_binaries
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 
@@ -205,27 +220,32 @@ $(binary_stamp)-gcc-plugindev: $(install_dependencies)
 	rm -rf $(d_pld)
 	dh_installdirs -p$(p_pld) \
 		$(docdir) \
-		$(gcc_lib_dir)/plugin/include/config/arm
-	$(dh_compat2) dh_movefiles -p$(p_pld) \
 		$(gcc_lib_dir)/plugin
+	$(dh_compat2) dh_movefiles -p$(p_pld) \
+		$(gcc_lib_dir)/plugin/include \
+		$(gcc_lib_dir)/plugin/gtype.state \
+		$(gcc_lexec_dir)/plugin/gengtype
 
-	: # FIXME: see #645018, this only works for the native build :-/
-	if [ $(DEB_BUILD_ARCH) = $(DEB_HOST_ARCH) ] && [ $(DEB_HOST_ARCH) = $(DEB_TARGET_ARCH) ]; then \
-	  cp $(builddir)/gcc/build/gengtype $(d_pld)/$(gcc_lib_dir)/; \
-	  cp $(builddir)/gcc/gtype.state $(d_pld)/$(gcc_lib_dir)/; \
-	fi
+# files missing in upstream installation
+ifeq ($(DEB_TARGET_ARCH),m68k)
+	cp -p $(srcdir)/gcc/config/m68k/m68k-{devices,microarchs}.def \
+		$(d_pld)/$(gcc_lib_dir)/plugin/include/config/m68k/.
+endif
+ifeq ($(DEB_TARGET_ARCH),arm64)
+  ifeq ($(with_linaro_branch),yes)
+	cp -p $(srcdir)/gcc/config/aarch64/aarch64-arches.def \
+		$(d_pld)/$(gcc_lib_dir)/plugin/include/config/aarch64/.
+  endif
+endif
 
 	debian/dh_doclink -p$(p_pld) $(p_xbase)
 	debian/dh_rmemptydirs -p$(p_pld)
-
 	dh_strip -p$(p_pld)
-	dh_compress -p$(p_pld)
 	dh_shlibdeps -p$(p_pld)
-	dh_fixperms -p$(p_pld)
-	dh_installdeb -p$(p_pld)
-	dh_gencontrol -p$(p_pld) -- -v$(DEB_VERSION) $(common_substvars)
-	dh_md5sums -p$(p_pld)
-	dh_builddeb -p$(p_pld)
+	mkdir -p $(d_pld)/usr/share/lintian/overrides
+	echo '$(p_pld) binary: hardening-no-pie' \
+	  > $(d_pld)/usr/share/lintian/overrides/$(p_pld)
+	echo $(p_pld) >> debian/arch_binaries
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 
@@ -244,16 +264,71 @@ $(binary_stamp)-gcc-locales: $(install_dependencies)
 
 	debian/dh_doclink -p$(p_loc) $(p_xbase)
 	debian/dh_rmemptydirs -p$(p_loc)
-
-	dh_compress -p$(p_loc)
-	dh_fixperms -p$(p_loc)
-	dh_installdeb -p$(p_loc)
-	dh_gencontrol -p$(p_loc) -- -v$(DEB_VERSION) $(common_substvars)
-	dh_md5sums -p$(p_loc)
-	dh_builddeb -p$(p_loc)
+	echo $(p_loc) >> debian/indep_binaries
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 
+
+# ----------------------------------------------------------------------
+
+$(binary_stamp)-testresults: $(install_dependencies)
+	dh_testdir
+	dh_testroot
+	mv $(install_stamp) $(install_stamp)-tmp
+
+	rm -rf $(d_tst)
+	dh_installdirs -p$(p_tst) $(docdir)
+
+	debian/dh_doclink -p$(p_tst) $(p_xbase)
+
+	mkdir -p $(d_tst)/$(docdir)/$(p_xbase)/test
+	echo "TEST COMPARE BEGIN"
+ifeq ($(with_check),yes)
+	for i in test-summary testsuite-comparision; do \
+	  [ -f $$i ] || continue; \
+	  cp -p $$i $(d_tst)/$(docdir)/$(p_xbase)/$$i; \
+	done
+# more than one libgo.sum, avoid it
+	cp -p $$(find $(builddir)/gcc/testsuite -maxdepth 2 \( -name '*.sum' -o -name '*.log' \)) \
+	      $$(find $(buildlibdir)/*/testsuite -maxdepth 1 \( -name '*.sum'  -o -name '*.log' \) ! -name 'libgo.*') \
+		$(d_tst)/$(docdir)/$(p_xbase)/test/
+  ifeq ($(with_go),yes)
+	cp -p $(buildlibdir)/libgo/libgo.sum \
+		$(d_tst)/$(docdir)/$(p_xbase)/test/
+  endif
+  ifeq (0,1)
+	cd $(builddir); \
+	for i in $(CURDIR)/$(d_tst)/$(docdir)/$(p_xbase)/test/*.sum; do \
+	  b=$$(basename $$i); \
+	  if [ -f /usr/share/doc/$(p_xbase)/test/$$b.gz ]; then \
+	    zcat /usr/share/doc/$(p_xbase)/test/$$b.gz > /tmp/$$b; \
+	    if sh $(srcdir)/contrib/test_summary /tmp/$$b $$i; then \
+	      echo "$$b: OK"; \
+	    else \
+	      echo "$$b: FAILURES"; \
+	    fi; \
+	    rm -f /tmp/$$b; \
+	  else \
+	    echo "Test summary for $$b is not available"; \
+	  fi; \
+	done
+  endif
+	if which xz 2>&1 >/dev/null; then \
+	  echo -n $(d_tst)/$(docdir)/$(p_xbase)/test/* \
+	    | xargs -d ' ' -L 1 -P $(USE_CPUS)	xz -7v; \
+	fi
+else
+	echo "Nothing to compare (testsuite not run)"
+	echo 'Test run disabled, reason: $(with_check)' \
+	  > $(d_tst)/$(docdir)/$(p_xbase)/test-run-disabled
+endif
+	echo "TEST COMPARE END"
+
+	debian/dh_rmemptydirs -p$(p_tst)
+
+	echo $(p_tst) >> debian/arch_binaries
+
+	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 
 # ----------------------------------------------------------------------
 $(binary_stamp)-gcc-doc: $(build_html_stamp) $(install_stamp)
@@ -296,12 +371,6 @@ ifeq ($(with_qmath),yes)
 endif
 	rm -f $(d_doc)/$(docdir)/$(p_xbase)/copyright
 	debian/dh_rmemptydirs -p$(p_doc)
-
-	dh_compress -p$(p_doc)
-	dh_fixperms -p$(p_doc)
-	dh_installdeb -p$(p_doc)
-	dh_gencontrol -p$(p_doc) -- -v$(DEB_VERSION) $(common_substvars)
-	dh_md5sums -p$(p_doc)
-	dh_builddeb -p$(p_doc)
+	echo $(p_doc) >> debian/indep_binaries
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)

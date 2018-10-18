@@ -1,4 +1,9 @@
 arch_binaries += base
+ifeq ($(with_gcclbase),yes)
+  ifneq ($(with_base_only),yes)
+    indep_binaries += lbase
+  endif
+endif
 
 # ---------------------------------------------------------------------------
 # gcc-base
@@ -18,19 +23,21 @@ $(binary_stamp)-base: $(install_dependencies)
 	dh_installdirs -p$(p_base) \
 		$(gcc_lexec_dir)
 
+ifneq ($(DEB_STAGE),rtlibs)
 	ln -sf $(BASE_VERSION) \
 	    $(d_base)/$(subst /$(BASE_VERSION),/$(GCC_VERSION),$(gcc_lib_dir))
 	for link in $(additional_links); do \
 	  ln -sf $(BASE_VERSION) \
 	    $(d_base)/$$(dirname $(gcc_lib_dir))/$$link; \
         done
-ifneq ($(gcc_lib_dir),$(gcc_lexec_dir))
+  ifneq ($(gcc_lib_dir),$(gcc_lexec_dir))
 	ln -sf $(BASE_VERSION) \
 	    $(d_base)/$(subst /$(BASE_VERSION),/$(GCC_VERSION),$(gcc_lexec_dir))
 	for link in $(additional_links); do \
 	  ln -sf $(BASE_VERSION) \
 	    $(d_base)/$$(dirname $(gcc_lexec_dir))/$$link; \
         done
+  endif
 endif
 
 ifeq ($(with_base_only),yes)
@@ -42,8 +49,27 @@ endif
 	dh_installchangelogs -p$(p_base)
 	dh_compress -p$(p_base)
 	dh_fixperms -p$(p_base)
+ifeq ($(DEB_STAGE)-$(DEB_CROSS),rtlibs-yes)
+	$(cross_gencontrol) dh_gencontrol -p$(p_base) -- -v$(DEB_VERSION) $(common_substvars)
+else
 	dh_gencontrol -p$(p_base) -- -v$(DEB_VERSION) $(common_substvars)
+endif
 	dh_installdeb -p$(p_base)
 	dh_md5sums -p$(p_base)
 	dh_builddeb -p$(p_base)
+	touch $@
+
+$(binary_stamp)-lbase: $(install_dependencies)
+	dh_testdir
+	dh_testroot
+	rm -rf $(d_lbase)
+	dh_installdocs -p$(p_lbase) debian/README.Debian
+	rm -f debian/$(p_lbase)/usr/share/doc/$(p_lbase)/README.Debian
+	dh_installchangelogs -p$(p_lbase)
+	dh_compress -p$(p_lbase)
+	dh_fixperms -p$(p_lbase)
+	dh_gencontrol -p$(p_lbase) -- -v$(DEB_VERSION) $(common_substvars)
+	dh_installdeb -p$(p_lbase)
+	dh_md5sums -p$(p_lbase)
+	dh_builddeb -p$(p_lbase)
 	touch $@

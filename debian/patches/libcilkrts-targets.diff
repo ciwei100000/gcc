@@ -4,12 +4,18 @@ Index: b/src/libcilkrts/configure.tgt
 ===================================================================
 --- a/src/libcilkrts/configure.tgt
 +++ b/src/libcilkrts/configure.tgt
-@@ -46,7 +46,7 @@
- if test x$enable_libcilkrts = x ; then
-     # Enable libcilkrts by default on hosted POSIX systems.
-     case "${target}" in
--    *-*-linux* | *-*-gnu* | *-*-k*bsd*-gnu | *-*-kopensolaris*-gnu)
-+    *-*-linux* | *-*-kopensolaris*-gnu)
-         ;;
-     *-*-netbsd* | *-*-freebsd* | *-*-openbsd* | *-*-dragonfly*)
-         ;;
+@@ -44,3 +44,14 @@ esac
+ 
+ # Disable libcilkrts on non POSIX hosted systems.
+ . ${srcdir}/../config/target-posix
++
++# Disable libcilkrts on KFreeBSD and the Hurd.
++if test x$enable_libcilkrts = x ; then
++    case "${target}" in
++    *-*-linux*)
++        ;;
++    *-*-gnu* | *-*-k*bsd*-gnu)
++        UNSUPPORTED=1
++        ;;
++    esac
++fi

@@ -18,7 +18,7 @@ Index: b/src/libgfortran/Makefile.in
 ===================================================================
 --- a/src/libgfortran/Makefile.in
 +++ b/src/libgfortran/Makefile.in
-@@ -506,12 +506,12 @@ libgfortran_la_LDFLAGS = -version-info `
+@@ -608,17 +608,17 @@ libgfortran_la_LDFLAGS = -version-info `
  
  libgfortran_la_DEPENDENCIES = $(version_dep) libgfortran.spec $(LIBQUADLIB_DEP)
  myexeclib_LTLIBRARIES = libgfortranbegin.la
@@ -33,11 +33,17 @@ Index: b/src/libgfortran/Makefile.in
  libcaf_single_la_SOURCES = caf/single.c
  libcaf_single_la_LDFLAGS = -static
  libcaf_single_la_DEPENDENCIES = caf/libcaf.h
+ libcaf_single_la_LINK = $(LINK) $(libcaf_single_la_LDFLAGS)
+-@IEEE_SUPPORT_TRUE@fincludedir = $(libdir)/gcc/$(target_alias)/$(gcc_version)$(MULTISUBDIR)/finclude
++@IEEE_SUPPORT_TRUE@fincludedir = $(libdir)/gcc-cross/$(target_alias)/$(gcc_version)$(MULTISUBDIR)/finclude
+ @IEEE_SUPPORT_TRUE@nodist_finclude_HEADERS = ieee_arithmetic.mod ieee_exceptions.mod ieee_features.mod
+ AM_CPPFLAGS = -iquote$(srcdir)/io -I$(srcdir)/$(MULTISRCTOP)../gcc \
+ 	      -I$(srcdir)/$(MULTISRCTOP)../gcc/config $(LIBQUADINCLUDE) \
 Index: b/src/libgfortran/Makefile.am
 ===================================================================
 --- a/src/libgfortran/Makefile.am
 +++ b/src/libgfortran/Makefile.am
-@@ -42,13 +42,13 @@ libgfortran_la_LDFLAGS = -version-info `
+@@ -42,20 +42,20 @@ libgfortran_la_LDFLAGS = -version-info `
  libgfortran_la_DEPENDENCIES = $(version_dep) libgfortran.spec $(LIBQUADLIB_DEP)
  
  myexeclib_LTLIBRARIES = libgfortranbegin.la
@@ -53,16 +59,24 @@ Index: b/src/libgfortran/Makefile.am
  libcaf_single_la_SOURCES = caf/single.c
  libcaf_single_la_LDFLAGS = -static
  libcaf_single_la_DEPENDENCIES = caf/libcaf.h
+ libcaf_single_la_LINK = $(LINK) $(libcaf_single_la_LDFLAGS)
+ 
+ if IEEE_SUPPORT
+-fincludedir = $(libdir)/gcc/$(target_alias)/$(gcc_version)$(MULTISUBDIR)/finclude
++fincludedir = $(libdir)/gcc-cross/$(target_alias)/$(gcc_version)$(MULTISUBDIR)/finclude
+ nodist_finclude_HEADERS = ieee_arithmetic.mod ieee_exceptions.mod ieee_features.mod
+ endif
+ 
 Index: b/src/lto-plugin/Makefile.in
 ===================================================================
 --- a/src/lto-plugin/Makefile.in
 +++ b/src/lto-plugin/Makefile.in
-@@ -228,7 +228,7 @@ top_srcdir = @top_srcdir@
+@@ -229,7 +229,7 @@ with_libiberty = @with_libiberty@
  ACLOCAL_AMFLAGS = -I .. -I ../config
  AUTOMAKE_OPTIONS = no-dependencies
  gcc_version := $(shell cat $(top_srcdir)/../gcc/BASE-VER)
--libexecsubdir := $(libexecdir)/gcc/$(target_noncanonical)/$(gcc_version)
-+libexecsubdir := $(libexecdir)/gcc-cross/$(target_noncanonical)/$(gcc_version)
+-libexecsubdir := $(libexecdir)/gcc/$(real_target_noncanonical)/$(gcc_version)$(accel_dir_suffix)
++libexecsubdir := $(libexecdir)/gcc-cross/$(real_target_noncanonical)/$(gcc_version)$(accel_dir_suffix)
  AM_CPPFLAGS = -I$(top_srcdir)/../include $(DEFS)
  AM_CFLAGS = @ac_lto_plugin_warn_cflags@
  AM_LDFLAGS = @ac_lto_plugin_ldflags@
@@ -74,8 +88,8 @@ Index: b/src/lto-plugin/Makefile.am
  
  gcc_version := $(shell cat $(top_srcdir)/../gcc/BASE-VER)
  target_noncanonical := @target_noncanonical@
--libexecsubdir := $(libexecdir)/gcc/$(target_noncanonical)/$(gcc_version)
-+libexecsubdir := $(libexecdir)/gcc-cross/$(target_noncanonical)/$(gcc_version)
+-libexecsubdir := $(libexecdir)/gcc/$(real_target_noncanonical)/$(gcc_version)$(accel_dir_suffix)
++libexecsubdir := $(libexecdir)/gcc-cross/$(real_target_noncanonical)/$(gcc_version)$(accel_dir_suffix)
  
  AM_CPPFLAGS = -I$(top_srcdir)/../include $(DEFS)
  AM_CFLAGS = @ac_lto_plugin_warn_cflags@
@@ -113,7 +127,7 @@ Index: b/src/gcc/gcc.c
 ===================================================================
 --- a/src/gcc/gcc.c
 +++ b/src/gcc/gcc.c
-@@ -3789,7 +3789,7 @@ process_command (unsigned int decoded_op
+@@ -3970,7 +3970,7 @@ process_command (unsigned int decoded_op
  	 GCC_EXEC_PREFIX is typically a directory name with a trailing
  	 / (which is ignored by make_relative_prefix), so append a
  	 program name.  */
@@ -122,7 +136,7 @@ Index: b/src/gcc/gcc.c
        gcc_libexec_prefix = get_relative_prefix (tmp_prefix,
  						standard_exec_prefix,
  						standard_libexec_prefix);
-@@ -3815,15 +3815,15 @@ process_command (unsigned int decoded_op
+@@ -3996,15 +3996,15 @@ process_command (unsigned int decoded_op
      {
        int len = strlen (gcc_exec_prefix);
  
@@ -146,19 +160,19 @@ Index: b/src/gcc/Makefile.in
 ===================================================================
 --- a/src/gcc/Makefile.in
 +++ b/src/gcc/Makefile.in
-@@ -586,9 +586,9 @@ libexecdir = @libexecdir@
+@@ -581,9 +581,9 @@ libexecdir = @libexecdir@
  # --------
  
  # Directory in which the compiler finds libraries etc.
--libsubdir = $(libdir)/gcc/$(target_noncanonical)/$(version)
-+libsubdir = $(libdir)/gcc-cross/$(target_noncanonical)/$(version)
+-libsubdir = $(libdir)/gcc/$(real_target_noncanonical)/$(version)$(accel_dir_suffix)
++libsubdir = $(libdir)/gcc-cross/$(real_target_noncanonical)/$(version)$(accel_dir_suffix)
  # Directory in which the compiler finds executables
--libexecsubdir = $(libexecdir)/gcc/$(target_noncanonical)/$(version)
-+libexecsubdir = $(libexecdir)/gcc-cross/$(target_noncanonical)/$(version)
+-libexecsubdir = $(libexecdir)/gcc/$(real_target_noncanonical)/$(version)$(accel_dir_suffix)
++libexecsubdir = $(libexecdir)/gcc-cross/$(real_target_noncanonical)/$(version)$(accel_dir_suffix)
  # Directory in which all plugin resources are installed
  plugin_resourcesdir = $(libsubdir)/plugin
   # Directory in which plugin headers are installed
-@@ -1942,8 +1942,8 @@ prefix.o: $(FULLVER)
+@@ -1971,8 +1971,8 @@ prefix.o: $(FULLVER)
  
  DRIVER_DEFINES = \
    -DSTANDARD_STARTFILE_PREFIX=\"$(unlibsubdir)/\" \
@@ -168,8 +182,8 @@ Index: b/src/gcc/Makefile.in
 +  -DSTANDARD_LIBEXEC_PREFIX=\"$(libexecdir)/gcc-cross/\" \
    -DDEFAULT_TARGET_VERSION=\"$(BASEVER_c)\" \
    -DDEFAULT_TARGET_FULL_VERSION=\"$(FULLVER_c)\" \
-   -DDEFAULT_TARGET_MACHINE=\"$(target_noncanonical)\" \
-@@ -2529,7 +2529,7 @@ PREPROCESSOR_DEFINES = \
+   -DDEFAULT_REAL_TARGET_MACHINE=\"$(real_target_noncanonical)\" \
+@@ -2594,7 +2594,7 @@ PREPROCESSOR_DEFINES = \
    -DTOOL_INCLUDE_DIR=\"$(gcc_tooldir)/include\" \
    -DNATIVE_SYSTEM_HEADER_DIR=\"$(NATIVE_SYSTEM_HEADER_DIR)\" \
    -DPREFIX=\"$(prefix)/\" \
@@ -260,10 +274,10 @@ Index: b/src/libgomp/Makefile.in
 ===================================================================
 --- a/src/libgomp/Makefile.in
 +++ b/src/libgomp/Makefile.in
-@@ -291,8 +291,8 @@ ACLOCAL_AMFLAGS = -I .. -I ../config
- SUBDIRS = testsuite
- gcc_version := $(shell cat $(top_srcdir)/../gcc/BASE-VER)
- search_path = $(addprefix $(top_srcdir)/config/, $(config_path)) $(top_srcdir)
+@@ -368,8 +368,8 @@ gcc_version := $(shell cat $(top_srcdir)
+ search_path = $(addprefix $(top_srcdir)/config/, $(config_path)) $(top_srcdir) \
+ 	      $(top_srcdir)/../include
+ 
 -fincludedir = $(libdir)/gcc/$(target_alias)/$(gcc_version)/finclude
 -libsubincludedir = $(libdir)/gcc/$(target_alias)/$(gcc_version)/include
 +fincludedir = $(libdir)/gcc-cross/$(target_alias)/$(gcc_version)/finclude
@@ -275,9 +289,9 @@ Index: b/src/libgomp/Makefile.am
 ===================================================================
 --- a/src/libgomp/Makefile.am
 +++ b/src/libgomp/Makefile.am
-@@ -9,8 +9,8 @@ gcc_version := $(shell cat $(top_srcdir)
- config_path = @config_path@
- search_path = $(addprefix $(top_srcdir)/config/, $(config_path)) $(top_srcdir)
+@@ -10,8 +10,8 @@ config_path = @config_path@
+ search_path = $(addprefix $(top_srcdir)/config/, $(config_path)) $(top_srcdir) \
+ 	      $(top_srcdir)/../include
  
 -fincludedir = $(libdir)/gcc/$(target_alias)/$(gcc_version)/finclude
 -libsubincludedir = $(libdir)/gcc/$(target_alias)/$(gcc_version)/include
@@ -290,12 +304,12 @@ Index: b/src/libgcc/Makefile.in
 ===================================================================
 --- a/src/libgcc/Makefile.in
 +++ b/src/libgcc/Makefile.in
-@@ -182,7 +182,7 @@ STRIP = @STRIP@
+@@ -185,7 +185,7 @@ STRIP = @STRIP@
  STRIP_FOR_TARGET = $(STRIP)
  
  # Directory in which the compiler finds libraries etc.
--libsubdir = $(libdir)/gcc/$(host_noncanonical)/$(version)
-+libsubdir = $(libdir)/gcc-cross/$(host_noncanonical)/$(version)
+-libsubdir = $(libdir)/gcc/$(host_noncanonical)/$(version)@accel_dir_suffix@
++libsubdir = $(libdir)/gcc-cross/$(host_noncanonical)/$(version)@accel_dir_suffix@
  # Used to install the shared libgcc.
  slibdir = @slibdir@
  # Maybe used for DLLs on Windows targets.
@@ -334,7 +348,7 @@ Index: b/src/libffi/include/Makefile.am
 ===================================================================
 --- a/src/libffi/include/Makefile.am
 +++ b/src/libffi/include/Makefile.am
-@@ -7,6 +7,6 @@ EXTRA_DIST=ffi.h.in ffi_common.h
+@@ -8,6 +8,6 @@ EXTRA_DIST=ffi.h.in
  
  # Where generated headers like ffitarget.h get installed.
  gcc_version   := $(shell cat $(top_srcdir)/../gcc/BASE-VER)
@@ -346,7 +360,7 @@ Index: b/src/libffi/include/Makefile.in
 ===================================================================
 --- a/src/libffi/include/Makefile.in
 +++ b/src/libffi/include/Makefile.in
-@@ -216,7 +216,7 @@ EXTRA_DIST = ffi.h.in ffi_common.h
+@@ -223,7 +223,7 @@ EXTRA_DIST = ffi.h.in
  
  # Where generated headers like ffitarget.h get installed.
  gcc_version := $(shell cat $(top_srcdir)/../gcc/BASE-VER)
@@ -355,6 +369,32 @@ Index: b/src/libffi/include/Makefile.in
  toollibffi_HEADERS = ffi.h ffitarget.h
  all: all-am
  
+Index: b/src/libcc1/Makefile.am
+===================================================================
+--- a/src/libcc1/Makefile.am
++++ b/src/libcc1/Makefile.am
+@@ -35,7 +35,7 @@ libiberty = $(if $(wildcard $(libiberty_
+ 	    $(Wc)$(libiberty_normal)))
+ libiberty_dep = $(patsubst $(Wc)%,%,$(libiberty))
+ 
+-plugindir = $(libdir)/gcc/$(target_noncanonical)/$(gcc_version)/plugin
++plugindir = $(libdir)/gcc-cross/$(target_noncanonical)/$(gcc_version)/plugin
+ cc1libdir = $(libdir)/$(libsuffix)
+ 
+ if ENABLE_PLUGIN
+Index: b/src/libcc1/Makefile.in
+===================================================================
+--- a/src/libcc1/Makefile.in
++++ b/src/libcc1/Makefile.in
+@@ -262,7 +262,7 @@ libiberty = $(if $(wildcard $(libiberty_
+ 	    $(Wc)$(libiberty_normal)))
+ 
+ libiberty_dep = $(patsubst $(Wc)%,%,$(libiberty))
+-plugindir = $(libdir)/gcc/$(target_noncanonical)/$(gcc_version)/plugin
++plugindir = $(libdir)/gcc-cross/$(target_noncanonical)/$(gcc_version)/plugin
+ cc1libdir = $(libdir)/$(libsuffix)
+ @ENABLE_PLUGIN_TRUE@plugin_LTLIBRARIES = libcc1plugin.la
+ @ENABLE_PLUGIN_TRUE@cc1lib_LTLIBRARIES = libcc1.la
 Index: b/src/libsanitizer/Makefile.am
 ===================================================================
 --- a/src/libsanitizer/Makefile.am
@@ -371,7 +411,7 @@ Index: b/src/libsanitizer/Makefile.in
 ===================================================================
 --- a/src/libsanitizer/Makefile.in
 +++ b/src/libsanitizer/Makefile.in
-@@ -254,7 +254,7 @@ top_build_prefix = @top_build_prefix@
+@@ -255,7 +255,7 @@ top_build_prefix = @top_build_prefix@
  top_builddir = @top_builddir@
  top_srcdir = @top_srcdir@
  ACLOCAL_AMFLAGS = -I .. -I ../config

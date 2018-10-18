@@ -1,7 +1,9 @@
-ifneq (,$(filter yes, $(biarch64) $(biarch32) $(biarchn32) $(biarchx32) $(biarchhf) $(biarchsf)))
-  arch_binaries  := $(arch_binaries) objc-multi
+ifneq ($(DEB_STAGE),rtlibs)
+  ifneq (,$(filter yes, $(biarch64) $(biarch32) $(biarchn32) $(biarchx32) $(biarchhf) $(biarchsf)))
+    arch_binaries  := $(arch_binaries) objc-multi
+  endif
+  arch_binaries := $(arch_binaries) objc
 endif
-arch_binaries := $(arch_binaries) objc
 
 p_objc	= gobjc$(pkg_ver)$(cross_bin_arch)
 d_objc	= debian/$(p_objc)
@@ -31,19 +33,22 @@ $(binary_stamp)-objc: $(install_stamp)
 	cp -p $(srcdir)/libobjc/ChangeLog \
 		$(d_objc)/$(docdir)/$(p_xbase)/ObjC/changelog.libobjc
 
+	mkdir -p $(d_objc)/usr/share/lintian/overrides
+	echo '$(p_objc) binary: hardening-no-pie' \
+	  > $(d_objc)/usr/share/lintian/overrides/$(p_objc)
+ifeq ($(GFDL_INVARIANT_FREE),yes)
+	echo '$(p_objc) binary: binary-without-manpage' \
+	  >> $(d_objc)/usr/share/lintian/overrides/$(p_objc)
+endif
+
 	debian/dh_doclink -p$(p_objc) $(p_xbase)
 
 	debian/dh_rmemptydirs -p$(p_objc)
 
-	dh_strip -p$(p_objc)
-	dh_compress -p$(p_objc)
-
-	dh_fixperms -p$(p_objc)
+	dh_strip -p$(p_objc) \
+	  $(if $(unstripped_exe),-X/cc1obj)
 	dh_shlibdeps -p$(p_objc)
-	dh_gencontrol -p$(p_objc) -- -v$(DEB_VERSION) $(common_substvars)
-	dh_installdeb -p$(p_objc)
-	dh_md5sums -p$(p_objc)
-	dh_builddeb -p$(p_objc)
+	echo $(p_objc) >> debian/arch_binaries
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 
@@ -58,13 +63,7 @@ $(binary_stamp)-objc-multi: $(install_stamp)
 	debian/dh_doclink -p$(p_objc_m) $(p_xbase)
 
 	dh_strip -p$(p_objc_m)
-	dh_compress -p$(p_objc_m)
-
-	dh_fixperms -p$(p_objc_m)
 	dh_shlibdeps -p$(p_objc_m)
-	dh_gencontrol -p$(p_objc_m) -- -v$(DEB_VERSION) $(common_substvars)
-	dh_installdeb -p$(p_objc_m)
-	dh_md5sums -p$(p_objc_m)
-	dh_builddeb -p$(p_objc_m)
+	echo $(p_objc_m) >> debian/arch_binaries
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)

@@ -24,14 +24,7 @@ control: $(control_dependencies)
 	-mkdir -p $(stampdir)
 	$(MAKE) -f debian/rules.conf $@
 
-configure: $(configure_dependencies)
-$(configure_stamp): control $(unpack_stamp) $(patch_stamp)
-	$(MAKE) -f debian/rules2 $@
-$(configure_dummy_stamp): control
-	$(MAKE) -f debian/rules2 $@
-$(configure_hppa64_stamp): $(build_stamp)
-	$(MAKE) -f debian/rules2 $@
-$(configure_neon_stamp): $(build_stamp)
+configure: control $(unpack_stamp) $(patch_stamp)
 	$(MAKE) -f debian/rules2 $@
 
 pre-build:
@@ -43,19 +36,12 @@ pre-build:
 #endif
 #endif
 
-build: pre-build $(build_dependencies)
-build-arch: build
-build-indep: build
-$(build_stamp): $(unpack_stamp) $(patch_stamp) $(configure_stamp)
-	$(MAKE) -f debian/rules2 $@
-$(build_dummy_stamp): $(configure_dummy_stamp)
-	$(MAKE) -f debian/rules2 $@
-$(build_javadoc_stamp): $(build_stamp)
-	$(MAKE) -f debian/rules2 $@
-$(build_hppa64_stamp): $(configure_hppa64_stamp)
-	$(MAKE) -f debian/rules2 $@
-$(build_neon_stamp): $(configure_neon_stamp)
-	$(MAKE) -f debian/rules2 $@
+build: pre-build control
+	$(MAKE) $(NJOBS) -f debian/rules2 $@
+build-arch: pre-build control
+	$(MAKE) $(NJOBS) -f debian/rules2 $@
+build-indep: pre-build control
+	$(MAKE) $(NJOBS) -f debian/rules2 $@
 
 check: $(check_stamp)
 $(check_stamp): $(build_stamp)
@@ -68,29 +54,19 @@ clean:
 	-$(MAKE) -f debian/rules2 $@
 	rm -rf $(srcdir)* $(builddir)* debian/tmp* html
 	rm -f bootstrap-* first-move-stamp
-	rm -f autotools_files
 	rm -f debian/*.tmp
 	rm -f debian/soname-cache
 	find debian -name '.#*' | xargs -r rm -f
 	rm -f $(series_file)*
 	dh_clean
 
-install: $(install_dependencies)
-$(install_stamp): $(build_stamp)
-	$(MAKE) -f debian/rules2 $@
-$(install_snap_stamp): $(build_stamp)
-	$(MAKE) -f debian/rules2 $@
-$(install_dummy_stamp): $(build_dummy_stamp)
-	$(MAKE) -f debian/rules2 $@
-$(install_hppa64_stamp): $(build_hppa64_stamp)
-	$(MAKE) -f debian/rules2 $@
-$(install_neon_stamp): $(build_neon_stamp)
+install:
 	$(MAKE) -f debian/rules2 $@
 
 html-docs doxygen-docs update-doxygen-docs update-ada-files xxx:
 	$(MAKE) -f debian/rules2 $@
 
-binary-indep binary-arch binary: install
+binary-indep binary-arch binary:
 	$(MAKE) -f debian/rules2 $@
 
 source diff:

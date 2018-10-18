@@ -1,57 +1,61 @@
 ifeq ($(with_libgcc),yes)
   $(lib_binaries)	+= libgcc
 endif
-ifeq ($(with_cdev),yes)
-  $(lib_binaries)  += libgcc-dev
-endif
-
 ifeq ($(with_lib64gcc),yes)
   $(lib_binaries)	+= lib64gcc
-endif
-ifeq ($(with_lib64gccdev),yes)
-  $(lib_binaries)  += lib64gcc-dev
 endif
 ifeq ($(with_lib32gcc),yes)
   $(lib_binaries)	+= lib32gcc
 endif
-ifeq ($(with_lib32gccdev),yes)
-  $(lib_binaries)  += lib32gcc-dev
-endif
 ifeq ($(with_libn32gcc),yes)
   $(lib_binaries)	+= libn32gcc
-endif
-ifeq ($(with_libn32gccdev),yes)
-  $(lib_binaries)  += libn32gcc-dev
 endif
 ifeq ($(with_libx32gcc),yes)
   $(lib_binaries)	+= libx32gcc
 endif
-ifeq ($(with_libx32gccdev),yes)
-  $(lib_binaries)  += libx32gcc-dev
-endif
 ifeq ($(with_libhfgcc),yes)
   $(lib_binaries)	+= libhfgcc
-endif
-ifeq ($(with_libhfgccdev),yes)
-  $(lib_binaries)  += libhfgcc-dev
 endif
 ifeq ($(with_libsfgcc),yes)
   $(lib_binaries)	+= libsfgcc
 endif
-ifeq ($(with_libsfgccdev),yes)
-  $(lib_binaries)  += libsfgcc-dev
+
+ifneq ($(DEB_STAGE),rtlibs)
+  ifeq ($(with_cdev),yes)
+    $(lib_binaries)  += libgcc-dev
+  endif
+  ifeq ($(with_lib64gccdev),yes)
+    $(lib_binaries)  += lib64gcc-dev
+  endif
+  ifeq ($(with_lib32gccdev),yes)
+    $(lib_binaries)  += lib32gcc-dev
+  endif
+  ifeq ($(with_libn32gccdev),yes)
+    $(lib_binaries)  += libn32gcc-dev
+  endif
+  ifeq ($(with_libx32gccdev),yes)
+    $(lib_binaries)  += libx32gcc-dev
+  endif
+  ifeq ($(with_libhfgccdev),yes)
+    $(lib_binaries)  += libhfgcc-dev
+  endif
+  ifeq ($(with_libsfgccdev),yes)
+    $(lib_binaries)  += libsfgcc-dev
+  endif
 endif
 
 header_files = \
 	$(gcc_lib_dir)/include/std*.h \
 	$(shell for h in \
-		    README features.h arm_neon.h loongson.h \
+		    README features.h arm_fp16.h arm_neon.h loongson.h \
 		    {cpuid,decfloat,float,iso646,limits,mm3dnow,mm_malloc}.h \
 		    {ppu_intrinsics,paired,spu2vmx,vec_types,si2vmx}.h \
 		    {,a,b,e,i,n,p,s,t,w,x}mmintrin.h mmintrin-common.h \
 		    {abm,adx,avx,avx2,bmi,bmi2,f16c,fma,fma4,fxsr,ia32,}intrin.h \
 		    {lwp,lzcnt,popcnt,prfchw,rdseed,rtm,tbm,x86,xop,xsave{,opt},xtest,}intrin.h \
-		    {htm,htmxl,sha}intrin.h avx512{er,cd,f,pf}intrin.h \
+		    {htm,htmxl,mwaitx,sha,vec}intrin.h \
+		    avx512{bw,er,cd,dq,f,ifma,ifmavl,pf,vlbw,vbmi,vldq,vbmivl,vl}intrin.h \
+		    {clflushopt,clwb,pcommit,xsavec,xsaves}intrin.h \
 		    {arm_acle,unwind-arm-common,s390intrin}.h \
 		    {cross-stdarg,syslimits,unwind,varargs}.h; \
 		do \
@@ -74,7 +78,7 @@ ifeq ($(with_libssp),yes)
     header_files += $(gcc_lib_dir)/include/ssp
 endif
 ifeq ($(with_gomp),yes)
-    header_files += $(gcc_lib_dir)/include/omp.h
+    header_files += $(gcc_lib_dir)/include/{omp,openacc}.h
 endif
 ifeq ($(with_qmath),yes)
     header_files += $(gcc_lib_dir)/include/quadmath{,_weak}.h
@@ -154,19 +158,13 @@ define __do_gcc_devels
 
 	$(call __do_gcc_devels2,$(1),$(2),$(3),$(4))
 
-	debian/dh_doclink -p$(2) $(p_base)
+	debian/dh_doclink -p$(2) $(p_lbase)
 	debian/dh_rmemptydirs -p$(2)
 
 	dh_strip -p$(2)
-	dh_compress -p$(2)
 	$(cross_shlibdeps) dh_shlibdeps -p$(2)
 	$(call cross_mangle_substvars,$(2))
-	dh_fixperms -p$(2)
-	dh_installdeb -p$(2)
-	$(cross_gencontrol) dh_gencontrol -p$(2) -- -v$(DEB_VERSION) $(common_substvars)
-	$(call cross_mangle_control,$(2))
-	dh_md5sums -p$(2)
-	dh_builddeb -p$(2)
+	echo $(2) >> debian/$(lib_binaries)
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 endef
@@ -235,7 +233,6 @@ define __do_gcc_devels2
 	$(if $(filter yes, $(with_atomic)),
 		$(call install_gcc_lib,libatomic,$(ATOMIC_SONAME),$(1),$(2))
 	)
-	$(if $(empty_sanitizer_packages),,
 	$(if $(filter yes, $(with_asan)),
 		$(call install_gcc_lib,libasan,$(ASAN_SONAME),$(1),$(2))
 		mv $(4)/libasan_preinit.o debian/$(2)/$(3)/;
@@ -249,12 +246,17 @@ define __do_gcc_devels2
 	$(if $(filter yes, $(with_ubsan)),
 		$(call install_gcc_lib,libubsan,$(UBSAN_SONAME),$(1),$(2))
 	)
-	)
 	$(if $(filter yes, $(with_vtv)),
 		$(call install_gcc_lib,libvtv,$(VTV_SONAME),$(1),$(2))
 	)
 	$(if $(filter yes, $(with_cilkrts)),
 		$(call install_gcc_lib,libcilkrts,$(CILKRTS_SONAME),$(1),$(2))
+	)
+	$(if $(filter yes, $(with_mpx)),
+	    $(if $(filter x32, $(1)),,
+		$(call install_gcc_lib,libmpxwrappers,$(MPX_SONAME),$(1),$(2))
+		$(call install_gcc_lib,libmpx,$(MPX_SONAME),$(1),$(2))
+	    )
 	)
 	$(if $(filter yes, $(with_qmath)),
 		$(call install_gcc_lib,libquadmath,$(QUADMATH_SONAME),$(1),$(2))
@@ -283,8 +285,8 @@ define __do_libgcc
 			$(d_l)/$(libgcc_dir$(2))/.
 	)
 
-	debian/dh_doclink -p$(p_l) $(if $(3),$(3),$(p_base))
-	debian/dh_doclink -p$(p_d) $(if $(3),$(3),$(p_base))
+	debian/dh_doclink -p$(p_l) $(if $(3),$(3),$(p_lbase))
+	debian/dh_doclink -p$(p_d) $(if $(3),$(3),$(p_lbase))
 	debian/dh_rmemptydirs -p$(p_l)
 	debian/dh_rmemptydirs -p$(p_d)
 	dh_strip -p$(p_l) --dbg-package=$(p_d)
@@ -293,13 +295,16 @@ define __do_libgcc
 	# just to include the symbols for dpkg versions older than 1.15.3 which
 	# didn't allow bypassing the symbol blacklist
 	$(if $(filter yes,$(with_shared_libgcc)),
-		$(cross_makeshlibs) dh_makeshlibs -p$(p_l) -p$(p_d) \
+		$(if $(findstring gcc1,$(p_l)), \
+		ln -sf libgcc.symbols debian/$(p_l).symbols \
+		)
+		$(cross_makeshlibs) dh_makeshlibs $(ldconfig_arg) -p$(p_l) -p$(p_d) \
 			-- -v$(DEB_LIBGCC_VERSION)
 		$(call cross_mangle_shlibs,$(p_l))
 		$(if $(filter arm-linux-gnueabi%,$(DEB_TARGET_GNU_TYPE)),
 			if head -1 $(d_l)/DEBIAN/symbols 2>/dev/null | grep -q '^lib'; then \
 			  grep -q '^ __aeabi' $(d_l)/DEBIAN/symbols \
-			    || cat debian/libgcc1.symbols.aeabi \
+			    || cat debian/libgcc.symbols.aeabi \
 				>> $(d_l)/DEBIAN/symbols; \
 			fi
 		)
@@ -317,15 +322,7 @@ define __do_libgcc
 			> $(d_l)/usr/share/lintian/overrides/$(p_l)
 	)
 
-	dh_compress -p$(p_l) -p$(p_d)
-	dh_fixperms -p$(p_l) -p$(p_d)
-	$(cross_gencontrol) dh_gencontrol -p$(p_l) -p$(p_d) \
-		-- -v$(DEB_LIBGCC_VERSION) $(common_substvars)
-	$(call cross_mangle_control,$(p_l))
-
-	dh_installdeb -p$(p_l) -p$(p_d)
-	dh_md5sums -p$(p_l) -p$(p_d)
-	dh_builddeb -p$(p_l) -p$(p_d)
+	echo $(p_l) $(p_d) >> debian/$(lib_binaries).epoch
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 endef

@@ -1,66 +1,68 @@
-
 ifeq ($(with_libcxx),yes)
   $(lib_binaries)  += libstdcxx
 endif
 ifeq ($(with_lib64cxx),yes)
   $(lib_binaries)  += lib64stdcxx
 endif
-ifeq ($(with_lib64cxxdev),yes)
-  $(lib_binaries)	+= lib64stdcxx-dev
-endif
-ifeq ($(with_lib64cxxdbg),yes)
-  $(lib_binaries)	+= lib64stdcxxdbg
-endif
 ifeq ($(with_lib32cxx),yes)
   $(lib_binaries)	+= lib32stdcxx
-endif
-ifeq ($(with_lib32cxxdev),yes)
-  $(lib_binaries)	+= lib32stdcxx-dev
-endif
-ifeq ($(with_lib32cxxdbg),yes)
-  $(lib_binaries)	+= lib32stdcxxdbg
 endif
 ifeq ($(with_libn32cxx),yes)
   $(lib_binaries)	+= libn32stdcxx
 endif
-ifeq ($(with_libn32cxxdev),yes)
-  $(lib_binaries)	+= libn32stdcxx-dev
-endif
-ifeq ($(with_libn32cxxdbg),yes)
-  $(lib_binaries)	+= libn32stdcxxdbg
-endif
 ifeq ($(with_libx32cxx),yes)
   $(lib_binaries)	+= libx32stdcxx
-endif
-ifeq ($(with_libx32cxxdev),yes)
-  $(lib_binaries)	+= libx32stdcxx-dev
-endif
-ifeq ($(with_libx32cxxdbg),yes)
-  $(lib_binaries)	+= libx32stdcxxdbg
 endif
 ifeq ($(with_libhfcxx),yes)
   $(lib_binaries)	+= libhfstdcxx
 endif
-ifeq ($(with_libhfcxxdev),yes)
-    $(lib_binaries)	+= libhfstdcxx-dev
-endif
-ifeq ($(with_libhfcxxdbg),yes)
-  $(lib_binaries)	+= libhfstdcxxdbg
-endif
 ifeq ($(with_libsfcxx),yes)
   $(lib_binaries)	+= libsfstdcxx
 endif
-ifeq ($(with_libsfcxxdev),yes)
-  $(lib_binaries)	+= libsfstdcxx-dev
-endif
-ifeq ($(with_libsfcxxdbg),yes)
-  $(lib_binaries)	+= libsfstdcxxdbg
-endif
 
-ifeq ($(with_cxxdev),yes)
-  $(lib_binaries)  += libstdcxx-dev
-  ifneq ($(DEB_CROSS),yes)
-    indep_binaries := $(indep_binaries) libstdcxx-doc
+ifneq ($(DEB_STAGE),rtlibs)
+  ifeq ($(with_lib64cxxdev),yes)
+    $(lib_binaries)	+= lib64stdcxx-dev
+  endif
+  ifeq ($(with_lib64cxxdbg),yes)
+    $(lib_binaries)	+= lib64stdcxxdbg
+  endif
+  ifeq ($(with_lib32cxxdev),yes)
+    $(lib_binaries)	+= lib32stdcxx-dev
+  endif
+  ifeq ($(with_lib32cxxdbg),yes)
+    $(lib_binaries)	+= lib32stdcxxdbg
+  endif
+  ifeq ($(with_libn32cxxdev),yes)
+    $(lib_binaries)	+= libn32stdcxx-dev
+  endif
+  ifeq ($(with_libn32cxxdbg),yes)
+    $(lib_binaries)	+= libn32stdcxxdbg
+  endif
+  ifeq ($(with_libx32cxxdev),yes)
+    $(lib_binaries)	+= libx32stdcxx-dev
+  endif
+  ifeq ($(with_libx32cxxdbg),yes)
+    $(lib_binaries)	+= libx32stdcxxdbg
+  endif
+  ifeq ($(with_libhfcxxdev),yes)
+    $(lib_binaries)	+= libhfstdcxx-dev
+  endif
+  ifeq ($(with_libhfcxxdbg),yes)
+    $(lib_binaries)	+= libhfstdcxxdbg
+  endif
+  ifeq ($(with_libsfcxxdev),yes)
+    $(lib_binaries)	+= libsfstdcxx-dev
+  endif
+  ifeq ($(with_libsfcxxdbg),yes)
+    $(lib_binaries)	+= libsfstdcxxdbg
+  endif
+
+  ifeq ($(with_cxxdev),yes)
+    $(lib_binaries)  += libstdcxx-dev
+    ifneq ($(DEB_CROSS),yes)
+      indep_binaries := $(indep_binaries) libstdcxx-doc
+    endif
   endif
 endif
 
@@ -104,12 +106,13 @@ dirs_dev = \
 	$(docdir)/$(p_base)/C++ \
 	$(usr_lib) \
 	$(gcc_lib_dir)/include \
-	$(cxx_inc_dir)
+	$(PFL)/include/c++
 
 files_dev = \
-	$(cxx_inc_dir)/ \
+	$(PFL)/include/c++/$(BASE_VERSION) \
 	$(gcc_lib_dir)/libstdc++.{a,so} \
-	$(gcc_lib_dir)/libsupc++.a
+	$(gcc_lib_dir)/libsupc++.a \
+	$(gcc_lib_dir)/libstdc++fs.a
 
 ifeq ($(with_multiarch_cxxheaders),yes)
   dirs_dev += \
@@ -125,7 +128,8 @@ dirs_dbg = \
 	$(PF)/share/gdb/auto-load/$(usr_lib)/debug \
 	$(gcc_lib_dir)
 files_dbg = \
-	$(usr_lib)/debug/libstdc++.{a,so*}
+	$(usr_lib)/debug/libstdc++.{a,so*} \
+	$(usr_lib)/debug/libstdc++fs.a
 
 dirs_pic = \
 	$(docdir) \
@@ -171,6 +175,9 @@ debian/README.libstdc++-baseline:
 	fi
 
 # ----------------------------------------------------------------------
+# FIXME: see #792204, libstdc++ symbols on sparc64, for now ignore errors
+# for the 32bit multilib build
+
 define __do_libstdcxx
 	dh_testdir
 	dh_testroot
@@ -197,17 +204,15 @@ define __do_libstdcxx
 	cp -a $(d)/$(usr_lib$(2))/libstdc++.so.*[0-9] \
 		$(d_l)/$(usr_lib$(2))/.
 
-	debian/dh_doclink -p$(p_l) $(p_base)
+	debian/dh_doclink -p$(p_l) $(p_lbase)
 	debian/dh_rmemptydirs -p$(p_l)
 
-	dh_strip -p$(p_l) --dbg-package=$(1)-$(BASE_VERSION)-dbg$(cross_lib_arch)
-	dh_compress -p$(p_l)
-	dh_fixperms -p$(p_l)
+	dh_strip -p$(p_l) $(if $(filter rtlibs,$(DEB_STAGE)),,--dbg-package=$(1)-$(BASE_VERSION)-dbg$(cross_lib_arch))
 
 	$(if $(filter $(DEB_TARGET_ARCH), armel hppa sparc64), \
-	  -$(cross_makeshlibs) dh_makeshlibs -p$(p_l) \
+	  -$(cross_makeshlibs) dh_makeshlibs $(ldconfig_arg) -p$(p_l) \
 	  @echo "FIXME: libstdc++ not feature complete (https://gcc.gnu.org/ml/gcc/2014-07/msg00000.html)", \
-	  $(cross_makeshlibs) dh_makeshlibs -p$(p_l) \
+	  $(cross_makeshlibs) dh_makeshlibs $(ldconfig_arg) -p$(p_l) \
 	)
 
 	$(call cross_mangle_shlibs,$(p_l))
@@ -215,12 +220,7 @@ define __do_libstdcxx
 		$(call shlibdirs_to_search,$(subst stdc++$(CXX_SONAME),gcc$(GCC_SONAME),$(p_l)),$(2)) \
 		$(if $(filter yes, $(with_common_libs)),,-- -Ldebian/shlibs.common$(2))
 	$(call cross_mangle_substvars,$(p_l))
-
-	$(cross_gencontrol) dh_gencontrol -p$(p_l) -- -v$(DEB_VERSION) $(common_substvars)
-	$(call cross_mangle_control,$(p_l))
-	dh_installdeb -p$(p_l)
-	dh_md5sums -p$(p_l)
-	dh_builddeb -p$(p_l)
+	echo $(p_l) >> debian/$(lib_binaries)
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 endef
@@ -247,7 +247,7 @@ define __do_libstdcxx_dbg
 		rm -f $(d_d)/$(usr_lib$(2))/libstdc++.so.*[0-9]
 	)
 
-	$(if $(filter yes,$(with_debug)),
+	$(if $(filter yes,$(with_cxx_debug)),
 		mkdir -p $(d_d)/$(usr_lib$(2))/debug;
 		mv $(d)/$(usr_lib$(2))/debug/libstdc++* $(d_d)/$(usr_lib$(2))/debug;
 		rm -f $(d_d)/$(usr_lib$(2))/debug/libstdc++_pic.a
@@ -258,17 +258,9 @@ define __do_libstdcxx_dbg
 		$(if $(filter yes, $(with_common_libs)),,-- -Ldebian/shlibs.common$(2))
 	$(call cross_mangle_substvars,$(p_d))
 
-	debian/dh_doclink -p$(p_d) $(p_base)
+	debian/dh_doclink -p$(p_d) $(p_lbase)
 	debian/dh_rmemptydirs -p$(p_d)
-
-	dh_compress -p$(p_d)
-	dh_fixperms -p$(p_d)
-	$(cross_gencontrol) dh_gencontrol -p$(p_d) -- -v$(DEB_VERSION) $(common_substvars)
-	$(call cross_mangle_control,$(p_d))
-
-	dh_installdeb -p$(p_d)
-	dh_md5sums -p$(p_d)
-	dh_builddeb -p$(p_d)
+	echo $(p_d) >> debian/$(lib_binaries)
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 endef
@@ -278,7 +270,7 @@ define __do_libstdcxx_dev
 	dh_testroot
 	mv $(install_stamp) $(install_stamp)-tmp
 
-	mv $(d)/$(usr_lib$(2))/libstdc++.a $(d)/$(usr_lib$(2))/libsupc++.a \
+	mv $(d)/$(usr_lib$(2))/libstdc++.a $(d)/$(usr_lib$(2))/libstdc++fs.a $(d)/$(usr_lib$(2))/libsupc++.a \
 		$(d)/$(gcc_lib_dir$(2))/
 
 	rm -rf $(d_l)
@@ -286,22 +278,17 @@ define __do_libstdcxx_dev
 
 	$(dh_compat2) dh_movefiles -p$(p_l) \
 		$(gcc_lib_dir$(2))/libstdc++.a \
+		$(gcc_lib_dir$(2))/libstdc++fs.a \
 		$(gcc_lib_dir$(2))/libsupc++.a \
 		$(if $(with_multiarch_cxxheaders),$(PF)/include/$(DEB_TARGET_MULTIARCH)/c++/$(BASE_VERSION)/$(2))
 	$(call install_gcc_lib,libstdc++,$(CXX_SONAME),$(2),$(p_l))
 
-	debian/dh_doclink -p$(p_l) $(p_base)
+	debian/dh_doclink -p$(p_l) $(p_lbase)
 	debian/dh_rmemptydirs -p$(p_l)
-
 	dh_strip -p$(p_l)
-	dh_compress -p$(p_l)
-	dh_fixperms -p$(p_l)
 	dh_shlibdeps -p$(p_l) \
 		$(call shlibdirs_to_search,$(subst stdc++$(CXX_SONAME),gcc$(GCC_SONAME),$(p_l)),$(2))
-	$(cross_gencontrol) dh_gencontrol -p$(p_l) -- -v$(DEB_VERSION) $(common_substvars)
-	dh_installdeb -p$(p_l)
-	dh_md5sums -p$(p_l)
-	dh_builddeb -p$(p_l)
+	echo $(p_l) >> debian/$(lib_binaries)
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 endef
@@ -388,6 +375,7 @@ $(binary_stamp)-libstdcxx-dev: $(libcxxdev_deps)
 
 	: # - correct libstdc++-v3 file locations
 	mv $(d)/$(usr_lib)/libsupc++.a $(d)/$(gcc_lib_dir)/
+	mv $(d)/$(usr_lib)/libstdc++fs.a $(d)/$(gcc_lib_dir)/
 	mv $(d)/$(usr_lib)/libstdc++.{a,so} $(d)/$(gcc_lib_dir)/
 	ln -sf ../../../$(DEB_TARGET_GNU_TYPE)/libstdc++.so.$(CXX_SONAME) \
 		$(d)/$(gcc_lib_dir)/libstdc++.so
@@ -405,23 +393,23 @@ $(binary_stamp)-libstdcxx-dev: $(libcxxdev_deps)
 
 	$(dh_compat2) dh_movefiles -p$(p_dev) $(files_dev)
 	$(dh_compat2) dh_movefiles -p$(p_pic) $(files_pic)
-ifeq ($(with_debug),yes)
+ifeq ($(with_cxx_debug),yes)
 	$(dh_compat2) dh_movefiles -p$(p_dbg) $(files_dbg)
 endif
 
 	dh_link -p$(p_dev) \
 		/$(usr_lib)/libstdc++.so.$(CXX_SONAME) \
 		/$(gcc_lib_dir)/libstdc++.so \
-		/$(cxx_inc_dir) /$(PFL)/include/c++/$(GCC_VERSION)
+		/$(PFL)/include/c++/$(BASE_VERSION) /$(PFL)/include/c++/$(GCC_VERSION)
 ifeq ($(with_multiarch_cxxheaders),yes)
 	dh_link -p$(p_dev) \
 		/$(PFL)/include/$(DEB_TARGET_MULTIARCH)/c++/$(BASE_VERSION) \
 		/$(PFL)/include/$(DEB_TARGET_MULTIARCH)/c++/$(GCC_VERSION)
 endif
 
-	debian/dh_doclink -p$(p_dev) $(p_base)
-	debian/dh_doclink -p$(p_pic) $(p_base)
-	debian/dh_doclink -p$(p_dbg) $(p_base)
+	debian/dh_doclink -p$(p_dev) $(p_lbase)
+	debian/dh_doclink -p$(p_pic) $(p_lbase)
+	debian/dh_doclink -p$(p_dbg) $(p_lbase)
 	cp -p $(srcdir)/libstdc++-v3/ChangeLog \
 		$(d_dev)/$(docdir)/$(p_base)/C++/changelog.libstdc++
 ifeq ($(with_check),yes)
@@ -461,18 +449,11 @@ ifeq ($(with_cxxdev),yes)
 	debian/dh_rmemptydirs -p$(p_dbg)
 endif
 
-	dh_compress -p$(p_dev) -p$(p_pic) -p$(p_dbg) -X.txt
-	dh_fixperms -p$(p_dev) -p$(p_pic) -p$(p_dbg)
 	$(ignshld)DIRNAME=$(subst n,,$(2)) $(cross_shlibdeps) dh_shlibdeps -p$(p_dev) -p$(p_pic) -p$(p_dbg) \
 		$(call shlibdirs_to_search,,) \
 		$(if $(filter yes, $(with_common_libs)),,-- -Ldebian/shlibs.common$(2))
 	$(call cross_mangle_substvars,$(p_dbg))
-	$(cross_gencontrol) dh_gencontrol -p$(p_dev) -p$(p_pic) -p$(p_dbg) \
-		-- -v$(DEB_VERSION) $(common_substvars)
-
-	dh_installdeb -p$(p_dev) -p$(p_pic) -p$(p_dbg)
-	dh_md5sums -p$(p_dev) -p$(p_pic) -p$(p_dbg)
-	dh_builddeb -p$(p_dev) -p$(p_pic) -p$(p_dbg)
+	echo $(p_dev) $(p_pic) $(p_dbg) >> debian/$(lib_binaries)
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 
@@ -481,7 +462,7 @@ endif
 doxygen_doc_dir = $(buildlibdir)/libstdc++-v3/doc
 
 doxygen-docs: $(build_doxygen_stamp)
-$(build_doxygen_stamp):
+$(build_doxygen_stamp): $(build_stamp)
 	$(MAKE) -C $(buildlibdir)/libstdc++-v3/doc SHELL=/bin/bash doc-html-doxygen
 	$(MAKE) -C $(buildlibdir)/libstdc++-v3/doc SHELL=/bin/bash doc-man-doxygen
 	-find $(doxygen_doc_dir)/doxygen/html -name 'struct*' -empty | xargs rm -f
@@ -541,12 +522,6 @@ $(binary_stamp)-libstdcxx-doc: $(install_stamp) doxygen-docs
 	cp -p debian/$(p_libd).overrides \
 		$(d_libd)/usr/share/lintian/overrides/$(p_libd)
 
-	dh_compress -p$(p_libd) -Xhtml/17_intro -X.txt -X.tag -X.map
-	dh_fixperms -p$(p_libd)
-	dh_gencontrol -p$(p_libd) -- -v$(DEB_VERSION) $(common_substvars)
-
-	dh_installdeb -p$(p_libd)
-	dh_md5sums -p$(p_libd)
-	dh_builddeb -p$(p_libd)
+	echo $(p_libd) >> debian/indep_binaries
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
