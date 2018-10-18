@@ -68,26 +68,27 @@ Index: b/src/gcc/config/rs6000/linux64.h
 ===================================================================
 --- a/src/gcc/config/rs6000/linux64.h
 +++ b/src/gcc/config/rs6000/linux64.h
-@@ -469,12 +469,12 @@ extern int dot_symbols;
+@@ -470,13 +470,13 @@ extern int dot_symbols;
  					   " -m elf64ppc")
  #endif
  
 -#define LINK_OS_LINUX_SPEC32 LINK_OS_LINUX_EMUL32 " %{!shared: %{!static: \
 +#define LINK_OS_LINUX_SPEC32 LINK_OS_LINUX_EMUL32 " --hash-style=gnu %{!shared: %{!static: \
-   %{rdynamic:-export-dynamic} \
-   -dynamic-linker " GNU_USER_DYNAMIC_LINKER32 "}} \
+   %{!static-pie: \
+     %{rdynamic:-export-dynamic} \
+     -dynamic-linker " GNU_USER_DYNAMIC_LINKER32 "}}} \
    %(link_os_extra_spec32)"
  
 -#define LINK_OS_LINUX_SPEC64 LINK_OS_LINUX_EMUL64 " %{!shared: %{!static: \
 +#define LINK_OS_LINUX_SPEC64 LINK_OS_LINUX_EMUL64 " --hash-style=gnu %{!shared: %{!static: \
-   %{rdynamic:-export-dynamic} \
-   -dynamic-linker " GNU_USER_DYNAMIC_LINKER64 "}} \
-   %(link_os_extra_spec64)"
+   %{!static-pie: \
+     %{rdynamic:-export-dynamic} \
+     -dynamic-linker " GNU_USER_DYNAMIC_LINKER64 "}}} \
 Index: b/src/gcc/config/rs6000/sysv4.h
 ===================================================================
 --- a/src/gcc/config/rs6000/sysv4.h
 +++ b/src/gcc/config/rs6000/sysv4.h
-@@ -810,7 +810,7 @@ ENDIAN_SELECT(" -mbig", " -mlittle", DEF
+@@ -811,7 +811,7 @@ ENDIAN_SELECT(" -mbig", " -mlittle", DEF
    CHOOSE_DYNAMIC_LINKER (GLIBC_DYNAMIC_LINKER, UCLIBC_DYNAMIC_LINKER, \
  			 MUSL_DYNAMIC_LINKER)
  
@@ -146,7 +147,7 @@ Index: b/src/gcc/config/i386/gnu-user.h
 +#define GNU_USER_TARGET_LINK_SPEC "-m %(link_emulation) --hash-style=gnu %{shared:-shared} \
    %{!shared: \
      %{!static: \
-       %{rdynamic:-export-dynamic} \
+       %{!static-pie: \
 Index: b/src/gcc/config/i386/gnu-user64.h
 ===================================================================
 --- a/src/gcc/config/i386/gnu-user64.h
@@ -175,11 +176,11 @@ Index: b/src/gcc/config/riscv/linux.h
 ===================================================================
 --- a/src/gcc/config/riscv/linux.h
 +++ b/src/gcc/config/riscv/linux.h
-@@ -48,6 +48,7 @@ along with GCC; see the file COPYING3.
- #define ICACHE_FLUSH_FUNC "__riscv_flush_icache"
+@@ -50,6 +50,7 @@ along with GCC; see the file COPYING3.
+ #define CPP_SPEC "%{pthread:-D_REENTRANT}"
  
  #define LINK_SPEC "\
 +-hash-style=gnu \
  -melf" XLEN_SPEC "lriscv \
+ %{mno-relax:--no-relax} \
  %{shared} \
-   %{!shared: \

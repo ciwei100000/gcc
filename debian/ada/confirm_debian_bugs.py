@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 
 # Helper when migrating bugs from a gnat version to another.
 
@@ -16,9 +16,9 @@ os.environ ['LC_ALL'] = 'C'
 same_gcc_base_version = True
 
 # The current version.
-new_version = "7"
+new_version = "8"
 
-for line in subprocess.check_output (("dpkg", "--status", "gnat-" + new_version)).split ("\n"):
+for line in subprocess.check_output (("dpkg", "--status", "gnat-" + new_version)).decode ().split ("\n"):
     if line.startswith ("Version: "):
         deb_version = line [len ("Version: "):]
         break
@@ -93,7 +93,7 @@ def check_produces_a_faulty_executable (bug, make, sources, regex, trigger):
     if status != 0:
         report (bug, "cannot compile the trigger anymore", stderr)
     else:
-        output = subprocess.check_output ((os.path.join (tmp_dir, trigger),), cwd=tmp_dir)
+        output = subprocess.check_output ((os.path.join (tmp_dir, trigger),), cwd=tmp_dir).decode ()
         if re.search (regex, output):
             reassign_and_remove_dir (bug, tmp_dir)
         else:
@@ -811,43 +811,6 @@ private
    type T2 is new T1 (x2) with null record;  --ERROR: nonstatic discriminant
    type T3 is new T1 (x3) with null record;  --ERROR: nonstatic discriminant
 end pak1;
-"""),))
-
-# Once the bug box disappears, check the executable.
-# check_produces_a_faulty_executable (
-check_reports_an_error_but_should_not (
-    bug = 427108,
-    make = ("gnatmake", "test1"),
-    regex = "Program_Error exp_disp.adb:7840 explicit raise",
-    sources = (
-        ("test1.adb", """-- "For the execution of a call on an inherited subprogram,
--- a call on the corresponding primitive subprogram of the
--- parent or progenitor type is performed; the normal conversion
--- of each actual parameter to the subtype of the corresponding
--- formal parameter (see 6.4.1) performs any necessary type
--- conversion as well."
-
-with Text_IO; use Text_IO;
-procedure Test1 is
-   package Pak1 is
-      type T1 is tagged null record;
-      function Eq(X, Y: T1) return Boolean renames "=";
-   end Pak1;
-
-   package Pak2 is
-      type T2 is new Pak1.T1 with record
-         F1: Integer;
-      end record;
-   end Pak2;
-
-   Z1: Pak2.T2 := (F1 => 1);
-   Z2: Pak2.T2 := (F1 => 2);
-begin
-   if Pak2.Eq(Z1, Z2) = Pak1.Eq(Pak1.T1(Z1), Pak1.T1(Z2))
-      then Put_Line("PASSED");
-      else Put_Line("FAILED");
-   end if;
-end Test1;
 """),))
 
 check_reports_an_error_but_should_not (

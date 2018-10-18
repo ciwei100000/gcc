@@ -66,17 +66,20 @@ endef
 $(foreach v, CPPFLAGS CFLAGS CXXFLAGS DFLAGS FFLAGS FCFLAGS LDFLAGS OBJCFLAGS OBJCXXFLAGS, $(if $(filter environment,$(origin $(v))),$(eval $(call unsetenv, $(v)))))
 
 CC = $(notdir $(firstword $(wildcard \
+	/usr/bin/$(DEB_HOST_GNU_TYPE)-gcc-8 \
 	/usr/bin/$(DEB_HOST_GNU_TYPE)-gcc-7 \
 	/usr/bin/$(DEB_HOST_GNU_TYPE)-gcc-6 \
 	/usr/bin/$(DEB_HOST_GNU_TYPE)-gcc-5 \
 	/usr/bin/$(DEB_HOST_GNU_TYPE)-gcc)))
 CXX = $(notdir $(firstword $(wildcard \
+	/usr/bin/$(DEB_HOST_GNU_TYPE)-g++-8 \
 	/usr/bin/$(DEB_HOST_GNU_TYPE)-g++-7 \
 	/usr/bin/$(DEB_HOST_GNU_TYPE)-g++-6 \
 	/usr/bin/$(DEB_HOST_GNU_TYPE)-g++-5 \
 	/usr/bin/$(DEB_HOST_GNU_TYPE)-g++)))
 ifeq ($(with_ada),yes)
   GNAT = $(notdir $(firstword $(wildcard \
+	/usr/bin/$(DEB_HOST_GNU_TYPE)-gnat-8 \
 	/usr/bin/$(DEB_HOST_GNU_TYPE)-gnat-7 \
 	/usr/bin/$(DEB_HOST_GNU_TYPE)-gnat-6 \
 	/usr/bin/$(DEB_HOST_GNU_TYPE)-gnat-5 \
@@ -115,11 +118,6 @@ ifneq ($(derivative),Ubuntu)
   ifneq (,$(filter $(DEB_TARGET_ARCH), arm armel mips mipsel))
     STAGE1_CFLAGS = -g -O2
   endif
-endif
-
-# work around PR 57689
-ifeq ($(DEB_TARGET_ARCH),ia64)
-  BOOT_CFLAGS	= -g -O1
 endif
 
 ifeq ($(with_ssp_default),yes)
@@ -353,6 +351,12 @@ ifeq ($(with_libphobos),yes)
   CONFARGS += --with-target-system-zlib
 endif
 
+ifeq ($(with_d),yes)
+  ifneq ($(with_libphobos),yes)
+    CONFARGS += --disable-libphobos
+  endif
+endif
+
 ifeq ($(with_objc)-$(with_objc_gc),yes-yes)
   CONFARGS += --enable-objc-gc=auto
 endif
@@ -432,6 +436,7 @@ endif
 
 ifeq ($(findstring powerpcspe,$(DEB_TARGET_ARCH)),powerpcspe)
   CONFARGS += --with-cpu=8548 --enable-e500_double
+  CONFARGS += --enable-obsolete
 endif
 
 ifneq (,$(findstring softfloat,$(DEB_TARGET_GNU_CPU)))
@@ -471,6 +476,7 @@ ifneq (,$(findstring arm, $(DEB_TARGET_GNU_CPU)))
       with_arm_fpu = vfpv3-d16
     else
       with_arm_arch = armv5t  # starting with quantal
+      CONFARGS += --with-specs='%{mfloat-abi=hard:-march=armv7-a___-mcpu=generic-armv7-a___-mfloat-abi=hard}'
     endif
   endif
   CONFARGS += --with-arch=$(with_arm_arch)
@@ -1556,7 +1562,7 @@ $(stampdir)/05-build-html-nosplit: $(build_stamp)
 	touch $@
 
 # start the script only on architectures known to have slow autobuilders ...
-logwatch_archs := alpha arm m68k mips mipsel mips64el sparc riscv64
+logwatch_archs := alpha arm m68k mips mipsel mips64el riscv64 sparc
 ifeq ($(DEB_HOST_GNU_CPU), $(findstring $(DEB_HOST_GNU_CPU),$(logwatch_archs)))
   start_logwatch = yes
 endif
@@ -1803,7 +1809,7 @@ clean: debian/control
 	  rm -f $$f2; \
 	done
 	rm -f debian/lib*gcc1.symbols
-	rm -f debian/lib*{atomic$(ATOMIC_SONAME),cilkrts$(CILKRTS_SONAME),gfortran$(FORTRAN_SONAME),gomp$(GOMP_SONAME),itm$(ITM_SONAME),mpx$(MPX_SONAME),quadmath$(QUADMATH_SONAME),hsail-rt$(HSAIL_SONAME)}.symbols
+	rm -f debian/lib*{atomic$(ATOMIC_SONAME),gfortran$(FORTRAN_SONAME),gomp$(GOMP_SONAME),itm$(ITM_SONAME),mpx$(MPX_SONAME),quadmath$(QUADMATH_SONAME),hsail-rt$(HSAIL_SONAME)}.symbols
 	find debian -maxdepth 1 -name '*-cross.symbols' -type l | xargs -r rm -f
 	rm -f debian/gcc-{XX,ar,nm,ranlib}-$(BASE_VERSION).1
 	rm -f debian/shlibs.local debian/shlibs.common* debian/substvars.local
@@ -1985,10 +1991,6 @@ ifeq ($(with_libvtv),yes)
   include debian/rules.d/binary-libvtv.mk
 endif
 
-ifeq ($(with_libcilkrts),yes)
-  include debian/rules.d/binary-libcilkrts.mk
-endif
-
 ifeq ($(with_libmpx),yes)
   include debian/rules.d/binary-libmpx.mk
 endif
@@ -2073,9 +2075,9 @@ ifeq ($(with_hppa64),yes)
 
 	ls -l $(d)/$(PF)/bin
 	if [ ! -x $(d)/$(PF)/bin/hppa64-linux-gnu-gcc ]; then \
-	  mv $(d)/$(PF)/bin/hppa64-linux-gnu-gcc-7* $(d)/$(PF)/bin/hppa64-linux-gnu-gcc; \
+	  mv $(d)/$(PF)/bin/hppa64-linux-gnu-gcc-8* $(d)/$(PF)/bin/hppa64-linux-gnu-gcc; \
 	else \
-	  rm -f $(d)/$(PF)/bin/hppa64-linux-gnu-gcc-7*; \
+	  rm -f $(d)/$(PF)/bin/hppa64-linux-gnu-gcc-8*; \
 	fi
 
 	for i in ar nm ranlib; do \
@@ -2125,9 +2127,9 @@ endif
 	done
 
 	if [ ! -x $(d)/$(PF)/bin/$(TARGET_ALIAS)-gcc ]; then \
-	  mv $(d)/$(PF)/bin/$(TARGET_ALIAS)-gcc-7* $(d)/$(PF)/bin/$(TARGET_ALIAS)-gcc; \
+	  mv $(d)/$(PF)/bin/$(TARGET_ALIAS)-gcc-8* $(d)/$(PF)/bin/$(TARGET_ALIAS)-gcc; \
 	else \
-	  rm -f $(d)/$(PF)/bin/$(TARGET_ALIAS)-gcc-7*; \
+	  rm -f $(d)/$(PF)/bin/$(TARGET_ALIAS)-gcc-8*; \
 	fi
 	set -e; \
 	  cd $(d)/$(gcc_lib_dir)/include-fixed; \
@@ -2253,10 +2255,6 @@ ifeq ($(with_libcxxdbg),yes)
 	  mv $$i $$d/$$t; \
 	done
 endif
-
-	if [ -d $(d)/$(PF)/include/cilk ]; then \
-	  mv $(d)/$(PF)/include/cilk $(d)/$(gcc_lib_dir)/include/. ;\
-	fi
 
 	: # remove rpath settings from binaries and shared libs
 	for i in $$(chrpath -k $(d)/$(PF)/bin/* $(d)/$(PFL)/lib*/lib*.so.* \

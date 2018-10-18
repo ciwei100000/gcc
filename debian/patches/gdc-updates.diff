@@ -13,13 +13,13 @@ Index: b/src/gcc/d/Make-lang.in
 -d-warn = $(filter-out -pedantic -Woverloaded-virtual, $(STRICT_WARN))
 +d-warn = $(filter-out -pedantic -Woverloaded-virtual -Wmissing-format-attribute, $(STRICT_WARN))
  
- # D Frontend has slightly relaxed warnings compared to rest of GDC.
- DMD_WARN_CXXFLAGS = -Wno-deprecated -Wstrict-aliasing -Wuninitialized
+ # Also filter out warnings for missing format attributes in the D Frontend.
+ DMD_WARN_CXXFLAGS = $(filter-out -Wmissing-format-attribute, $(WARN_CXXFLAGS))
 Index: b/src/libphobos/src/std/internal/math/gammafunction.d
 ===================================================================
 --- a/src/libphobos/src/std/internal/math/gammafunction.d
 +++ b/src/libphobos/src/std/internal/math/gammafunction.d
-@@ -437,7 +437,7 @@ real logGamma(real x)
+@@ -460,7 +460,7 @@ real logGamma(real x)
          if ( p == q )
              return real.infinity;
          int intpart = cast(int)(p);

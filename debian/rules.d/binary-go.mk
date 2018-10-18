@@ -51,6 +51,7 @@ ifneq (,$(filter $(build_type), build-native cross-build-native))
   files_go += \
 	$(PF)/bin/$(cmd_prefix){go,gofmt}$(pkg_ver) \
 	$(gcc_lexec_dir)/cgo \
+	$(gcc_lexec_dir)/{buildid,test2json,vet} \
 	$(PF)/share/man/man1/$(cmd_prefix){go,gofmt}$(pkg_ver).1
 endif
 
@@ -290,7 +291,7 @@ ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTONS)))
 	  $(d_go)/$(gcc_lexec_dir)/go1
 endif
 	dh_strip -v -p$(p_go) -X/cgo -X/go$(pkg_ver) -X/gofmt$(pkg_ver) \
-	  $(if $(unstripped_exe),-X/go1)
+	  -X/buildid -X/test2json -X/vet $(if $(unstripped_exe),-X/go1)
 	dh_shlibdeps -p$(p_go)
 	echo $(p_go) >> debian/arch_binaries
 

@@ -18,7 +18,7 @@ Index: b/src/libgfortran/Makefile.in
 ===================================================================
 --- a/src/libgfortran/Makefile.in
 +++ b/src/libgfortran/Makefile.in
-@@ -589,12 +589,12 @@ libgfortran_la_LDFLAGS = -version-info `
+@@ -629,12 +629,12 @@ libgfortran_la_LDFLAGS = -version-info `
  
  libgfortran_la_DEPENDENCIES = $(version_dep) libgfortran.spec $(LIBQUADLIB_DEP)
  cafexeclib_LTLIBRARIES = libcaf_single.la
@@ -114,7 +114,7 @@ Index: b/src/gcc/gcc.c
 ===================================================================
 --- a/src/gcc/gcc.c
 +++ b/src/gcc/gcc.c
-@@ -4239,7 +4239,7 @@ process_command (unsigned int decoded_op
+@@ -4265,7 +4265,7 @@ process_command (unsigned int decoded_op
  	 GCC_EXEC_PREFIX is typically a directory name with a trailing
  	 / (which is ignored by make_relative_prefix), so append a
  	 program name.  */
@@ -123,7 +123,7 @@ Index: b/src/gcc/gcc.c
        gcc_libexec_prefix = get_relative_prefix (tmp_prefix,
  						standard_exec_prefix,
  						standard_libexec_prefix);
-@@ -4265,15 +4265,15 @@ process_command (unsigned int decoded_op
+@@ -4291,15 +4291,15 @@ process_command (unsigned int decoded_op
      {
        int len = strlen (gcc_exec_prefix);
  
@@ -147,7 +147,7 @@ Index: b/src/gcc/Makefile.in
 ===================================================================
 --- a/src/gcc/Makefile.in
 +++ b/src/gcc/Makefile.in
-@@ -604,9 +604,9 @@ libexecdir = @libexecdir@
+@@ -615,9 +615,9 @@ libexecdir = @libexecdir@
  # --------
  
  # Directory in which the compiler finds libraries etc.
@@ -159,7 +159,7 @@ Index: b/src/gcc/Makefile.in
  # Directory in which all plugin resources are installed
  plugin_resourcesdir = $(libsubdir)/plugin
   # Directory in which plugin headers are installed
-@@ -2113,8 +2113,8 @@ prefix.o: $(BASEVER)
+@@ -2199,8 +2199,8 @@ default-d.o: config/default-d.c
  
  DRIVER_DEFINES = \
    -DSTANDARD_STARTFILE_PREFIX=\"$(unlibsubdir)/\" \
@@ -170,7 +170,7 @@ Index: b/src/gcc/Makefile.in
    -DDEFAULT_TARGET_VERSION=\"$(version)\" \
    -DDEFAULT_REAL_TARGET_MACHINE=\"$(real_target_noncanonical)\" \
    -DDEFAULT_TARGET_MACHINE=\"$(target_noncanonical)\" \
-@@ -2776,7 +2776,7 @@ PREPROCESSOR_DEFINES = \
+@@ -2888,7 +2888,7 @@ PREPROCESSOR_DEFINES = \
    -DTOOL_INCLUDE_DIR=\"$(gcc_tooldir)/include\" \
    -DNATIVE_SYSTEM_HEADER_DIR=\"$(NATIVE_SYSTEM_HEADER_DIR)\" \
    -DPREFIX=\"$(prefix)/\" \
@@ -183,9 +183,9 @@ Index: b/src/libssp/Makefile.in
 ===================================================================
 --- a/src/libssp/Makefile.in
 +++ b/src/libssp/Makefile.in
-@@ -288,7 +288,7 @@ gcc_version := $(shell @get_gcc_base_ver
+@@ -291,7 +291,7 @@ gcc_version := $(shell @get_gcc_base_ver
  @LIBSSP_USE_SYMVER_SUN_TRUE@@LIBSSP_USE_SYMVER_TRUE@version_dep = ssp.map-sun
- AM_CFLAGS = -Wall
+ AM_CFLAGS = -Wall $(XCFLAGS)
  toolexeclib_LTLIBRARIES = libssp.la libssp_nonshared.la
 -libsubincludedir = $(libdir)/gcc/$(target_noncanonical)/$(gcc_version)/include
 +libsubincludedir = $(libdir)/gcc-cross/$(target_noncanonical)/$(gcc_version)/include
@@ -196,7 +196,7 @@ Index: b/src/libssp/Makefile.am
 ===================================================================
 --- a/src/libssp/Makefile.am
 +++ b/src/libssp/Makefile.am
-@@ -38,7 +38,7 @@ AM_CFLAGS = -Wall
+@@ -39,7 +39,7 @@ AM_CFLAGS += $(XCFLAGS)
  toolexeclib_LTLIBRARIES = libssp.la libssp_nonshared.la
  
  target_noncanonical = @target_noncanonical@
@@ -209,7 +209,7 @@ Index: b/src/libquadmath/Makefile.in
 ===================================================================
 --- a/src/libquadmath/Makefile.in
 +++ b/src/libquadmath/Makefile.in
-@@ -355,7 +355,7 @@ AUTOMAKE_OPTIONS = 1.8 foreign
+@@ -358,7 +358,7 @@ AUTOMAKE_OPTIONS = 1.8 foreign
  
  @BUILD_LIBQUADMATH_TRUE@libquadmath_la_DEPENDENCIES = $(version_dep) $(libquadmath_la_LIBADD)
  @BUILD_LIBQUADMATH_TRUE@nodist_libsubinclude_HEADERS = quadmath.h quadmath_weak.h
@@ -222,7 +222,7 @@ Index: b/src/libquadmath/Makefile.am
 ===================================================================
 --- a/src/libquadmath/Makefile.am
 +++ b/src/libquadmath/Makefile.am
-@@ -41,7 +41,7 @@ libquadmath_la_LDFLAGS = -version-info `
+@@ -42,7 +42,7 @@ libquadmath_la_LDFLAGS = -version-info `
  libquadmath_la_DEPENDENCIES = $(version_dep) $(libquadmath_la_LIBADD)
  
  nodist_libsubinclude_HEADERS = quadmath.h quadmath_weak.h
@@ -291,7 +291,7 @@ Index: b/src/libgcc/Makefile.in
 ===================================================================
 --- a/src/libgcc/Makefile.in
 +++ b/src/libgcc/Makefile.in
-@@ -196,7 +196,7 @@ STRIP = @STRIP@
+@@ -197,7 +197,7 @@ STRIP = @STRIP@
  STRIP_FOR_TARGET = $(STRIP)
  
  # Directory in which the compiler finds libraries etc.
@@ -367,7 +367,7 @@ Index: b/src/libsanitizer/Makefile.in
 ===================================================================
 --- a/src/libsanitizer/Makefile.in
 +++ b/src/libsanitizer/Makefile.in
-@@ -286,7 +286,7 @@ top_build_prefix = @top_build_prefix@
+@@ -291,7 +291,7 @@ top_build_prefix = @top_build_prefix@
  top_builddir = @top_builddir@
  top_srcdir = @top_srcdir@
  ACLOCAL_AMFLAGS = -I .. -I ../config

@@ -1,8 +1,8 @@
-Index: gcc-7-7.2.0-12.1/src/libgo/go/syscall/errstr_gnu.go
+Index: gcc-8-8-20180218/src/libgo/go/syscall/errstr_gnu.go
 ===================================================================
 --- /dev/null
-+++ gcc-7-7.2.0-12.1/src/libgo/go/syscall/errstr_gnu.go
-@@ -0,0 +1,31 @@
++++ gcc-8-8-20180218/src/libgo/go/syscall/errstr_gnu.go
+@@ -0,0 +1,32 @@
 +// errstr_gnu.go -- GNU/Hurd specific error strings.
 +
 +// Copyright 2010 The Go Authors. All rights reserved.
@@ -11,6 +11,7 @@ Index: gcc-7-7.2.0-12.1/src/libgo/go/syscall/errstr_gnu.go
 +
 +// We use this rather than errstr.go because on GNU/Linux sterror_r
 +// returns a pointer to the error message, and may not use buf at all.
++// This file is derived from errstr_linux.go
 +
 +package syscall
 +
@@ -34,10 +35,10 @@ Index: gcc-7-7.2.0-12.1/src/libgo/go/syscall/errstr_gnu.go
 +	}
 +	return string(b[:i])
 +}
-Index: gcc-7-7.2.0-12.1/src/libgo/go/syscall/libcall_gnu_386.go
+Index: gcc-8-8-20180218/src/libgo/go/syscall/libcall_gnu_386.go
 ===================================================================
 --- /dev/null
-+++ gcc-7-7.2.0-12.1/src/libgo/go/syscall/libcall_gnu_386.go
++++ gcc-8-8-20180218/src/libgo/go/syscall/libcall_gnu_386.go
 @@ -0,0 +1,10 @@
 +// Copyright 2012 The Go Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style
@@ -49,16 +50,19 @@ Index: gcc-7-7.2.0-12.1/src/libgo/go/syscall/libcall_gnu_386.go
 +
 +//sys	Ioperm(from int, num int, on int) (err error)
 +//ioperm(from _C_long, num _C_long, on _C_int) _C_int
-Index: gcc-7-7.2.0-12.1/src/libgo/go/syscall/libcall_gnu.go
+Index: gcc-8-8-20180218/src/libgo/go/syscall/libcall_gnu.go
 ===================================================================
 --- /dev/null
-+++ gcc-7-7.2.0-12.1/src/libgo/go/syscall/libcall_gnu.go
-@@ -0,0 +1,181 @@
++++ gcc-8-8-20180218/src/libgo/go/syscall/libcall_gnu.go
+@@ -0,0 +1,184 @@
 +// Copyright 2014 The Go Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style
 +// license that can be found in the LICENSE file.
 +
 +// GNU/Hurd library calls.
++// This file is derived from libcall_linux.go
++// Dummy function: raw_ptrace
++// Removed functions: {P,p}trace*, Reboot, Gettid, Splice, Tgkill, Unlinkat, Unmount, Unshare
 +
 +package syscall
 +
@@ -235,24 +239,25 @@ Index: gcc-7-7.2.0-12.1/src/libgo/go/syscall/libcall_gnu.go
 +	}
 +	return
 +}
-Index: gcc-7-7.2.0-12.1/src/libgo/go/syscall/libcall_posix_gnu.go
+Index: gcc-8-8-20180218/src/libgo/go/syscall/libcall_posix_gnu.go
 ===================================================================
 --- /dev/null
-+++ gcc-7-7.2.0-12.1/src/libgo/go/syscall/libcall_posix_gnu.go
-@@ -0,0 +1,402 @@
++++ gcc-8-8-20180218/src/libgo/go/syscall/libcall_posix_gnu.go
+@@ -0,0 +1,400 @@
 +// Copyright 2011 The Go Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style
 +// license that can be found in the LICENSE file.
 +
 +// POSIX library calls.
-+// Removed the mount call for GNU/Hurd, it exists but use translators.
-+// Functionality is not the same as descibed in Linux <sys/mount.h>
-+// Removed the madvise call for GNU/Hurd, not yet implemented.
 +// This file is compiled as ordinary Go code,
 +// but it is also input to mksyscall,
 +// which parses the //sys lines and generates library call stubs.
 +// Note that sometimes we use a lowercase //sys name and
 +// wrap it in our own nicer implementation.
++// Removed the mount call for GNU/Hurd, it exists but use translators.
++// Functionality is not the same as descibed in Linux <sys/mount.h>
++// Removed the madvise call for GNU/Hurd, not yet implemented.
++// This file is derived from libchall_posix.go
 +
 +// +build gnu
 +
@@ -439,9 +444,6 @@ Index: gcc-7-7.2.0-12.1/src/libgo/go/syscall/libcall_posix_gnu.go
 +
 +//sysnb	Dup2(oldfd int, newfd int) (err error)
 +//dup2(oldfd _C_int, newfd _C_int) _C_int
-+
-+//sys	Exit(code int)
-+//exit(code _C_int)
 +
 +//sys	Fchdir(fd int) (err error)
 +//fchdir(fd _C_int) _C_int
@@ -642,16 +644,17 @@ Index: gcc-7-7.2.0-12.1/src/libgo/go/syscall/libcall_posix_gnu.go
 +	}
 +	return ret, err
 +}
-Index: gcc-7-7.2.0-12.1/src/libgo/go/syscall/socket_gnu.go
+Index: gcc-8-8-20180218/src/libgo/go/syscall/socket_gnu.go
 ===================================================================
 --- /dev/null
-+++ gcc-7-7.2.0-12.1/src/libgo/go/syscall/socket_gnu.go
-@@ -0,0 +1,90 @@
++++ gcc-8-8-20180218/src/libgo/go/syscall/socket_gnu.go
+@@ -0,0 +1,91 @@
 +// socket_gnu.go -- Socket handling specific to GNU/Hurd.
 +
 +// Copyright 2010 The Go Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style
 +// license that can be found in the LICENSE file.
++// This file is derived from syscall_bsd.go
 +
 +// +build gnu
 +
@@ -737,14 +740,15 @@ Index: gcc-7-7.2.0-12.1/src/libgo/go/syscall/socket_gnu.go
 +	err := getsockopt(fd, level, opt, unsafe.Pointer(&value), &vallen)
 +	return &value, err
 +}
-Index: gcc-7-7.2.0-12.1/src/libgo/go/syscall/syscall_gnu.go
+Index: gcc-8-8-20180218/src/libgo/go/syscall/syscall_gnu.go
 ===================================================================
 --- /dev/null
-+++ gcc-7-7.2.0-12.1/src/libgo/go/syscall/syscall_gnu.go
-@@ -0,0 +1,23 @@
++++ gcc-8-8-20180218/src/libgo/go/syscall/syscall_gnu.go
+@@ -0,0 +1,24 @@
 +// Copyright 2009 The Go Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style
 +// license that can be found in the LICENSE file.
++// This file is identical to syscall_linux.go
 +
 +package syscall
 +
@@ -765,10 +769,10 @@ Index: gcc-7-7.2.0-12.1/src/libgo/go/syscall/syscall_gnu.go
 +	}
 +	return reclen - uint64(unsafe.Offsetof(Dirent{}.Name)), true
 +}
-Index: gcc-7-7.2.0-12.1/src/libgo/go/syscall/wait.c
+Index: gcc-8-8-20180218/src/libgo/go/syscall/wait.c
 ===================================================================
---- gcc-7-7.2.0-12.1.orig/src/libgo/go/syscall/wait.c
-+++ gcc-7-7.2.0-12.1/src/libgo/go/syscall/wait.c
+--- gcc-8-8-20180218.orig/src/libgo/go/syscall/wait.c
++++ gcc-8-8-20180218/src/libgo/go/syscall/wait.c
 @@ -8,6 +8,9 @@
     OS-independent.  */
  

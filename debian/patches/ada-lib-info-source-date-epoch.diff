@@ -6,9 +6,11 @@ Description: set ALI timestamps from SOURCE_DATE_EPOCH if available.
  https://reproducible-builds.org/specs/source-date-epoch/
 Author: Nicolas Boulenguez <nicolas@debian.org>
 
+Index: b/src/gcc/ada/ali-util.adb
+===================================================================
 --- a/src/gcc/ada/ali-util.adb
 +++ b/src/gcc/ada/ali-util.adb
-@@ -484,8 +484,10 @@
+@@ -484,8 +484,10 @@ package body ALI.Util is
        for D in ALIs.Table (A).First_Sdep .. ALIs.Table (A).Last_Sdep loop
           Src := Source_Id (Get_Name_Table_Int (Sdep.Table (D).Sfile));
  
@@ -21,9 +23,11 @@ Author: Nicolas Boulenguez <nicolas@debian.org>
           then
              --  If minimal recompilation is in action, replace the stamp
              --  of the source file in the table if checksums match.
+Index: b/src/gcc/ada/lib-writ.adb
+===================================================================
 --- a/src/gcc/ada/lib-writ.adb
 +++ b/src/gcc/ada/lib-writ.adb
-@@ -1471,7 +1471,14 @@
+@@ -1552,7 +1552,14 @@ package body Lib.Writ is
  
                 Write_Info_Name_May_Be_Quoted (Fname);
                 Write_Info_Tab (25);
@@ -39,9 +43,11 @@ Author: Nicolas Boulenguez <nicolas@debian.org>
                 Write_Info_Char (' ');
                 Write_Info_Str (Get_Hex_String (Source_Checksum (Sind)));
  
+Index: b/src/gcc/ada/osint.adb
+===================================================================
 --- a/src/gcc/ada/osint.adb
 +++ b/src/gcc/ada/osint.adb
-@@ -1674,6 +1674,20 @@
+@@ -1680,6 +1680,20 @@ package body Osint is
  
        Lib_Search_Directories.Set_Last (Primary_Directory);
        Lib_Search_Directories.Table (Primary_Directory) := new String'("");
@@ -62,11 +68,13 @@ Author: Nicolas Boulenguez <nicolas@debian.org>
     end Initialize;
  
     ------------------
+Index: b/src/gcc/ada/osint.ads
+===================================================================
 --- a/src/gcc/ada/osint.ads
 +++ b/src/gcc/ada/osint.ads
-@@ -685,6 +685,17 @@
+@@ -670,6 +670,17 @@ package Osint is
     function Prep_Suffix return String;
-    --  The suffix used for pre-processed files
+    --  The suffix used for preprocessed files
  
 +   Source_Date_Epoch : Time_Stamp_Type := Time_Stamp_Type'("99991231235959");
 +   --  * gnat1 truncates to this date time stamps written to ALI files, making
@@ -82,9 +90,11 @@ Author: Nicolas Boulenguez <nicolas@debian.org>
  private
  
     Current_Main : File_Name_Type := No_File;
---- a/src/gcc/ada/s-os_lib.adb
-+++ b/src/gcc/ada/s-os_lib.adb
-@@ -1153,6 +1153,41 @@
+Index: b/src/gcc/ada/libgnat/s-os_lib.adb
+===================================================================
+--- a/src/gcc/ada/libgnat/s-os_lib.adb
++++ b/src/gcc/ada/libgnat/s-os_lib.adb
+@@ -1153,6 +1153,41 @@ package body System.OS_Lib is
        return Result;
     end Get_Object_Suffix;
  
@@ -126,9 +136,11 @@ Author: Nicolas Boulenguez <nicolas@debian.org>
     ----------------------------------
     -- Get_Target_Debuggable_Suffix --
     ----------------------------------
---- a/src/gcc/ada/s-os_lib.ads
-+++ b/src/gcc/ada/s-os_lib.ads
-@@ -164,6 +164,13 @@
+Index: b/src/gcc/ada/libgnat/s-os_lib.ads
+===================================================================
+--- a/src/gcc/ada/libgnat/s-os_lib.ads
++++ b/src/gcc/ada/libgnat/s-os_lib.ads
+@@ -164,6 +164,13 @@ package System.OS_Lib is
     --  component parts to be interpreted in the local time zone, and returns
     --  an OS_Time. Returns Invalid_Time if the creation fails.
  

@@ -23,23 +23,6 @@ $(binary_stamp)-base: $(install_dependencies)
 	dh_installdirs -p$(p_base) \
 		$(gcc_lexec_dir)
 
-ifneq ($(DEB_STAGE),rtlibs)
-	ln -sf $(BASE_VERSION) \
-	    $(d_base)/$(subst /$(BASE_VERSION),/$(GCC_VERSION),$(gcc_lib_dir))
-	for link in $(additional_links); do \
-	  ln -sf $(BASE_VERSION) \
-	    $(d_base)/$$(dirname $(gcc_lib_dir))/$$link; \
-        done
-  ifneq ($(gcc_lib_dir),$(gcc_lexec_dir))
-	ln -sf $(BASE_VERSION) \
-	    $(d_base)/$(subst /$(BASE_VERSION),/$(GCC_VERSION),$(gcc_lexec_dir))
-	for link in $(additional_links); do \
-	  ln -sf $(BASE_VERSION) \
-	    $(d_base)/$$(dirname $(gcc_lexec_dir))/$$link; \
-        done
-  endif
-endif
-
 ifeq ($(with_base_only),yes)
 	dh_installdocs -p$(p_base) debian/README.Debian
 else

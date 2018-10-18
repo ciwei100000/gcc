@@ -96,7 +96,7 @@ $(binary_stamp)-gdc: $(install_stamp)
 	rm -rf $(d_gdc)
 	dh_installdirs -p$(p_gdc) $(dirs_gdc)
 
-	dh_installdocs -p$(p_gdc) src/gcc/d/README
+	dh_installdocs -p$(p_gdc)
 	dh_installchangelogs -p$(p_gdc) src/gcc/d/ChangeLog
 
 	$(dh_compat2) dh_movefiles -p$(p_gdc) -X/zlib/ $(files_gdc)

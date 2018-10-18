@@ -27,7 +27,7 @@ endif
 # but it becomes difficult to name all these files ...
 
 dirs_gcc = \
-	$(docdir)/$(p_xbase)/{gcc,libssp,gomp,itm,quadmath,sanitizer,cilkrts,mpx} \
+	$(docdir)/$(p_xbase)/{gcc,libssp,gomp,itm,quadmath,sanitizer,mpx} \
 	$(PF)/bin \
 	$(gcc_lexec_dir) \
 	$(gcc_lib_dir)/{include,include-fixed} \
@@ -120,11 +120,6 @@ ifeq ($(with_asan),yes)
 	cp -p $(srcdir)/libsanitizer/ChangeLog \
 		$(d_gcc)/$(docdir)/$(p_xbase)/sanitizer/changelog
 endif
-ifeq ($(with_cilkrts),yes)
-	mv $(d)/$(usr_lib)/libcilkrts.spec $(d_gcc)/$(gcc_lib_dir)/
-	cp -p $(srcdir)/libcilkrts/ChangeLog \
-		$(d_gcc)/$(docdir)/$(p_xbase)/cilkrts/changelog
-endif
 ifeq ($(with_mpx),yes)
 	mv $(d)/$(usr_lib)/libmpx.spec $(d_gcc)/$(gcc_lib_dir)/
 	cp -p $(srcdir)/libmpx/ChangeLog \
@@ -162,7 +157,6 @@ endif
 	cp -p debian/README.ssp $(d_gcc)/$(docdir)/$(p_xbase)/
 	cp -p debian/NEWS.gcc $(d_gcc)/$(docdir)/$(p_xbase)/NEWS
 	cp -p debian/NEWS.html $(d_gcc)/$(docdir)/$(p_xbase)/NEWS.html
-	cp -p debian/gcc.css $(d_gcc)/$(docdir)/$(p_xbase)/gcc.css
 	cp -p $(srcdir)/ChangeLog $(d_gcc)/$(docdir)/$(p_xbase)/changelog
 	cp -p $(srcdir)/gcc/ChangeLog \
 		$(d_gcc)/$(docdir)/$(p_xbase)/gcc/changelog

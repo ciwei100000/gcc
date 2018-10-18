@@ -17,9 +17,11 @@ Author: Ludovic Brenta <lbrenta@debian.org>
 Author: Nicolas Boulenguez <nicolas@debian.org>
 Author: Matthias Klose <doko@debian.org>
 
+Index: b/src/gcc/ada/gcc-interface/config-lang.in
+===================================================================
 --- a/src/gcc/ada/gcc-interface/config-lang.in
 +++ b/src/gcc/ada/gcc-interface/config-lang.in
-@@ -35,7 +35,7 @@
+@@ -35,7 +35,7 @@ gtfiles="\$(srcdir)/ada/gcc-interface/ad
  outputs="ada/gcc-interface/Makefile ada/Makefile"
  
  target_libs="target-libada"
@@ -28,11 +30,13 @@ Author: Matthias Klose <doko@debian.org>
  
  # Ada is not enabled by default for the time being.
  build_by_default=no
+Index: b/src/gcc/ada/link.c
+===================================================================
 --- a/src/gcc/ada/link.c
 +++ b/src/gcc/ada/link.c
-@@ -106,9 +106,9 @@
- #elif defined (__FreeBSD__) || defined (__DragonFly__) \
-    || defined (__NetBSD__) || defined (__OpenBSD__)
+@@ -107,9 +107,9 @@ const char *__gnat_default_libgcc_subdir
+    || defined (__NetBSD__) || defined (__OpenBSD__) \
+    || defined (__QNX__)
  const char *__gnat_object_file_option = "-Wl,@";
 -const char *__gnat_run_path_option = "-Wl,-rpath,";
 -char __gnat_shared_libgnat_default = STATIC;
@@ -43,7 +47,7 @@ Author: Matthias Klose <doko@debian.org>
  int __gnat_link_max = 8192;
  unsigned char __gnat_objlist_file_supported = 1;
  const char *__gnat_object_library_extension = ".a";
-@@ -128,9 +128,9 @@
+@@ -129,9 +129,9 @@ const char *__gnat_default_libgcc_subdir
  
  #elif defined (__linux__) || defined (__GLIBC__)
  const char *__gnat_object_file_option = "-Wl,@";
@@ -56,9 +60,11 @@ Author: Matthias Klose <doko@debian.org>
  int __gnat_link_max = 8192;
  unsigned char __gnat_objlist_file_supported = 1;
  const char *__gnat_object_library_extension = ".a";
+Index: b/src/libada/Makefile.in
+===================================================================
 --- a/src/libada/Makefile.in
 +++ b/src/libada/Makefile.in
-@@ -78,10 +78,10 @@
+@@ -78,10 +78,10 @@ ADA_RTS_SUBDIR=./rts$(subst /,_,$(MULTIS
  # by recursive make invocations in gcc/ada/Makefile.in
  LIBADA_FLAGS_TO_PASS = \
          "MAKEOVERRIDES=" \
@@ -71,9 +77,11 @@ Author: Matthias Klose <doko@debian.org>
          "GNATLIBCFLAGS=$(GNATLIBCFLAGS) $(MULTIFLAGS)" \
          "GNATLIBCFLAGS_FOR_C=$(GNATLIBCFLAGS_FOR_C) $(MULTIFLAGS)" \
          "PICFLAG_FOR_TARGET=$(PICFLAG)" \
+Index: b/src/Makefile.def
+===================================================================
 --- a/src/Makefile.def
 +++ b/src/Makefile.def
-@@ -122,7 +122,16 @@
+@@ -122,7 +122,16 @@ host_modules= { module= libtermcap; no_c
                  missing=distclean;
                  missing=maintainer-clean; };
  host_modules= { module= utils; no_check=true; };
@@ -91,7 +99,7 @@ Author: Matthias Klose <doko@debian.org>
  host_modules= { module= lto-plugin; bootstrap=true;
  		extra_configure_flags='--enable-shared @extra_linker_plugin_flags@ @extra_linker_plugin_configure_flags@';
  		extra_make_flags='@extra_linker_plugin_flags@'; };
-@@ -168,7 +177,16 @@
+@@ -166,7 +175,16 @@ target_modules = { module= libgloss; no_
  target_modules = { module= libffi; no_install=true; };
  target_modules = { module= zlib; };
  target_modules = { module= rda; };
@@ -109,7 +117,7 @@ Author: Matthias Klose <doko@debian.org>
  target_modules = { module= libgomp; bootstrap= true; lib_path=.libs; };
  target_modules = { module= libitm; lib_path=.libs; };
  target_modules = { module= libatomic; lib_path=.libs; };
-@@ -364,6 +382,7 @@
+@@ -362,6 +380,7 @@ dependencies = { module=all-libcpp; on=a
  
  dependencies = { module=all-fixincludes; on=all-libiberty; };
  
@@ -117,9 +125,11 @@ Author: Matthias Klose <doko@debian.org>
  dependencies = { module=all-gnattools; on=all-target-libada; };
  dependencies = { module=all-gnattools; on=all-target-libstdc++-v3; };
  
+Index: b/src/configure.ac
+===================================================================
 --- a/src/configure.ac
 +++ b/src/configure.ac
-@@ -142,6 +142,11 @@
+@@ -142,6 +142,11 @@ host_libs="intl libiberty opcodes bfd re
  # If --enable-gold is used, "gold" may replace "ld".
  host_tools="texinfo flex bison binutils gas ld fixincludes gcc cgen sid sim gdb gprof etc expect dejagnu m4 utils guile fastjar gnattools libcc1 gotools"
  
@@ -131,7 +141,7 @@ Author: Matthias Klose <doko@debian.org>
  # these libraries are built for the target environment, and are built after
  # the host libraries and the host tools (which may be a cross compiler)
  # Note that libiberty is not a target library.
-@@ -165,6 +170,7 @@
+@@ -164,6 +169,7 @@ target_libraries="target-libgcc \
  		target-libffi \
  		target-libobjc \
  		target-libada \
@@ -139,9 +149,11 @@ Author: Matthias Klose <doko@debian.org>
  		target-libgo"
  
  # these tools are built using the target libraries, and are intended to
+Index: b/src/gcc/ada/gcc-interface/Make-lang.in
+===================================================================
 --- a/src/gcc/ada/gcc-interface/Make-lang.in
 +++ b/src/gcc/ada/gcc-interface/Make-lang.in
-@@ -45,7 +45,7 @@
+@@ -45,7 +45,7 @@ RMDIR = rm -rf
  
  
  # Extra flags to pass to recursive makes.
@@ -150,7 +162,7 @@ Author: Matthias Klose <doko@debian.org>
  ifeq ($(TREECHECKING),)
  CHECKING_ADAFLAGS=
  else
-@@ -211,7 +211,7 @@
+@@ -233,7 +233,7 @@ else
  endif
  
  # Strip -Werror during linking for the LTO bootstrap
@@ -159,3 +171,25 @@ Author: Matthias Klose <doko@debian.org>
  
  GCC_LINK=$(LINKER) $(GCC_LINKERFLAGS) $(LDFLAGS)
  GCC_LLINK=$(LLINKER) $(GCC_LINKERFLAGS) $(LDFLAGS)
+--- a/src/gcc/testsuite/lib/gnat.exp
++++ b/src/gcc/testsuite/lib/gnat.exp
+@@ -115,6 +115,7 @@
+     global TOOL_OPTIONS
+     global gnat_target_current
+     global TEST_ALWAYS_FLAGS
++    global ld_library_path
+
+     # dg-require-effective-target tests must be compiled as C.
+     if [ string match "*.c" $source ] then {
+@@ -140,6 +142,11 @@
+ 	# Always log so compilations can be repeated manually.
+ 	verbose -log "ADA_INCLUDE_PATH=$rtsdir/adainclude"
+ 	verbose -log "ADA_OBJECTS_PATH=$rtsdir/adainclude"
++
++	if { ! [ string match "*/libada/adalib*" $ld_library_path ] } {
++	    append ld_library_path ":$rtsdir/adalib"
++	    set_ld_library_path_env_vars
++	}
+     }
+ 
+     lappend options "compiler=$GNAT_UNDER_TEST -q -f"

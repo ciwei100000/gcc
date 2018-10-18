@@ -53,13 +53,15 @@ header_files = \
 		    {,a,b,e,i,n,p,s,t,w,x}mmintrin.h mmintrin-common.h \
 		    {abm,adx,avx,avx2,bmi,bmi2,f16c,fma,fma4,fxsr,ia32,}intrin.h \
 		    {lwp,lzcnt,popcnt,prfchw,rdseed,rtm,tbm,x86,xop,xsave{,opt},xtest,}intrin.h \
-		    {htm,htmxl,mwaitx,pku,sha,vec,sgx}intrin.h \
+		    {htm,htmxl,mwaitx,pku,sha,vaes,vec,sgx}intrin.h \
 		    avx512{bw,er,cd,dq,f,ifma,ifmavl,pf,vlbw,vbmi,vldq,vbmivl,vl}intrin.h \
-		    avx512{4fmaps,4vnniw,vpopcntdq}intrin.h \
-		    {clflushopt,clwb,clzero,pcommit,xsavec,xsaves}intrin.h \
+		    avx512{4fmaps,4vnniw,bitalg,vnni,vnnivl,vpopcntdq,vpopcntdqvl}intrin.h \
+		    avx512vbmi{2,2vl}intrin.h \
+		    {movdir,pconfig,vpclmulqdq,wbnoinvd}intrin.h \
+		    {cet,clflushopt,clwb,clzero,gfni,pcommit,xsavec,xsaves}intrin.h \
 		    {arm_acle,unwind-arm-common,s390intrin}.h \
-		    msa.h \
-		    {cross-stdarg,syslimits,unwind,varargs}.h; \
+		    amo.h msa.h \
+		    {cet,cross-stdarg,syslimits,unwind,varargs}.h; \
 		do \
 		  test -e $(d)/$(gcc_lib_dir)/include/$$h \
 		    && echo $(gcc_lib_dir)/include/$$h; \
@@ -94,8 +96,12 @@ ifeq ($(DEB_TARGET_ARCH),m68k)
     header_files += $(gcc_lib_dir)/include/math-68881.h
 endif
 
-ifeq ($(DEB_TARGET_ARCH),$(findstring $(DEB_TARGET_ARCH),powerpc ppc64 ppc64el powerpcspe))
-    header_files += $(gcc_lib_dir)/include/{altivec.h,ppc-asm.h,spe.h}
+ifneq (,$(filter $(DEB_TARGET_ARCH),powerpc ppc64 ppc64el))
+    header_files += $(gcc_lib_dir)/include/{altivec.h,ppc-asm.h}
+endif
+
+ifeq ($(DEB_TARGET_ARCH),powerpcspe)
+    header_files += $(gcc_lib_dir)/include/{ppc-asm.h,spe.h}
 endif
 
 ifeq ($(DEB_TARGET_ARCH),tilegx)
@@ -245,6 +251,7 @@ define __do_gcc_devels2
 	)
 	$(if $(1),,$(if $(filter yes, $(with_lsan)),
 		$(call install_gcc_lib,liblsan,$(LSAN_SONAME),$(1),$(2))
+		mv $(4)/liblsan_preinit.o debian/$(2)/$(3)/;
 	))
 	$(if $(1),,$(if $(filter yes, $(with_tsan)),
 		$(call install_gcc_lib,libtsan,$(TSAN_SONAME),$(1),$(2))

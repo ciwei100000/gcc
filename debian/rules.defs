@@ -408,6 +408,7 @@ ifeq ($(distribution),Ubuntu)
     with_linaro_branch = yes
   endif
 endif
+with_linaro_branch =
 
 # build using fsf or the ibm branch
 ifeq ($(distribution),Ubuntu)
@@ -445,9 +446,9 @@ endif
 # common things ---------------
 # build common packages, where package names don't differ in different
 # gcc versions (fixincludes, ...)
-#with_common_pkgs := yes
+with_common_pkgs := yes
 # ... and some libraries, which do not change (libgcc1, libssp0).
-#with_common_libs := yes
+with_common_libs := yes
 # XXX: should with_common_libs be "yes" only if this is the default compiler
 # version on the targeted arch?
 
@@ -674,6 +675,8 @@ ifeq ($(single_package),yes)
 endif
 with_offload_nvptx := $(call envfilt, nvptx, , , $(with_offload_nvptx))
 
+#with_offload_nvptx := not yet built for GCC 8
+
 with_cc1 := yes
 with_cc1 := $(call envfilt, cc1, , , $(with_cc1))
 
@@ -848,7 +851,7 @@ ifneq (,$(findstring gccgo, $(PKGSOURCE)))
   with_libcc1 :=
 endif
 
-go_no_cpus := avr arm hppa riscv64 sh4
+go_no_cpus := avr arm hppa sh4 m68k
 ifeq (,$(filter $(distrelease),lenny etch squeeze dapper hardy jaunty karmic lucid maverick natty oneiric))
   go_no_cpus := $(filter-out arm, $(go_no_cpus))
 endif
@@ -937,7 +940,7 @@ ifeq ($(GENERATE_DFSG_TARBALL),yes)
   with_d := disabled while generating the dfsg tarball
 endif
 with_d := $(call envfilt, d, , , $(with_d))
-#with_d := not yet built for GCC 7
+#with_d := not yet built for GCC 8
 
 ifeq ($(with_base_only),yes)
   with_d := no
@@ -957,7 +960,10 @@ ifeq ($(with_d)-$(with_separate_gdc),yes-yes)
 endif
 
 ifeq ($(with_d),yes)
-  libphobos_archs = amd64 armel armhf i386 x32 kfreebsd-amd64 kfreebsd-i386
+  libphobos_archs = amd64 arm64 armel armhf i386 x32 kfreebsd-amd64 kfreebsd-i386
+  ifneq (,$(libphobos_archs))
+    with_phobos := yes
+  endif
   ifneq (,$(filter $(DEB_TARGET_ARCH), $(libphobos_archs)))
     with_libphobos := yes
   endif
@@ -1003,19 +1009,23 @@ ifeq ($(with_fortran),yes)
       with_fdev := yes
     endif
   endif
-  #ifeq ($(with_common_libs),yes)
+  ifeq ($(with_common_libs),yes)
     with_libgfortran := yes
-  #endif
+  endif
   enabled_languages += fortran
 endif
 
 # libquadmath -------------------
 
-ifneq (,$(findstring $(DEB_TARGET_ARCH_CPU), ia64 i386 i486 i586 i686 amd64))
+quadmath_targets = amd64 ia64 i386 x32 \
+		hurd-i386 kfreebsd-i386 kfreebsd-amd64 \
+		ppc64el
+# powerpc and ppc64 don't have power7 CPU defaults ...
+ifneq (,$(filter $(DEB_TARGET_ARCH), $(quadmath_targets)))
   # FIXME: upstream build tied to gfortran build
   ifeq ($(with_fortran),yes)
     with_qmath := yes
-    ifneq (,$(findstring gcc-7,$(PKGSOURCE)))
+    ifneq (,$(findstring gcc-8,$(PKGSOURCE)))
       ifeq ($(with_common_libs),yes)
         with_libqmath := yes
       endif
@@ -1106,7 +1116,7 @@ with_nls := $(call envfilt, nls, , , $(with_nls))
 # powerpc nof libraries -----
 with_libnof := no
 
-ifneq (,$(findstring gcc-7,$(PKGSOURCE)))
+ifneq (,$(findstring gcc-8,$(PKGSOURCE)))
   ifeq (,$(with_rtlibs))
     with_source := yes
   endif
@@ -1125,7 +1135,7 @@ with_ssp := $(call envfilt, ssp, , , $(with_ssp))
 
 ifeq ($(with_ssp),yes)
   ifneq ($(derivative),Debian)
-    ifneq (,$(findstring gcc-7, $(PKGSOURCE)))
+    ifneq (,$(findstring gcc-8, $(PKGSOURCE)))
       with_ssp_default := yes
     endif
   endif
@@ -1208,14 +1218,6 @@ endif
 with_vtv :=
 with_libvtv :=
 
-# libcilkrts --------------------
-with_cilkrts :=
-with_cilkrts := $(call envfilt, cilkrts, , , $(with_cilkrts))
-cilkrts_archs = amd64 i386 x32 armel armhf sparc sparc64
-ifneq (,$(filter $(DEB_TARGET_ARCH),$(cilkrts_archs)))
-  with_cilkrts := yes
-endif
-
 # libmpx --------------------
 with_mpx :=
 with_mpx := $(call envfilt, mpx, , , $(with_mpx))
@@ -1224,10 +1226,8 @@ ifneq (,$(filter $(DEB_TARGET_ARCH),$(mpx_archs)))
   # requires newer binutils, or else libmpxwrappers isn't built
   ifeq (,$(filter $(distrelease),squeeze lucid precise))
     with_mpx := yes
-    ifeq ($(with_common_libs),yes)
     ifneq (,$(findstring gcc-, $(PKGSOURCE)))
       with_libmpx := yes
-    endif
     endif
   endif
 endif
@@ -1357,13 +1357,6 @@ else
       with_libvtv := yes
   endif
 
-  # libcilkrts -----------------
-  #ifeq ($(with_cilkrts)-$(with_common_libs),yes-yes)
-    ifeq ($(with_cilkrts),yes)
-      with_libcilkrts := yes
-    endif
-  #endif
-
   # libquadmath -----------------
   ifeq ($(with_qmath)-$(with_common_libs),yes-yes)
       with_libqmath := yes
@@ -1434,14 +1427,13 @@ else
     with_liblsan := disabled for rtlibs stage
     with_libtsan := disabled for rtlibs stage
     with_libubsan := disabled for rtlibs stage
-    with_libcilkrts := disabled for rtlibs stage
     with_fixincl := disabled for rtlibs stage
     with_hppa64 := disabled for rtlibs stage
   endif
 
   # neon build -------------------
   # FIXME: build as a cross compiler to build on armv4 as well
-  ifneq (,$(findstring gcc-7, $(PKGSOURCE)))
+  ifneq (,$(findstring gcc-8, $(PKGSOURCE)))
     ifeq ($(derivative),Ubuntu)
 #      neon_archs = armel armhf
 #      ifneq (, $(filter $(DEB_TARGET_ARCH),$(neon_archs)))
@@ -1615,9 +1607,6 @@ define gen_biarch
     ifeq ($$(with_libvtv),yes)
       with_lib$1vtv := yes
     endif
-    ifeq ($$(with_libcilkrts),yes)
-      with_lib$1cilkrts := yes
-    endif
     ifeq ($$(with_libmpx),yes)
       ifneq (,$(filter $1, 32 64))
         with_lib$1mpx := yes
@@ -1637,8 +1626,7 @@ define gen_biarch
     ifneq (,$$(findstring gcc-, $$(PKGSOURCE)))
       biarch_multidir_names += libstdc++-v3 libobjc libgfortran libssp \
 				zlib libitm libmpx \
-				libsanitizer \
-				libcilkrts libvtv
+				libsanitizer
       ifeq ($$(with_objc_gc),yes)
         biarch_multidir_names += boehm-gc
       endif
@@ -1683,7 +1671,7 @@ ifeq (yes,$(MIPS_R6_ENABLED))
 endif
 
 ifeq ($(derivative),Ubuntu)
-  ifeq (,$(filter $(distrelease),dapper hardy jaunty karmic lucid maverick natty))
+  ifeq (,$(filter $(distrelease),dapper hardy jaunty karmic lucid maverick natty artful))
     biarchhfarchs := /armel/
     biarchsfarchs := /armhf/
   endif
@@ -1727,7 +1715,6 @@ ifeq ($(no_biarch_libs),yes)
   with_lib64tsan	:= no
   with_lib64ubsan	:= no
   with_lib64vtv		:= no
-  with_lib64cilkrts	:= no
   with_lib64mpx		:= no
   with_lib64gccdev	:= no
   with_lib64cxxdev	:= no
@@ -1754,7 +1741,6 @@ ifeq ($(no_biarch_libs),yes)
   with_lib32tsan	:= no
   with_lib32ubsan	:= no
   with_lib32vtv		:= no
-  with_lib32cilkrts	:= no
   with_lib32mpx		:= no
   with_lib32gccdev	:= no
   with_lib32cxxdev	:= no
@@ -1805,7 +1791,6 @@ ifeq ($(no_biarch_libs),yes)
   with_libx32tsan	:= no
   with_libx32ubsan	:= no
   with_libx32vtv	:= no
-  with_libx32cilkrts	:= no
   with_libx32gccdev	:= no
   with_libx32cxxdev	:= no
   with_libx32objcdev	:= no
@@ -1891,7 +1876,7 @@ ifneq (,$(findstring $(DEB_TARGET_GNU_SYSTEM),$(locale_no_systems)))
   force_gnu_locales := disabled for system $(DEB_TARGET_GNU_SYSTEM)
 endif
 
-gcc_tarpath		:= $(firstword $(wildcard gcc-*.tar.* /usr/src/gcc-7/gcc-*.tar.*))
+gcc_tarpath		:= $(firstword $(wildcard gcc-*.tar.* /usr/src/gcc-8/gcc-*.tar.*))
 gcc_tarball		:= $(notdir $(gcc_tarpath))
 gcc_srcdir		:= $(subst -dfsg,,$(patsubst %.tar.xz,%,$(patsubst %.tar.lzma,%,$(patsubst %.tar.gz,%,$(gcc_tarball:.tar.bz2=)))))
 
@@ -2053,6 +2038,8 @@ else
       ignshld = -
     endif
   endif
+  # FIXME: don't stop at the first shlibdeps failure ...
+  ignshld = -
 endif
 ifeq ($(DEB_STAGE),rtlibs)
   define cross_mangle_shlibs

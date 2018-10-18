@@ -399,13 +399,7 @@ endif
 
 	dh_link -p$(p_dev) \
 		/$(usr_lib)/libstdc++.so.$(CXX_SONAME) \
-		/$(gcc_lib_dir)/libstdc++.so \
-		/$(PFL)/include/c++/$(BASE_VERSION) /$(PFL)/include/c++/$(GCC_VERSION)
-ifeq ($(with_multiarch_cxxheaders),yes)
-	dh_link -p$(p_dev) \
-		/$(PFL)/include/$(DEB_TARGET_MULTIARCH)/c++/$(BASE_VERSION) \
-		/$(PFL)/include/$(DEB_TARGET_MULTIARCH)/c++/$(GCC_VERSION)
-endif
+		/$(gcc_lib_dir)/libstdc++.so
 
 	debian/dh_doclink -p$(p_dev) $(p_lbase)
 	debian/dh_doclink -p$(p_pic) $(p_lbase)

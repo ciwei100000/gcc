@@ -21,7 +21,6 @@ debian_patches = \
 
 ifneq ($(GFDL_INVARIANT_FREE),yes)
   debian_patches += \
-	svn-doc-updates \
 	$(if $(with_linaro_branch),gcc-linaro-doc) \
 	rename-info-files \
 	gcc-fuse-ld-lld-doc \
@@ -62,7 +61,6 @@ debian_patches += \
 	kfreebsd-unwind \
 	libitm-no-fortify-source \
 	sparc64-biarch-long-double-128 \
-	gotools-configury \
 	pr66368 \
 	pr67590 \
 	libjit-ldflags \
@@ -70,36 +68,25 @@ debian_patches += \
 	libffi-race-condition \
 	gcc-foffload-default \
 	gcc-fuse-ld-lld \
-	pr77631 \
-	pr67165 \
 	cuda-float128 \
-	libgo-sparc64 \
-	libgo-ia64 \
-	libcc1-compiler-name \
-	sh-builtin-trap \
 	libffi-mipsen-r6 \
+	t-libunwind-elf-Wl-z-defs \
 	gcc-alpha-bs-ignore \
-	pr83204 \
-	pr81356 \
-	aarch64-simd-fnma-fix \
-	thunderx2t99-pipe-sched \
-	pr84475 \
 	libffi-riscv \
 	gcc-force-cross-layout \
 	gcc-search-prefixed-as-ld \
 	kfreebsd-decimal-float \
-	pr86139 \
-
-#	$(if $(filter yes, $(DEB_CROSS)),,gcc-print-file-name) \
-#	libstdc++-nothumb-check \
+ 	powerpcspe_remove_many \
 
 ifeq (,$(filter $(distrelease),trusty stretch jessie wheezy))
   debian_patches += gcc-as-needed-push-pop
 endif
 
-ifeq (,$(filter $(distrelease),lenny squeeze wheezy dapper trusty xenial artful))
-  debian_patches += gcc-hppa-caller-copies-ABI
-endif
+# TODO:
+#	pr81829 \
+
+#	$(if $(filter yes, $(DEB_CROSS)),,gcc-print-file-name) \
+#	libstdc++-nothumb-check \
 
 hardening_patches =
 ifeq ($(with_ssp)-$(with_ssp_default),yes-yes)
@@ -110,7 +97,7 @@ ifeq ($(with_ssp)-$(with_ssp_default),yes-yes)
   endif
 endif
 ifneq (,$(filter $(derivative),Ubuntu))
-  ifneq (,$(findstring gcc-7, $(PKGSOURCE)))
+  ifneq (,$(findstring gcc-8, $(PKGSOURCE)))
     hardening_patches += \
 	gcc-default-fortify-source \
 	gcc-default-relro \
@@ -127,7 +114,7 @@ ifneq (,$(filter $(derivative),Ubuntu))
     endif
   endif
 else ifneq (,$(filter $(derivative),Debian))
-  ifneq (,$(findstring gcc-7, $(PKGSOURCE)))
+  ifneq (,$(findstring gcc-8, $(PKGSOURCE)))
 #    ifneq ($(with_pie),yes)
 #      hardening_patches += \
 #        ignore-pie-specs-when-not-enabled
@@ -143,14 +130,14 @@ endif
 debian_patches += ada-arm
 
 # there should be no harm to always apply these, except for new GCC versions
-#ifeq ($(with_ada),yes)
+ifeq ($(with_ada),yes)
 
   debian_patches += \
 	ada-gcc-name \
 	ada-verbose \
-	ada-library-project-files-soname
 
 	# FIXME: needs update
+	#ada-library-project-files-soname
 	#ada-symbolic-tracebacks \
 
   ifeq ($(biarch64),yes)
@@ -171,25 +158,28 @@ debian_patches += ada-arm
 	ada-sjlj
   #endif
 
-  debian_patches += ada-link-shlib
+  # FIXME: debian_patches += ada-link-shlib
   debian_patches += ada-lib-info-source-date-epoch
   debian_patches += ada-armel-libatomic
-#endif
+endif
 
 
 ifeq ($(with_d),yes)
   debian_patches += \
-	gdc-7 \
+	gdc-8 \
+	gdc-targetdm \
 	gdc-updates \
 	libphobos-zlib \
-	gdc-versym-cpu \
-	gdc-versym-os \
 	gdc-frontend-posix \
 	gdc-profiledbuild \
 	gdc-sparc-fix \
+	gdc-shared-by-default \
+
+#	gdc-versym-cpu \
+#	gdc-versym-os \
 #	gdc-multiarch
   ifneq ($(GFDL_INVARIANT_FREE),yes)
-    debian_patches += gdc-7-doc
+    debian_patches += gdc-8-doc	gdc-targetdm-doc
   else
     debian_patches += gdc-texinfo
   endif
@@ -213,8 +203,7 @@ ifeq ($(DEB_TARGET_ARCH),alpha)
 endif
 
 ifeq ($(DEB_TARGET_ARCH),powerpcspe)
-  debian_patches += powerpc_remove_many
-  debian_patches += powerpc_nofprs
+  debian_patches += powerpcspe_nofprs
 endif
 
 # all patches below this line are applied for gcc-snapshot builds as well
@@ -225,8 +214,6 @@ endif
 
 debian_patches += \
 	sys-auxv-header \
-	libcilkrts-targets \
-	t-libunwind-elf-Wl-z-defs \
 
 ifeq ($(with_ibm_branch),yes)
   debian_patches += ibm-branch
@@ -256,20 +243,20 @@ ifeq ($(DEB_TARGET_ARCH_OS),hurd)
 endif
 
 ifeq ($(DEB_TARGET_ARCH_OS),hurd)
-debian_patches += \
-  src_gcc_config_i386_gnu.h \
-  src_libgo_build \
-  src_libgo_runtime \
-  src_libgo_go_crypto \
-  src_libgo_go_net \
-  src_libgo_go_os \
-  src_libgo_go_runtime \
-  src_libgo_go_syscall \
-  src_libgo_go_go_build_syslist.go \
-  add-gnu-to-libgo-headers \
-  add-gnu-to-libgo-test-headers \
-  src_libgo_go_syscall_syscall_gnu_test.go \
-  src_libgo_testsuite_gotest
+  debian_patches += \
+    src_gcc_config_i386_gnu.h \
+    src_libgo_build \
+    src_libgo_runtime \
+    src_libgo_go_crypto \
+    src_libgo_go_net \
+    src_libgo_go_os \
+    src_libgo_go_runtime \
+    src_libgo_go_syscall \
+    src_libgo_go_go_build_syslist.go \
+    add-gnu-to-libgo-headers \
+    add-gnu-to-libgo-test-headers \
+    src_libgo_go_syscall_syscall_gnu_test.go \
+    src_libgo_testsuite_gotest
 endif
 
 debian_patches += gcc-ice-dump

@@ -285,12 +285,12 @@ Priority: optional
 Recommends: ${dep:libcdev}
 Depends: BASELDEP, ${dep:libgcc}, ${dep:libssp}, ${dep:libgomp}, ${dep:libitm},
  ${dep:libatomic}, ${dep:libbtrace}, ${dep:libasan}, ${dep:liblsan},
- ${dep:libtsan}, ${dep:libubsan}, ${dep:libcilkrts}, ${dep:libvtv},
+ ${dep:libtsan}, ${dep:libubsan}, ${dep:libvtv},
  ${dep:libmpx},
  ${dep:libqmath}, ${dep:libunwinddev}, ${shlibs:Depends}, ${misc:Depends}
 ifdef(`MULTIARCH', `Multi-Arch: same
 ')`'dnl
-Replaces: gccgo-7 (<< ${gcc:Version})
+Replaces: gccgo-8 (<< ${gcc:Version})
 BUILT_USING`'dnl
 Description: GCC support library (development files)
  This package contains the headers and static library files necessary for
@@ -383,9 +383,9 @@ Depends: BASELDEP, ${dep:libgccbiarch}, ${dep:libsspbiarch},
  ${dep:libgompbiarch}, ${dep:libitmbiarch}, ${dep:libatomicbiarch},
  ${dep:libbtracebiarch}, ${dep:libasanbiarch}, ${dep:liblsanbiarch},
  ${dep:libtsanbiarch}, ${dep:libubsanbiarch},
- ${dep:libvtvbiarch}, ${dep:libcilkrtsbiarch}, ${dep:libmpxbiarch},
+ ${dep:libvtvbiarch}, ${dep:libmpxbiarch},
  ${dep:libqmathbiarch}, ${shlibs:Depends}, ${misc:Depends}
-Replaces: gccgo-7-multilib (<< ${gcc:Version})
+Replaces: gccgo-8-multilib (<< ${gcc:Version})
 BUILT_USING`'dnl
 Description: GCC support library (64bit development files)
  This package contains the headers and static library files necessary for
@@ -440,9 +440,9 @@ Depends: BASELDEP, ${dep:libgccbiarch}, ${dep:libsspbiarch},
  ${dep:libgompbiarch}, ${dep:libitmbiarch}, ${dep:libatomicbiarch},
  ${dep:libbtracebiarch}, ${dep:libasanbiarch}, ${dep:liblsanbiarch},
  ${dep:libtsanbiarch}, ${dep:libubsanbiarch},
- ${dep:libvtvbiarch}, ${dep:libcilkrtsbiarch}, ${dep:libmpxbiarch},
+ ${dep:libvtvbiarch}, ${dep:libmpxbiarch},
  ${dep:libqmathbiarch}, ${shlibs:Depends}, ${misc:Depends}
-Replaces: gccgo-7-multilib (<< ${gcc:Version})
+Replaces: gccgo-8-multilib (<< ${gcc:Version})
 BUILT_USING`'dnl
 Description: GCC support library (32 bit development files)
  This package contains the headers and static library files necessary for
@@ -516,9 +516,9 @@ Depends: BASELDEP, ${dep:libgccbiarch}, ${dep:libsspbiarch},
  ${dep:libgompbiarch}, ${dep:libitmbiarch}, ${dep:libatomicbiarch},
  ${dep:libbtracebiarch}, ${dep:libasanbiarch}, ${dep:liblsanbiarch},
  ${dep:libtsanbiarch}, ${dep:libubsanbiarch},
- ${dep:libvtvbiarch}, ${dep:libcilkrtsbiarch}, ${dep:libmpxbiarch},
+ ${dep:libvtvbiarch}, ${dep:libmpxbiarch},
  ${dep:libqmathbiarch}, ${shlibs:Depends}, ${misc:Depends}
-Replaces: gccgo-7-multilib (<< ${gcc:Version})
+Replaces: gccgo-8-multilib (<< ${gcc:Version})
 BUILT_USING`'dnl
 Description: GCC support library (hard float ABI development files)
  This package contains the headers and static library files necessary for
@@ -576,9 +576,9 @@ Depends: BASELDEP, ${dep:libgccbiarch}, ${dep:libsspbiarch},
  ${dep:libgompbiarch}, ${dep:libitmbiarch}, ${dep:libatomicbiarch},
  ${dep:libbtracebiarch}, ${dep:libasanbiarch}, ${dep:liblsanbiarch},
  ${dep:libtsanbiarch}, ${dep:libubsanbiarch},
- ${dep:libvtvbiarch}, ${dep:libcilkrtsbiarch}, ${dep:libmpxbiarch},
+ ${dep:libvtvbiarch}, ${dep:libmpxbiarch},
  ${dep:libqmathbiarch}, ${shlibs:Depends}, ${misc:Depends}
-Replaces: gccgo-7-multilib (<< ${gcc:Version})
+Replaces: gccgo-8-multilib (<< ${gcc:Version})
 BUILT_USING`'dnl
 Description: GCC support library (soft float ABI development files)
  This package contains the headers and static library files necessary for
@@ -634,9 +634,9 @@ Depends: BASELDEP, ${dep:libgccbiarch}, ${dep:libsspbiarch},
  ${dep:libgompbiarch}, ${dep:libitmbiarch}, ${dep:libatomicbiarch},
  ${dep:libbtracebiarch}, ${dep:libasanbiarch}, ${dep:liblsanbiarch},
  ${dep:libtsanbiarch}, ${dep:libubsanbiarch},
- ${dep:libvtvbiarch}, ${dep:libcilkrtsbiarch}, ${dep:libmpxbiarch},
+ ${dep:libvtvbiarch}, ${dep:libmpxbiarch},
  ${dep:libqmathbiarch}, ${shlibs:Depends}, ${misc:Depends}
-Replaces: gccgo-7-multilib (<< ${gcc:Version})
+Replaces: gccgo-8-multilib (<< ${gcc:Version})
 BUILT_USING`'dnl
 Description: GCC support library (n32 development files)
  This package contains the headers and static library files necessary for
@@ -691,9 +691,9 @@ Depends: BASELDEP, ${dep:libgccbiarch}, ${dep:libsspbiarch},
  ${dep:libgompbiarch}, ${dep:libitmbiarch}, ${dep:libatomicbiarch},
  ${dep:libbtracebiarch}, ${dep:libasanbiarch}, ${dep:liblsanbiarch},
  ${dep:libtsanbiarch}, ${dep:libubsanbiarch},
- ${dep:libvtvbiarch}, ${dep:libcilkrtsbiarch}, ${dep:libmpxbiarch},
+ ${dep:libvtvbiarch}, ${dep:libmpxbiarch},
  ${dep:libqmathbiarch}, ${shlibs:Depends}, ${misc:Depends}
-Replaces: gccgo-7-multilib (<< ${gcc:Version})
+Replaces: gccgo-8-multilib (<< ${gcc:Version})
 BUILT_USING`'dnl
 Description: GCC support library (x32 development files)
  This package contains the headers and static library files necessary for
@@ -714,7 +714,7 @@ Depends: cpp`'PV`'TS (= ${gcc:Version}),ifenabled(`gccbase',` BASEDEP,')
   binutils`'TS (>= ${binutils:Version}),
   ${dep:libgccdev}, ${shlibs:Depends}, ${misc:Depends}
 Recommends: ${dep:libcdev}
-Replaces: gccgo-7 (<< ${gcc:Version}), cpp`'PV`'TS (<< 7.1.1-8)
+Replaces: gccgo-8 (<< ${gcc:Version}), cpp`'PV`'TS (<< 7.1.1-8)
 Suggests: ${gcc:multilib}, gcc`'PV-doc (>= ${gcc:SoftVersion}),
  gcc`'PV-locales (>= ${gcc:SoftVersion}),
  libdbgdep(gcc`'GCC_SO-dbg,,>=,${libgcc:Version}),
@@ -728,7 +728,6 @@ Suggests: ${gcc:multilib}, gcc`'PV-doc (>= ${gcc:SoftVersion}),
 ifenabled(`libvtv',`',`
  libdbgdep(vtv`'VTV_SO-dbg,),
 ')`'dnl
- libdbgdep(cilkrts`'CILKRTS_SO-dbg,),
  libdbgdep(mpx`'MPX_SO-dbg,),
  libdbgdep(quadmath`'QMATH_SO-dbg,)
 Provides: c-compiler`'TS
@@ -811,7 +810,7 @@ Section: ifdef(`TARGET',`devel',`interpreters')
 Priority: optional
 Depends: BASEDEP, ${shlibs:Depends}, ${misc:Depends}
 Suggests: gcc`'PV-locales (>= ${gcc:SoftVersion})
-Replaces: gccgo-7 (<< ${gcc:Version})
+Replaces: gccgo-8 (<< ${gcc:Version})
 Breaks: libmagics++-dev (<< 2.28.0-4)ifdef(`TARGET',`',`, hardening-wrapper (<< 2.8+nmu3)')
 BUILT_USING`'dnl
 Description: GNU C preprocessor
@@ -2570,202 +2569,6 @@ Description: GNU vtable verification library [neon optimized]
 ')`'dnl libneonvtv
 ')`'dnl libvtv
 
-ifenabled(`libcilkrts',`
-Package: libcilkrts`'CILKRTS_SO`'LS
-TARGET_PACKAGE`'dnl
-Section: ifdef(`TARGET',`devel',`libs')
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
-ifdef(`TARGET',`',`Provides: libcilkrts'CILKRTS_SO`-armel [armel], libcilkrts'CILKRTS_SO`-armhf [armhf]
-')`'dnl
-ifdef(`MULTIARCH', `Multi-Arch: same
-Pre-Depends: ${misc:Pre-Depends}
-')`'dnl
-Priority: optional
-Depends: BASELDEP, ${shlibs:Depends}, ${misc:Depends}
-BUILT_USING`'dnl
-Description: Intel Cilk Plus language extensions (runtime)
- Intel Cilk Plus is an extension to the C and C++ languages to support
- data and task parallelism.
-
-Package: libcilkrts`'CILKRTS_SO-dbg`'LS
-TARGET_PACKAGE`'dnl
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
-Section: debug
-Priority: optional
-Depends: BASELDEP, libdep(cilkrts`'CILKRTS_SO,,=), ${misc:Depends}
-ifdef(`TARGET',`',`Provides: libcilkrts'CILKRTS_SO`-dbg-armel [armel], libcilkrts'CILKRTS_SO`-dbg-armhf [armhf]
-')`'dnl
-ifdef(`MULTIARCH', `Multi-Arch: same
-')`'dnl
-BUILT_USING`'dnl
-Description: Intel Cilk Plus language extensions (debug symbols)
- Intel Cilk Plus is an extension to the C and C++ languages to support
- data and task parallelism.
-
-ifenabled(`lib32cilkrts',`
-Package: lib32cilkrts`'CILKRTS_SO`'LS
-TARGET_PACKAGE`'dnl
-Section: ifdef(`TARGET',`devel',`libs')
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
-Priority: optional
-Depends: BASELDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
-Conflicts: ${confl:lib32}
-BUILT_USING`'dnl
-Description: Intel Cilk Plus language extensions (32bit)
- Intel Cilk Plus is an extension to the C and C++ languages to support
- data and task parallelism.
-
-Package: lib32cilkrts`'CILKRTS_SO-dbg`'LS
-TARGET_PACKAGE`'dnl
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
-Section: debug
-Priority: optional
-Depends: BASELDEP, libdep(cilkrts`'CILKRTS_SO,32,=), ${misc:Depends}
-BUILT_USING`'dnl
-Description: Intel Cilk Plus language extensions (32 bit debug symbols)
- Intel Cilk Plus is an extension to the C and C++ languages to support
- data and task parallelism.
-')`'dnl lib32cilkrts
-
-ifenabled(`lib64cilkrts',`
-Package: lib64cilkrts`'CILKRTS_SO`'LS
-TARGET_PACKAGE`'dnl
-Section: ifdef(`TARGET',`devel',`libs')
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
-Priority: optional
-Depends: BASELDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
-BUILT_USING`'dnl
-Description: Intel Cilk Plus language extensions (64bit)
- Intel Cilk Plus is an extension to the C and C++ languages to support
- data and task parallelism.
-
-Package: lib64cilkrts`'CILKRTS_SO-dbg`'LS
-TARGET_PACKAGE`'dnl
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
-Section: debug
-Priority: optional
-Depends: BASELDEP, libdep(cilkrts`'CILKRTS_SO,64,=), ${misc:Depends}
-BUILT_USING`'dnl
-Description: Intel Cilk Plus language extensions (64bit debug symbols)
- Intel Cilk Plus is an extension to the C and C++ languages to support
- data and task parallelism.
-')`'dnl lib64cilkrts
-
-ifenabled(`libn32cilkrts',`
-Package: libn32cilkrts`'CILKRTS_SO`'LS
-TARGET_PACKAGE`'dnl
-Section: ifdef(`TARGET',`devel',`libs')
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
-Priority: optional
-Depends: BASELDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
-BUILT_USING`'dnl
-Description: Intel Cilk Plus language extensions (n32)
- Intel Cilk Plus is an extension to the C and C++ languages to support
- data and task parallelism.
-
-Package: libn32cilkrts`'CILKRTS_SO-dbg`'LS
-TARGET_PACKAGE`'dnl
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
-Section: debug
-Priority: optional
-Depends: BASELDEP, libdep(cilkrts`'CILKRTS_SO,n32,=), ${misc:Depends}
-BUILT_USING`'dnl
-Description: Intel Cilk Plus language extensions (n32 debug symbols)
- Intel Cilk Plus is an extension to the C and C++ languages to support
- data and task parallelism.
-')`'dnl libn32cilkrts
-
-ifenabled(`libx32cilkrts',`
-Package: libx32cilkrts`'CILKRTS_SO`'LS
-TARGET_PACKAGE`'dnl
-Section: ifdef(`TARGET',`devel',`libs')
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
-Priority: optional
-Depends: BASELDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
-BUILT_USING`'dnl
-Description: Intel Cilk Plus language extensions (x32)
- Intel Cilk Plus is an extension to the C and C++ languages to support
- data and task parallelism.
-
-Package: libx32cilkrts`'CILKRTS_SO-dbg`'LS
-TARGET_PACKAGE`'dnl
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
-Section: debug
-Priority: optional
-Depends: BASELDEP, libdep(cilkrts`'CILKRTS_SO,x32,=), ${misc:Depends}
-BUILT_USING`'dnl
-Description: Intel Cilk Plus language extensions (x32 debug symbols)
- Intel Cilk Plus is an extension to the C and C++ languages to support
- data and task parallelism.
-')`'dnl libx32cilkrts
-
-ifenabled(`libhfcilkrts',`
-Package: libhfcilkrts`'CILKRTS_SO`'LS
-TARGET_PACKAGE`'dnl
-Section: ifdef(`TARGET',`devel',`libs')
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
-Priority: optional
-Depends: BASELDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
-ifdef(`TARGET',`dnl',`Conflicts: libcilkrts'CILKRTS_SO`-armhf [biarchhf_archs]')
-BUILT_USING`'dnl
-Description: Intel Cilk Plus language extensions (hard float ABI)
- Intel Cilk Plus is an extension to the C and C++ languages to support
- data and task parallelism.
-
-Package: libhfcilkrts`'CILKRTS_SO-dbg`'LS
-TARGET_PACKAGE`'dnl
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
-Section: debug
-Priority: optional
-Depends: BASELDEP, libdep(cilkrts`'CILKRTS_SO,hf,=), ${misc:Depends}
-ifdef(`TARGET',`dnl',`Conflicts: libcilkrts'CILKRTS_SO`-armel [biarchsf_archs]')
-BUILT_USING`'dnl
-Description: Intel Cilk Plus language extensions (hard float ABI debug symbols)
- Intel Cilk Plus is an extension to the C and C++ languages to support
- data and task parallelism.
-')`'dnl libhfcilkrts
-
-ifenabled(`libsfcilkrts',`
-Package: libsfcilkrts`'CILKRTS_SO`'LS
-TARGET_PACKAGE`'dnl
-Section: ifdef(`TARGET',`devel',`libs')
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
-Priority: optional
-Depends: BASELDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
-BUILT_USING`'dnl
-Description: Intel Cilk Plus language extensions (soft float ABI)
- Intel Cilk Plus is an extension to the C and C++ languages to support
- data and task parallelism.
-
-Package: libsfcilkrts`'CILKRTS_SO-dbg`'LS
-TARGET_PACKAGE`'dnl
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
-Section: debug
-Priority: optional
-Depends: BASELDEP, libdep(cilkrts`'CILKRTS_SO,sf,=), ${misc:Depends}
-BUILT_USING`'dnl
-Description: Intel Cilk Plus language extensions (soft float ABI debug symbols)
- Intel Cilk Plus is an extension to the C and C++ languages to support
- data and task parallelism.
-')`'dnl libsfcilkrts
-
-ifenabled(`libneoncilkrts',`
-Package: libcilkrts`'CILKRTS_SO-neon`'LS
-TARGET_PACKAGE`'dnl
-Architecture: NEON_ARCHS
-Section: libs
-Priority: optional
-Depends: BASELDEP, libc6-neon`'LS, ${shlibs:Depends}, ${misc:Depends}
-BUILT_USING`'dnl
-Description: Intel Cilk Plus language extensions [neon optimized]
- Intel Cilk Plus is an extension to the C and C++ languages to support
- data and task parallelism.
- .
- This set of libraries is optimized to use a NEON coprocessor, and will
- be selected instead when running under systems which have one.
-')`'dnl libneoncilkrts
-')`'dnl libcilkrts
-
 ifenabled(`libmpx',`
 Package: libmpx`'MPX_SO`'LS
 TARGET_PACKAGE`'dnl
@@ -3393,7 +3196,7 @@ Section: doc
 Architecture: all
 Priority: optional
 Depends: BASEDEP, ${misc:Depends}
-Conflicts: libgccjit-5-doc, libgccjit-6-doc
+Conflicts: libgccjit-5-doc, libgccjit-6-doc, libgccjit-7-doc
 Description: GCC just-in-time compilation (documentation)
  libgccjit provides an embeddable shared library with an API for adding
  compilation to existing programs using GCC.
@@ -4100,8 +3903,8 @@ Depends: BASEDEP, ifdef(`STANDALONEGO',`${dep:libcc1}, ',`gcc`'PV`'TS (= ${gcc:V
 Provides: go-compiler
 Suggests: ${go:multilib}, gccgo`'PV-doc, libdbgdep(go`'GO_SO-dbg,)
 Conflicts: ${golang:Conflicts}
-Breaks: libgo`'GO_SO`'LS (<< 7.2.0-18)
-Replaces: libgo`'GO_SO`'LS (<< 7.2.0-18)
+Breaks: libgo12`'LS (<< 8-20171209-2)
+Replaces: libgo12`'LS (<< 8-20171209-2)
 BUILT_USING`'dnl
 Description: GNU Go compiler
  This is the GNU Go compiler, which compiles Go on platforms supported
@@ -4116,14 +3919,14 @@ Section: devel
 Priority: optional
 Depends: BASEDEP, gccgo`'PV`'TS (= ${gcc:Version}), ifdef(`STANDALONEGO',,`gcc`'PV-multilib`'TS (= ${gcc:Version}), ')${dep:libgobiarch}, ${shlibs:Depends}, ${misc:Depends}
 Suggests: ${dep:libgobiarchdbg}
-Breaks: lib32go`'GO_SO`'LS (<< 7.2.0-18),
-  libn32go`'GO_SO`'LS (<< 7.2.0-18),
-  libx32go`'GO_SO`'LS (<< 7.2.0-18),
-  lib64go`'GO_SO`'LS (<< 7.2.0-18)
-Replaces: lib32go`'GO_SO`'LS (<< 7.2.0-18),
-  libn32go`'GO_SO`'LS (<< 7.2.0-18),
-  libx32go`'GO_SO`'LS (<< 7.2.0-18),
-  lib64go`'GO_SO`'LS (<< 7.2.0-18)
+Breaks: lib32go12 (<< 8-20171209-2),
+  libn32go12`'LS (<< 8-20171209-2),
+  libx32go12`'LS (<< 8-20171209-2),
+  lib64go12`'LS (<< 8-20171209-2)
+Replaces: lib32go12`'LS (<< 8-20171209-2),
+  libn32go12`'LS (<< 8-20171209-2),
+  libx32go12`'LS (<< 8-20171209-2),
+  lib64go12`'LS (<< 8-20171209-2)
 BUILT_USING`'dnl
 Description: GNU Go compiler (multilib support)`'ifdef(`TARGET)',` (cross compiler for TARGET architecture)', `')
  This is the GNU Go compiler, which compiles Go on platforms supported
@@ -4544,7 +4347,8 @@ Conflicts: libstdc++5-dbg`'LS, libstdc++5-3.3-dbg`'LS, libstdc++6-dbg`'LS,
  libstdc++6-4.0-dbg`'LS, libstdc++6-4.1-dbg`'LS, libstdc++6-4.2-dbg`'LS,
  libstdc++6-4.3-dbg`'LS, libstdc++6-4.4-dbg`'LS, libstdc++6-4.5-dbg`'LS,
  libstdc++6-4.6-dbg`'LS, libstdc++6-4.7-dbg`'LS, libstdc++6-4.8-dbg`'LS,
- libstdc++6-4.9-dbg`'LS, libstdc++6-5-dbg`'LS, libstdc++6-6-dbg`'LS
+ libstdc++6-4.9-dbg`'LS, libstdc++6-5-dbg`'LS, libstdc++6-6-dbg`'LS,
+ libstdc++6-7-dbg`'LS
 BUILT_USING`'dnl
 Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET)',` (TARGET)', `')
  This package contains the shared library of libstdc++ compiled with
@@ -4590,7 +4394,7 @@ Conflicts: lib32stdc++6-dbg`'LS, lib32stdc++6-4.0-dbg`'LS,
  lib32stdc++6-4.1-dbg`'LS, lib32stdc++6-4.2-dbg`'LS, lib32stdc++6-4.3-dbg`'LS,
  lib32stdc++6-4.4-dbg`'LS, lib32stdc++6-4.5-dbg`'LS, lib32stdc++6-4.6-dbg`'LS,
  lib32stdc++6-4.7-dbg`'LS, lib32stdc++6-4.8-dbg`'LS, lib32stdc++6-4.9-dbg`'LS,
- lib32stdc++6-5-dbg`'LS, lib32stdc++6-6-dbg`'LS
+ lib32stdc++6-5-dbg`'LS, lib32stdc++6-6-dbg`'LS, lib32stdc++6-7-dbg`'LS
 BUILT_USING`'dnl
 Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET)',` (TARGET)', `')
  This package contains the shared library of libstdc++ compiled with
@@ -4636,7 +4440,7 @@ Conflicts: lib64stdc++6-dbg`'LS, lib64stdc++6-4.0-dbg`'LS,
  lib64stdc++6-4.1-dbg`'LS, lib64stdc++6-4.2-dbg`'LS, lib64stdc++6-4.3-dbg`'LS,
  lib64stdc++6-4.4-dbg`'LS, lib64stdc++6-4.5-dbg`'LS, lib64stdc++6-4.6-dbg`'LS,
  lib64stdc++6-4.7-dbg`'LS, lib64stdc++6-4.8-dbg`'LS, lib64stdc++6-4.9-dbg`'LS,
- lib64stdc++6-5-dbg`'LS, lib64stdc++6-6-dbg`'LS
+ lib64stdc++6-5-dbg`'LS, lib64stdc++6-6-dbg`'LS, lib64stdc++6-7-dbg`'LS,
 BUILT_USING`'dnl
 Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET)',` (TARGET)', `')
  This package contains the shared library of libstdc++ compiled with
@@ -4682,7 +4486,7 @@ Conflicts: libn32stdc++6-dbg`'LS, libn32stdc++6-4.0-dbg`'LS,
  libn32stdc++6-4.1-dbg`'LS, libn32stdc++6-4.2-dbg`'LS, libn32stdc++6-4.3-dbg`'LS,
  libn32stdc++6-4.4-dbg`'LS, libn32stdc++6-4.5-dbg`'LS, libn32stdc++6-4.6-dbg`'LS,
  libn32stdc++6-4.7-dbg`'LS, libn32stdc++6-4.8-dbg`'LS, libn32stdc++6-4.9-dbg`'LS,
- libn32stdc++6-5-dbg`'LS, libn32stdc++6-6-dbg`'LS
+ libn32stdc++6-5-dbg`'LS, libn32stdc++6-6-dbg`'LS, libn32stdc++6-7-dbg`'LS,
 BUILT_USING`'dnl
 Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET)',` (TARGET)', `')
  This package contains the shared library of libstdc++ compiled with
@@ -4729,7 +4533,7 @@ ifdef(`TARGET',`Provides: libx32stdc++CXX_SO-dbg-TARGET-dcv1
 ',`')`'dnl
 Conflicts: libx32stdc++6-dbg`'LS, libx32stdc++6-4.6-dbg`'LS,
  libx32stdc++6-4.7-dbg`'LS, libx32stdc++6-4.8-dbg`'LS, libx32stdc++6-4.9-dbg`'LS,
- libx32stdc++6-5-dbg`'LS, libx32stdc++6-6-dbg`'LS
+ libx32stdc++6-5-dbg`'LS, libx32stdc++6-6-dbg`'LS, libx32stdc++6-7-dbg`'LS,
 BUILT_USING`'dnl
 Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET)',` (TARGET)', `')
  This package contains the shared library of libstdc++ compiled with
@@ -4773,7 +4577,7 @@ Depends: BASELDEP, libdep(stdc++CXX_SO,hf),
  ${shlibs:Depends}, ${misc:Depends}
 ifdef(`TARGET',`Provides: libhfstdc++CXX_SO-dbg-TARGET-dcv1
 ',`')`'dnl
-ifdef(`TARGET',`dnl',`Conflicts: libhfstdc++6-dbg`'LS, libhfstdc++6-4.3-dbg`'LS, libhfstdc++6-4.4-dbg`'LS, libhfstdc++6-4.5-dbg`'LS, libhfstdc++6-4.6-dbg`'LS, libhfstdc++6-4.7-dbg`'LS, libhfstdc++6-4.8-dbg`'LS, libhfstdc++6-4.9-dbg`'LS, libhfstdc++6-5-dbg`'LS, libhfstdc++6-6-dbg`'LS, libstdc++'CXX_SO`-armhf [biarchhf_archs]')
+ifdef(`TARGET',`dnl',`Conflicts: libhfstdc++6-dbg`'LS, libhfstdc++6-4.3-dbg`'LS, libhfstdc++6-4.4-dbg`'LS, libhfstdc++6-4.5-dbg`'LS, libhfstdc++6-4.6-dbg`'LS, libhfstdc++6-4.7-dbg`'LS, libhfstdc++6-4.8-dbg`'LS, libhfstdc++6-4.9-dbg`'LS, libhfstdc++6-5-dbg`'LS, libhfstdc++6-6-dbg`'LS, libhfstdc++6-7-dbg`'LS, libstdc++'CXX_SO`-armhf [biarchhf_archs]')
 BUILT_USING`'dnl
 Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET)',` (TARGET)', `')
  This package contains the shared library of libstdc++ compiled with
@@ -4817,7 +4621,7 @@ Depends: BASELDEP, libdep(stdc++CXX_SO,sf),
  ${shlibs:Depends}, ${misc:Depends}
 ifdef(`TARGET',`Provides: libsfstdc++CXX_SO-dbg-TARGET-dcv1
 ',`')`'dnl
-ifdef(`TARGET',`dnl',`Conflicts: libsfstdc++6-dbg`'LS, libsfstdc++6-4.3-dbg`'LS, libsfstdc++6-4.4-dbg`'LS, libsfstdc++6-4.5-dbg`'LS, libsfstdc++6-4.6-dbg`'LS, libsfstdc++6-4.7-dbg`'LS, libsfstdc++6-4.8-dbg`'LS, libsfstdc++6-4.9-dbg`'LS, libsfstdc++6-5-dbg`'LS, libhfstdc++6-6-dbg`'LS, libstdc++'CXX_SO`-armel [biarchsf_archs]')
+ifdef(`TARGET',`dnl',`Conflicts: libsfstdc++6-dbg`'LS, libsfstdc++6-4.3-dbg`'LS, libsfstdc++6-4.4-dbg`'LS, libsfstdc++6-4.5-dbg`'LS, libsfstdc++6-4.6-dbg`'LS, libsfstdc++6-4.7-dbg`'LS, libsfstdc++6-4.8-dbg`'LS, libsfstdc++6-4.9-dbg`'LS, libsfstdc++6-5-dbg`'LS, libhfstdc++6-6-dbg`'LS, libhfstdc++6-7-dbg`'LS, libstdc++'CXX_SO`-armel [biarchsf_archs]')
 BUILT_USING`'dnl
 Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET)',` (TARGET)', `')
  This package contains the shared library of libstdc++ compiled with
@@ -4838,7 +4642,8 @@ Depends: gcc`'PV-base (>= ${gcc:SoftVersion}), ${misc:Depends}
 Conflicts: libstdc++5-doc, libstdc++5-3.3-doc, libstdc++6-doc,
  libstdc++6-4.0-doc, libstdc++6-4.1-doc, libstdc++6-4.2-doc, libstdc++6-4.3-doc,
  libstdc++6-4.4-doc, libstdc++6-4.5-doc, libstdc++6-4.6-doc, libstdc++6-4.7-doc,
- libstdc++-4.8-doc, libstdc++-4.9-doc, libstdc++-5-doc, libstdc++-6-doc
+ libstdc++-4.8-doc, libstdc++-4.9-doc, libstdc++-5-doc, libstdc++-6-doc,
+ libstdc++-7-doc,
 Description: GNU Standard C++ Library v3 (documentation files)
  This package contains documentation files for the GNU stdc++ library.
  .
@@ -4870,7 +4675,7 @@ Replaces: gnat (<< 4.6.1), dh-ada-library (<< 6.0), gnat-4.6-base (= 4.6.4-2),
 # Newer versions of gnat and dh-ada-library will not provide these files.
 Conflicts: gnat (<< 4.1), gnat-3.1, gnat-3.2, gnat-3.3, gnat-3.4, gnat-3.5,
  gnat-4.0, gnat-4.1, gnat-4.2, gnat-4.3, gnat-4.4, gnat-4.6, gnat-4.7, gnat-4.8,
- gnat-4.9, gnat-5`'TS, gnat-6`'TS
+ gnat-4.9, gnat-5`'TS, gnat-6`'TS, gnat-7`'TS,
 # These other packages will continue to provide /usr/bin/gnatmake and
 # other files.
 BUILT_USING`'dnl
@@ -4950,7 +4755,7 @@ Depends: BASELDEP, gnat`'PV`'TS (= ${gnat:Version}),
 Conflicts: libgnatvsn-dev (<< `'GNAT_V),
  libgnatvsn4.1-dev, libgnatvsn4.3-dev, libgnatvsn4.4-dev,
  libgnatvsn4.5-dev, libgnatvsn4.6-dev, libgnatvsn4.9-dev,
- libgnatvsn5-dev`'LS, libgnatvsn6-dev`'LS,
+ libgnatvsn5-dev`'LS, libgnatvsn6-dev`'LS, libgnatvsn7-dev`'LS,
 BUILT_USING`'dnl
 Description: GNU Ada compiler selected components (development files)
  GNAT is a compiler for the Ada programming language. It produces optimized
@@ -5033,7 +4838,7 @@ Suggests: gnat`'PV
 Conflicts: gnat-4.1-doc, gnat-4.2-doc,
   gnat-4.3-doc, gnat-4.4-doc,
   gnat-4.6-doc, gnat-4.9-doc,
-  gnat-5-doc, gnat-6-doc,
+  gnat-5-doc, gnat-6-doc, gnat-7-doc,
 BUILT_USING`'dnl
 Description: GNU Ada compiler (documentation)
  GNAT is a compiler for the Ada programming language. It produces optimized
