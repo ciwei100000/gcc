@@ -1,10 +1,10 @@
-# DP: updates from the 6 branch upto 20180924 (r264530).
+# DP: updates from the 6 branch upto 20181019 (r265312).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Mon Sep 24 13:28:31 CEST 2018
-Mon Sep 24 11:28:31 UTC 2018 (revision 264530)
+Fri Oct 19 14:56:48 CEST 2018
+Fri Oct 19 12:56:48 UTC 2018 (revision 265312)
 EOF
 }
 
@@ -29,7 +29,23 @@ Index: libgomp/ChangeLog
 ===================================================================
 --- a/src/libgomp/ChangeLog	(.../tags/gcc_6_4_0_release)
 +++ b/src/libgomp/ChangeLog	(.../branches/gcc-6-branch)
-@@ -1,3 +1,57 @@
+@@ -1,3 +1,73 @@
++2018-10-12  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from mainline
++	2018-07-17  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/86542
++	* testsuite/libgomp.c++/pr86542.C: New test.
++
++	PR middle-end/86539
++	* testsuite/libgomp.c++/pr86539.C: New test.
++
++	2018-07-26  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/86660
++	* testsuite/libgomp.c/pr86660.c: New test.
++
 +2018-06-26  Jakub Jelinek  <jakub@redhat.com>
 +
 +	PR c++/86291
@@ -87,6 +103,48 @@ Index: libgomp/ChangeLog
  2017-07-04  Release Manager
  
  	* GCC 6.4.0 released.
+Index: libgomp/testsuite/libgomp.c++/pr86542.C
+===================================================================
+--- a/src/libgomp/testsuite/libgomp.c++/pr86542.C	(.../tags/gcc_6_4_0_release)
++++ b/src/libgomp/testsuite/libgomp.c++/pr86542.C	(.../branches/gcc-6-branch)
+@@ -0,0 +1,37 @@
++// PR middle-end/86542
++
++struct S { int s; S (); ~S (); S (const S &); };
++S s;
++
++S::S ()
++{
++}
++
++S::~S ()
++{
++}
++
++S::S (const S &x)
++{
++  s = x.s;
++}
++
++__attribute__((noinline, noclone)) void
++foo (int i, int j, int k, S s)
++{
++  if (i != 0 || j != 0 || k != 0 || s.s != 12)
++    __builtin_abort ();
++}
++
++int
++main ()
++{
++  volatile int inc = 16, jnc = 16, knc = 16;
++  s.s = 12;
++  #pragma omp taskloop collapse (3) firstprivate (s)
++  for (int i = 0; i < 16; i += inc)
++    for (int j = 0; j < 16; j += jnc)
++      for (int k = 0; k < 16; k += knc)
++	foo (i, j, k, s);
++  return 0;
++}
 Index: libgomp/testsuite/libgomp.c++/pr86291.C
 ===================================================================
 --- a/src/libgomp/testsuite/libgomp.c++/pr86291.C	(.../tags/gcc_6_4_0_release)
@@ -196,6 +254,39 @@ Index: libgomp/testsuite/libgomp.c++/pr45784.C
 +
 +#include "../libgomp.c/pr45784.c"
 +
+Index: libgomp/testsuite/libgomp.c++/pr86539.C
+===================================================================
+--- a/src/libgomp/testsuite/libgomp.c++/pr86539.C	(.../tags/gcc_6_4_0_release)
++++ b/src/libgomp/testsuite/libgomp.c++/pr86539.C	(.../branches/gcc-6-branch)
+@@ -0,0 +1,28 @@
++// PR middle-end/86539
++
++int a[384];
++
++__attribute__((noinline, noclone)) void
++foo (int &b, int &c)
++{
++  #pragma omp taskloop shared (a) collapse(3)
++  for (int i = 0; i < 1; i++)
++    for (int *p = &b; p < &c; p++)
++      for (int j = 0; j < 1; j++)
++	if (p < &a[128] || p >= &a[256])
++	  __builtin_abort ();
++	else
++	  p[0]++;
++}
++
++int
++main ()
++{
++  #pragma omp parallel
++  #pragma omp single
++    foo (a[128], a[256]);
++  for (int i = 0; i < 384; i++)
++    if (a[i] != (i >= 128 && i < 256))
++      __builtin_abort ();
++  return 0;
++}
 Index: libgomp/testsuite/libgomp.fortran/pr81304.f90
 ===================================================================
 --- a/src/libgomp/testsuite/libgomp.fortran/pr81304.f90	(.../tags/gcc_6_4_0_release)
@@ -330,6 +421,39 @@ Index: libgomp/testsuite/libgomp.c/pr81875.c
 +  if (test_tpf_static32 ())
 +    abort ();
 +
++  return 0;
++}
+Index: libgomp/testsuite/libgomp.c/pr86660.c
+===================================================================
+--- a/src/libgomp/testsuite/libgomp.c/pr86660.c	(.../tags/gcc_6_4_0_release)
++++ b/src/libgomp/testsuite/libgomp.c/pr86660.c	(.../branches/gcc-6-branch)
+@@ -0,0 +1,28 @@
++/* PR middle-end/86660 */
++
++#pragma omp declare target
++int v[20];
++
++void
++foo (void)
++{
++  if (v[7] != 2)
++    __builtin_abort ();
++  v[7] = 1;
++}
++#pragma omp end declare target
++
++int
++main ()
++{
++  v[5] = 8;
++  v[7] = 2;
++  #pragma omp target map (always, tofrom: v)
++  {
++    foo ();
++    v[5] = 3;
++  }
++  if (v[7] != 1 || v[5] != 3)
++    __builtin_abort ();
 +  return 0;
 +}
 Index: libgomp/testsuite/libgomp.c/pr45784.c
@@ -472,6 +596,73 @@ Index: libsanitizer/sanitizer_common/sanitizer_platform_limits_posix.cc
    unsigned struct_rlimit64_sz = sizeof(struct rlimit64);
    unsigned struct_statvfs64_sz = sizeof(struct statvfs64);
  #endif // SANITIZER_LINUX && !SANITIZER_ANDROID
+Index: libsanitizer/sanitizer_common/sanitizer_linux_libcdep.cc
+===================================================================
+--- a/src/libsanitizer/sanitizer_common/sanitizer_linux_libcdep.cc	(.../tags/gcc_6_4_0_release)
++++ b/src/libsanitizer/sanitizer_common/sanitizer_linux_libcdep.cc	(.../branches/gcc-6-branch)
+@@ -154,16 +154,14 @@
+ #endif
+ }
+ 
++#ifndef __GLIBC_PREREQ
++#define __GLIBC_PREREQ(x, y) 0
++#endif
++
+ #if !SANITIZER_FREEBSD && !SANITIZER_ANDROID && !SANITIZER_GO
+ static uptr g_tls_size;
+ #endif
+ 
+-#ifdef __i386__
+-# define DL_INTERNAL_FUNCTION __attribute__((regparm(3), stdcall))
+-#else
+-# define DL_INTERNAL_FUNCTION
+-#endif
+-
+ #if defined(__mips__) || defined(__powerpc64__)
+ // TlsPreTcbSize includes size of struct pthread_descr and size of tcb
+ // head structure. It lies before the static tls blocks.
+@@ -186,16 +184,33 @@
+ #if !SANITIZER_FREEBSD && !SANITIZER_ANDROID && !SANITIZER_GO
+ // all current supported platforms have 16 bytes stack alignment
+   const size_t kStackAlign = 16;
+-  typedef void (*get_tls_func)(size_t*, size_t*) DL_INTERNAL_FUNCTION;
+-  get_tls_func get_tls;
+-  void *get_tls_static_info_ptr = dlsym(RTLD_NEXT, "_dl_get_tls_static_info");
+-  CHECK_EQ(sizeof(get_tls), sizeof(get_tls_static_info_ptr));
+-  internal_memcpy(&get_tls, &get_tls_static_info_ptr,
+-                  sizeof(get_tls_static_info_ptr));
+-  CHECK_NE(get_tls, 0);
+   size_t tls_size = 0;
+   size_t tls_align = 0;
+-  get_tls(&tls_size, &tls_align);
++  void *get_tls_static_info_ptr = dlsym(RTLD_NEXT, "_dl_get_tls_static_info");
++#if defined(__i386__) && !__GLIBC_PREREQ(2, 27)
++  /* On i?86, _dl_get_tls_static_info used to be internal_function, i.e.
++     __attribute__((regparm(3), stdcall)) before glibc 2.27 and is normal
++     function in 2.27 and later.  */
++  if (!dlvsym(RTLD_NEXT, "glob", "GLIBC_2.27")) {
++    typedef void (*get_tls_func)(size_t*, size_t*)
++      __attribute__((regparm(3), stdcall));
++    get_tls_func get_tls;
++    CHECK_EQ(sizeof(get_tls), sizeof(get_tls_static_info_ptr));
++    internal_memcpy(&get_tls, &get_tls_static_info_ptr,
++                    sizeof(get_tls_static_info_ptr));
++    CHECK_NE(get_tls, 0);
++    get_tls(&tls_size, &tls_align);
++  } else
++#endif
++  {
++    typedef void (*get_tls_func)(size_t*, size_t*);
++    get_tls_func get_tls;
++    CHECK_EQ(sizeof(get_tls), sizeof(get_tls_static_info_ptr));
++    internal_memcpy(&get_tls, &get_tls_static_info_ptr,
++                    sizeof(get_tls_static_info_ptr));
++    CHECK_NE(get_tls, 0);
++    get_tls(&tls_size, &tls_align);
++  }
+   if (tls_align < kStackAlign)
+     tls_align = kStackAlign;
+   g_tls_size = RoundUpTo(tls_size, tls_align);
 Index: libsanitizer/sanitizer_common/sanitizer_linux.cc
 ===================================================================
 --- a/src/libsanitizer/sanitizer_common/sanitizer_linux.cc	(.../tags/gcc_6_4_0_release)
@@ -525,7 +716,21 @@ Index: libsanitizer/ChangeLog
 ===================================================================
 --- a/src/libsanitizer/ChangeLog	(.../tags/gcc_6_4_0_release)
 +++ b/src/libsanitizer/ChangeLog	(.../branches/gcc-6-branch)
-@@ -1,3 +1,34 @@
+@@ -1,3 +1,48 @@
++2018-10-15  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2018-03-19  Jakub Jelinek  <jakub@redhat.com>
++
++	PR sanitizer/84761
++	* sanitizer_common/sanitizer_linux_libcdep.cc (__GLIBC_PREREQ):
++	Define if not defined.
++	(DL_INTERNAL_FUNCTION): Don't define.
++	(InitTlsSize): For __i386__ if not compiled against glibc 2.27+
++	determine at runtime whether to use regparm(3), stdcall calling
++	convention for older glibcs or normal calling convention for
++	newer glibcs for call to _dl_get_tls_static_info.
++
 +2017-09-23  Matthias Klose  <doko@ubuntu.com>
 +
 +	Backported from the gcc-7-branch:
@@ -702,7 +907,47 @@ Index: libstdc++-v3/python/libstdcxx/v6/printers.py
 ===================================================================
 --- a/src/libstdc++-v3/python/libstdcxx/v6/printers.py	(.../tags/gcc_6_4_0_release)
 +++ b/src/libstdc++-v3/python/libstdcxx/v6/printers.py	(.../branches/gcc-6-branch)
-@@ -1154,7 +1154,7 @@
+@@ -1062,6 +1062,39 @@
+         return self._iterator(self.val['_M_cmpts'])
+ 
+ 
++class StdPairPrinter:
++    "Print a std::pair object, with 'first' and 'second' as children"
++
++    def __init__(self, typename, val):
++        self.val = val
++
++    class _iter(Iterator):
++        "An iterator for std::pair types. Returns 'first' then 'second'."
++
++        def __init__(self, val):
++            self.val = val
++            self.which = 'first'
++
++        def __iter__(self):
++            return self
++
++        def __next__(self):
++            if self.which is None:
++                raise StopIteration
++            which = self.which
++            if which == 'first':
++                self.which = 'second'
++            else:
++                self.which = None
++            return (which, self.val[which])
++
++    def children(self):
++        return self._iter(self.val)
++
++    def to_string(self):
++        return None
++
++
+ # A "regular expression" printer which conforms to the
+ # "SubPrettyPrinter" protocol from gdb.printing.
+ class RxPrinter(object):
+@@ -1154,7 +1187,7 @@
      Recognizes type names that match a regular expression.
      Replaces them with a formatted string which can use replacement field
      {N} to refer to the \N subgroup of the regex match.
@@ -711,7 +956,7 @@ Index: libstdc++-v3/python/libstdcxx/v6/printers.py
  
      This allows recognizing e.g. "std::vector<(.*), std::allocator<\\1> >"
      and replacing it with "std::vector<{1}>", omitting the template argument
-@@ -1335,10 +1335,10 @@
+@@ -1335,10 +1368,10 @@
      # strip the "fundamentals_v1" inline namespace from these types
      add_one_template_type_printer(obj, 'optional<T>',
              'experimental::fundamentals_v1::optional<(.*)>',
@@ -724,6 +969,14 @@ Index: libstdc++-v3/python/libstdcxx/v6/printers.py
  
  def register_libstdcxx_printers (obj):
      "Register libstdc++ pretty-printers with objfile Obj."
+@@ -1377,6 +1410,7 @@
+     libstdcxx_printer.add_container('std::', 'map', StdMapPrinter)
+     libstdcxx_printer.add_container('std::', 'multimap', StdMapPrinter)
+     libstdcxx_printer.add_container('std::', 'multiset', StdSetPrinter)
++    libstdcxx_printer.add_version('std::', 'pair', StdPairPrinter)
+     libstdcxx_printer.add_version('std::', 'priority_queue',
+                                   StdStackOrQueuePrinter)
+     libstdcxx_printer.add_version('std::', 'queue', StdStackOrQueuePrinter)
 Index: libstdc++-v3/src/filesystem/ops.cc
 ===================================================================
 --- a/src/libstdc++-v3/src/filesystem/ops.cc	(.../tags/gcc_6_4_0_release)
@@ -2320,6 +2573,17 @@ Index: libstdc++-v3/doc/xml/manual/status_cxx1998.xml
  </para>
  
  <!-- Status is Yes or No, Broken/Partial-->
+@@ -1130,6 +1129,10 @@
+       implementation will be described under
+       <link linkend="std.localization.locales.locale">Localization</link>.
+    </para>
++   <para><emphasis>[23.*]</emphasis> All of the containers in this clause
++     define <type>size_type</type> as <type>std::size_t</type> and
++     <type>difference_type</type> as <type>std::ptrdiff_t</type>.
++   </para>
+    <para><emphasis>[26.2.8]/9</emphasis> I have no idea what
+       <code>complex&lt;T&gt;</code>'s <code>pow(0,0)</code> returns.
+    </para>
 Index: libstdc++-v3/doc/xml/manual/using.xml
 ===================================================================
 --- a/src/libstdc++-v3/doc/xml/manual/using.xml	(.../tags/gcc_6_4_0_release)
@@ -2940,7 +3204,17 @@ Index: libstdc++-v3/doc/html/manual/status.html
  	<span class="emphasis"><em>18</em></span>
        </td><td colspan="3" align="left">
  	<span class="emphasis"><em>Language support</em></span>
-@@ -157,7 +156,7 @@
+@@ -122,6 +121,9 @@
+    </p><p><span class="emphasis"><em>[22.*]</em></span> Anything and everything we have on locale
+       implementation will be described under
+       <a class="link" href="localization.html#std.localization.locales.locale" title="locale">Localization</a>.
++   </p><p><span class="emphasis"><em>[23.*]</em></span> All of the containers in this clause
++     define <span class="type">size_type</span> as <span class="type">std::size_t</span> and
++     <span class="type">difference_type</span> as <span class="type">std::ptrdiff_t</span>.
+    </p><p><span class="emphasis"><em>[26.2.8]/9</em></span> I have no idea what
+       <code class="code">complex&lt;T&gt;</code>'s <code class="code">pow(0,0)</code> returns.
+    </p><p><span class="emphasis"><em>[27.4.2.4]/2</em></span> Calling
+@@ -157,7 +159,7 @@
  presence of the required flag.
  </p><p>
  This page describes the C++11 support in the GCC 6 series.
@@ -2949,7 +3223,7 @@ Index: libstdc++-v3/doc/html/manual/status.html
  	<span class="emphasis"><em>18</em></span>
        </td><td colspan="3" align="left">
  	<span class="emphasis"><em>Language support</em></span>
-@@ -333,7 +332,7 @@
+@@ -333,7 +335,7 @@
  presence of the required flag.
  </p><p>
  This page describes the C++14 and library TS support in the GCC 6 series.
@@ -2958,7 +3232,7 @@ Index: libstdc++-v3/doc/html/manual/status.html
  	<a class="link" href="http://www.open-std.org/JTC1/sc22/WG21/docs/papers/2013/n3669.pdf" target="_top">
  	  N3669
  	</a>
-@@ -405,7 +404,7 @@
+@@ -405,7 +407,7 @@
  	<a class="link" href="http://www.open-std.org/JTC1/sc22/WG21/docs/papers/2013/n3644.pdf" target="_top">
  	  N3644
  	</a>
@@ -2967,7 +3241,7 @@ Index: libstdc++-v3/doc/html/manual/status.html
  	<a class="link" href="http://www.open-std.org/JTC1/sc22/WG21/docs/papers/2013/n3662.html" target="_top">
  	  N3662
  	</a>
-@@ -467,7 +466,7 @@
+@@ -467,7 +469,7 @@
  presence of the required flag.
  </p><p>
  This page describes the C++1z and library TS support in the GCC 6 series.
@@ -2976,7 +3250,7 @@ Index: libstdc++-v3/doc/html/manual/status.html
  	<a class="link" href="http://www.open-std.org/JTC1/sc22/WG21/docs/papers/2014/n4259.pdf" target="_top">
  	  N4259
  	</a>
-@@ -540,7 +539,7 @@
+@@ -540,7 +542,7 @@
  	</a>
        </td><td align="left">
          Logical Operator Type Traits (revision 1)
@@ -2985,7 +3259,7 @@ Index: libstdc++-v3/doc/html/manual/status.html
  	<a class="link" href="http://www.open-std.org/JTC1/SC22/WG21/docs/papers/2014/n4076.html" target="_top">
  	  N4076
  	</a>
-@@ -593,9 +592,8 @@
+@@ -593,9 +595,8 @@
  <code class="code">tr1/</code>, for instance <code class="code">&lt;tr1/functional&gt;</code>,
  <code class="code">&lt;tr1/memory&gt;</code>, and so on.
  </p><p>
@@ -2997,7 +3271,7 @@ Index: libstdc++-v3/doc/html/manual/status.html
  	<p>
  	  Uses code from
  	  <a class="link" href="http://www.boost.org/libs/smart_ptr/shared_ptr.htm" target="_top">boost::shared_ptr</a>.
-@@ -614,9 +612,8 @@
+@@ -614,9 +615,8 @@
  Extension for the programming language C++ to support
  decimal floating-point arithmetic
  </p><p>
@@ -5134,6 +5408,138 @@ Index: libstdc++-v3/include/std/sstream
  	}
  
  	~__xfer_bufptrs()
+Index: libstdc++-v3/include/experimental/memory_resource
+===================================================================
+--- a/src/libstdc++-v3/include/experimental/memory_resource	(.../tags/gcc_6_4_0_release)
++++ b/src/libstdc++-v3/include/experimental/memory_resource	(.../branches/gcc-6-branch)
+@@ -33,7 +33,6 @@
+ #include <new>
+ #include <atomic>
+ #include <cstddef>
+-#include <bits/alloc_traits.h>
+ #include <experimental/bits/lfts_config.h>
+ 
+ namespace std {
+@@ -256,6 +255,22 @@
+   template <typename _Alloc>
+     class __resource_adaptor_imp : public memory_resource
+     {
++      static_assert(is_same<char,
++	  typename allocator_traits<_Alloc>::value_type>::value,
++	  "Allocator's value_type is char");
++      static_assert(is_same<char*,
++	  typename allocator_traits<_Alloc>::pointer>::value,
++	  "Allocator's pointer type is value_type*");
++      static_assert(is_same<const char*,
++	  typename allocator_traits<_Alloc>::const_pointer>::value,
++	  "Allocator's const_pointer type is value_type const*");
++      static_assert(is_same<void*,
++	  typename allocator_traits<_Alloc>::void_pointer>::value,
++	  "Allocator's void_pointer type is void*");
++      static_assert(is_same<const void*,
++	  typename allocator_traits<_Alloc>::const_void_pointer>::value,
++	  "Allocator's const_void_pointer type is void const*");
++
+     public:
+       using allocator_type = _Alloc;
+ 
+@@ -274,7 +289,7 @@
+       __resource_adaptor_imp&
+       operator=(const __resource_adaptor_imp&) = default;
+ 
+-      allocator_type get_allocator() const { return _M_alloc; }
++      allocator_type get_allocator() const noexcept { return _M_alloc; }
+ 
+     protected:
+       virtual void*
+@@ -309,13 +324,13 @@
+     private:
+       // Calculate Aligned Size
+       // Returns a size that is larger than or equal to __size and divisible
+-      // by __alignment, where __alignment is required to be the power of 2.
++      // by __alignment, where __alignment is required to be a power of 2.
+       static size_t
+       _S_aligned_size(size_t __size, size_t __alignment)
+       { return ((__size - 1)|(__alignment - 1)) + 1; }
+ 
+       // Determine whether alignment meets one of those preconditions:
+-      // 1. Equals to Zero
++      // 1. Equal to Zero
+       // 2. Is power of two
+       static bool
+       _S_supported (size_t __x)
+@@ -325,47 +340,50 @@
+     };
+ 
+   // Global memory resources
+-  inline std::atomic<memory_resource*>&
+-  __get_default_resource()
+-  {
+-    static atomic<memory_resource*> _S_default_resource(new_delete_resource());
+-    return _S_default_resource;
+-  }
+ 
+   inline memory_resource*
+   new_delete_resource() noexcept
+   {
+-    static resource_adaptor<std::allocator<char>> __r;
+-    return static_cast<memory_resource*>(&__r);
++    using type = resource_adaptor<std::allocator<char>>;
++    alignas(type) static unsigned char __buf[sizeof(type)];
++    static type* __r = new(__buf) type;
++    return __r;
+   }
+ 
+-  template <typename _Alloc>
+-    class __null_memory_resource : private memory_resource
++  inline memory_resource*
++  null_memory_resource() noexcept
++  {
++    class type final : public memory_resource
+     {
+-    protected:
+       void*
+-      do_allocate(size_t, size_t)
++      do_allocate(size_t, size_t) override
+       { std::__throw_bad_alloc(); }
+ 
+       void
+-      do_deallocate(void*, size_t, size_t) noexcept
++      do_deallocate(void*, size_t, size_t) noexcept override
+       { }
+ 
+       bool
+-      do_is_equal(const memory_resource& __other) const noexcept
++      do_is_equal(const memory_resource& __other) const noexcept override
+       { return this == &__other; }
+-
+-      friend memory_resource* null_memory_resource() noexcept;
+     };
+ 
+-  inline memory_resource*
+-  null_memory_resource() noexcept
++    alignas(type) static unsigned char __buf[sizeof(type)];
++    static type* __r = new(__buf) type;
++    return __r;
++  }
++
++  // The default memory resource
++
++  inline std::atomic<memory_resource*>&
++  __get_default_resource()
+   {
+-    static __null_memory_resource<void> __r;
+-    return static_cast<memory_resource*>(&__r);
++    using type = atomic<memory_resource*>;
++    alignas(type) static unsigned char __buf[sizeof(type)];
++    static type* __r = new(__buf) type(new_delete_resource());
++    return *__r;
+   }
+ 
+-  // The default memory resource
+   inline memory_resource*
+   get_default_resource() noexcept
+   { return __get_default_resource().load(); }
 Index: libstdc++-v3/include/experimental/bits/fs_ops.h
 ===================================================================
 --- a/src/libstdc++-v3/include/experimental/bits/fs_ops.h	(.../tags/gcc_6_4_0_release)
@@ -5169,6 +5575,76 @@ Index: libstdc++-v3/include/experimental/bits/fs_path.h
  
      friend bool operator==(const iterator& __lhs, const iterator& __rhs)
      { return __lhs._M_equals(__rhs); }
+Index: libstdc++-v3/include/experimental/string
+===================================================================
+--- a/src/libstdc++-v3/include/experimental/string	(.../tags/gcc_6_4_0_release)
++++ b/src/libstdc++-v3/include/experimental/string	(.../branches/gcc-6-branch)
+@@ -66,9 +66,9 @@
+ 
+ _GLIBCXX_END_NAMESPACE_VERSION
+ 
++#if _GLIBCXX_USE_CXX11_ABI
+ namespace pmr {
+ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+-_GLIBCXX_BEGIN_NAMESPACE_CXX11
+ 
+   // basic_string using polymorphic allocator in namespace pmr
+   template<typename _CharT, typename _Traits = char_traits<_CharT>>
+@@ -82,10 +82,9 @@
+   typedef basic_string<char32_t> u32string;
+   typedef basic_string<wchar_t> wstring;
+ 
+-_GLIBCXX_END_NAMESPACE_CXX11
+ _GLIBCXX_END_NAMESPACE_VERSION
+ } // namespace pmr
+-
++#endif
+ } // namespace fundamentals_v2
+ } // namespace experimental
+ } // namespace std
+Index: libstdc++-v3/include/experimental/regex
+===================================================================
+--- a/src/libstdc++-v3/include/experimental/regex	(.../tags/gcc_6_4_0_release)
++++ b/src/libstdc++-v3/include/experimental/regex	(.../branches/gcc-6-branch)
+@@ -44,10 +44,10 @@
+ {
+ inline namespace fundamentals_v2
+ {
++#if _GLIBCXX_USE_CXX11_ABI
+ namespace pmr
+ {
+ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+-_GLIBCXX_BEGIN_NAMESPACE_CXX11
+ 
+   template<typename _BidirectionalIterator>
+     using match_results
+@@ -59,10 +59,9 @@
+   typedef match_results<string::const_iterator> smatch;
+   typedef match_results<wstring::const_iterator> wsmatch;
+ 
+-_GLIBCXX_END_NAMESPACE_CXX11
+ _GLIBCXX_END_NAMESPACE_VERSION
+ } // namespace pmr
+-
++#endif
+ } // namespace fundamentals_v2
+ } // namespace experimental
+ } // namespace std
+Index: libstdc++-v3/include/ext/pointer.h
+===================================================================
+--- a/src/libstdc++-v3/include/ext/pointer.h	(.../tags/gcc_6_4_0_release)
++++ b/src/libstdc++-v3/include/ext/pointer.h	(.../branches/gcc-6-branch)
+@@ -437,6 +437,10 @@
+       _CXX_POINTER_ARITH_OPERATOR_SET(unsigned int);
+       _CXX_POINTER_ARITH_OPERATOR_SET(long);
+       _CXX_POINTER_ARITH_OPERATOR_SET(unsigned long);
++#ifdef _GLIBCXX_USE_LONG_LONG
++      _CXX_POINTER_ARITH_OPERATOR_SET(long long);
++      _CXX_POINTER_ARITH_OPERATOR_SET(unsigned long long);
++#endif
+ 
+       // Mathematical Manipulators
+       inline _Pointer_adapter& 
 Index: libstdc++-v3/include/ext/new_allocator.h
 ===================================================================
 --- a/src/libstdc++-v3/include/ext/new_allocator.h	(.../tags/gcc_6_4_0_release)
@@ -5223,6 +5699,19 @@ Index: libstdc++-v3/include/bits/basic_ios.h
        // exceptions().
        void
        _M_setstate(iostate __state)
+Index: libstdc++-v3/include/bits/regex_automaton.h
+===================================================================
+--- a/src/libstdc++-v3/include/bits/regex_automaton.h	(.../tags/gcc_6_4_0_release)
++++ b/src/libstdc++-v3/include/bits/regex_automaton.h	(.../branches/gcc-6-branch)
+@@ -332,7 +332,7 @@
+ 	    "Number of NFA states exceeds limit. Please use shorter regex "
+ 	    "string, or use smaller brace expression, or make "
+ 	    "_GLIBCXX_REGEX_STATE_LIMIT larger.");
+-	return this->size()-1;
++	return this->size() - 1;
+       }
+ 
+       // Eliminate dummy node in this NFA to make it compact.
 Index: libstdc++-v3/include/bits/parse_numbers.h
 ===================================================================
 --- a/src/libstdc++-v3/include/bits/parse_numbers.h	(.../tags/gcc_6_4_0_release)
@@ -5283,6 +5772,59 @@ Index: libstdc++-v3/include/bits/basic_string.h
  _GLIBCXX_END_NAMESPACE_CXX11
  #else  // !_GLIBCXX_USE_CXX11_ABI
    // Reference-counted COW string implentation
+Index: libstdc++-v3/include/bits/stl_pair.h
+===================================================================
+--- a/src/libstdc++-v3/include/bits/stl_pair.h	(.../tags/gcc_6_4_0_release)
++++ b/src/libstdc++-v3/include/bits/stl_pair.h	(.../branches/gcc-6-branch)
+@@ -181,9 +181,19 @@
+   struct __wrap_nonesuch : std::__nonesuch {
+     explicit __wrap_nonesuch(const __nonesuch&) = delete;
+   };
+-  
+-#endif
++#endif // C++11
+ 
++  class __pair_base
++  {
++#if __cplusplus >= 201103L
++    template<typename _T1, typename _T2> friend struct pair;
++    __pair_base() = default;
++    ~__pair_base() = default;
++    __pair_base(const __pair_base&) = default;
++    __pair_base& operator=(const __pair_base&) = delete;
++#endif // C++11
++  };
++
+  /**
+    *  @brief Struct holding two objects of arbitrary type.
+    *
+@@ -192,6 +202,7 @@
+    */
+   template<typename _T1, typename _T2>
+     struct pair
++    : private __pair_base
+     {
+       typedef _T1 first_type;    /// @c first_type is the first bound type
+       typedef _T2 second_type;   /// @c second_type is the second bound type
+@@ -372,17 +383,11 @@
+ 
+       pair&
+       operator=(typename conditional<
+-		__not_<__and_<is_copy_assignable<_T1>,
+-		              is_copy_assignable<_T2>>>::value,
+-		const pair&, const __wrap_nonesuch&>::type __p) = delete;
+-
+-      pair&
+-      operator=(typename conditional<
+ 		__and_<is_move_assignable<_T1>,
+ 		       is_move_assignable<_T2>>::value,
+ 		pair&&, __wrap_nonesuch&&>::type __p)
+       noexcept(__and_<is_nothrow_move_assignable<_T1>,
+-	              is_nothrow_move_assignable<_T2>>::value)
++		      is_nothrow_move_assignable<_T2>>::value)
+       {
+ 	first = std::forward<first_type>(__p.first);
+ 	second = std::forward<second_type>(__p.second);
 Index: libstdc++-v3/include/bits/stl_vector.h
 ===================================================================
 --- a/src/libstdc++-v3/include/bits/stl_vector.h	(.../tags/gcc_6_4_0_release)
@@ -5472,6 +6014,28 @@ Index: libstdc++-v3/include/bits/valarray_array.h
      };
  
    // Copy a plain array __a[<__n>] into a play array __b[<>]
+@@ -335,17 +341,16 @@
+     }
+ 
+   //
+-  // Compute the sum of elements in range [__f, __l)
++  // Compute the sum of elements in range [__f, __l) which must not be empty.
+   // This is a naive algorithm.  It suffers from cancelling.
+-  // In the future try to specialize
+-  // for _Tp = float, double, long double using a more accurate
+-  // algorithm.
++  // In the future try to specialize for _Tp = float, double, long double
++  // using a more accurate algorithm.
+   //
+   template<typename _Tp>
+     inline _Tp
+     __valarray_sum(const _Tp* __f, const _Tp* __l)
+     {
+-      _Tp __r = _Tp();
++      _Tp __r = *__f++;
+       while (__f != __l)
+ 	__r += *__f++;
+       return __r;
 Index: libstdc++-v3/include/bits/vector.tcc
 ===================================================================
 --- a/src/libstdc++-v3/include/bits/vector.tcc	(.../tags/gcc_6_4_0_release)
@@ -5602,7 +6166,54 @@ Index: libstdc++-v3/include/bits/regex.h
 ===================================================================
 --- a/src/libstdc++-v3/include/bits/regex.h	(.../tags/gcc_6_4_0_release)
 +++ b/src/libstdc++-v3/include/bits/regex.h	(.../branches/gcc-6-branch)
-@@ -1751,7 +1751,7 @@
+@@ -785,6 +785,46 @@
+       _AutomatonPtr          _M_automaton;
+     };
+ 
++  template<typename _Ch, typename _Tr>
++    constexpr regex_constants::syntax_option_type
++    basic_regex<_Ch, _Tr>::icase;
++
++  template<typename _Ch, typename _Tr>
++    constexpr regex_constants::syntax_option_type
++    basic_regex<_Ch, _Tr>::nosubs;
++
++  template<typename _Ch, typename _Tr>
++    constexpr regex_constants::syntax_option_type
++    basic_regex<_Ch, _Tr>::optimize;
++
++  template<typename _Ch, typename _Tr>
++    constexpr regex_constants::syntax_option_type
++    basic_regex<_Ch, _Tr>::collate;
++
++  template<typename _Ch, typename _Tr>
++    constexpr regex_constants::syntax_option_type
++    basic_regex<_Ch, _Tr>::ECMAScript;
++
++  template<typename _Ch, typename _Tr>
++    constexpr regex_constants::syntax_option_type
++    basic_regex<_Ch, _Tr>::basic;
++
++  template<typename _Ch, typename _Tr>
++    constexpr regex_constants::syntax_option_type
++    basic_regex<_Ch, _Tr>::extended;
++
++  template<typename _Ch, typename _Tr>
++    constexpr regex_constants::syntax_option_type
++    basic_regex<_Ch, _Tr>::awk;
++
++  template<typename _Ch, typename _Tr>
++    constexpr regex_constants::syntax_option_type
++    basic_regex<_Ch, _Tr>::grep;
++
++  template<typename _Ch, typename _Tr>
++    constexpr regex_constants::syntax_option_type
++    basic_regex<_Ch, _Tr>::egrep;
++
+   /** @brief Standard regular expressions. */
+   typedef basic_regex<char>    regex;
+ 
+@@ -1751,7 +1791,7 @@
         */
        const_iterator
        end() const
@@ -5672,7 +6283,148 @@ Index: libstdc++-v3/ChangeLog
 ===================================================================
 --- a/src/libstdc++-v3/ChangeLog	(.../tags/gcc_6_4_0_release)
 +++ b/src/libstdc++-v3/ChangeLog	(.../branches/gcc-6-branch)
-@@ -1,3 +1,524 @@
+@@ -1,3 +1,665 @@
++2018-10-18  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backport from mainline
++	2018-10-18  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/87641
++	* include/bits/valarray_array.h (__valarray_sum): Use first element
++	to initialize accumulator instead of value-initializing it.
++	* testsuite/26_numerics/valarray/87641.cc: New test.
++
++2018-10-15  Jonathan Wakely  <jwakely@redhat.com>
++
++	* testsuite/22_locale/numpunct/members/char/3.cc: Adjust test to
++	account for change to glibc it_IT localedata (glibc bz#10797).
++
++2018-10-15  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backport from mainline
++	2018-07-31  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/86751
++	* include/bits/stl_pair.h (__pair_base): New class with deleted copy
++	assignment operator.
++	(pair): Derive from __pair_base.
++	(pair::operator=): Remove deleted overload.
++	* python/libstdcxx/v6/printers.py (StdPairPrinter): New pretty printer
++	so that new base class isn't shown in GDB.
++	* testsuite/20_util/pair/86751.cc: New test.
++	* testsuite/20_util/pair/ref_assign.cc: New test.
++
++2018-10-12  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backport from mainline
++	2018-08-30  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/ext/pointer.h (_Pointer_adapter): Define operators for
++	pointer arithmetic using long long offsets.
++	* testsuite/ext/ext_pointer/1.cc: Test pointer arithmetic using
++	long long values.
++
++2018-10-12  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backport from mainline
++	2018-08-22  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/87061
++	* include/experimental/regex [!_GLIBCXX_USE_CXX11_ABI]
++	(experimental::pmr::match_results, experimental::pmr::cmatch)
++	(experimental::pmr::smatch, experimental::pmr::wcmatch)
++	(experimental::pmr::wsmatch): Do not declare for gcc4-compatible ABI,
++	because COW strings don't support C++11 allocator model.
++	* include/experimental/string [!_GLIBCXX_USE_CXX11_ABI]
++	(experimental::pmr::basic_string, experimental::pmr::string)
++	(experimental::pmr::u16string, experimental::pmr::u32string)
++	(experimental::pmr::wstring): Likewise.
++
++	Backport from mainline
++	2018-08-15  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/experimental/regex: Remove begin/end macros for namespace.
++	* include/experimental/string: Likewise.
++	* testsuite/experimental/polymorphic_allocator/pmr_typedefs_deque.cc:
++	New test.
++	* testsuite/experimental/polymorphic_allocator/
++	pmr_typedefs_forward_list.cc: New test.
++	* testsuite/experimental/polymorphic_allocator/pmr_typedefs_list.cc:
++	New test.
++	* testsuite/experimental/polymorphic_allocator/pmr_typedefs_map.cc:
++	New test.
++	* testsuite/experimental/polymorphic_allocator/pmr_typedefs_match.cc:
++	New test.
++	* testsuite/experimental/polymorphic_allocator/
++	pmr_typedefs_multimap.cc: New test.
++	* testsuite/experimental/polymorphic_allocator/
++	pmr_typedefs_multiset.cc: New test.
++	* testsuite/experimental/polymorphic_allocator/pmr_typedefs_set.cc:
++	New test.
++	* testsuite/experimental/polymorphic_allocator/pmr_typedefs_string.cc:
++	New test.
++	* testsuite/experimental/polymorphic_allocator/
++	pmr_typedefs_unordered_map.cc: New test.
++	* testsuite/experimental/polymorphic_allocator/
++	pmr_typedefs_unordered_multimap.cc: New test.
++	* testsuite/experimental/polymorphic_allocator/
++	pmr_typedefs_unordered_multiset.cc: New test.
++	* testsuite/experimental/polymorphic_allocator/
++	pmr_typedefs_unordered_set.cc: New test.
++	* testsuite/experimental/polymorphic_allocator/pmr_typedefs_vector.cc:
++	New test.
++
++2018-10-12  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backport from mainline
++	2018-07-24  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/70966
++	* include/experimental/memory_resource (__get_default_resource): Use
++	placement new to create an object with dynamic storage duration.
++
++	Backport from mainline
++	2018-06-20  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/70966
++	* include/experimental/memory_resource (__resource_adaptor_imp): Add
++	static assertions to enforce requirements on pointer types.
++	(__resource_adaptor_imp::get_allocator()): Add noexcept.
++	(new_delete_resource, null_memory_resource): Return address of an
++	object with dynamic storage duration.
++	(__null_memory_resource): Remove.
++	* testsuite/experimental/memory_resource/70966.cc: New.
++
++2018-10-12  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/77854
++	* doc/xml/manual/status_cxx1998.xml: Document size_type and
++	difference_type for containers.
++	* doc/html/*: Regenerate.
++
++2018-10-12  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backport from mainline
++	2018-05-18  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/85098
++	* include/bits/regex.h [__cplusplus < 201703L] (basic_regex::icase)
++	(basic_regex::nosubs, basic_regex::optimize, basic_regex::collate)
++	(basic_regex::ECMAScript, basic_regex::basic, basic_regex::extended)
++	(basic_regex::awk, basic_regex::grep, basic_regex::egrep): Add
++	definitions.
++	* include/bits/regex_automaton.h (_NFA::_M_insert_state): Adjust
++	whitespace.
++	* testsuite/28_regex/basic_regex/85098.cc: New
++
++2018-10-08  Joseph Myers  <joseph@codesourcery.com>
++
++	Backport from mainline
++	2018-10-02  Joseph Myers  <joseph@codesourcery.com>
++
++	* testsuite/lib/libstdc++.exp (libstdc++_init): Use
++	-fno-show-column in default cxxflags.
++
 +2018-08-08  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	Backport from mainline
@@ -6242,6 +6994,56 @@ Index: libstdc++-v3/testsuite/24_iterators/reverse_iterator/dr2188.cc
 +  VERIFY( rev->val == 2 );
 +  ++rev;
 +  VERIFY( rev->val == 1 );
++}
++
++int
++main()
++{
++  test01();
++}
+Index: libstdc++-v3/testsuite/28_regex/basic_regex/85098.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/28_regex/basic_regex/85098.cc	(.../tags/gcc_6_4_0_release)
++++ b/src/libstdc++-v3/testsuite/28_regex/basic_regex/85098.cc	(.../branches/gcc-6-branch)
+@@ -0,0 +1,45 @@
++// Copyright (C) 2018 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-options "-O0" }
++// { dg-do link { target c++11 } }
++
++#include <regex>
++
++void f(const std::regex_constants::syntax_option_type&) { }
++
++void
++test01()
++{
++  f(std::regex::icase);
++  f(std::regex::nosubs);
++  f(std::regex::optimize);
++  f(std::regex::collate);
++  f(std::regex::ECMAScript);
++  f(std::regex::basic);
++  f(std::regex::extended);
++  f(std::regex::awk);
++  f(std::regex::grep);
++  f(std::regex::egrep);
++  // f(std::regex::multiline);
 +}
 +
 +int
@@ -7156,6 +7958,37 @@ Index: libstdc++-v3/testsuite/30_threads/promise/members/set_value2.cc
 +  test12();
    return 0;
  }
+Index: libstdc++-v3/testsuite/ext/ext_pointer/1.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/ext/ext_pointer/1.cc	(.../tags/gcc_6_4_0_release)
++++ b/src/libstdc++-v3/testsuite/ext/ext_pointer/1.cc	(.../branches/gcc-6-branch)
+@@ -188,6 +188,19 @@
+   VERIFY(bPtr3 == aPtr);
+ }
+ 
++// Check that long long values can be used for pointer arithmetic.
++void test05()
++{
++  A a[2] = { 1, 2 };
++  A_pointer p = a;
++  A_pointer q = p + 0ull;
++  VERIFY( p == q );
++  q += 0ll;
++  VERIFY( p == q );
++  q += 1ll;
++  VERIFY( q->i == p[1ll].i );
++}
++
+ int main()
+ {
+   test01();
+@@ -194,5 +207,6 @@
+   test02();
+   test03();
+   test04();
++  test05();
+   return 0;
+ }
 Index: libstdc++-v3/testsuite/ext/stdio_filebuf/char/81751.cc
 ===================================================================
 --- a/src/libstdc++-v3/testsuite/ext/stdio_filebuf/char/81751.cc	(.../tags/gcc_6_4_0_release)
@@ -7399,6 +8232,45 @@ Index: libstdc++-v3/testsuite/22_locale/conversions/buffer/3.cc
 +{
 +  test01();
 +}
+Index: libstdc++-v3/testsuite/22_locale/numpunct/members/char/3.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/22_locale/numpunct/members/char/3.cc	(.../tags/gcc_6_4_0_release)
++++ b/src/libstdc++-v3/testsuite/22_locale/numpunct/members/char/3.cc	(.../branches/gcc-6-branch)
+@@ -1,4 +1,4 @@
+-// { dg-require-namedlocale "it_IT.ISO8859-15" }
++// { dg-require-namedlocale "nl_NL.ISO8859-15" }
+ 
+ // 2001-01-24 Benjamin Kosnik  <bkoz@redhat.com>
+ 
+@@ -30,12 +30,14 @@
+   
+   bool test __attribute__((unused)) = true;
+ 
+-  locale loc_it = locale(ISO_8859(15,it_IT));
++  // nl_NL chosen because it has no thousands separator (at this time).
++  locale loc_it = locale(ISO_8859(15,nl_NL));
+ 
+   const numpunct<char>& nump_it = use_facet<numpunct<char> >(loc_it); 
+ 
+   string g = nump_it.grouping();
+ 
++  // Ensure that grouping is empty for locales with empty thousands separator.
+   VERIFY( g == "" );
+ }
+ 
+Index: libstdc++-v3/testsuite/lib/libstdc++.exp
+===================================================================
+--- a/src/libstdc++-v3/testsuite/lib/libstdc++.exp	(.../tags/gcc_6_4_0_release)
++++ b/src/libstdc++-v3/testsuite/lib/libstdc++.exp	(.../branches/gcc-6-branch)
+@@ -235,7 +235,7 @@
+ 
+     # Default settings.
+     set cxx [transform "g++"]
+-    set cxxflags "-D_GLIBCXX_ASSERT -fmessage-length=0"
++    set cxxflags "-D_GLIBCXX_ASSERT -fmessage-length=0 -fno-show-column"
+     set cxxpchflags ""
+     set cxxvtvflags ""
+     set cxxldflags ""
 Index: libstdc++-v3/testsuite/23_containers/unordered_map/cons/81891.cc
 ===================================================================
 --- a/src/libstdc++-v3/testsuite/23_containers/unordered_map/cons/81891.cc	(.../tags/gcc_6_4_0_release)
@@ -8458,6 +9330,86 @@ Index: libstdc++-v3/testsuite/26_numerics/random/chi_squared_distribution/83833.
 +{
 +  test01();
 +}
+Index: libstdc++-v3/testsuite/26_numerics/valarray/87641.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/26_numerics/valarray/87641.cc	(.../tags/gcc_6_4_0_release)
++++ b/src/libstdc++-v3/testsuite/26_numerics/valarray/87641.cc	(.../branches/gcc-6-branch)
+@@ -0,0 +1,75 @@
++// Copyright (C) 2018 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++#include <valarray>
++#include <testsuite_hooks.h>
++
++void
++test01()
++{
++  // PR libstdc++/87641
++  std::valarray<int> v1(3);
++  v1[0] = 1;
++  v1[1] = 2;
++  v1[2] = 3;
++  std::valarray< std::valarray<int> > v2(v1, 3);
++  std::valarray<int> v3 = v2.sum();
++  VERIFY( v3.size() == v1.size() );
++  VERIFY( v3[0] == 3 );
++  VERIFY( v3[1] == 6 );
++  VERIFY( v3[2] == 9 );
++}
++
++struct X
++{
++  X() : val(1) { }
++
++  X& operator+=(const X& x) { val += x.val; return *this; }
++  bool operator==(const X& x) { return val == x.val; }
++
++  int val;
++};
++
++void
++test02()
++{
++  std::valarray<X> v1(1);
++  VERIFY( v1.sum() == v1[0] );
++
++  std::valarray<X> v2(2);
++  VERIFY( v2.sum().val == 2 );
++}
++
++struct Y
++{
++  X& operator+=(const Y&) { throw 1; }
++};
++
++void
++test03()
++{
++  std::valarray<Y> v1(1);
++  (void) v1.sum(); // no addition performed for a single element
++}
++
++int
++main()
++{
++  test01();
++  test02();
++  test03();
++}
 Index: libstdc++-v3/testsuite/26_numerics/complex/inserters_extractors/char/59568.cc
 ===================================================================
 --- a/src/libstdc++-v3/testsuite/26_numerics/complex/inserters_extractors/char/59568.cc	(.../tags/gcc_6_4_0_release)
@@ -8653,6 +9605,67 @@ Index: libstdc++-v3/testsuite/26_numerics/complex/inserters_extractors/char/5956
 +  test02();
 +  test03();
 +  test04();
++}
+Index: libstdc++-v3/testsuite/experimental/memory_resource/70966.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/experimental/memory_resource/70966.cc	(.../tags/gcc_6_4_0_release)
++++ b/src/libstdc++-v3/testsuite/experimental/memory_resource/70966.cc	(.../branches/gcc-6-branch)
+@@ -0,0 +1,56 @@
++// Copyright (C) 2018 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-do run { target c++14 } }
++
++#include <experimental/memory_resource>
++
++namespace pmr = std::experimental::pmr;
++
++struct X
++{
++  pmr::memory_resource* res = nullptr;
++  void* ptr = nullptr;
++  static constexpr std::size_t n = 64;
++
++  constexpr X() { }
++
++  explicit
++  X(pmr::memory_resource* r) : res(r), ptr(r->allocate(n)) { }
++
++  ~X() { if (ptr) res->deallocate(ptr, n); }
++};
++
++void
++swap(X& lhs, X& rhs) {
++    std::swap(lhs.res, rhs.res);
++    std::swap(lhs.ptr, rhs.ptr);
++}
++
++void
++test01()
++{
++  static X x1;
++  X x2(pmr::new_delete_resource());
++  swap(x1, x2);
++  // Now x1 will deallocate the memory during destruction of static objects.
++}
++
++int main()
++{
++  test01();
 +}
 Index: libstdc++-v3/testsuite/experimental/filesystem/operations/space.cc
 ===================================================================
@@ -9054,6 +10067,594 @@ Index: libstdc++-v3/testsuite/experimental/filesystem/path/itr/traversal.cc
    test02();
 +  test03();
  }
+Index: libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_list.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_list.cc	(.../tags/gcc_6_4_0_release)
++++ b/src/libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_list.cc	(.../branches/gcc-6-branch)
+@@ -0,0 +1,28 @@
++// Copyright (C) 2018 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-do compile { target c++14 } }
++
++#include <experimental/list>
++
++namespace xpmr = std::experimental::pmr;
++
++struct X { };
++
++static_assert(std::is_same<xpmr::list<X>,
++    std::list<X, xpmr::polymorphic_allocator<X>>>::value,
++    "pmr::list");
+Index: libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_set.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_set.cc	(.../tags/gcc_6_4_0_release)
++++ b/src/libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_set.cc	(.../branches/gcc-6-branch)
+@@ -0,0 +1,32 @@
++// Copyright (C) 2018 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-do compile { target c++14 } }
++
++#include <experimental/set>
++
++namespace xpmr = std::experimental::pmr;
++
++struct X { };
++struct Cmp { bool operator()(X, X) const { return false; } };
++
++static_assert(std::is_same<xpmr::set<X>,
++    std::set<X, std::less<X>, xpmr::polymorphic_allocator<X>>>::value,
++    "pmr::set");
++static_assert(std::is_same<xpmr::set<X, Cmp>,
++    std::set<X, Cmp, xpmr::polymorphic_allocator<X>>>::value,
++    "pmr::set");
+Index: libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_match.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_match.cc	(.../tags/gcc_6_4_0_release)
++++ b/src/libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_match.cc	(.../branches/gcc-6-branch)
+@@ -0,0 +1,52 @@
++// Copyright (C) 2018 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-do compile { target c++14 } }
++
++
++#include <experimental/regex>
++
++#if _GLIBCXX_USE_CXX11_ABI
++namespace xpmr = std::experimental::pmr;
++
++struct X;
++static_assert(std::is_same<xpmr::match_results<X*>,
++    std::match_results<X*,
++      xpmr::polymorphic_allocator<std::sub_match<X*>>>>::value,
++    "pmr::match_results");
++
++static_assert(std::is_same<xpmr::cmatch,
++    std::match_results<const char*,
++      xpmr::polymorphic_allocator<std::sub_match<const char*>>>>::value,
++    "pmr::cmatch");
++static_assert(std::is_same<xpmr::smatch,
++    std::match_results<xpmr::string::const_iterator,
++      xpmr::polymorphic_allocator<
++	std::sub_match<xpmr::string::const_iterator>>>>::value,
++    "pmr::smatch");
++#ifdef _GLIBCXX_USE_WCHAR_T
++static_assert(std::is_same<xpmr::wcmatch,
++    std::match_results<const wchar_t*,
++      xpmr::polymorphic_allocator<std::sub_match<const wchar_t*>>>>::value,
++    "pmr::wcmatch");
++static_assert(std::is_same<xpmr::wsmatch,
++    std::match_results<xpmr::wstring::const_iterator,
++      xpmr::polymorphic_allocator<
++	std::sub_match<xpmr::wstring::const_iterator>>>>::value,
++    "pmr::wsmatch");
++#endif
++#endif
+Index: libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_map.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_map.cc	(.../tags/gcc_6_4_0_release)
++++ b/src/libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_map.cc	(.../branches/gcc-6-branch)
+@@ -0,0 +1,35 @@
++// Copyright (C) 2018 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-do compile { target c++14 } }
++
++#include <experimental/map>
++
++namespace xpmr = std::experimental::pmr;
++
++struct X { };
++struct Y { };
++struct Cmp { bool operator()(X, X) const { return false; } };
++
++static_assert(std::is_same<xpmr::map<X, Y>,
++    std::map<X, Y, std::less<X>,
++	     xpmr::polymorphic_allocator<std::pair<const X, Y>>>>::value,
++    "pmr::map");
++static_assert(std::is_same<xpmr::map<X, Y, Cmp>,
++    std::map<X, Y, Cmp,
++	     xpmr::polymorphic_allocator<std::pair<const X, Y>>>>::value,
++    "pmr::map");
+Index: libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_unordered_multiset.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_unordered_multiset.cc	(.../tags/gcc_6_4_0_release)
++++ b/src/libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_unordered_multiset.cc	(.../branches/gcc-6-branch)
+@@ -0,0 +1,39 @@
++// Copyright (C) 2018 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-do compile { target c++14 } }
++
++#include <experimental/unordered_set>
++
++namespace xpmr = std::experimental::pmr;
++
++struct X { };
++struct Hash { std::size_t operator()(X) const { return 0; } };
++struct Eq { bool operator()(X, X) const { return true; } };
++
++static_assert(std::is_same<xpmr::unordered_multiset<X>,
++    std::unordered_multiset<X, std::hash<X>, std::equal_to<X>,
++      xpmr::polymorphic_allocator<X>>>::value,
++    "pmr::unordered_multiset");
++static_assert(std::is_same<xpmr::unordered_multiset<X, Hash>,
++    std::unordered_multiset<X, Hash, std::equal_to<X>,
++      xpmr::polymorphic_allocator<X>>>::value,
++    "pmr::unordered_multiset");
++static_assert(std::is_same<xpmr::unordered_multiset<X, Hash, Eq>,
++    std::unordered_multiset<X, Hash, Eq,
++      xpmr::polymorphic_allocator<X>>>::value,
++    "pmr::unordered_multiset");
+Index: libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_forward_list.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_forward_list.cc	(.../tags/gcc_6_4_0_release)
++++ b/src/libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_forward_list.cc	(.../branches/gcc-6-branch)
+@@ -0,0 +1,28 @@
++// Copyright (C) 2018 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-do compile { target c++14 } }
++
++#include <experimental/forward_list>
++
++namespace xpmr = std::experimental::pmr;
++
++struct X { };
++
++static_assert(std::is_same<xpmr::forward_list<X>,
++    std::forward_list<X, xpmr::polymorphic_allocator<X>>>::value,
++    "pmr::forward_list");
+Index: libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_unordered_multimap.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_unordered_multimap.cc	(.../tags/gcc_6_4_0_release)
++++ b/src/libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_unordered_multimap.cc	(.../branches/gcc-6-branch)
+@@ -0,0 +1,40 @@
++// Copyright (C) 2018 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-do compile { target c++14 } }
++
++#include <experimental/unordered_map>
++
++namespace xpmr = std::experimental::pmr;
++
++struct X { };
++struct Y { };
++struct Hash { std::size_t operator()(X) const { return 0; } };
++struct Eq { bool operator()(X, X) const { return true; } };
++
++static_assert(std::is_same<xpmr::unordered_multimap<X, Y>,
++    std::unordered_multimap<X, Y, std::hash<X>, std::equal_to<X>,
++      xpmr::polymorphic_allocator<std::pair<const X, Y>>>>::value,
++    "pmr::unordered_multimap");
++static_assert(std::is_same<xpmr::unordered_multimap<X, Y, Hash>,
++    std::unordered_multimap<X, Y, Hash, std::equal_to<X>,
++      xpmr::polymorphic_allocator<std::pair<const X, Y>>>>::value,
++    "pmr::unordered_multimap");
++static_assert(std::is_same<xpmr::unordered_multimap<X, Y, Hash, Eq>,
++    std::unordered_multimap<X, Y, Hash, Eq,
++      xpmr::polymorphic_allocator<std::pair<const X, Y>>>>::value,
++    "pmr::unordered_multimap");
+Index: libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_unordered_set.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_unordered_set.cc	(.../tags/gcc_6_4_0_release)
++++ b/src/libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_unordered_set.cc	(.../branches/gcc-6-branch)
+@@ -0,0 +1,39 @@
++// Copyright (C) 2018 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-do compile { target c++14 } }
++
++#include <experimental/unordered_set>
++
++namespace xpmr = std::experimental::pmr;
++
++struct X { };
++struct Hash { std::size_t operator()(X) const { return 0; } };
++struct Eq { bool operator()(X, X) const { return true; } };
++
++static_assert(std::is_same<xpmr::unordered_set<X>,
++    std::unordered_set<X, std::hash<X>, std::equal_to<X>,
++      xpmr::polymorphic_allocator<X>>>::value,
++    "pmr::unordered_set");
++static_assert(std::is_same<xpmr::unordered_set<X, Hash>,
++    std::unordered_set<X, Hash, std::equal_to<X>,
++      xpmr::polymorphic_allocator<X>>>::value,
++    "pmr::unordered_set");
++static_assert(std::is_same<xpmr::unordered_set<X, Hash, Eq>,
++    std::unordered_set<X, Hash, Eq,
++      xpmr::polymorphic_allocator<X>>>::value,
++    "pmr::unordered_set");
+Index: libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_vector.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_vector.cc	(.../tags/gcc_6_4_0_release)
++++ b/src/libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_vector.cc	(.../branches/gcc-6-branch)
+@@ -0,0 +1,28 @@
++// Copyright (C) 2018 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-do compile { target c++14 } }
++
++#include <experimental/vector>
++
++namespace xpmr = std::experimental::pmr;
++
++struct X { };
++
++static_assert(std::is_same<xpmr::vector<X>,
++    std::vector<X, xpmr::polymorphic_allocator<X>>>::value,
++    "pmr::vector");
+Index: libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_deque.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_deque.cc	(.../tags/gcc_6_4_0_release)
++++ b/src/libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_deque.cc	(.../branches/gcc-6-branch)
+@@ -0,0 +1,28 @@
++// Copyright (C) 2018 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-do compile { target c++14 } }
++
++#include <experimental/deque>
++
++namespace xpmr = std::experimental::pmr;
++
++struct X { };
++
++static_assert(std::is_same<xpmr::deque<X>,
++    std::deque<X, xpmr::polymorphic_allocator<X>>>::value,
++    "pmr::deque");
+Index: libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_unordered_map.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_unordered_map.cc	(.../tags/gcc_6_4_0_release)
++++ b/src/libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_unordered_map.cc	(.../branches/gcc-6-branch)
+@@ -0,0 +1,40 @@
++// Copyright (C) 2018 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-do compile { target c++14 } }
++
++#include <experimental/unordered_map>
++
++namespace xpmr = std::experimental::pmr;
++
++struct X { };
++struct Y { };
++struct Hash { std::size_t operator()(X) const { return 0; } };
++struct Eq { bool operator()(X, X) const { return true; } };
++
++static_assert(std::is_same<xpmr::unordered_map<X, Y>,
++    std::unordered_map<X, Y, std::hash<X>, std::equal_to<X>,
++      xpmr::polymorphic_allocator<std::pair<const X, Y>>>>::value,
++    "pmr::unordered_map");
++static_assert(std::is_same<xpmr::unordered_map<X, Y, Hash>,
++    std::unordered_map<X, Y, Hash, std::equal_to<X>,
++      xpmr::polymorphic_allocator<std::pair<const X, Y>>>>::value,
++    "pmr::unordered_map");
++static_assert(std::is_same<xpmr::unordered_map<X, Y, Hash, Eq>,
++    std::unordered_map<X, Y, Hash, Eq,
++      xpmr::polymorphic_allocator<std::pair<const X, Y>>>>::value,
++    "pmr::unordered_map");
+Index: libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_multiset.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_multiset.cc	(.../tags/gcc_6_4_0_release)
++++ b/src/libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_multiset.cc	(.../branches/gcc-6-branch)
+@@ -0,0 +1,32 @@
++// Copyright (C) 2018 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-do compile { target c++14 } }
++
++#include <experimental/set>
++
++namespace xpmr = std::experimental::pmr;
++
++struct X { };
++struct Cmp { bool operator()(X, X) const { return false; } };
++
++static_assert(std::is_same<xpmr::multiset<X>,
++    std::multiset<X, std::less<X>, xpmr::polymorphic_allocator<X>>>::value,
++    "pmr::multiset");
++static_assert(std::is_same<xpmr::multiset<X, Cmp>,
++    std::multiset<X, Cmp, xpmr::polymorphic_allocator<X>>>::value,
++    "pmr::multiset");
+Index: libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_string.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_string.cc	(.../tags/gcc_6_4_0_release)
++++ b/src/libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_string.cc	(.../branches/gcc-6-branch)
+@@ -0,0 +1,62 @@
++// Copyright (C) 2018 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-do compile { target c++14 } }
++
++#include <experimental/string>
++
++#if _GLIBCXX_USE_CXX11_ABI
++namespace xpmr = std::experimental::pmr;
++
++struct T : std::char_traits<char> { };
++
++static_assert(std::is_same<xpmr::basic_string<char>,
++    std::basic_string<char, std::char_traits<char>,
++		      xpmr::polymorphic_allocator<char>>>::value,
++    "pmr::basic_string");
++static_assert(std::is_same<xpmr::basic_string<char, T>,
++    std::basic_string<char, T, xpmr::polymorphic_allocator<char>>>::value,
++    "pmr::basic_string");
++
++static_assert(std::is_same<xpmr::string,
++    std::basic_string<char, std::char_traits<char>,
++		      xpmr::polymorphic_allocator<char>>>::value,
++    "pmr::string");
++static_assert(std::is_same<xpmr::u16string,
++    std::basic_string<char16_t, std::char_traits<char16_t>,
++		      xpmr::polymorphic_allocator<char16_t>>>::value,
++    "pmr::u16string");
++static_assert(std::is_same<xpmr::u32string,
++    std::basic_string<char32_t, std::char_traits<char32_t>,
++		      xpmr::polymorphic_allocator<char32_t>>>::value,
++    "pmr::u32string");
++
++#ifdef _GLIBCXX_USE_WCHAR_T
++static_assert(std::is_same<xpmr::basic_string<wchar_t>,
++    std::basic_string<wchar_t, std::char_traits<wchar_t>,
++		      xpmr::polymorphic_allocator<wchar_t>>>::value,
++    "pmr::basic_string<wchar_t>");
++static_assert(std::is_same<xpmr::basic_string<wchar_t, T>,
++    std::basic_string<wchar_t, T, xpmr::polymorphic_allocator<wchar_t>>>::value,
++    "pmr::basic_string<wchar_t>");
++
++static_assert(std::is_same<xpmr::wstring,
++    std::basic_string<wchar_t, std::char_traits<wchar_t>,
++		      xpmr::polymorphic_allocator<wchar_t>>>::value,
++    "pmr::wstring");
++#endif
++#endif
+Index: libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_multimap.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_multimap.cc	(.../tags/gcc_6_4_0_release)
++++ b/src/libstdc++-v3/testsuite/experimental/polymorphic_allocator/pmr_typedefs_multimap.cc	(.../branches/gcc-6-branch)
+@@ -0,0 +1,35 @@
++// Copyright (C) 2018 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-do compile { target c++14 } }
++
++#include <experimental/map>
++
++namespace xpmr = std::experimental::pmr;
++
++struct X { };
++struct Y { };
++struct Cmp { bool operator()(X, X) const { return false; } };
++
++static_assert(std::is_same<xpmr::multimap<X, Y>,
++    std::multimap<X, Y, std::less<X>,
++		  xpmr::polymorphic_allocator<std::pair<const X, Y>>>>::value,
++    "pmr::multimap");
++static_assert(std::is_same<xpmr::multimap<X, Y, Cmp>,
++    std::multimap<X, Y, Cmp,
++		  xpmr::polymorphic_allocator<std::pair<const X, Y>>>>::value,
++    "pmr::multimap");
 Index: libstdc++-v3/testsuite/17_intro/names.cc
 ===================================================================
 --- a/src/libstdc++-v3/testsuite/17_intro/names.cc	(.../tags/gcc_6_4_0_release)
@@ -9308,6 +10909,123 @@ Index: libstdc++-v3/testsuite/20_util/duration/cons/dr1177.cc
 +    "unless it has a floating-point representation");
 +static_assert(is_constructible<duration<float>, duration<int, ratio<1,3>>>{},
 +    "or a period that is an integral multiple of the original");
+Index: libstdc++-v3/testsuite/20_util/pair/ref_assign.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/20_util/pair/ref_assign.cc	(.../tags/gcc_6_4_0_release)
++++ b/src/libstdc++-v3/testsuite/20_util/pair/ref_assign.cc	(.../branches/gcc-6-branch)
+@@ -0,0 +1,74 @@
++// Copyright (C) 2018 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-do run { target c++11 } }
++
++#include <utility>
++#include <testsuite_hooks.h>
++
++void
++test01()
++{
++  typedef std::pair<int&, int> pair_type;
++  int i = 1;
++  int j = 2;
++  pair_type p(i, 3);
++  const pair_type q(j, 4);
++  p = q;
++  VERIFY( p.first == q.first );
++  VERIFY( p.second == q.second );
++  VERIFY( i == j );
++}
++
++void
++test02()
++{
++  typedef std::pair<int, int&> pair_type;
++  int i = 1;
++  int j = 2;
++  pair_type p(3, i);
++  const pair_type q(4, j);
++  p = q;
++  VERIFY( p.first == q.first );
++  VERIFY( p.second == q.second );
++  VERIFY( i == j );
++}
++
++void
++test03()
++{
++  typedef std::pair<int&, int&> pair_type;
++  int i = 1;
++  int j = 2;
++  int k = 3;
++  int l = 4;
++  pair_type p(i, j);
++  const pair_type q(k, l);
++  p = q;
++  VERIFY( p.first == q.first );
++  VERIFY( p.second == q.second );
++  VERIFY( i == k );
++  VERIFY( j == l );
++}
++
++int
++main()
++{
++  test01();
++  test02();
++  test03();
++}
+Index: libstdc++-v3/testsuite/20_util/pair/86751.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/20_util/pair/86751.cc	(.../tags/gcc_6_4_0_release)
++++ b/src/libstdc++-v3/testsuite/20_util/pair/86751.cc	(.../branches/gcc-6-branch)
+@@ -0,0 +1,33 @@
++// Copyright (C) 2018 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-do compile { target c++11 } }
++
++#include <utility>
++
++struct X {
++  template<typename T> operator T() const;
++};
++
++
++void
++test01()
++{
++  std::pair<int, int> p;
++  X x;
++  p = x;  // PR libstdc++/86751
++}
 Index: libstdc++-v3/testsuite/20_util/shared_ptr/observers/owner_before.cc
 ===================================================================
 --- a/src/libstdc++-v3/testsuite/20_util/shared_ptr/observers/owner_before.cc	(.../tags/gcc_6_4_0_release)
@@ -11293,7 +13011,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-6-branch)
 @@ -1 +1 @@
 -20170704
-+20180924
++20181019
 Index: gcc/valtrack.c
 ===================================================================
 --- a/src/gcc/valtrack.c	(.../tags/gcc_6_4_0_release)
@@ -11842,7 +13560,23 @@ Index: gcc/fold-const.c
    /* Single-bit compares should always be against zero.  */
    if (lbitsize == 1 && ! integer_zerop (rhs))
      {
-@@ -5891,7 +5899,10 @@
+@@ -5847,12 +5855,13 @@
+     }
+ 
+   /* If the right sides are not constant, do the same for it.  Also,
+-     disallow this optimization if a size or signedness mismatch occurs
+-     between the left and right sides.  */
++     disallow this optimization if a size, signedness or storage order
++     mismatch occurs between the left and right sides.  */
+   if (l_const == 0)
+     {
+       if (ll_bitsize != lr_bitsize || rl_bitsize != rr_bitsize
+ 	  || ll_unsignedp != lr_unsignedp || rl_unsignedp != rr_unsignedp
++	  || ll_reversep != lr_reversep
+ 	  /* Make sure the two fields on the right
+ 	     correspond to the left without being swapped.  */
+ 	  || ll_bitpos - rl_bitpos != lr_bitpos - rr_bitpos)
+@@ -5891,7 +5900,10 @@
  	 results.  */
        ll_mask = const_binop (BIT_IOR_EXPR, ll_mask, rl_mask);
        lr_mask = const_binop (BIT_IOR_EXPR, lr_mask, rr_mask);
@@ -11854,7 +13588,7 @@ Index: gcc/fold-const.c
  	{
  	  lhs = make_bit_field_ref (loc, ll_inner, ll_arg,
  				    lntype, lnbitsize, lnbitpos,
-@@ -5915,10 +5926,14 @@
+@@ -5915,10 +5927,14 @@
  	 Note that we still must mask the lhs/rhs expressions.  Furthermore,
  	 the mask must be shifted to account for the shift done by
  	 make_bit_field_ref.  */
@@ -11873,7 +13607,7 @@ Index: gcc/fold-const.c
  	{
  	  tree type;
  
-@@ -5987,6 +6002,9 @@
+@@ -5987,6 +6003,9 @@
  	}
      }
  
@@ -11883,7 +13617,7 @@ Index: gcc/fold-const.c
    /* Construct the expression we will return.  First get the component
       reference we will make.  Unless the mask is all ones the width of
       that field, perform the mask operation.  Then compare with the
-@@ -7340,7 +7358,7 @@
+@@ -7340,7 +7359,7 @@
  	return 0;
        offset += res;
        if (offset >= len)
@@ -11892,7 +13626,7 @@ Index: gcc/fold-const.c
        if (off != -1)
  	off = 0;
      }
-@@ -7356,15 +7374,10 @@
+@@ -7356,15 +7375,10 @@
  static int
  native_encode_string (const_tree expr, unsigned char *ptr, int len, int off)
  {
@@ -11911,7 +13645,7 @@ Index: gcc/fold-const.c
    if ((off == -1 && total_bytes > len)
        || off >= total_bytes)
      return 0;
-@@ -7638,6 +7651,22 @@
+@@ -7638,6 +7652,22 @@
      }
  }
  
@@ -11934,7 +13668,7 @@ Index: gcc/fold-const.c
  /* Fold a VIEW_CONVERT_EXPR of a constant expression EXPR to type
     TYPE at compile-time.  If we're unable to perform the conversion
     return NULL_TREE.  */
-@@ -11500,23 +11529,49 @@
+@@ -11500,23 +11530,49 @@
      } /* switch (code) */
  }
  
@@ -11989,7 +13723,7 @@ Index: gcc/fold-const.c
      default:
        return NULL_TREE;
      }
-@@ -11528,8 +11583,9 @@
+@@ -11528,8 +11584,9 @@
  static bool
  contains_label_p (tree st)
  {
@@ -12001,7 +13735,27 @@ Index: gcc/fold-const.c
  }
  
  /* Fold a ternary expression of code CODE and type TYPE with operands
-@@ -13980,8 +14036,8 @@
+@@ -11810,10 +11867,16 @@
+ 	  && integer_pow2p (arg1)
+ 	  && TREE_CODE (TREE_OPERAND (arg0, 0)) == BIT_AND_EXPR
+ 	  && operand_equal_p (TREE_OPERAND (TREE_OPERAND (arg0, 0), 1),
+-			      arg1, OEP_ONLY_CONST))
++			      arg1, OEP_ONLY_CONST)
++	  /* operand_equal_p compares just value, not precision, so e.g.
++	     arg1 could be 8-bit -128 and be power of two, but BIT_AND_EXPR
++	     second operand 32-bit -128, which is not a power of two (or vice
++	     versa.  */
++	  && integer_pow2p (TREE_OPERAND (TREE_OPERAND (arg0, 0), 1)))
+ 	return pedantic_non_lvalue_loc (loc,
+-				    fold_convert_loc (loc, type,
+-						      TREE_OPERAND (arg0, 0)));
++					fold_convert_loc (loc, type,
++							  TREE_OPERAND (arg0,
++									0)));
+ 
+       /* Disable the transformations below for vectors, since
+ 	 fold_binary_op_with_conditional_arg may undo them immediately,
+@@ -13980,8 +14043,8 @@
  	bool overflow;
  	wide_int val = wi::neg (arg0, &overflow);
  	t = force_fit_type (type, val, 1,
@@ -12037,7 +13791,26 @@ Index: gcc/omp-low.c
        new_var = create_artificial_label (DECL_SOURCE_LOCATION (var));
        DECL_CONTEXT (new_var) = current_function_decl;
        insert_decl_map (&ctx->cb, var, new_var);
-@@ -4077,6 +4079,43 @@
+@@ -2061,7 +2063,7 @@
+ 	  /* Global variables with "omp declare target" attribute
+ 	     don't need to be copied, the receiver side will use them
+ 	     directly.  However, global variables with "omp declare target link"
+-	     attribute need to be copied.  */
++	     attribute need to be copied.  Or when ALWAYS modifier is used.  */
+ 	  if (OMP_CLAUSE_CODE (c) == OMP_CLAUSE_MAP
+ 	      && DECL_P (decl)
+ 	      && ((OMP_CLAUSE_MAP_KIND (c) != GOMP_MAP_FIRSTPRIVATE_POINTER
+@@ -2068,6 +2070,9 @@
+ 		   && (OMP_CLAUSE_MAP_KIND (c)
+ 		       != GOMP_MAP_FIRSTPRIVATE_REFERENCE))
+ 		  || TREE_CODE (TREE_TYPE (decl)) == ARRAY_TYPE)
++	      && OMP_CLAUSE_MAP_KIND (c) != GOMP_MAP_ALWAYS_TO
++	      && OMP_CLAUSE_MAP_KIND (c) != GOMP_MAP_ALWAYS_FROM
++	      && OMP_CLAUSE_MAP_KIND (c) != GOMP_MAP_ALWAYS_TOFROM
+ 	      && is_global_var (maybe_lookup_decl_in_outer_ctx (decl, ctx))
+ 	      && varpool_node::get_create (decl)->offloadable
+ 	      && !lookup_attribute ("omp declare target link",
+@@ -4077,6 +4082,43 @@
    return g;
  }
  
@@ -12081,7 +13854,7 @@ Index: gcc/omp-low.c
  /* If a context was created for STMT when it was scanned, return it.  */
  
  static omp_context *
-@@ -10651,12 +10690,14 @@
+@@ -10651,12 +10693,14 @@
  	      tree itype2 = TREE_TYPE (fd->loops[i - 1].v);
  	      if (POINTER_TYPE_P (itype2))
  		itype2 = signed_type_for (itype2);
@@ -12098,7 +13871,7 @@ Index: gcc/omp-low.c
  	      if (POINTER_TYPE_P (TREE_TYPE (fd->loops[i - 1].v)))
  		t = fold_build_pointer_plus (fd->loops[i - 1].v, t);
  	      else
-@@ -10663,12 +10704,14 @@
+@@ -10663,12 +10707,14 @@
  		t = fold_build2 (PLUS_EXPR, itype2, fd->loops[i - 1].v, t);
  	      expand_omp_build_assign (&gsi, fd->loops[i - 1].v, t);
  
@@ -12115,7 +13888,7 @@ Index: gcc/omp-low.c
  	      expand_omp_build_assign (&gsi, fd->loops[i].v, t);
  	    }
  	}
-@@ -15175,10 +15218,14 @@
+@@ -15175,10 +15221,14 @@
        rhs_p = gimple_omp_for_initial_ptr (stmt, i);
        if (!is_gimple_min_invariant (*rhs_p))
  	*rhs_p = get_formal_tmp_var (*rhs_p, &body);
@@ -12130,7 +13903,7 @@ Index: gcc/omp-low.c
  
        rhs_p = &TREE_OPERAND (gimple_omp_for_incr (stmt, i), 1);
        if (!is_gimple_min_invariant (*rhs_p))
-@@ -15244,6 +15291,7 @@
+@@ -15244,6 +15294,7 @@
    pop_gimplify_context (new_stmt);
  
    gimple_bind_append_vars (new_stmt, ctx->block_vars);
@@ -12138,7 +13911,43 @@ Index: gcc/omp-low.c
    BLOCK_VARS (block) = gimple_bind_vars (new_stmt);
    if (BLOCK_VARS (block))
      TREE_USED (block) = 1;
-@@ -15694,6 +15742,7 @@
+@@ -15342,6 +15393,7 @@
+   splay_tree_node n;
+   struct omp_taskcopy_context tcctx;
+   location_t loc = gimple_location (task_stmt);
++  size_t looptempno = 0;
+ 
+   child_fn = gimple_omp_task_copy_fn (task_stmt);
+   child_cfun = DECL_STRUCT_FUNCTION (child_fn);
+@@ -15455,6 +15507,15 @@
+ 	t = build2 (MODIFY_EXPR, TREE_TYPE (dst), dst, src);
+ 	append_to_statement_list (t, &list);
+ 	break;
++      case OMP_CLAUSE__LOOPTEMP_:
++	/* Fields for first two _looptemp_ clauses are initialized by
++	   GOMP_taskloop*, the rest are handled like firstprivate.  */
++        if (looptempno < 2)
++	  {
++	    looptempno++;
++	    break;
++	  }
++	/* FALLTHRU */
+       case OMP_CLAUSE_FIRSTPRIVATE:
+ 	decl = OMP_CLAUSE_DECL (c);
+ 	if (is_variable_sized (decl))
+@@ -15480,7 +15541,10 @@
+ 	  src = decl;
+ 	dst = build_simple_mem_ref_loc (loc, arg);
+ 	dst = omp_build_component_ref (dst, f);
+-	t = lang_hooks.decls.omp_clause_copy_ctor (c, dst, src);
++	if (OMP_CLAUSE_CODE (c) == OMP_CLAUSE__LOOPTEMP_)
++	  t = build2 (MODIFY_EXPR, TREE_TYPE (dst), dst, src);
++	else
++	  t = lang_hooks.decls.omp_clause_copy_ctor (c, dst, src);
+ 	append_to_statement_list (t, &list);
+ 	break;
+       case OMP_CLAUSE_PRIVATE:
+@@ -15694,6 +15758,7 @@
    /* Declare all the variables created by mapping and the variables
       declared in the scope of the parallel body.  */
    record_vars_into (ctx->block_vars, child_fn);
@@ -12146,7 +13955,7 @@ Index: gcc/omp-low.c
    record_vars_into (gimple_bind_vars (par_bind), child_fn);
  
    if (ctx->record_type)
-@@ -16062,6 +16111,7 @@
+@@ -16062,6 +16127,7 @@
        /* Declare all the variables created by mapping and the variables
  	 declared in the scope of the target body.  */
        record_vars_into (ctx->block_vars, child_fn);
@@ -12154,7 +13963,7 @@ Index: gcc/omp-low.c
        record_vars_into (gimple_bind_vars (tgt_bind), child_fn);
      }
  
-@@ -17050,6 +17100,7 @@
+@@ -17050,6 +17116,7 @@
        break;
      case GIMPLE_BIND:
        lower_omp (gimple_bind_body_ptr (as_a <gbind *> (stmt)), ctx);
@@ -12162,7 +13971,7 @@ Index: gcc/omp-low.c
        break;
      case GIMPLE_OMP_PARALLEL:
      case GIMPLE_OMP_TASK:
-@@ -17947,6 +17998,16 @@
+@@ -17947,6 +18014,16 @@
        all_contexts = NULL;
      }
    BITMAP_FREE (task_shared_vars);
@@ -12179,7 +13988,7 @@ Index: gcc/omp-low.c
    return 0;
  }
  
-@@ -18027,7 +18088,7 @@
+@@ -18027,7 +18104,7 @@
      }
    if (kind == NULL)
      {
@@ -12188,7 +13997,7 @@ Index: gcc/omp-low.c
        kind = "OpenMP";
      }
  
-@@ -18446,7 +18507,7 @@
+@@ -18446,7 +18523,7 @@
    /* opt_pass methods: */
    virtual bool gate (function *)
    {
@@ -12292,7 +14101,117 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_6_4_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-6-branch)
-@@ -1,3 +1,2390 @@
+@@ -1,3 +1,2500 @@
++2018-10-17  Eric Botcazou  <ebotcazou@adacore.com>
++
++	PR middle-end/87623
++	* fold-const.c (fold_truth_andor_1): If the right side is not constant,
++	bail out if both sides do not have the same storage order.
++
++2018-10-15  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2018-08-23  Richard Biener  <rguenther@suse.de>
++
++	PR middle-end/87024
++	* tree-inline.c (copy_bb): Drop unused __builtin_va_arg_pack_len
++	calls.
++
++	2018-08-17  Richard Biener  <rguenther@suse.de>
++
++	PR middle-end/86505
++	* tree-inline.c (copy_bb): When inlining __builtin_va_arg_pack_len ()
++	across a va-arg-pack using call adjust its return value accordingly.
++
++2018-10-12  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from mainline
++	2018-10-10  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/87550
++	* config/i386/i386.c (bdesc_args): Move IX86_BUILTIN_RDPMC
++	from here to ...
++	(bdesc_special_args): ... here.
++
++	2018-09-12  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/87248
++	* fold-const.c (fold_ternary_loc) <case COND_EXPR>: Verify also that
++	BIT_AND_EXPR's second operand is a power of two.  Formatting fix.
++
++	2018-08-27  Jakub Jelinek  <jakub@redhat.com>
++
++	PR rtl-optimization/87065
++	* combine.c (simplify_if_then_else): Formatting fix.
++	(if_then_else_cond): Guard MULT optimization with SCALAR_INT_MODE_P
++	check.
++	(known_cond): Don't return const_true_rtx for vector modes.  Use
++	CONST0_RTX instead of const0_rtx.  Formatting fixes.
++
++	2018-07-24  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/86627
++	* expmed.c (expand_divmod): Punt if d == HOST_WIDE_INT_MIN
++	and size > HOST_BITS_PER_WIDE_INT.  For size > HOST_BITS_PER_WIDE_INT
++	and abs_d == d, do the power of two handling if profitable.
++
++	2018-07-17  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/86542
++	* omp-low.c (create_task_copyfn): Copy over also fields corresponding
++	to _looptemp_ clauses, other than the first two.
++
++	PR middle-end/86539
++	* gimplify.c (gimplify_omp_for): Ensure taskloop firstprivatized init
++	and cond temporaries don't have reference type if iterator has
++	pointer type.  For init use &for_pre_body instead of pre_p if
++	for_pre_body is non-empty.
++
++	2018-07-26  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/86660
++	* omp-low.c (scan_sharing_clauses): Don't ignore map clauses for
++	declare target to variables if they have always,{to,from,tofrom} map
++	kinds.
++
++2018-10-12  Richard Biener  <rguenther@suse.de>
++
++	PR c++/54278
++	Backport from mainline
++	2017-03-23  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/80032
++	* gimplify.c (gimple_push_cleanup): Forced unconditional
++	cleanups still have to go to the conditional_cleanups
++	sequence.
++
++	2017-03-21  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/80032
++	* gimplify.c (gimple_push_cleanup): Add force_uncond parameter,
++	if set force the cleanup to happen unconditionally.
++	(gimplify_target_expr): Push inserted clobbers with force_uncond
++	to avoid them being removed by control-dependent DCE.
++
++2018-10-12  H.J. Lu  <hongjiu.lu@intel.com>
++
++	Backport from mainline
++	2018-10-08  H.J. Lu  <hongjiu.lu@intel.com>
++
++	PR target/87517
++	* config/i386/avx512fintrin.h (_mm512_mask_fmaddsub_round_pd):
++	Defined with __builtin_ia32_vfmaddsubpd512_mask.
++
++2018-10-12  H.J. Lu  <hongjiu.lu@intel.com>
++
++	Backport from mainline
++	2018-10-05  H.J. Lu  <hongjiu.lu@intel.com>
++
++	PR target/87522
++	* config/i386/gnu-user.h (ASM_SPEC): Don't pass -msse2avx to
++	assembler for -mavx.
++	* config/i386/gnu-user64.h (ASM_SPEC): Likewise.
++
 +2018-09-19  John David Anglin  <danglin@gcc.gnu.org>
 +
 +	* config/pa/pa.md (atomic_storeqi): Restore deleted expander.
@@ -14683,7 +16602,7 @@ Index: gcc/ChangeLog
  2017-07-04  Release Manager
  
  	* GCC 6.4.0 released.
-@@ -83,7 +2474,7 @@
+@@ -83,7 +2584,7 @@
  	Backport from mainline
  	2017-05-04  Prakhar Bahuguna  <prakhar.bahuguna@arm.com>
  
@@ -14692,7 +16611,7 @@ Index: gcc/ChangeLog
  	__builtin_arm_ldfscr to __builtin_arm_get_fpscr, and rename
  	__builtin_arm_stfscr to __builtin_arm_set_fpscr.
  
-@@ -417,7 +2808,7 @@
+@@ -417,7 +2918,7 @@
  
  	PR target/80968
  	* config/sparc/sparc.c (sparc_flat_expand_epilogue): Don't
@@ -14701,7 +16620,7 @@ Index: gcc/ChangeLog
  	(sparc_expand_epilogue): Do it here.
  	* config/sparc/sparc.md (return expander): Emit frame blockage
  	for alloca here too.
-@@ -4231,6 +6622,24 @@
+@@ -4231,6 +6732,24 @@
  	* gimple-fold.c (fold_builtin_memory_op): Use
  	get_addr_base_and_unit_offset instead of get_ref_base_and_extent.
  
@@ -20133,6 +22052,32 @@ Index: gcc/testsuite/gcc.target/i386/indirect-thunk-6.c
 +/* { dg-final { scan-assembler-times "call\[ \t\]*\.LIND" 1 { target { ! x32 } } } } */
 +/* { dg-final { scan-assembler {\tpause} } } */
 +/* { dg-final { scan-assembler {\tlfence} } } */
+Index: gcc/testsuite/gcc.target/i386/pr87550.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr87550.c	(.../tags/gcc_6_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr87550.c	(.../branches/gcc-6-branch)
+@@ -0,0 +1,21 @@
++/* PR target/87550 */
++/* { dg-do compile } */
++/* { dg-options "-O2" } */
++
++#include <x86intrin.h>
++
++int
++foo (int x)
++{
++  return __rdtsc () + __rdtsc ();
++}
++
++/* { dg-final { scan-assembler-times "\trdtsc\[\n\r]" 2 } } */
++
++int
++bar (int x)
++{
++  return __rdpmc (0) + __rdpmc (0);
++}
++
++/* { dg-final { scan-assembler-times "\trdpmc\[\n\r]" 2 } } */
 Index: gcc/testsuite/gcc.target/i386/ret-thunk-22.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/ret-thunk-22.c	(.../tags/gcc_6_4_0_release)
@@ -20695,6 +22640,33 @@ Index: gcc/testsuite/gcc.target/i386/pr81128.c
 +
 +  return 0;
 +}
+Index: gcc/testsuite/gcc.target/i386/pr87065.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr87065.c	(.../tags/gcc_6_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr87065.c	(.../branches/gcc-6-branch)
+@@ -0,0 +1,22 @@
++/* PR rtl-optimization/87065 */
++/* { dg-do compile } */
++/* { dg-options "-O3 -mxop -mprefer-avx128" } */
++
++int a, c, d, e;
++short *b;
++
++void
++foo (void)
++{
++  short *g = b;
++  int h = 1;
++  unsigned i;
++  for (; h <= 1; h++)
++    g = (short *) &c;
++  for (; c; c++)
++    {
++      for (; i <= 1; i++)
++	;
++      a ^= (a > 0 <= i) + ((e += d) == 0 ?: (*g = 8));
++    }
++}
 Index: gcc/testsuite/gcc.target/i386/indirect-thunk-extern-4.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-extern-4.c	(.../tags/gcc_6_4_0_release)
@@ -20911,6 +22883,39 @@ Index: gcc/testsuite/gcc.target/i386/indirect-thunk-attr-1.c
 +/* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
 +/* { dg-final { scan-assembler {\tpause} } } */
 +/* { dg-final { scan-assembler {\tlfence} } } */
+Index: gcc/testsuite/gcc.target/i386/pr86627.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr86627.c	(.../tags/gcc_6_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr86627.c	(.../branches/gcc-6-branch)
+@@ -0,0 +1,28 @@
++/* PR middle-end/86627 */
++/* { dg-do compile { target int128 } } */
++/* { dg-options "-O2" } */
++/* { dg-final { scan-assembler-not "call\[^\n\r]*__divti3" } } */
++
++__int128_t
++f1 (__int128_t a)
++{
++  return a / 2;
++}
++
++__int128_t
++f2 (__int128_t a)
++{
++  return a / -2;
++}
++
++__int128_t
++f3 (__int128_t a)
++{
++  return a / 0x4000000000000000LL;
++}
++
++__int128_t
++f4 (__int128_t a)
++{
++  return a / -0x4000000000000000LL;
++}
 Index: gcc/testsuite/gcc.target/i386/ret-thunk-24.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/ret-thunk-24.c	(.../tags/gcc_6_4_0_release)
@@ -23428,6 +25433,45 @@ Index: gcc/testsuite/gcc.c-torture/execute/pr81556.c
 +    __builtin_abort ();
 +  return 0;
 +}
+Index: gcc/testsuite/gcc.c-torture/execute/pr87623.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.c-torture/execute/pr87623.c	(.../tags/gcc_6_4_0_release)
++++ b/src/gcc/testsuite/gcc.c-torture/execute/pr87623.c	(.../branches/gcc-6-branch)
+@@ -0,0 +1,34 @@
++/* PR middle-end/87623 */
++/* Testcase by George Thopas <george.thopas@gmail.com> */
++
++struct be {
++    unsigned short pad[1];
++    unsigned char  a;
++    unsigned char  b;
++} __attribute__((scalar_storage_order("big-endian")));
++
++typedef struct be t_be;
++
++struct le {
++    unsigned short pad[3];
++    unsigned char  a;
++    unsigned char  b;
++};
++
++typedef struct le t_le;
++
++int a_or_b_different(t_be *x,t_le *y)
++{
++   return (x->a != y->a) || (x->b != y->b);
++}
++
++int main (void)
++{
++   t_be x = { .a=1, .b=2  };
++   t_le y = { .a=1, .b=2  };
++  
++   if (a_or_b_different(&x,&y))
++       __builtin_abort ();
++
++   return 0;
++}
 Index: gcc/testsuite/gcc.c-torture/compile/pr85945.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.c-torture/compile/pr85945.c	(.../tags/gcc_6_4_0_release)
@@ -24585,6 +26629,25 @@ Index: gcc/testsuite/gcc.dg/pr83424.c
 +    __builtin_abort ();
 +  return 0;
 +}
+Index: gcc/testsuite/gcc.dg/pr87024.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/pr87024.c	(.../tags/gcc_6_4_0_release)
++++ b/src/gcc/testsuite/gcc.dg/pr87024.c	(.../branches/gcc-6-branch)
+@@ -0,0 +1,14 @@
++/* { dg-do compile } */
++/* { dg-options "-O -fno-tree-dce" } */
++
++static inline void __attribute__((always_inline))
++mp ()
++{
++  (void) __builtin_va_arg_pack_len ();
++}
++
++void
++ui (void)
++{
++  mp ();
++}
 Index: gcc/testsuite/gcc.dg/pr84956.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.dg/pr84956.c	(.../tags/gcc_6_4_0_release)
@@ -25016,6 +27079,43 @@ Index: gcc/testsuite/gcc.dg/torture/pr80341.c
 +  foo ();
 +  if (s != 90)
 +    __builtin_abort ();
++}
+Index: gcc/testsuite/gcc.dg/torture/pr86505.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/torture/pr86505.c	(.../tags/gcc_6_4_0_release)
++++ b/src/gcc/testsuite/gcc.dg/torture/pr86505.c	(.../branches/gcc-6-branch)
+@@ -0,0 +1,32 @@
++/* { dg-do run } */
++
++static inline __attribute__(( __always_inline__)) int 
++funA(unsigned int param, ...) 
++{ 
++  return __builtin_va_arg_pack_len(); 
++}
++
++static inline __attribute__(( __always_inline__)) int
++funB(unsigned int param, ...)
++{ 
++  return funA(param,  2, 4, __builtin_va_arg_pack()); 
++}
++
++int 
++testBuiltin(void) 
++{ 
++  int rc = funB(0,1,2); 
++  if (rc != 4)
++    return 1;
++  return 0;
++}
++
++int
++main()
++{
++  int rc = testBuiltin();
++  if (rc == 1)
++    __builtin_abort ();
++
++  return 0;
 +}
 Index: gcc/testsuite/gcc.dg/torture/pr82402.c
 ===================================================================
@@ -25691,7 +27791,62 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_6_4_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-6-branch)
-@@ -1,3 +1,2011 @@
+@@ -1,3 +1,2066 @@
++2018-10-17  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* gcc.c-torture/execute/pr87623.c: New test.
++
++2018-10-15  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2018-08-23  Richard Biener  <rguenther@suse.de>
++
++	PR middle-end/87024
++	* gcc.dg/pr87024.c: New testcase.
++
++	2018-08-17  Richard Biener  <rguenther@suse.de>
++
++	PR middle-end/86505
++	* gcc.dg/torture/pr86505.c: New testcase.
++
++2018-10-12  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from mainline
++	2018-10-10  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/87550
++	* gcc.target/i386/pr87550.c: New test.
++
++	2018-09-12  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/87248
++	* c-c++-common/torture/pr87248.c: New test.
++
++	2018-08-27  Jakub Jelinek  <jakub@redhat.com>
++
++	PR rtl-optimization/87065
++	* gcc.target/i386/pr87065.c: New test.
++
++	2018-07-24  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/86627
++	* gcc.target/i386/pr86627.c: New test.
++
++	2018-07-16  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/3698
++	PR c++/86208
++	* g++.dg/opt/pr3698.C: New test.
++
++2018-10-12  Richard Biener  <rguenther@suse.de>
++
++	PR c++/54278
++	Backport from mainline
++	2017-03-21  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/80032
++	* g++.dg/opt/pr80032.C: New testcase.
++
 +2018-09-07  Janus Weil  <janus@gcc.gnu.org>
 +
 +	Backported from trunk
@@ -27703,7 +29858,7 @@ Index: gcc/testsuite/ChangeLog
  2017-07-04  Release Manager
  
  	* GCC 6.4.0 released.
-@@ -509,7 +2517,7 @@
+@@ -509,7 +2572,7 @@
  	2017-02-21  Jakub Jelinek  <jakub@redhat.com>
  
  	PR c++/79639
@@ -27712,7 +29867,7 @@ Index: gcc/testsuite/ChangeLog
  
  	PR target/79570
  	* gcc.dg/pr79570.c: New test.
-@@ -612,14 +2620,14 @@
+@@ -612,14 +2675,14 @@
  
  	Backport from trunk
  	PR fortran/71838
@@ -27730,7 +29885,7 @@ Index: gcc/testsuite/ChangeLog
  
  2017-03-31  Richard Sandiford  <richard.sandiford@arm.com>
  
-@@ -689,7 +2697,7 @@
+@@ -689,7 +2752,7 @@
  
  	Backport from trunk
  	PR fortran/79434
@@ -27739,7 +29894,7 @@ Index: gcc/testsuite/ChangeLog
  
  2017-03-24  Tom de Vries  <tom@codesourcery.com>
  
-@@ -2843,7 +4851,7 @@
+@@ -2843,7 +4906,7 @@
  
  	Backport from trunk
  	PR fortran/71883
@@ -27748,7 +29903,7 @@ Index: gcc/testsuite/ChangeLog
  
  2016-07-26  Bill Schmidt  <wschmidt@linux.vnet.ibm.com>
  
-@@ -2922,6 +4930,23 @@
+@@ -2922,6 +4985,23 @@
  	* g++.dg/cpp0x/pr70869.C: New test.
  	* g++.dg/cpp0x/pr71054.C: New test.
  
@@ -27772,7 +29927,7 @@ Index: gcc/testsuite/ChangeLog
  2016-07-18  Michael Meissner  <meissner@linux.vnet.ibm.com>
  
  	Back port from mainline
-@@ -6544,7 +8569,7 @@
+@@ -6544,7 +8624,7 @@
  2016-02-20  Paul Thomas  <pault@gcc.gnu.org>
  
  	PR fortran/69423
@@ -28035,6 +30190,158 @@ Index: gcc/testsuite/g++.dg/opt/declone3.C
  // { dg-options "-flto -Os" }
  
  struct A {};
+Index: gcc/testsuite/g++.dg/opt/pr80032.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/opt/pr80032.C	(.../tags/gcc_6_4_0_release)
++++ b/src/gcc/testsuite/g++.dg/opt/pr80032.C	(.../branches/gcc-6-branch)
+@@ -0,0 +1,121 @@
++// PR tree-optimization/80032
++/* { dg-do compile } */
++/* { dg-require-effective-target c++11 } */
++/* { dg-options "-O2" } */
++/* If DCE removes too many CLOBBERs then stack usage goes through the
++   roof as stack slots can no longer be shared.  */
++/* { dg-additional-options "-Wstack-usage=200" { target x86_64-*-* i?86-*-* } } */
++
++typedef unsigned a;
++namespace test {
++    enum b { c };
++    class ADataContainer;
++    class BitMask;
++    namespace api {
++	enum DataStore { candidate };
++    }
++    using d = api::DataStore;
++    namespace db {
++	class e;
++	class f;
++	class g;
++	class ManagedObjectConst {
++	public:
++	    ManagedObjectConst(const ManagedObjectConst &);
++	    bool isFieldDefault(a, d) const;
++	    ADataContainer &getFieldDefault(a, d) const;
++	    g *h;
++	    e *i;
++	    f *j;
++	};
++	struct FieldInfo {
++	    FieldInfo(ManagedObjectConst, a, d);
++	    ManagedObjectConst k;
++	};
++	b compare(const FieldInfo &, const ADataContainer &);
++	class ManagedObject : public ManagedObjectConst {};
++    }
++    using namespace db;
++    void FN(ManagedObject &k, const BitMask &) {
++	if (!k.isFieldDefault(8, d::candidate) &&
++	    !compare(FieldInfo(k, 11, d::candidate),
++		     k.getFieldDefault(11, d::candidate)) == c)
++	  return;
++	if (!k.isFieldDefault(8, d::candidate) &&
++	    !compare(FieldInfo(k, 11, d::candidate),
++		     k.getFieldDefault(11, d::candidate)) == c)
++	  return;
++	if (!k.isFieldDefault(8, d::candidate) &&
++	    !compare(FieldInfo(k, 11, d::candidate),
++		     k.getFieldDefault(11, d::candidate)) == c)
++	  return;
++	if (!k.isFieldDefault(8, d::candidate) &&
++	    !compare(FieldInfo(k, 11, d::candidate),
++		     k.getFieldDefault(11, d::candidate)) == c)
++	  return;
++	if (!k.isFieldDefault(8, d::candidate) &&
++	    !compare(FieldInfo(k, 11, d::candidate),
++		     k.getFieldDefault(11, d::candidate)) == c)
++	  return;
++	if (!k.isFieldDefault(8, d::candidate) &&
++	    !compare(FieldInfo(k, 11, d::candidate),
++		     k.getFieldDefault(11, d::candidate)) == c)
++	  return;
++	if (!k.isFieldDefault(8, d::candidate) &&
++	    !compare(FieldInfo(k, 11, d::candidate),
++		     k.getFieldDefault(11, d::candidate)) == c)
++	  return;
++	if (!k.isFieldDefault(8, d::candidate) &&
++	    !compare(FieldInfo(k, 11, d::candidate),
++		     k.getFieldDefault(11, d::candidate)) == c)
++	  return;
++	if (!k.isFieldDefault(8, d::candidate) &&
++	    !compare(FieldInfo(k, 11, d::candidate),
++		     k.getFieldDefault(11, d::candidate)) == c)
++	  return;
++	if (!k.isFieldDefault(8, d::candidate) &&
++	    !compare(FieldInfo(k, 11, d::candidate),
++		     k.getFieldDefault(11, d::candidate)) == c)
++	  return;
++	if (!k.isFieldDefault(8, d::candidate) &&
++	    !compare(FieldInfo(k, 11, d::candidate),
++		     k.getFieldDefault(11, d::candidate)) == c)
++	  return;
++	if (!k.isFieldDefault(8, d::candidate) &&
++	    !compare(FieldInfo(k, 11, d::candidate),
++		     k.getFieldDefault(11, d::candidate)) == c)
++	  return;
++	if (!k.isFieldDefault(8, d::candidate) &&
++	    !compare(FieldInfo(k, 11, d::candidate),
++		     k.getFieldDefault(11, d::candidate)) == c)
++	  return;
++	if (!k.isFieldDefault(8, d::candidate) &&
++	    !compare(FieldInfo(k, 11, d::candidate),
++		     k.getFieldDefault(11, d::candidate)) == c)
++	  return;
++	if (!k.isFieldDefault(8, d::candidate) &&
++	    !compare(FieldInfo(k, 11, d::candidate),
++		     k.getFieldDefault(11, d::candidate)) == c)
++	  return;
++	if (!k.isFieldDefault(8, d::candidate) &&
++	    !compare(FieldInfo(k, 11, d::candidate),
++		     k.getFieldDefault(11, d::candidate)) == c)
++	  return;
++	if (!k.isFieldDefault(8, d::candidate) &&
++	    !compare(FieldInfo(k, 11, d::candidate),
++		     k.getFieldDefault(11, d::candidate)) == c)
++	  return;
++	if (!k.isFieldDefault(8, d::candidate) &&
++	    !compare(FieldInfo(k, 11, d::candidate),
++		     k.getFieldDefault(11, d::candidate)) == c)
++	  return;
++	if (!k.isFieldDefault(8, d::candidate) &&
++	    !compare(FieldInfo(k, 11, d::candidate),
++		     k.getFieldDefault(11, d::candidate)) == c)
++	  return;
++	if (!k.isFieldDefault(8, d::candidate) &&
++	    !compare(FieldInfo(k, 11, d::candidate),
++		     k.getFieldDefault(11, d::candidate)) == c)
++	  return;
++    }
++}
+Index: gcc/testsuite/g++.dg/opt/pr3698.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/opt/pr3698.C	(.../tags/gcc_6_4_0_release)
++++ b/src/gcc/testsuite/g++.dg/opt/pr3698.C	(.../branches/gcc-6-branch)
+@@ -0,0 +1,21 @@
++// PR c++/3698
++// { dg-do link }
++// { dg-options "-O0" }
++
++struct X {
++  int i;
++};
++
++inline const int&
++OHashKey (const X& x)
++{
++  return x.i;
++}
++
++int
++main ()
++{
++ extern const int& OHashKey (const X& x);
++ X x;
++ return OHashKey (x);
++}
 Index: gcc/testsuite/g++.dg/opt/pr82159.C
 ===================================================================
 --- a/src/gcc/testsuite/g++.dg/opt/pr82159.C	(.../tags/gcc_6_4_0_release)
@@ -29618,6 +31925,47 @@ Index: gcc/testsuite/c-c++-common/torture/pr85022.c
 +{
 +  __asm ("" : "+m" (b));
 +}
+Index: gcc/testsuite/c-c++-common/torture/pr87248.c
+===================================================================
+--- a/src/gcc/testsuite/c-c++-common/torture/pr87248.c	(.../tags/gcc_6_4_0_release)
++++ b/src/gcc/testsuite/c-c++-common/torture/pr87248.c	(.../branches/gcc-6-branch)
+@@ -0,0 +1,36 @@
++/* PR middle-end/87248 */
++/* { dg-do run } */
++
++void
++foo (signed char *p, int q)
++{
++  *p = q & (-__SCHAR_MAX__ - 1) ? (-__SCHAR_MAX__ - 1) : 0;
++}
++
++int
++bar (long long x)
++{
++  return x & (-__INT_MAX__ - 1) ? (-__INT_MAX__ - 1) : 0;
++}
++
++int
++main ()
++{
++#if __INT_MAX__ > 4 * __SCHAR_MAX__
++  signed char a[4];
++  foo (a, __SCHAR_MAX__ + 1U);
++  foo (a + 1, 2 * (__SCHAR_MAX__ + 1U));
++  foo (a + 2, -__INT_MAX__ - 1);
++  foo (a + 3, (__SCHAR_MAX__ + 1U) / 2);
++  if (a[0] != (-__SCHAR_MAX__ - 1) || a[1] != a[0] || a[2] != a[0] || a[3] != 0)
++    __builtin_abort ();
++#endif
++#if __LONG_LONG_MAX__ > 4 * __INT_MAX__
++  if (bar (__INT_MAX__ + 1LL) != (-__INT_MAX__ - 1)
++      || bar (2 * (__INT_MAX__ + 1LL)) != (-__INT_MAX__ - 1)
++      || bar (-__LONG_LONG_MAX__ - 1) != (-__INT_MAX__ - 1)
++      || bar ((__INT_MAX__ + 1LL) / 2) != 0)
++    __builtin_abort ();
++#endif
++  return 0;
++}
 Index: gcc/testsuite/c-c++-common/torture/pr83553.c
 ===================================================================
 --- a/src/gcc/testsuite/c-c++-common/torture/pr83553.c	(.../tags/gcc_6_4_0_release)
@@ -29982,7 +32330,17 @@ Index: gcc/cp/ChangeLog
 ===================================================================
 --- a/src/gcc/cp/ChangeLog	(.../tags/gcc_6_4_0_release)
 +++ b/src/gcc/cp/ChangeLog	(.../branches/gcc-6-branch)
-@@ -1,3 +1,206 @@
+@@ -1,3 +1,216 @@
++2018-10-12  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from mainline
++	2018-07-16  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/3698
++	PR c++/86208
++	* cp-gimplify.c (cp_genericize_r): When using extern_decl_map, or
++	in TREE_USED flag from stmt to h->to.
++
 +2018-06-26  Jakub Jelinek  <jakub@redhat.com>
 +
 +	PR c++/86291
@@ -30211,6 +32569,14 @@ Index: gcc/cp/cp-gimplify.c
  	      while (TREE_CODE (type) == ARRAY_TYPE)
  		type = TREE_TYPE (type);
  	      get_copy_ctor (type, tf_none);
+@@ -1060,6 +1064,7 @@
+       if (h)
+ 	{
+ 	  *stmt_p = h->to;
++	  TREE_USED (h->to) |= TREE_USED (stmt);
+ 	  *walk_subtrees = 0;
+ 	  return NULL;
+ 	}
 Index: gcc/cp/typeck2.c
 ===================================================================
 --- a/src/gcc/cp/typeck2.c	(.../tags/gcc_6_4_0_release)
@@ -34657,6 +37023,133 @@ Index: gcc/gimplify.c
      {
        gimplify_stmt (from_p, pre_p);
        gimplify_stmt (to_p, pre_p);
+@@ -5529,10 +5534,13 @@
+ 
+ /* Insert a cleanup marker for gimplify_cleanup_point_expr.  CLEANUP
+    is the cleanup action required.  EH_ONLY is true if the cleanup should
+-   only be executed if an exception is thrown, not on normal exit.  */
++   only be executed if an exception is thrown, not on normal exit.
++   If FORCE_UNCOND is true perform the cleanup unconditionally;  this is
++   only valid for clobbers.  */
+ 
+ static void
+-gimple_push_cleanup (tree var, tree cleanup, bool eh_only, gimple_seq *pre_p)
++gimple_push_cleanup (tree var, tree cleanup, bool eh_only, gimple_seq *pre_p,
++		     bool force_uncond = false)
+ {
+   gimple *wce;
+   gimple_seq cleanup_stmts = NULL;
+@@ -5564,22 +5572,31 @@
+ 	   }
+ 	   val
+       */
+-      tree flag = create_tmp_var (boolean_type_node, "cleanup");
+-      gassign *ffalse = gimple_build_assign (flag, boolean_false_node);
+-      gassign *ftrue = gimple_build_assign (flag, boolean_true_node);
++      if (force_uncond)
++	{
++	  gimplify_stmt (&cleanup, &cleanup_stmts);
++	  wce = gimple_build_wce (cleanup_stmts);
++	  gimplify_seq_add_stmt (&gimplify_ctxp->conditional_cleanups, wce);
++	}
++      else
++	{
++	  tree flag = create_tmp_var (boolean_type_node, "cleanup");
++	  gassign *ffalse = gimple_build_assign (flag, boolean_false_node);
++	  gassign *ftrue = gimple_build_assign (flag, boolean_true_node);
+ 
+-      cleanup = build3 (COND_EXPR, void_type_node, flag, cleanup, NULL);
+-      gimplify_stmt (&cleanup, &cleanup_stmts);
+-      wce = gimple_build_wce (cleanup_stmts);
++	  cleanup = build3 (COND_EXPR, void_type_node, flag, cleanup, NULL);
++	  gimplify_stmt (&cleanup, &cleanup_stmts);
++	  wce = gimple_build_wce (cleanup_stmts);
+ 
+-      gimplify_seq_add_stmt (&gimplify_ctxp->conditional_cleanups, ffalse);
+-      gimplify_seq_add_stmt (&gimplify_ctxp->conditional_cleanups, wce);
+-      gimplify_seq_add_stmt (pre_p, ftrue);
++	  gimplify_seq_add_stmt (&gimplify_ctxp->conditional_cleanups, ffalse);
++	  gimplify_seq_add_stmt (&gimplify_ctxp->conditional_cleanups, wce);
++	  gimplify_seq_add_stmt (pre_p, ftrue);
+ 
+-      /* Because of this manipulation, and the EH edges that jump
+-	 threading cannot redirect, the temporary (VAR) will appear
+-	 to be used uninitialized.  Don't warn.  */
+-      TREE_NO_WARNING (var) = 1;
++	  /* Because of this manipulation, and the EH edges that jump
++	     threading cannot redirect, the temporary (VAR) will appear
++	     to be used uninitialized.  Don't warn.  */
++	  TREE_NO_WARNING (var) = 1;
++	}
+     }
+   else
+     {
+@@ -5656,11 +5673,7 @@
+ 					    NULL);
+ 	  TREE_THIS_VOLATILE (clobber) = true;
+ 	  clobber = build2 (MODIFY_EXPR, TREE_TYPE (temp), temp, clobber);
+-	  if (cleanup)
+-	    cleanup = build2 (COMPOUND_EXPR, void_type_node, cleanup,
+-			      clobber);
+-	  else
+-	    cleanup = clobber;
++	  gimple_push_cleanup (temp, clobber, false, pre_p, true);
+ 	}
+ 
+       if (cleanup)
+@@ -8712,9 +8725,25 @@
+ 	  t = TREE_VEC_ELT (OMP_FOR_INIT (for_stmt), i);
+ 	  if (!is_gimple_constant (TREE_OPERAND (t, 1)))
+ 	    {
++	      tree type = TREE_TYPE (TREE_OPERAND (t, 0));
+ 	      TREE_OPERAND (t, 1)
+ 		= get_initialized_tmp_var (TREE_OPERAND (t, 1),
+-					   pre_p, NULL);
++					   gimple_seq_empty_p (for_pre_body)
++					   ? pre_p : &for_pre_body, NULL);
++	      /* Reference to pointer conversion is considered useless,
++		 but is significant for firstprivate clause.  Force it
++		 here.  */
++	      if (TREE_CODE (type) == POINTER_TYPE
++		  && (TREE_CODE (TREE_TYPE (TREE_OPERAND (t, 1)))
++		      == REFERENCE_TYPE))
++		{
++		  tree v = create_tmp_var (TYPE_MAIN_VARIANT (type));
++		  tree m = build2 (INIT_EXPR, TREE_TYPE (v), v,
++				   TREE_OPERAND (t, 1));
++		  gimplify_and_add (m, gimple_seq_empty_p (for_pre_body)
++				       ? pre_p : &for_pre_body);
++		  TREE_OPERAND (t, 1) = v;
++		}
+ 	      tree c = build_omp_clause (input_location,
+ 					 OMP_CLAUSE_FIRSTPRIVATE);
+ 	      OMP_CLAUSE_DECL (c) = TREE_OPERAND (t, 1);
+@@ -8726,10 +8755,25 @@
+ 	  t = TREE_VEC_ELT (OMP_FOR_COND (for_stmt), i);
+ 	  if (!is_gimple_constant (TREE_OPERAND (t, 1)))
+ 	    {
++	      tree type = TREE_TYPE (TREE_OPERAND (t, 0));
+ 	      TREE_OPERAND (t, 1)
+ 		= get_initialized_tmp_var (TREE_OPERAND (t, 1),
+ 					   gimple_seq_empty_p (for_pre_body)
+ 					   ? pre_p : &for_pre_body, NULL);
++	      /* Reference to pointer conversion is considered useless,
++		 but is significant for firstprivate clause.  Force it
++		 here.  */
++	      if (TREE_CODE (type) == POINTER_TYPE
++		  && (TREE_CODE (TREE_TYPE (TREE_OPERAND (t, 1)))
++		      == REFERENCE_TYPE))
++		{
++		  tree v = create_tmp_var (TYPE_MAIN_VARIANT (type));
++		  tree m = build2 (INIT_EXPR, TREE_TYPE (v), v,
++				   TREE_OPERAND (t, 1));
++		  gimplify_and_add (m, gimple_seq_empty_p (for_pre_body)
++				       ? pre_p : &for_pre_body);
++		  TREE_OPERAND (t, 1) = v;
++		}
+ 	      tree c = build_omp_clause (input_location,
+ 					 OMP_CLAUSE_FIRSTPRIVATE);
+ 	      OMP_CLAUSE_DECL (c) = TREE_OPERAND (t, 1);
 Index: gcc/tree-ssa-phiopt.c
 ===================================================================
 --- a/src/gcc/tree-ssa-phiopt.c	(.../tags/gcc_6_4_0_release)
@@ -34762,7 +37255,30 @@ Index: gcc/expmed.c
  
    if (op1 == const0_rtx)
      return shifted;
-@@ -5917,6 +5916,18 @@
+@@ -4346,6 +4345,11 @@
+ 		HOST_WIDE_INT d = INTVAL (op1);
+ 		unsigned HOST_WIDE_INT abs_d;
+ 
++		/* Not prepared to handle division/remainder by
++		   0xffffffffffffffff8000000000000000 etc.  */
++		if (d == HOST_WIDE_INT_MIN && size > HOST_BITS_PER_WIDE_INT)
++		  break;
++
+ 		/* Since d might be INT_MIN, we have to cast to
+ 		   unsigned HOST_WIDE_INT before negating to avoid
+ 		   undefined signed overflow.  */
+@@ -4389,9 +4393,7 @@
+ 						compute_mode)
+ 				 != CODE_FOR_nothing)))
+ 		  ;
+-		else if (EXACT_POWER_OF_2_OR_ZERO_P (abs_d)
+-			 && (size <= HOST_BITS_PER_WIDE_INT
+-			     || abs_d != (unsigned HOST_WIDE_INT) d))
++		else if (EXACT_POWER_OF_2_OR_ZERO_P (abs_d))
+ 		  {
+ 		    if (rem_flag)
+ 		      {
+@@ -5917,6 +5919,18 @@
    if (tem != 0)
      return tem;
  
@@ -35781,6 +38297,53 @@ Index: gcc/tree-inline.c
  		  if (TREE_CODE (ptr) == ADDR_EXPR)
  		    {
  		      *tp
+@@ -1924,8 +1925,7 @@
+ 		   && id->call_stmt
+ 		   && (decl = gimple_call_fndecl (stmt))
+ 		   && DECL_BUILT_IN_CLASS (decl) == BUILT_IN_NORMAL
+-		   && DECL_FUNCTION_CODE (decl) == BUILT_IN_VA_ARG_PACK_LEN
+-		   && ! gimple_call_va_arg_pack_p (id->call_stmt))
++		   && DECL_FUNCTION_CODE (decl) == BUILT_IN_VA_ARG_PACK_LEN)
+ 	    {
+ 	      /* __builtin_va_arg_pack_len () should be replaced by
+ 		 the number of anonymous arguments.  */
+@@ -1943,10 +1943,32 @@
+ 		if (POINTER_BOUNDS_P (gimple_call_arg (id->call_stmt, i)))
+ 		  nargs--;
+ 
+-	      count = build_int_cst (integer_type_node, nargs);
+-	      new_stmt = gimple_build_assign (gimple_call_lhs (stmt), count);
+-	      gsi_replace (&copy_gsi, new_stmt, false);
+-	      stmt = new_stmt;
++	      if (!gimple_call_lhs (stmt))
++		{
++		  /* Drop unused calls.  */
++		  gsi_remove (&copy_gsi, false);
++		  continue;
++		}
++	      else if (!gimple_call_va_arg_pack_p (id->call_stmt))
++		{
++		  count = build_int_cst (integer_type_node, nargs);
++		  new_stmt = gimple_build_assign (gimple_call_lhs (stmt), count);
++		  gsi_replace (&copy_gsi, new_stmt, false);
++		  stmt = new_stmt;
++		}
++	      else if (nargs != 0)
++		{
++		  tree newlhs;
++		  if (gimple_in_ssa_p (cfun))
++		    newlhs = make_ssa_name (integer_type_node, NULL);
++		  else
++		    newlhs = create_tmp_reg (integer_type_node);
++		  count = build_int_cst (integer_type_node, nargs);
++		  new_stmt = gimple_build_assign (gimple_call_lhs (stmt),
++						  PLUS_EXPR, newlhs, count);
++		  gimple_call_set_lhs (stmt, newlhs);
++		  gsi_insert_after (&copy_gsi, new_stmt, GSI_NEW_STMT);
++		}
+ 	    }
+ 	  else if (call_stmt
+ 		   && id->call_stmt
 Index: gcc/symtab.c
 ===================================================================
 --- a/src/gcc/symtab.c	(.../tags/gcc_6_4_0_release)
@@ -35980,6 +38543,15 @@ Index: gcc/combine.c
  	{
  	  rtx cop1 = const0_rtx;
  	  enum rtx_code cond_code = simplify_comparison (NE, &cond, &cop1);
+@@ -6259,7 +6277,7 @@
+ 			  pc_rtx, pc_rtx, 0, 0, 0);
+       if (reg_mentioned_p (from, false_rtx))
+ 	false_rtx = subst (known_cond (copy_rtx (false_rtx), false_code,
+-				   from, false_val),
++				       from, false_val),
+ 			   pc_rtx, pc_rtx, 0, 0, 0);
+ 
+       SUBST (XEXP (x, 1), swapped ? false_rtx : true_rtx);
 @@ -7326,7 +7344,14 @@
    if (pos_rtx && CONST_INT_P (pos_rtx))
      pos = INTVAL (pos_rtx), pos_rtx = 0;
@@ -36010,7 +38582,48 @@ Index: gcc/combine.c
      inner = XEXP (inner, 0);
  
    inner_mode = GET_MODE (inner);
-@@ -13941,6 +13971,17 @@
+@@ -9005,6 +9035,7 @@
+ 
+ 	  if (COMPARISON_P (cond0)
+ 	      && COMPARISON_P (cond1)
++	      && SCALAR_INT_MODE_P (mode)
+ 	      && ((GET_CODE (cond0) == reversed_comparison_code (cond1, NULL)
+ 		   && rtx_equal_p (XEXP (cond0, 0), XEXP (cond1, 0))
+ 		   && rtx_equal_p (XEXP (cond0, 1), XEXP (cond1, 1)))
+@@ -9153,12 +9184,12 @@
+ 	  if (COMPARISON_P (x))
+ 	    {
+ 	      if (comparison_dominates_p (cond, code))
+-		return const_true_rtx;
++		return VECTOR_MODE_P (GET_MODE (x)) ? x : const_true_rtx;
+ 
+ 	      code = reversed_comparison_code (x, NULL);
+ 	      if (code != UNKNOWN
+ 		  && comparison_dominates_p (cond, code))
+-		return const0_rtx;
++		return CONST0_RTX (GET_MODE (x));
+ 	      else
+ 		return x;
+ 	    }
+@@ -9201,7 +9232,7 @@
+ 	  /* We must simplify subreg here, before we lose track of the
+ 	     original inner_mode.  */
+ 	  new_rtx = simplify_subreg (GET_MODE (x), r,
+-				 inner_mode, SUBREG_BYTE (x));
++				     inner_mode, SUBREG_BYTE (x));
+ 	  if (new_rtx)
+ 	    return new_rtx;
+ 	  else
+@@ -9226,7 +9257,7 @@
+ 	  /* We must simplify the zero_extend here, before we lose
+ 	     track of the original inner_mode.  */
+ 	  new_rtx = simplify_unary_operation (ZERO_EXTEND, GET_MODE (x),
+-					  r, inner_mode);
++					      r, inner_mode);
+ 	  if (new_rtx)
+ 	    return new_rtx;
+ 	  else
+@@ -13941,6 +13972,17 @@
  		  && CALL_P (from_insn)
  		  && find_reg_fusage (from_insn, USE, XEXP (note, 0)))
  		place = from_insn;
@@ -36028,7 +38641,7 @@ Index: gcc/combine.c
  	      else if (reg_referenced_p (XEXP (note, 0), PATTERN (i3)))
  		place = i3;
  	      else if (i2 != 0 && next_nonnote_nondebug_insn (i2) == i3
-@@ -13954,11 +13995,6 @@
+@@ -13954,11 +13996,6 @@
  		       || rtx_equal_p (XEXP (note, 0), elim_i0))
  		break;
  	      tem_insn = i3;
@@ -39201,6 +41814,19 @@ Index: gcc/config/i386/x86-tune.def
 +/* X86_TUNE_EMIT_VZEROUPPER: This enables vzeroupper instruction insertion
 +   before a transfer of control flow out of the function.  */
 +DEF_TUNE (X86_TUNE_EMIT_VZEROUPPER, "emit_vzeroupper", ~m_KNL)
+Index: gcc/config/i386/gnu-user.h
+===================================================================
+--- a/src/gcc/config/i386/gnu-user.h	(.../tags/gcc_6_4_0_release)
++++ b/src/gcc/config/i386/gnu-user.h	(.../branches/gcc-6-branch)
+@@ -67,7 +67,7 @@
+ 
+ #undef  ASM_SPEC
+ #define ASM_SPEC \
+-  "--32 %{!mno-sse2avx:%{mavx:-msse2avx}} %{msse2avx:%{!mavx:-msse2avx}}"
++  "--32 %{msse2avx:%{!mavx:-msse2avx}}"
+ 
+ #undef  SUBTARGET_EXTRA_SPECS
+ #define SUBTARGET_EXTRA_SPECS \
 Index: gcc/config/i386/i386-opts.h
 ===================================================================
 --- a/src/gcc/config/i386/i386-opts.h	(.../tags/gcc_6_4_0_release)
@@ -39423,6 +42049,19 @@ Index: gcc/config/i386/i386.opt
 +mindirect-branch-register
 +Target Report Var(ix86_indirect_branch_register) Init(0)
 +Force indirect call and jump via register.
+Index: gcc/config/i386/gnu-user64.h
+===================================================================
+--- a/src/gcc/config/i386/gnu-user64.h	(.../tags/gcc_6_4_0_release)
++++ b/src/gcc/config/i386/gnu-user64.h	(.../branches/gcc-6-branch)
+@@ -50,7 +50,7 @@
+ #define ASM_SPEC "%{" SPEC_32 ":--32} \
+  %{" SPEC_64 ":--64} \
+  %{" SPEC_X32 ":--x32} \
+- %{!mno-sse2avx:%{mavx:-msse2avx}} %{msse2avx:%{!mavx:-msse2avx}}"
++ %{msse2avx:%{!mavx:-msse2avx}}"
+ 
+ #define GNU_USER_TARGET_LINK_SPEC				   \
+                   "%{" SPEC_64 ":-m " GNU_USER_LINK_EMULATION64 "} \
 Index: gcc/config/i386/i386-protos.h
 ===================================================================
 --- a/src/gcc/config/i386/i386-protos.h	(.../tags/gcc_6_4_0_release)
@@ -39438,6 +42077,19 @@ Index: gcc/config/i386/i386-protos.h
  extern bool ix86_operands_ok_for_move_multiple (rtx *operands, bool load,
  						enum machine_mode mode);
  
+Index: gcc/config/i386/avx512fintrin.h
+===================================================================
+--- a/src/gcc/config/i386/avx512fintrin.h	(.../tags/gcc_6_4_0_release)
++++ b/src/gcc/config/i386/avx512fintrin.h	(.../branches/gcc-6-branch)
+@@ -3312,7 +3312,7 @@
+     (__m512d)__builtin_ia32_vfmaddsubpd512_mask(A, B, C, -1, R)
+ 
+ #define _mm512_mask_fmaddsub_round_pd(A, U, B, C, R)    \
+-    (__m512d)__builtin_ia32_vfmaddpd512_mask(A, B, C, U, R)
++    (__m512d)__builtin_ia32_vfmaddsubpd512_mask(A, B, C, U, R)
+ 
+ #define _mm512_mask3_fmaddsub_round_pd(A, B, C, U, R)   \
+     (__m512d)__builtin_ia32_vfmaddsubpd512_mask3(A, B, C, U, R)
 Index: gcc/config/i386/i386.c
 ===================================================================
 --- a/src/gcc/config/i386/i386.c	(.../tags/gcc_6_4_0_release)
@@ -40852,6 +43504,22 @@ Index: gcc/config/i386/i386.c
  
    if (seh_nop_p)
      return "nop";
+@@ -32732,6 +33509,7 @@
+ {
+   { 0, CODE_FOR_nothing, "__builtin_ia32_rdtsc", IX86_BUILTIN_RDTSC, UNKNOWN, (int) UINT64_FTYPE_VOID },
+   { 0, CODE_FOR_nothing, "__builtin_ia32_rdtscp", IX86_BUILTIN_RDTSCP, UNKNOWN, (int) UINT64_FTYPE_PUNSIGNED },
++  { 0, CODE_FOR_nothing, "__builtin_ia32_rdpmc", IX86_BUILTIN_RDPMC, UNKNOWN, (int) UINT64_FTYPE_INT },
+   { 0, CODE_FOR_pause, "__builtin_ia32_pause", IX86_BUILTIN_PAUSE, UNKNOWN, (int) VOID_FTYPE_VOID },
+ 
+   /* 80387 (for use internally for atomic compound assignment).  */
+@@ -33029,7 +33807,6 @@
+ {
+   { 0, CODE_FOR_bsr, "__builtin_ia32_bsrsi", IX86_BUILTIN_BSRSI, UNKNOWN, (int) INT_FTYPE_INT },
+   { OPTION_MASK_ISA_64BIT, CODE_FOR_bsr_rex64, "__builtin_ia32_bsrdi", IX86_BUILTIN_BSRDI, UNKNOWN, (int) INT64_FTYPE_INT64 },
+-  { 0, CODE_FOR_nothing, "__builtin_ia32_rdpmc", IX86_BUILTIN_RDPMC, UNKNOWN, (int) UINT64_FTYPE_INT },
+   { 0, CODE_FOR_rotlqi3, "__builtin_ia32_rolqi", IX86_BUILTIN_ROLQI, UNKNOWN, (int) UINT8_FTYPE_UINT8_INT },
+   { 0, CODE_FOR_rotlhi3, "__builtin_ia32_rolhi", IX86_BUILTIN_ROLHI, UNKNOWN, (int) UINT16_FTYPE_UINT16_INT },
+   { 0, CODE_FOR_rotrqi3, "__builtin_ia32_rorqi", IX86_BUILTIN_RORQI, UNKNOWN, (int) UINT8_FTYPE_UINT8_INT },
 @@ -36760,6 +37537,9 @@
      {
        const char *str = TREE_STRING_POINTER (TREE_VALUE (arg));
@@ -45399,7 +48067,12 @@ Index: libgfortran/ChangeLog
 ===================================================================
 --- a/src/libgfortran/ChangeLog	(.../tags/gcc_6_4_0_release)
 +++ b/src/libgfortran/ChangeLog	(.../branches/gcc-6-branch)
-@@ -1,3 +1,26 @@
+@@ -1,3 +1,31 @@
++2018-10-16  Gerald Pfeifer  <gerald@pfeifer.com>
++
++	Backport from trunk
++	* io/close.c [!HAVE_UNLINK_OPEN_FILE]: Include <string.h>.
++
 +2018-01-03  Janne Blomqvist  <jb@gcc.gnu.org>
 +
 +	Backport from trunk
@@ -45426,6 +48099,20 @@ Index: libgfortran/ChangeLog
  2017-07-04  Release Manager
  
  	* GCC 6.4.0 released.
+Index: libgfortran/io/close.c
+===================================================================
+--- a/src/libgfortran/io/close.c	(.../tags/gcc_6_4_0_release)
++++ b/src/libgfortran/io/close.c	(.../branches/gcc-6-branch)
+@@ -25,6 +25,9 @@
+ #include "io.h"
+ #include "unix.h"
+ #include <limits.h>
++#if !HAVE_UNLINK_OPEN_FILE
++#include <string.h>
++#endif
+ 
+ typedef enum
+ { CLOSE_DELETE, CLOSE_KEEP, CLOSE_UNSPECIFIED }
 Index: libgfortran/io/list_read.c
 ===================================================================
 --- a/src/libgfortran/io/list_read.c	(.../tags/gcc_6_4_0_release)
