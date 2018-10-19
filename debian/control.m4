@@ -96,7 +96,7 @@ Homepage: http://gdcproject.org/
 ', `dnl
 Homepage: http://gcc.gnu.org/
 ')dnl SRCNAME
-Vcs-Browser: https://salsa.debian.org/toolchain-team/gcc
+Vcs-Browser: https://salsa.debian.org/toolchain-team/gcc/tree/gcc-7-debian
 Vcs-Svn: https://salsa.debian.org/toolchain-team/gcc.git
 XS-Testsuite: autopkgtest
 
