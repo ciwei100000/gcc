@@ -1218,21 +1218,6 @@ endif
 with_vtv :=
 with_libvtv :=
 
-# libmpx --------------------
-with_mpx :=
-with_mpx := $(call envfilt, mpx, , , $(with_mpx))
-mpx_archs = amd64 i386
-ifneq (,$(filter $(DEB_TARGET_ARCH),$(mpx_archs)))
-  # requires newer binutils, or else libmpxwrappers isn't built
-  ifeq (,$(filter $(distrelease),squeeze lucid precise))
-    with_mpx := yes
-    ifneq (,$(findstring gcc-, $(PKGSOURCE)))
-      with_libmpx := yes
-    endif
-  endif
-endif
-with_mpx :=
-
 # pie by default --------------------
 with_pie :=
 ifeq ($(distribution),Debian)
@@ -1608,11 +1593,6 @@ define gen_biarch
     ifeq ($$(with_libvtv),yes)
       with_lib$1vtv := yes
     endif
-    ifeq ($$(with_libmpx),yes)
-      ifneq (,$(filter $1, 32 64))
-        with_lib$1mpx := yes
-      endif
-    endif
     ifeq ($$(with_libqmath),yes)
       with_lib$1qmath := yes
     endif
@@ -1626,8 +1606,7 @@ define gen_biarch
     biarch_multidir_names = libiberty libgcc libbacktrace libatomic libgomp
     ifneq (,$$(findstring gcc-, $$(PKGSOURCE)))
       biarch_multidir_names += libstdc++-v3 libobjc libgfortran libssp \
-				zlib libitm libmpx \
-				libsanitizer
+				zlib libitm libsanitizer
       ifeq ($$(with_objc_gc),yes)
         biarch_multidir_names += boehm-gc
       endif
@@ -1716,7 +1695,6 @@ ifeq ($(no_biarch_libs),yes)
   with_lib64tsan	:= no
   with_lib64ubsan	:= no
   with_lib64vtv		:= no
-  with_lib64mpx		:= no
   with_lib64gccdev	:= no
   with_lib64cxxdev	:= no
   with_lib64objcdev	:= no
@@ -1742,7 +1720,6 @@ ifeq ($(no_biarch_libs),yes)
   with_lib32tsan	:= no
   with_lib32ubsan	:= no
   with_lib32vtv		:= no
-  with_lib32mpx		:= no
   with_lib32gccdev	:= no
   with_lib32cxxdev	:= no
   with_lib32objcdev	:= no

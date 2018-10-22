@@ -213,7 +213,6 @@ ifneq (,$(filter $(DEB_STAGE),stage1 stage2))
 	--disable-decimal-float \
 	--disable-libatomic \
 	--disable-libgomp \
-	--disable-libmpx \
 	--disable-libhsail-rt \
 	--disable-libssp \
 	--disable-libquadmath \
@@ -325,10 +324,6 @@ endif
 
 ifneq ($(with_qmath),yes)
   CONFARGS += --disable-libquadmath --disable-libquadmath-support
-endif
-
-ifeq ($(with_mpx),yes)
-  CONFARGS += --enable-libmpx
 endif
 
 ifeq ($(with_plugins),yes)
@@ -1813,7 +1808,7 @@ clean: debian/control
 	  rm -f $$f2; \
 	done
 	rm -f debian/lib*gcc1.symbols
-	rm -f debian/lib*{atomic$(ATOMIC_SONAME),gfortran$(FORTRAN_SONAME),gomp$(GOMP_SONAME),itm$(ITM_SONAME),mpx$(MPX_SONAME),quadmath$(QUADMATH_SONAME),hsail-rt$(HSAIL_SONAME)}.symbols
+	rm -f debian/lib*{atomic$(ATOMIC_SONAME),gfortran$(FORTRAN_SONAME),gomp$(GOMP_SONAME),itm$(ITM_SONAME),quadmath$(QUADMATH_SONAME),hsail-rt$(HSAIL_SONAME)}.symbols
 	find debian -maxdepth 1 -name '*-cross.symbols' -type l | xargs -r rm -f
 	rm -f debian/gcc-{XX,ar,nm,ranlib}-$(BASE_VERSION).1
 	rm -f debian/shlibs.local debian/shlibs.common* debian/substvars.local
@@ -1993,10 +1988,6 @@ endif
 
 ifeq ($(with_libvtv),yes)
   include debian/rules.d/binary-libvtv.mk
-endif
-
-ifeq ($(with_libmpx),yes)
-  include debian/rules.d/binary-libmpx.mk
 endif
 
 ifeq ($(with_f77),yes)

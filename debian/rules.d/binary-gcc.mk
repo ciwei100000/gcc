@@ -27,7 +27,7 @@ endif
 # but it becomes difficult to name all these files ...
 
 dirs_gcc = \
-	$(docdir)/$(p_xbase)/{gcc,libssp,gomp,itm,quadmath,sanitizer,mpx} \
+	$(docdir)/$(p_xbase)/{gcc,libssp,gomp,itm,quadmath,sanitizer} \
 	$(PF)/bin \
 	$(gcc_lexec_dir) \
 	$(gcc_lib_dir)/{include,include-fixed} \
@@ -119,11 +119,6 @@ ifeq ($(with_asan),yes)
 	mv $(d)/$(usr_lib)/libsanitizer*.spec $(d_gcc)/$(gcc_lib_dir)/
 	cp -p $(srcdir)/libsanitizer/ChangeLog \
 		$(d_gcc)/$(docdir)/$(p_xbase)/sanitizer/changelog
-endif
-ifeq ($(with_mpx),yes)
-	mv $(d)/$(usr_lib)/libmpx.spec $(d_gcc)/$(gcc_lib_dir)/
-	cp -p $(srcdir)/libmpx/ChangeLog \
-		$(d_gcc)/$(docdir)/$(p_xbase)/mpx/changelog
 endif
 ifeq ($(with_cc1),yes)
 	rm -f $(d)/$(PF)/lib/$(DEB_HOST_MULTIARCH)/libcc1.so
