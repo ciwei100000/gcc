@@ -60,6 +60,7 @@ header_files = \
 		    {movdir,pconfig,vpclmulqdq,wbnoinvd}intrin.h \
 		    {cet,clflushopt,clwb,clzero,gfni,pcommit,xsavec,xsaves}intrin.h \
 		    {arm_acle,unwind-arm-common,s390intrin}.h \
+		    {cldemote,waitpkg}intrin.h \
 		    amo.h msa.h \
 		    {cet,cross-stdarg,syslimits,unwind,varargs}.h; \
 		do \

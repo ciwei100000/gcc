@@ -13,7 +13,6 @@ series_file	?= $(patchdir)/series
 # which patches should be applied?
 
 debian_patches = \
-	svn-updates \
 	$(if $(with_linaro_branch),gcc-linaro) \
 	$(if $(with_linaro_branch),gcc-linaro-no-macros) \
 
@@ -72,15 +71,10 @@ debian_patches += \
 	libffi-mipsen-r6 \
 	t-libunwind-elf-Wl-z-defs \
 	gcc-alpha-bs-ignore \
-	libffi-riscv \
 	gcc-force-cross-layout \
 	gcc-search-prefixed-as-ld \
 	kfreebsd-decimal-float \
  	powerpcspe_remove_many \
-
-ifeq (,$(filter $(distrelease),trusty stretch jessie wheezy))
-  debian_patches += gcc-as-needed-push-pop
-endif
 
 # TODO:
 #	pr81829 \
@@ -97,7 +91,7 @@ ifeq ($(with_ssp)-$(with_ssp_default),yes-yes)
   endif
 endif
 ifneq (,$(filter $(derivative),Ubuntu))
-  ifneq (,$(findstring gcc-8, $(PKGSOURCE)))
+  ifneq (,$(findstring gcc-9, $(PKGSOURCE)))
     hardening_patches += \
 	gcc-default-fortify-source \
 	gcc-default-relro \
@@ -114,7 +108,7 @@ ifneq (,$(filter $(derivative),Ubuntu))
     endif
   endif
 else ifneq (,$(filter $(derivative),Debian))
-  ifneq (,$(findstring gcc-8, $(PKGSOURCE)))
+  ifneq (,$(findstring gcc-9, $(PKGSOURCE)))
 #    ifneq ($(with_pie),yes)
 #      hardening_patches += \
 #        ignore-pie-specs-when-not-enabled
@@ -127,7 +121,8 @@ ifneq (,$(findstring 4.4, $(PKGSOURCE)))
   debian_patches += pr39491
 endif
 
-debian_patches += ada-arm
+# FIXME: doesn't apply
+#debian_patches += ada-arm
 
 # there should be no harm to always apply these, except for new GCC versions
 ifeq ($(with_ada),yes)
@@ -149,10 +144,12 @@ ifeq ($(with_ada),yes)
     debian_patches += \
 	ada-link-lib \
 	ada-libgnatvsn \
-	ada-gnattools-cross \
 	ada-tools-move-ldflags \
 	ada-acats
   #endif
+
+  # FIXME: ada-gnattools-cross
+
   #ifeq ($(with_gnatsjlj),yes)
     debian_patches += \
 	ada-sjlj
@@ -160,7 +157,7 @@ ifeq ($(with_ada),yes)
 
   # FIXME: debian_patches += ada-link-shlib
   debian_patches += ada-lib-info-source-date-epoch
-  debian_patches += ada-armel-libatomic
+  # FIXME: debian_patches += ada-armel-libatomic
 endif
 
 
@@ -265,7 +262,6 @@ debian_patches += skip-bootstrap-multilib
 debian_patches += libffi-ro-eh_frame_sect
 debian_patches += libffi-mips
 debian_patches += ada-kfreebsd
-debian_patches += ada-drop-termio-h
 
 # sigaction on sparc changed between glibc 2.19 and 2.21
 ifeq (,$(filter 2.1%, $(shell dpkg-query -l libc-bin | awk '/^.i/ {print $$3}')))

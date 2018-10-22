@@ -940,7 +940,7 @@ ifeq ($(GENERATE_DFSG_TARBALL),yes)
   with_d := disabled while generating the dfsg tarball
 endif
 with_d := $(call envfilt, d, , , $(with_d))
-#with_d := not yet built for GCC 8
+with_d := not yet built for GCC 9
 
 ifeq ($(with_base_only),yes)
   with_d := no
@@ -1025,7 +1025,7 @@ ifneq (,$(filter $(DEB_TARGET_ARCH), $(quadmath_targets)))
   # FIXME: upstream build tied to gfortran build
   ifeq ($(with_fortran),yes)
     with_qmath := yes
-    ifneq (,$(findstring gcc-8,$(PKGSOURCE)))
+    ifneq (,$(findstring gcc-9,$(PKGSOURCE)))
       ifeq ($(with_common_libs),yes)
         with_libqmath := yes
       endif
@@ -1116,7 +1116,7 @@ with_nls := $(call envfilt, nls, , , $(with_nls))
 # powerpc nof libraries -----
 with_libnof := no
 
-ifneq (,$(findstring gcc-8,$(PKGSOURCE)))
+ifneq (,$(findstring gcc-9,$(PKGSOURCE)))
   ifeq (,$(with_rtlibs))
     with_source := yes
   endif
@@ -1135,7 +1135,7 @@ with_ssp := $(call envfilt, ssp, , , $(with_ssp))
 
 ifeq ($(with_ssp),yes)
   ifneq ($(derivative),Debian)
-    ifneq (,$(findstring gcc-8, $(PKGSOURCE)))
+    ifneq (,$(findstring gcc-9, $(PKGSOURCE)))
       with_ssp_default := yes
     endif
   endif
@@ -1231,6 +1231,7 @@ ifneq (,$(filter $(DEB_TARGET_ARCH),$(mpx_archs)))
     endif
   endif
 endif
+with_mpx :=
 
 # pie by default --------------------
 with_pie :=
@@ -1433,7 +1434,7 @@ else
 
   # neon build -------------------
   # FIXME: build as a cross compiler to build on armv4 as well
-  ifneq (,$(findstring gcc-8, $(PKGSOURCE)))
+  ifneq (,$(findstring gcc-9, $(PKGSOURCE)))
     ifeq ($(derivative),Ubuntu)
 #      neon_archs = armel armhf
 #      ifneq (, $(filter $(DEB_TARGET_ARCH),$(neon_archs)))
@@ -1876,7 +1877,7 @@ ifneq (,$(findstring $(DEB_TARGET_GNU_SYSTEM),$(locale_no_systems)))
   force_gnu_locales := disabled for system $(DEB_TARGET_GNU_SYSTEM)
 endif
 
-gcc_tarpath		:= $(firstword $(wildcard gcc-*.tar.* /usr/src/gcc-8/gcc-*.tar.*))
+gcc_tarpath		:= $(firstword $(wildcard gcc-*.tar.* /usr/src/gcc-9/gcc-*.tar.*))
 gcc_tarball		:= $(notdir $(gcc_tarpath))
 gcc_srcdir		:= $(subst -dfsg,,$(patsubst %.tar.xz,%,$(patsubst %.tar.lzma,%,$(patsubst %.tar.gz,%,$(gcc_tarball:.tar.bz2=)))))
 
