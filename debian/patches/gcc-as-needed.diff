@@ -1,11 +1,9 @@
 # DP: On linux targets pass --as-needed by default to the linker, but always
 # DP: link the sanitizer libraries with --no-as-needed.
 
-Index: b/src/gcc/gcc.c
-===================================================================
 --- a/src/gcc/gcc.c
 +++ b/src/gcc/gcc.c
-@@ -692,8 +692,11 @@ proper position among the other output f
+@@ -699,8 +699,11 @@ proper position among the other output f
  #ifdef LIBASAN_EARLY_SPEC
  #define LIBASAN_SPEC STATIC_LIBASAN_LIBS
  #elif defined(HAVE_LD_STATIC_DYNAMIC)
@@ -19,7 +17,7 @@ Index: b/src/gcc/gcc.c
  		     STATIC_LIBASAN_LIBS
  #else
  #define LIBASAN_SPEC "-lasan" STATIC_LIBASAN_LIBS
-@@ -710,8 +713,11 @@ proper position among the other output f
+@@ -717,8 +720,11 @@ proper position among the other output f
  #ifdef LIBTSAN_EARLY_SPEC
  #define LIBTSAN_SPEC STATIC_LIBTSAN_LIBS
  #elif defined(HAVE_LD_STATIC_DYNAMIC)
@@ -33,7 +31,7 @@ Index: b/src/gcc/gcc.c
  		     STATIC_LIBTSAN_LIBS
  #else
  #define LIBTSAN_SPEC "-ltsan" STATIC_LIBTSAN_LIBS
-@@ -728,8 +734,11 @@ proper position among the other output f
+@@ -735,8 +741,11 @@ proper position among the other output f
  #ifdef LIBLSAN_EARLY_SPEC
  #define LIBLSAN_SPEC STATIC_LIBLSAN_LIBS
  #elif defined(HAVE_LD_STATIC_DYNAMIC)
@@ -47,7 +45,7 @@ Index: b/src/gcc/gcc.c
  		     STATIC_LIBLSAN_LIBS
  #else
  #define LIBLSAN_SPEC "-llsan" STATIC_LIBLSAN_LIBS
-@@ -744,8 +753,11 @@ proper position among the other output f
+@@ -751,8 +760,11 @@ proper position among the other output f
  #define STATIC_LIBUBSAN_LIBS \
    " %{static-libubsan|static:%:include(libsanitizer.spec)%(link_libubsan)}"
  #ifdef HAVE_LD_STATIC_DYNAMIC
@@ -61,11 +59,9 @@ Index: b/src/gcc/gcc.c
  		     STATIC_LIBUBSAN_LIBS
  #else
  #define LIBUBSAN_SPEC "-lubsan" STATIC_LIBUBSAN_LIBS
-Index: b/src/gcc/config/gnu-user.h
-===================================================================
 --- a/src/gcc/config/gnu-user.h
 +++ b/src/gcc/config/gnu-user.h
-@@ -161,15 +161,15 @@ see the files COPYING3 and COPYING.RUNTI
+@@ -158,15 +158,15 @@ see the files COPYING3 and COPYING.RUNTI
  #define LIBASAN_EARLY_SPEC "%{!shared:libasan_preinit%O%s} " \
    "%{static-libasan:%{!shared:" \
    LD_STATIC_OPTION " --whole-archive -lasan --no-whole-archive " \
@@ -84,8 +80,6 @@ Index: b/src/gcc/config/gnu-user.h
 -  LD_DYNAMIC_OPTION "}}%{!static-liblsan:-llsan}"
 +  LD_DYNAMIC_OPTION "}}%{!static-liblsan:%{!fuse-ld=gold:--push-state} --no-as-needed -llsan %{fuse-ld=gold:--as-needed;:--pop-state}}"
  #endif
-Index: b/src/gcc/config/aarch64/aarch64-linux.h
-===================================================================
 --- a/src/gcc/config/aarch64/aarch64-linux.h
 +++ b/src/gcc/config/aarch64/aarch64-linux.h
 @@ -36,6 +36,7 @@
@@ -96,8 +90,6 @@ Index: b/src/gcc/config/aarch64/aarch64-linux.h
     %{static:-Bstatic}				\
     %{shared:-shared}				\
     %{symbolic:-Bsymbolic}			\
-Index: b/src/gcc/config/ia64/linux.h
-===================================================================
 --- a/src/gcc/config/ia64/linux.h
 +++ b/src/gcc/config/ia64/linux.h
 @@ -58,7 +58,7 @@ do {						\
@@ -109,8 +101,6 @@ Index: b/src/gcc/config/ia64/linux.h
    %{shared:-shared} \
    %{!shared: \
      %{!static: \
-Index: b/src/gcc/config/sparc/linux.h
-===================================================================
 --- a/src/gcc/config/sparc/linux.h
 +++ b/src/gcc/config/sparc/linux.h
 @@ -86,7 +86,7 @@ extern const char *host_detect_local_cpu
@@ -122,11 +112,9 @@ Index: b/src/gcc/config/sparc/linux.h
    %{!mno-relax:%{!r:-relax}} \
    %{!shared: \
      %{!static: \
-Index: b/src/gcc/config/s390/linux.h
-===================================================================
 --- a/src/gcc/config/s390/linux.h
 +++ b/src/gcc/config/s390/linux.h
-@@ -78,7 +78,7 @@ along with GCC; see the file COPYING3.
+@@ -77,7 +77,7 @@ along with GCC; see the file COPYING3.
  
  #undef  LINK_SPEC
  #define LINK_SPEC \
@@ -135,11 +123,9 @@ Index: b/src/gcc/config/s390/linux.h
     %{shared:-shared} \
     %{!shared: \
        %{static:-static} \
-Index: b/src/gcc/config/rs6000/linux64.h
-===================================================================
 --- a/src/gcc/config/rs6000/linux64.h
 +++ b/src/gcc/config/rs6000/linux64.h
-@@ -490,13 +490,13 @@ extern int dot_symbols;
+@@ -470,13 +470,13 @@ extern int dot_symbols;
  					   " -m elf64ppc")
  #endif
  
@@ -155,11 +141,9 @@ Index: b/src/gcc/config/rs6000/linux64.h
    %{!static-pie: \
      %{rdynamic:-export-dynamic} \
      -dynamic-linker " GNU_USER_DYNAMIC_LINKER64 "}}} \
-Index: b/src/gcc/config/rs6000/sysv4.h
-===================================================================
 --- a/src/gcc/config/rs6000/sysv4.h
 +++ b/src/gcc/config/rs6000/sysv4.h
-@@ -811,7 +811,7 @@ ENDIAN_SELECT(" -mbig", " -mlittle", DEF
+@@ -804,7 +804,7 @@ ENDIAN_SELECT(" -mbig", " -mlittle", DEF
    CHOOSE_DYNAMIC_LINKER (GLIBC_DYNAMIC_LINKER, UCLIBC_DYNAMIC_LINKER, \
  			 MUSL_DYNAMIC_LINKER)
  
@@ -168,8 +152,6 @@ Index: b/src/gcc/config/rs6000/sysv4.h
    %{rdynamic:-export-dynamic} \
    -dynamic-linker " GNU_USER_DYNAMIC_LINKER "}}"
  
-Index: b/src/gcc/config/i386/gnu-user64.h
-===================================================================
 --- a/src/gcc/config/i386/gnu-user64.h
 +++ b/src/gcc/config/i386/gnu-user64.h
 @@ -57,6 +57,7 @@ see the files COPYING3 and COPYING.RUNTI
@@ -180,8 +162,6 @@ Index: b/src/gcc/config/i386/gnu-user64.h
    %{shared:-shared} \
    %{!shared: \
      %{!static: \
-Index: b/src/gcc/config/i386/gnu-user.h
-===================================================================
 --- a/src/gcc/config/i386/gnu-user.h
 +++ b/src/gcc/config/i386/gnu-user.h
 @@ -74,7 +74,7 @@ along with GCC; see the file COPYING3.
@@ -193,8 +173,6 @@ Index: b/src/gcc/config/i386/gnu-user.h
    %{!shared: \
      %{!static: \
        %{!static-pie: \
-Index: b/src/gcc/config/alpha/linux-elf.h
-===================================================================
 --- a/src/gcc/config/alpha/linux-elf.h
 +++ b/src/gcc/config/alpha/linux-elf.h
 @@ -37,7 +37,7 @@ along with GCC; see the file COPYING3.
@@ -206,8 +184,6 @@ Index: b/src/gcc/config/alpha/linux-elf.h
    %{O*:-O3} %{!O*:-O1}						\
    %{shared:-shared}						\
    %{!shared:							\
-Index: b/src/gcc/config/arm/linux-elf.h
-===================================================================
 --- a/src/gcc/config/arm/linux-elf.h
 +++ b/src/gcc/config/arm/linux-elf.h
 @@ -71,6 +71,7 @@
@@ -218,8 +194,6 @@ Index: b/src/gcc/config/arm/linux-elf.h
     %{mbig-endian:-EB} %{mlittle-endian:-EL}" \
     SUBTARGET_EXTRA_LINK_SPEC
  
-Index: b/src/gcc/config/mips/gnu-user.h
-===================================================================
 --- a/src/gcc/config/mips/gnu-user.h
 +++ b/src/gcc/config/mips/gnu-user.h
 @@ -55,6 +55,7 @@ along with GCC; see the file COPYING3.
@@ -230,15 +204,13 @@ Index: b/src/gcc/config/mips/gnu-user.h
    %{!shared: \
      %{!static: \
        %{rdynamic:-export-dynamic} \
-Index: b/src/gcc/config/riscv/linux.h
-===================================================================
 --- a/src/gcc/config/riscv/linux.h
 +++ b/src/gcc/config/riscv/linux.h
-@@ -51,6 +51,7 @@ along with GCC; see the file COPYING3.
+@@ -59,6 +59,7 @@ along with GCC; see the file COPYING3.
  
  #define LINK_SPEC "\
  -hash-style=gnu \
 +-as-needed \
- -melf" XLEN_SPEC "lriscv \
+ -melf" XLEN_SPEC "lriscv" LD_EMUL_SUFFIX " \
+ %{mno-relax:--no-relax} \
  %{shared} \
-   %{!shared: \
