@@ -55,11 +55,9 @@ git-svn-id: svn+ssh://gcc.gnu.org/svn/gcc/trunk@244676 138bc75d-0d04-0410-961f-8
  create mode 100644 gcc/testsuite/gcc.target/mips/madd4-1.c
  create mode 100644 gcc/testsuite/gcc.target/mips/madd4-2.c
 
-Index: b/src/gcc/config.gcc
-===================================================================
 --- a/src/gcc/config.gcc
 +++ b/src/gcc/config.gcc
-@@ -3976,7 +3976,7 @@ case "${target}" in
+@@ -3980,7 +3980,7 @@ case "${target}" in
  		;;
  
  	mips*-*-*)
@@ -68,7 +66,7 @@ Index: b/src/gcc/config.gcc
  
  		case ${with_float} in
  		"" | soft | hard)
-@@ -4114,6 +4114,21 @@ case "${target}" in
+@@ -4118,6 +4118,21 @@ case "${target}" in
  			exit 1
  			;;
  		esac
@@ -90,7 +88,7 @@ Index: b/src/gcc/config.gcc
  		;;
  
  	nds32*-*-*)
-@@ -4547,7 +4562,7 @@ case ${target} in
+@@ -4551,7 +4566,7 @@ case ${target} in
  esac
  
  t=
@@ -99,8 +97,6 @@ Index: b/src/gcc/config.gcc
  for option in $all_defaults
  do
  	eval "val=\$with_"`echo $option | sed s/-/_/g`
-Index: b/src/gcc/config/mips/mips.h
-===================================================================
 --- a/src/gcc/config/mips/mips.h
 +++ b/src/gcc/config/mips/mips.h
 @@ -621,6 +621,8 @@ struct mips_cpu_info {
@@ -139,8 +135,6 @@ Index: b/src/gcc/config/mips/mips.h
  				 && !TARGET_MIPS8000			\
  				 && !TARGET_LOONGSON_3A)
  
-Index: b/src/gcc/config/mips/mips.opt
-===================================================================
 --- a/src/gcc/config/mips/mips.opt
 +++ b/src/gcc/config/mips/mips.opt
 @@ -388,6 +388,10 @@ mlxc1-sxc1
@@ -154,8 +148,6 @@ Index: b/src/gcc/config/mips/mips.opt
  mtune=
  Target RejectNegative Joined Var(mips_tune_option) ToLower Enum(mips_arch_opt_value)
  -mtune=PROCESSOR	Optimize the output for PROCESSOR.
-Index: b/src/gcc/testsuite/gcc.target/mips/madd4-1.c
-===================================================================
 --- /dev/null
 +++ b/src/gcc/testsuite/gcc.target/mips/madd4-1.c
 @@ -0,0 +1,14 @@
@@ -173,8 +165,6 @@ Index: b/src/gcc/testsuite/gcc.target/mips/madd4-1.c
 +{
 +  return (f * g) + h;
 +}
-Index: b/src/gcc/testsuite/gcc.target/mips/madd4-2.c
-===================================================================
 --- /dev/null
 +++ b/src/gcc/testsuite/gcc.target/mips/madd4-2.c
 @@ -0,0 +1,14 @@
@@ -192,8 +182,6 @@ Index: b/src/gcc/testsuite/gcc.target/mips/madd4-2.c
 +{
 +  return (f * g) + h;
 +}
-Index: b/src/gcc/testsuite/gcc.target/mips/mips-ps-type-2.c
-===================================================================
 --- a/src/gcc/testsuite/gcc.target/mips/mips-ps-type-2.c
 +++ b/src/gcc/testsuite/gcc.target/mips/mips-ps-type-2.c
 @@ -1,7 +1,7 @@
@@ -205,8 +193,6 @@ Index: b/src/gcc/testsuite/gcc.target/mips/mips-ps-type-2.c
  /* { dg-skip-if "nmadd and nmsub need combine" { *-*-* } { "-O0" } { "" } } */
  /* { dg-final { scan-assembler "\tcvt.ps.s\t" } } */
  /* { dg-final { scan-assembler "\tmov.ps\t" } } */
-Index: b/src/gcc/testsuite/gcc.target/mips/mips-ps-type.c
-===================================================================
 --- a/src/gcc/testsuite/gcc.target/mips/mips-ps-type.c
 +++ b/src/gcc/testsuite/gcc.target/mips/mips-ps-type.c
 @@ -1,7 +1,7 @@
@@ -218,8 +204,6 @@ Index: b/src/gcc/testsuite/gcc.target/mips/mips-ps-type.c
  /* { dg-skip-if "nmadd and nmsub need combine" { *-*-* } { "-O0" } { "" } } */
  /* { dg-final { scan-assembler "\tcvt.ps.s\t" } } */
  /* { dg-final { scan-assembler "\tmov.ps\t" } } */
-Index: b/src/gcc/testsuite/gcc.target/mips/mips.exp
-===================================================================
 --- a/src/gcc/testsuite/gcc.target/mips/mips.exp
 +++ b/src/gcc/testsuite/gcc.target/mips/mips.exp
 @@ -256,6 +256,7 @@ set mips_option_groups {
@@ -270,8 +254,6 @@ Index: b/src/gcc/testsuite/gcc.target/mips/mips.exp
  		       || [mips_have_test_option_p options "-mpaired-single"]
  		       || [mips_have_test_option_p options "-mnan=legacy"]
  		       || [mips_have_test_option_p options "-mabs=legacy"]
-Index: b/src/gcc/testsuite/gcc.target/mips/nmadd-1.c
-===================================================================
 --- a/src/gcc/testsuite/gcc.target/mips/nmadd-1.c
 +++ b/src/gcc/testsuite/gcc.target/mips/nmadd-1.c
 @@ -1,5 +1,5 @@
@@ -281,8 +263,6 @@ Index: b/src/gcc/testsuite/gcc.target/mips/nmadd-1.c
  /* { dg-skip-if "code quality test" { *-*-* } { "-O0" } { "" } } */
  /* { dg-final { scan-assembler "\tnmadd.s\t" } } */
  /* { dg-final { scan-assembler "\tnmadd.d\t" } } */
-Index: b/src/gcc/testsuite/gcc.target/mips/nmadd-2.c
-===================================================================
 --- a/src/gcc/testsuite/gcc.target/mips/nmadd-2.c
 +++ b/src/gcc/testsuite/gcc.target/mips/nmadd-2.c
 @@ -1,5 +1,5 @@
@@ -292,8 +272,6 @@ Index: b/src/gcc/testsuite/gcc.target/mips/nmadd-2.c
  /* { dg-skip-if "code quality test" { *-*-* } { "-O0" } { "" } } */
  /* { dg-final { scan-assembler "\tnmadd.s\t" } } */
  /* { dg-final { scan-assembler "\tnmadd.d\t" } } */
-Index: b/src/gcc/testsuite/gcc.target/mips/nmadd-3.c
-===================================================================
 --- a/src/gcc/testsuite/gcc.target/mips/nmadd-3.c
 +++ b/src/gcc/testsuite/gcc.target/mips/nmadd-3.c
 @@ -1,7 +1,7 @@

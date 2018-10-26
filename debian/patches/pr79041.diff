@@ -2,7 +2,7 @@
 
 --- a/src/gcc/config/aarch64/aarch64-protos.h
 +++ b/src/gcc/config/aarch64/aarch64-protos.h
-@@ -436,7 +436,6 @@ int aarch64_ccmp_mode_to_code (enum machine_mode mode);
+@@ -436,7 +436,6 @@ int aarch64_ccmp_mode_to_code (enum mach
  bool extract_base_offset_in_addr (rtx mem, rtx *base, rtx *offset);
  bool aarch64_operands_ok_for_ldpstp (rtx *, bool, enum machine_mode);
  bool aarch64_operands_adjust_ok_for_ldpstp (rtx *, bool, enum machine_mode);
@@ -12,7 +12,7 @@
  					      tree, HOST_WIDE_INT);
 --- a/src/gcc/config/aarch64/aarch64.c
 +++ b/src/gcc/config/aarch64/aarch64.c
-@@ -152,7 +152,7 @@ enum aarch64_processor aarch64_tune = cortexa53;
+@@ -152,7 +152,7 @@ enum aarch64_processor aarch64_tune = co
  unsigned long aarch64_tune_flags = 0;
  
  /* Global flag for PC relative loads.  */
@@ -21,7 +21,7 @@
  
  /* Support for command line parsing of boolean flags in the tuning
     structures.  */
-@@ -1703,7 +1703,7 @@ aarch64_expand_mov_immediate (rtx dest, rtx imm)
+@@ -1703,7 +1703,7 @@ aarch64_expand_mov_immediate (rtx dest,
  	     we need to expand the literal pool access carefully.
  	     This is something that needs to be done in a number
  	     of places, so could well live as a separate function.  */
@@ -30,7 +30,7 @@
  	    {
  	      gcc_assert (can_create_pseudo_p ());
  	      base = gen_reg_rtx (ptr_mode);
-@@ -4028,7 +4028,7 @@ aarch64_classify_address (struct aarch64_address_info *info,
+@@ -4028,7 +4028,7 @@ aarch64_classify_address (struct aarch64
  	  return ((GET_CODE (sym) == LABEL_REF
  		   || (GET_CODE (sym) == SYMBOL_REF
  		       && CONSTANT_POOL_ADDRESS_P (sym)
@@ -39,7 +39,7 @@
  	}
        return false;
  
-@@ -5183,7 +5183,7 @@ aarch64_secondary_reload (bool in_p ATTRIBUTE_UNUSED, rtx x,
+@@ -5183,7 +5183,7 @@ aarch64_secondary_reload (bool in_p ATTR
    if (MEM_P (x) && GET_CODE (x) == SYMBOL_REF && CONSTANT_POOL_ADDRESS_P (x)
        && (SCALAR_FLOAT_MODE_P (GET_MODE (x))
  	  || targetm.vector_mode_supported_p (GET_MODE (x)))
@@ -48,7 +48,7 @@
      {
        sri->icode = aarch64_constant_pool_reload_icode (mode);
        return NO_REGS;
-@@ -5517,7 +5517,7 @@ aarch64_uxt_size (int shift, HOST_WIDE_INT mask)
+@@ -5517,7 +5517,7 @@ aarch64_uxt_size (int shift, HOST_WIDE_I
  static inline bool
  aarch64_can_use_per_function_literal_pools_p (void)
  {
@@ -57,7 +57,7 @@
  	  || aarch64_cmodel == AARCH64_CMODEL_LARGE);
  }
  
-@@ -8043,32 +8043,31 @@ aarch64_override_options_after_change_1 (struct gcc_options *opts)
+@@ -8043,32 +8043,31 @@ aarch64_override_options_after_change_1
  	opts->x_align_functions = aarch64_tune_params.function_align;
      }
  
@@ -87,10 +87,7 @@
 -  if (opts->x_nopcrelative_literal_loads == 2
 -      && !TARGET_FIX_ERR_A53_843419)
 -    aarch64_nopcrelative_literal_loads = true;
-+  if (opts->x_pcrelative_literal_loads == 2
-+      && TARGET_FIX_ERR_A53_843419)
-+    aarch64_pcrelative_literal_loads = true;
- 
+-
 -  /* In the tiny memory model it makes no sense
 -     to disallow non PC relative literal pool loads
 -     as many other things will break anyway.  */
@@ -98,6 +95,10 @@
 -      && (aarch64_cmodel == AARCH64_CMODEL_TINY
 -	  || aarch64_cmodel == AARCH64_CMODEL_TINY_PIC))
 -    aarch64_nopcrelative_literal_loads = false;
++  if (opts->x_pcrelative_literal_loads == 2
++      && TARGET_FIX_ERR_A53_843419)
++    aarch64_pcrelative_literal_loads = true;
++
 +  /* In the tiny memory model it makes no sense to disallow PC relative
 +     literal pool loads.  */
 +  if (aarch64_cmodel == AARCH64_CMODEL_TINY
@@ -106,7 +107,7 @@
  }
  
  /* 'Unpack' up the internal tuning structs and update the options
-@@ -9314,7 +9313,7 @@ aarch64_classify_symbol (rtx x, rtx offset)
+@@ -9314,7 +9313,7 @@ aarch64_classify_symbol (rtx x, rtx offs
  	  /* This is alright even in PIC code as the constant
  	     pool reference is always PC relative and within
  	     the same translation unit.  */
@@ -117,7 +118,7 @@
  	  else
 --- a/src/gcc/config/aarch64/aarch64.md
 +++ b/src/gcc/config/aarch64/aarch64.md
-@@ -4775,7 +4775,7 @@
+@@ -4776,7 +4776,7 @@
   [(set (match_operand:GPF_TF 0 "register_operand" "=w")
         (mem:GPF_TF (match_operand 1 "aarch64_constant_pool_symref" "S")))
    (clobber (match_operand:P 2 "register_operand" "=&r"))]
@@ -126,7 +127,7 @@
   {
     aarch64_expand_mov_immediate (operands[2], XEXP (operands[1], 0));
     emit_move_insn (operands[0], gen_rtx_MEM (<GPF_TF:MODE>mode, operands[2]));
-@@ -4788,7 +4788,7 @@
+@@ -4789,7 +4789,7 @@
   [(set (match_operand:VALL 0 "register_operand" "=w")
         (mem:VALL (match_operand 1 "aarch64_constant_pool_symref" "S")))
    (clobber (match_operand:P 2 "register_operand" "=&r"))]

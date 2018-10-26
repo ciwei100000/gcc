@@ -54,11 +54,9 @@ libcpp/ChangeLog:
 	callback only once, read pfile->source_date_epoch on future passes.
 	Check that get_source_date_epoch callback is not NULL.
 
-Index: b/src/gcc/c-family/c-common.c
-===================================================================
 --- a/src/gcc/c-family/c-common.c
 +++ b/src/gcc/c-family/c-common.c
-@@ -12753,8 +12753,9 @@ valid_array_size_p (location_t loc, tree
+@@ -12763,8 +12763,9 @@ valid_array_size_p (location_t loc, tree
  /* Read SOURCE_DATE_EPOCH from environment to have a deterministic
     timestamp to replace embedded current dates to get reproducible
     results.  Returns -1 if SOURCE_DATE_EPOCH is not defined.  */
@@ -69,7 +67,7 @@ Index: b/src/gcc/c-family/c-common.c
  {
    char *source_date_epoch;
    long long epoch;
-@@ -12766,19 +12767,14 @@ get_source_date_epoch ()
+@@ -12776,19 +12777,14 @@ get_source_date_epoch ()
  
    errno = 0;
    epoch = strtoll (source_date_epoch, &endptr, 10);
@@ -97,8 +95,6 @@ Index: b/src/gcc/c-family/c-common.c
  
    return (time_t) epoch;
  }
-Index: b/src/gcc/c-family/c-common.h
-===================================================================
 --- a/src/gcc/c-family/c-common.h
 +++ b/src/gcc/c-family/c-common.h
 @@ -1084,6 +1084,16 @@ extern vec<tree, va_gc> *make_tree_vecto
@@ -128,8 +124,6 @@ Index: b/src/gcc/c-family/c-common.h
 -extern time_t get_source_date_epoch (void);
 -
  #endif /* ! GCC_C_COMMON_H */
-Index: b/src/gcc/c-family/c-lex.c
-===================================================================
 --- a/src/gcc/c-family/c-lex.c
 +++ b/src/gcc/c-family/c-lex.c
 @@ -80,6 +80,7 @@ init_c_lex (void)
@@ -150,8 +144,6 @@ Index: b/src/gcc/c-family/c-lex.c
  
    timevar_push (TV_CPP);
   retry:
-Index: b/src/gcc/gcc.c
-===================================================================
 --- a/src/gcc/gcc.c
 +++ b/src/gcc/gcc.c
 @@ -3542,6 +3542,29 @@ save_switch (const char *opt, size_t n_a
@@ -184,7 +176,7 @@ Index: b/src/gcc/gcc.c
  /* Handle an option DECODED that is unknown to the option-processing
     machinery.  */
  
-@@ -3841,6 +3864,7 @@ driver_handle_option (struct gcc_options
+@@ -3842,6 +3865,7 @@ driver_handle_option (struct gcc_options
        else
  	compare_debug_opt = arg;
        save_switch (compare_debug_replacement_opt, 0, NULL, validated, true);
@@ -192,8 +184,6 @@ Index: b/src/gcc/gcc.c
        return true;
  
      case OPT_fdiagnostics_color_:
-Index: b/src/gcc/testsuite/gcc.dg/cpp/source_date_epoch-1.c
-===================================================================
 --- /dev/null
 +++ b/src/gcc/testsuite/gcc.dg/cpp/source_date_epoch-1.c
 @@ -0,0 +1,11 @@
@@ -208,8 +198,6 @@ Index: b/src/gcc/testsuite/gcc.dg/cpp/source_date_epoch-1.c
 +    __builtin_abort ();
 +  return 0;
 +}
-Index: b/src/gcc/testsuite/gcc.dg/cpp/source_date_epoch-2.c
-===================================================================
 --- /dev/null
 +++ b/src/gcc/testsuite/gcc.dg/cpp/source_date_epoch-2.c
 @@ -0,0 +1,12 @@
@@ -225,8 +213,6 @@ Index: b/src/gcc/testsuite/gcc.dg/cpp/source_date_epoch-2.c
 +  __builtin_printf ("%s %s\n", __DATE__, __TIME__);
 +  return 0;
 +}
-Index: b/src/gcc/testsuite/lib/gcc-dg.exp
-===================================================================
 --- a/src/gcc/testsuite/lib/gcc-dg.exp
 +++ b/src/gcc/testsuite/lib/gcc-dg.exp
 @@ -450,6 +450,38 @@ proc restore-target-env-var { } {
@@ -289,8 +275,6 @@ Index: b/src/gcc/testsuite/lib/gcc-dg.exp
  	unset_timeout_vars
  	if [info exists compiler_conditional_xfail_data] {
  	    unset compiler_conditional_xfail_data
-Index: b/src/libcpp/include/cpplib.h
-===================================================================
 --- a/src/libcpp/include/cpplib.h
 +++ b/src/libcpp/include/cpplib.h
 @@ -594,6 +594,9 @@ struct cpp_callbacks
@@ -313,8 +297,6 @@ Index: b/src/libcpp/include/cpplib.h
  /* This is called after options have been parsed, and partially
     processed.  */
  extern void cpp_post_options (cpp_reader *);
-Index: b/src/libcpp/init.c
-===================================================================
 --- a/src/libcpp/init.c
 +++ b/src/libcpp/init.c
 @@ -257,6 +257,9 @@ cpp_create_reader (enum c_lang lang, cpp
@@ -341,8 +323,6 @@ Index: b/src/libcpp/init.c
  /* Sanity-checks are dependent on command-line options, so it is
     called as a subroutine of cpp_read_main_file.  */
  #if CHECKING_P
-Index: b/src/libcpp/internal.h
-===================================================================
 --- a/src/libcpp/internal.h
 +++ b/src/libcpp/internal.h
 @@ -503,7 +503,8 @@ struct cpp_reader
@@ -355,8 +335,6 @@ Index: b/src/libcpp/internal.h
    time_t source_date_epoch;
  
    /* EOF token, and a token forcing paste avoidance.  */
-Index: b/src/libcpp/macro.c
-===================================================================
 --- a/src/libcpp/macro.c
 +++ b/src/libcpp/macro.c
 @@ -358,9 +358,13 @@ _cpp_builtin_macro_text (cpp_reader *pfi
