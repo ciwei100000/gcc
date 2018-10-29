@@ -77,7 +77,7 @@ endif
 
 files_gdc = \
 	$(PF)/bin/$(cmd_prefix)gdc$(pkg_ver) \
-	$(gcc_lexec_dir)/cc1d
+	$(gcc_lexec_dir)/d21
 ifneq ($(GFDL_INVARIANT_FREE),yes-now-pure-gfdl)
     files_gdc += \
 	$(PF)/share/man/man1/$(cmd_prefix)gdc$(pkg_ver).1
@@ -131,10 +131,10 @@ endif
 
 ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTONS)))
 	$(DWZ) \
-	  $(d_gdc)/$(gcc_lexec_dir)/cc1d
+	  $(d_gdc)/$(gcc_lexec_dir)/d21
 endif
 	dh_strip -p$(p_gdc) \
-	  $(if $(unstripped_exe),-X/cc1d)
+	  $(if $(unstripped_exe),-X/d21)
 	dh_shlibdeps -p$(p_gdc)
 
 	mkdir -p $(d_gdc)/usr/share/lintian/overrides
