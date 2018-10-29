@@ -165,33 +165,23 @@ endif
 
 ifeq ($(with_d),yes)
   debian_patches += \
-	gdc-8 \
-	gdc-targetdm \
 	gdc-updates \
 	libphobos-zlib \
 	gdc-frontend-posix \
 	gdc-profiledbuild \
 	gdc-sparc-fix \
-	gdc-shared-by-default \
 
-#	gdc-versym-cpu \
-#	gdc-versym-os \
 #	gdc-multiarch
-  ifneq ($(GFDL_INVARIANT_FREE),yes)
-    debian_patches += gdc-8-doc	gdc-targetdm-doc
-  else
+
+  ifeq ($(GFDL_INVARIANT_FREE),yes)
     debian_patches += gdc-texinfo
   endif
-  ifeq ($(with_libphobos),yes)
-    debian_patches += gdc-libphobos-build
-  else
+  ifneq ($(with_libphobos),yes)
     debian_patches += gdc-driver-nophobos
   endif
-  ifeq (,$(filter $(DEB_TARGET_ARCH),amd64 i386))
+  ifeq (,$(filter $(DEB_TARGET_ARCH),amd64 i386 armhf))
     debian_patches += disable-gdc-tests
   endif
-else
-  debian_patches += gcc-d-lang
 endif
 
 ifeq ($(DEB_TARGET_ARCH),alpha)

@@ -4,9 +4,6 @@
 # source files. It has to be deleted manually.
 
 tarballs = $(gcc_tarball)
-ifeq ($(with_d),yes)
-  tarballs += $(gdc_tarball)
-endif
 ifeq ($(with_offload_nvptx),yes)
   tarballs += $(nl_nvptx_tarball)
 endif
@@ -172,40 +169,6 @@ ifeq ($(GFDL_INVARIANT_FREE),yes)
   endif
 endif
 	echo "$(gcc_tarball) unpacked." > $@
-
-# ---------------------------------------------------------------------------
-ifneq (,$(gdc_tarball))
-$(unpack_stamp)-$(gdc_tarball): $(gdc_tarpath) $(unpack_stamp)-$(gcc_tarball)
-	: # unpack gdc tarball
-	mkdir -p $(stampdir)
-	if [ -d $(srcdir)/gcc/d ]; then \
-	  echo >&2 "Source directory $(srcdir)/gcc/d exists. Delete by hand";\
-	  false; \
-	fi
-	#rm -rf $(gdc_srcdir)
-	rm -rf $(srcdir)/gcc/d
-	rm -rf $(srcdir)/gcc/testsuite/gdc.test
-	rm -f $(srcdir)/gcc/testsuite/lib/gdc*.exp
-	rm -rf $(srcdir)/libphobos
-	tar -x -C $(srcdir) --strip-components=1 -f $(gdc_tarpath)
-ifeq ($(GFDL_INVARIANT_FREE),yes-now-purge-gfdl)
-  ifneq ($(single_package),yes)
-	for i in gcc/d/gdc.texi; do \
-	  n=$$(basename $$i .texi); \
-	  if [ -f $(srcdir)/$$i ]; then \
-	    sed "s/@name@/$$n/g" $(SOURCE_DIR)debian/gcc-dummy.texi \
-	      > $(srcdir)/$$i; \
-	  else \
-	    echo >&2 "$$i does not exist, fix debian/rules.unpack"; \
-	  fi; \
-	done
-	for i in gcc/d/gdc.1; do \
-	  touch $(srcdir)/$$i; \
-	done
-  endif
-endif
-	echo "$(gdc_tarball) unpacked." > $@
-endif
 
 # ---------------------------------------------------------------------------
 ifneq (,$(nl_nvptx_tarball))
