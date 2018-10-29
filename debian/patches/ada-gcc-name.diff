@@ -29,6 +29,7 @@ Description: always call gcc with an explicit target and version
  distributions provide no "target-gcc-version".
  .
  Log for bug 903694 carries regression tests for both bugs.
+Forwarded: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=87777
 Bug-Debian: https://bugs.debian.org/814977
 Bug-Debian: https://bugs.debian.org/814978
 Bug-Debian: https://bugs.debian.org/856274
@@ -64,7 +65,7 @@ Author: YunQiang Su <wzssyqa@gmail.com>
     --  Writes name of program as invoked to the current output (normally
 --- a/src/gcc/ada/osint.adb
 +++ b/src/gcc/ada/osint.adb
-@@ -2205,51 +2205,52 @@
+@@ -2205,51 +2205,51 @@
     ------------------
  
     function Program_Name (Nam : String; Prog : String) return String_Access is
@@ -135,9 +136,8 @@ Author: YunQiang Su <wzssyqa@gmail.com>
 -      --  Create the new program name
 +      --  What remains must be the directory part.
 +      if 0 < Name_Len
-+        and then Name_Buffer (Name_Len) /= '/'
 +        and then Name_Buffer (Name_Len) /= ':'
-+        and then Name_Buffer (Name_Len) /= Directory_Separator
++        and then not Is_Directory_Separator (Name_Buffer (Name_Len))
 +      then
 +         Fail ("Osint.Program_Name: must start with " & Prog
 +                 & " or " & Prefix.all & Prog);

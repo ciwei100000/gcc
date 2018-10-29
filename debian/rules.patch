@@ -51,7 +51,6 @@ debian_patches += \
 	alpha-no-ev4-directive \
 	note-gnu-stack \
 	libgomp-omp_h-multilib \
-	pr47818 \
 	libgo-testsuite \
 	libgo-cleanfiles \
 	gcc-target-include-asm \
@@ -127,42 +126,34 @@ ifneq (,$(findstring 4.4, $(PKGSOURCE)))
   debian_patches += pr39491
 endif
 
-debian_patches += ada-arm
-
-# there should be no harm to always apply these, except for new GCC versions
+# Patches for non-core languages.
+# Most of the time, it would be safe to apply them whether the
+# language is selected or not. But when working on a new GCC version,
+# it is convenient to concentrate on core languages, and refresh them
+# later when working on the specific language.
 ifeq ($(with_ada),yes)
-
-  debian_patches += \
-	ada-gcc-name \
-	ada-verbose \
-
-	# FIXME: needs update
-	#ada-library-project-files-soname
-	#ada-symbolic-tracebacks \
-
+    debian_patches += pr47818
+    debian_patches += ada-arm
+    debian_patches += ada-gcc-name
+    debian_patches += ada-verbose
+  # debian_patches += ada-library-project-files-soname
+  # debian_patches += ada-symbolic-tracebacks
   ifeq ($(biarch64),yes)
-    debian_patches += \
-	ada-nobiarch-check
+    debian_patches += ada-nobiarch-check
   endif
-
-  #ifeq ($(with_libgnat),yes)
-    debian_patches += \
-	ada-link-lib \
-	ada-libgnatvsn \
-	ada-gnattools-cross \
-	ada-tools-move-ldflags \
-	ada-acats
-  #endif
-  #ifeq ($(with_gnatsjlj),yes)
-    debian_patches += \
-	ada-sjlj
-  #endif
-
-  # FIXME: debian_patches += ada-link-shlib
-  debian_patches += ada-lib-info-source-date-epoch
-  debian_patches += ada-armel-libatomic
+    debian_patches += ada-link-lib
+    debian_patches += ada-libgnatvsn
+    debian_patches += ada-gnattools-cross
+    debian_patches += ada-tools-move-ldflags
+    debian_patches += ada-acats
+    debian_patches += ada-sjlj
+  # debian_patches += ada-link-shlib
+    debian_patches += ada-lib-info-source-date-epoch
+    debian_patches += ada-armel-libatomic
+    debian_patches += ada-kfreebsd
+    debian_patches += ada-drop-termio-h
+    debian_patches += ada-749574
 endif
-
 
 ifeq ($(with_d),yes)
   debian_patches += \
@@ -264,8 +255,6 @@ debian_patches += gcc-ice-apport
 debian_patches += skip-bootstrap-multilib
 debian_patches += libffi-ro-eh_frame_sect
 debian_patches += libffi-mips
-debian_patches += ada-kfreebsd
-debian_patches += ada-drop-termio-h
 
 # sigaction on sparc changed between glibc 2.19 and 2.21
 ifeq (,$(filter 2.1%, $(shell dpkg-query -l libc-bin | awk '/^.i/ {print $$3}')))
@@ -303,9 +292,6 @@ endif
 
 debian_patches += libgomp-kfreebsd-testsuite
 debian_patches += go-testsuite
-
-# Ada patches needed for both the stable package and snapshot builds
-debian_patches += ada-749574
 
 # don't remove, this is regularly overwritten, see PR sanitizer/63958.
 #debian_patches += libasan-sparc
