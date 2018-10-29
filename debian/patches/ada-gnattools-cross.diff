@@ -1,3 +1,6 @@
+TODO: Check that the part removing the dependency from stamp-gnatlib1
+to stamp-gnatlib2 is not necessary anymore with gcc-9.
+
 * Link tools dynamically.
 * Prevent direct embedding of libada objects:
   Mark ALI files as read-only, remove objects after the build.
@@ -22,10 +25,8 @@ This patch depends on ada-libgnatvsn.diff.
 # DP:   This link will be done by /usr/bin/$(host_alias)-gnat*, thus
 # DP:   the native gnat with the same major version will be required.
 
-Index: b/src/gcc/ada/gcc-interface/Makefile.in
-===================================================================
---- a/src/gcc/ada/gcc-interface/Makefile.in
-+++ b/src/gcc/ada/gcc-interface/Makefile.in
+--- a/src/gcc/ada/Makefile.rtl
++++ b/src/gcc/ada/Makefile.rtl
 @@ -1286,6 +1286,11 @@ ifeq ($(strip $(filter-out s390% linux%,
    LIBRARY_VERSION := $(LIB_VERSION)
  endif
@@ -38,6 +39,8 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
  # HP/PA HP-UX 10
  ifeq ($(strip $(filter-out hppa% hp hpux10%,$(target_cpu) $(target_vendor) $(target_os))),)
    LIBGNAT_TARGET_PAIRS = \
+--- a/src/gcc/ada/gcc-interface/Makefile.in
++++ b/src/gcc/ada/gcc-interface/Makefile.in
 @@ -2265,6 +2270,20 @@ gnatlink-re: ../stamp-tools gnatmake-re
  	  --GCC="$(CC) $(ADA_INCLUDES)" --LINK="$(GCC_LINK)" $(TOOLS_LIBS)
  	$(MV)  ../../gnatlinknew$(exeext)  ../../gnatlink$(exeext)
@@ -76,16 +79,6 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
  	   if [ -d $(RTSDIR)/lib$${file}$(hyphen)$(LIBRARY_VERSION)$(soext).dSYM ]; then \
  	      $(CP) -r $(RTSDIR)/lib$${file}$(hyphen)$(LIBRARY_VERSION)$(soext).dSYM \
  	        $(DESTDIR)$(ADA_RTL_OBJ_DIR); \
-@@ -2346,8 +2361,7 @@ install-gnatlib: ../stamp-gnatlib-$(RTSD
- 	touch ../stamp-gnatlib2-$(RTSDIR)
- 	$(RM) ../stamp-gnatlib-$(RTSDIR)
- 
--../stamp-gnatlib1-$(RTSDIR): Makefile ../stamp-gnatlib2-$(RTSDIR)
--	$(RMDIR) $(RTSDIR)
-+../stamp-gnatlib1-$(RTSDIR): Makefile
- 	$(MKDIR) $(RTSDIR)
- 	$(CHMOD) u+w $(RTSDIR)
- # Copy target independent sources
 @@ -2411,7 +2425,7 @@ $(RTSDIR)/s-oscons.ads: ../stamp-gnatlib
  	    $(OSCONS_EXTRACT) ; \
  	    ../bldtools/oscons/xoscons s-oscons)
