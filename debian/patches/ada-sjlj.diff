@@ -2,8 +2,6 @@
 
 # !!! Must be applied after ada-libgnatvsn.diff
 
-Index: b/src/libada-sjlj/Makefile.in
-===================================================================
 --- /dev/null
 +++ b/src/libada-sjlj/Makefile.in
 @@ -0,0 +1,203 @@
@@ -210,8 +208,6 @@ Index: b/src/libada-sjlj/Makefile.in
 +# Don't export variables to the environment, in order to not confuse
 +# configure.
 +.NOEXPORT:
-Index: b/src/libada-sjlj/configure.ac
-===================================================================
 --- /dev/null
 +++ b/src/libada-sjlj/configure.ac
 @@ -0,0 +1,156 @@
@@ -371,11 +367,9 @@ Index: b/src/libada-sjlj/configure.ac
 +AC_CONFIG_FILES([Makefile])
 +
 +AC_OUTPUT
-Index: b/src/Makefile.def
-===================================================================
 --- a/src/Makefile.def
 +++ b/src/Makefile.def
-@@ -192,6 +192,7 @@ target_modules = { module= libgnatvsn; n
+@@ -194,6 +194,7 @@ target_modules = { module= libgnatvsn; n
  		   missing= TAGS;
  		   missing= install-info;
  		   missing= installcheck; };
@@ -383,7 +377,7 @@ Index: b/src/Makefile.def
  target_modules = { module= libgomp; bootstrap= true; lib_path=.libs; };
  target_modules = { module= libitm; lib_path=.libs; };
  target_modules = { module= libatomic; lib_path=.libs; };
-@@ -388,6 +389,7 @@ dependencies = { module=all-libcpp; on=a
+@@ -394,6 +395,7 @@ dependencies = { module=all-libcpp; on=a
  dependencies = { module=all-fixincludes; on=all-libiberty; };
  
  dependencies = { module=all-target-libada; on=all-gcc; };
@@ -391,8 +385,6 @@ Index: b/src/Makefile.def
  dependencies = { module=all-gnattools; on=all-target-libada; };
  dependencies = { module=all-gnattools; on=all-target-libstdc++-v3; };
  dependencies = { module=all-gnattools; on=all-target-libgnatvsn; };
-Index: b/src/configure.ac
-===================================================================
 --- a/src/configure.ac
 +++ b/src/configure.ac
 @@ -168,6 +168,7 @@ target_libraries="target-libgcc \
@@ -402,8 +394,8 @@ Index: b/src/configure.ac
 +		target-libada-sjlj \
  		${target_libiberty} \
  		target-libgnatvsn \
- 		target-libgo"
-@@ -454,7 +455,7 @@ AC_ARG_ENABLE(libada,
+ 		target-libgo \
+@@ -455,7 +456,7 @@ AC_ARG_ENABLE(libada,
  ENABLE_LIBADA=$enableval,
  ENABLE_LIBADA=yes)
  if test "${ENABLE_LIBADA}" != "yes" ; then
@@ -412,8 +404,6 @@ Index: b/src/configure.ac
  fi
  
  AC_ARG_ENABLE(libssp,
-Index: b/src/gcc/ada/gcc-interface/Makefile.in
-===================================================================
 --- a/src/gcc/ada/gcc-interface/Makefile.in
 +++ b/src/gcc/ada/gcc-interface/Makefile.in
 @@ -193,7 +193,7 @@ GNAT_SRC=$(fsrcpfx)ada
@@ -425,7 +415,7 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
  
  # Link flags used to build gnat tools.  By default we prefer to statically
  # link with libgcc to avoid a dependency on shared libgcc (which is tricky
-@@ -576,6 +576,26 @@ install-gnatlib: ../stamp-gnatlib-$(RTSD
+@@ -586,6 +586,26 @@ install-gnatlib: ../stamp-gnatlib-$(RTSD
  	cd $(DESTDIR)$(ADA_INCLUDE_DIR); $(CHMOD) a-wx *.adb
  	cd $(DESTDIR)$(ADA_INCLUDE_DIR); $(CHMOD) a-wx *.ads
  
@@ -452,7 +442,7 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
  ../stamp-gnatlib2-$(RTSDIR):
  	$(RM) $(RTSDIR)/s-*.ali
  	$(RM) $(RTSDIR)/s-*$(objext)
-@@ -829,7 +849,7 @@ gnatlib-shared:
+@@ -848,7 +868,7 @@ gnatlib-shared:
  # commenting the pragma instead of deleting the line, as the latter might
  # result in getting multiple blank lines, hence possible style check errors.
  gnatlib-sjlj:
@@ -461,7 +451,7 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
  	THREAD_KIND="$(THREAD_KIND)" ../stamp-gnatlib1-$(RTSDIR)
  	sed \
  	  -e 's/Frontend_Exceptions.*/Frontend_Exceptions       : constant Boolean := True;/' \
-@@ -838,6 +858,7 @@ gnatlib-sjlj:
+@@ -857,6 +877,7 @@ gnatlib-sjlj:
  	  $(RTSDIR)/system.ads > $(RTSDIR)/s.ads
  	$(MV) $(RTSDIR)/s.ads $(RTSDIR)/system.ads
  	$(MAKE) $(FLAGS_TO_PASS) \
@@ -469,7 +459,7 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
  	     EH_MECHANISM="" \
  	     GNATLIBFLAGS="$(GNATLIBFLAGS)" \
  	     GNATLIBCFLAGS="$(GNATLIBCFLAGS)" \
-@@ -889,6 +910,8 @@ b_gnatm.o : b_gnatm.adb
+@@ -908,6 +929,8 @@ b_gnatm.o : b_gnatm.adb
  
  ADA_INCLUDE_DIR = $(libsubdir)/adainclude
  ADA_RTL_OBJ_DIR = $(libsubdir)/adalib
@@ -478,8 +468,6 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
  
  # Special flags
  
-Index: b/src/gcc/ada/gcc-interface/config-lang.in
-===================================================================
 --- a/src/gcc/ada/gcc-interface/config-lang.in
 +++ b/src/gcc/ada/gcc-interface/config-lang.in
 @@ -34,8 +34,8 @@ gtfiles="\$(srcdir)/ada/gcc-interface/ad
@@ -493,8 +481,6 @@ Index: b/src/gcc/ada/gcc-interface/config-lang.in
  
  # Ada is not enabled by default for the time being.
  build_by_default=no
-Index: b/src/gcc/ada/gcc-interface/Make-lang.in
-===================================================================
 --- a/src/gcc/ada/gcc-interface/Make-lang.in
 +++ b/src/gcc/ada/gcc-interface/Make-lang.in
 @@ -846,6 +846,7 @@ ada.install-common:
