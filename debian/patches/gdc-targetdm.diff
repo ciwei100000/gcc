@@ -51,8 +51,6 @@ The following OS versions are implemented:
 * CRuntime_UClibc
 ---
  
-Index: b/src/gcc/Makefile.in
-===================================================================
 --- a/src/gcc/Makefile.in
 +++ b/src/gcc/Makefile.in
 @@ -552,6 +552,8 @@ tm_include_list=@tm_include_list@
@@ -170,8 +168,6 @@ Index: b/src/gcc/Makefile.in
  build/genmddump.o : genmddump.c $(RTL_BASE_H) $(BCONFIG_H) $(SYSTEM_H)	\
    $(CORETYPES_H) $(GTM_H) errors.h $(READ_MD_H) $(GENSUPPORT_H)
  build/genmatch.o : genmatch.c $(BCONFIG_H) $(SYSTEM_H) \
-Index: b/src/gcc/config.gcc
-===================================================================
 --- a/src/gcc/config.gcc
 +++ b/src/gcc/config.gcc
 @@ -86,6 +86,9 @@
@@ -216,21 +212,22 @@ Index: b/src/gcc/config.gcc
  tm_defines=
  xm_defines=
  # Set this to force installation and use of collect2.
-@@ -304,12 +315,14 @@ aarch64*-*-*)
+@@ -300,6 +311,7 @@ m32c*-*-*)
+ 	target_has_targetm_common=no
+         ;;
+ aarch64*-*-*)
++	d_target_objs="aarch64-d.o"
+ 	cpu_type=aarch64
  	extra_headers="arm_fp16.h arm_neon.h arm_acle.h"
  	c_target_objs="aarch64-c.o"
- 	cxx_target_objs="aarch64-c.o"
-+	d_target_objs="aarch64-d.o"
- 	extra_objs="aarch64-builtins.o aarch-common.o cortex-a57-fma-steering.o"
- 	target_gtfiles="\$(srcdir)/config/aarch64/aarch64-builtins.c"
- 	target_has_targetm_common=yes
- 	;;
+@@ -311,6 +323,7 @@ aarch64*-*-*)
  alpha*-*-*)
  	cpu_type=alpha
-+	d_target_objs="alpha-d.o"
  	extra_options="${extra_options} g.opt"
++	d_target_objs="alpha-d.o"
  	;;
  am33_2.0-*-linux*)
+ 	cpu_type=mn10300
 @@ -329,6 +342,7 @@ arm*-*-*)
  	target_type_format_char='%'
  	c_target_objs="arm-c.o"
@@ -323,8 +320,6 @@ Index: b/src/gcc/config.gcc
  		tmake_file="${cpu_type}/t-${cpu_type} ${tmake_file}"
  		;;
  
-Index: b/src/gcc/config/aarch64/aarch64-d.c
-===================================================================
 --- /dev/null
 +++ b/src/gcc/config/aarch64/aarch64-d.c
 @@ -0,0 +1,31 @@
@@ -359,8 +354,6 @@ Index: b/src/gcc/config/aarch64/aarch64-d.c
 +  d_add_builtin_version ("AArch64");
 +  d_add_builtin_version ("D_HardFloat");
 +}
-Index: b/src/gcc/config/aarch64/aarch64-linux.h
-===================================================================
 --- a/src/gcc/config/aarch64/aarch64-linux.h
 +++ b/src/gcc/config/aarch64/aarch64-linux.h
 @@ -82,6 +82,8 @@
@@ -372,22 +365,18 @@ Index: b/src/gcc/config/aarch64/aarch64-linux.h
  #define TARGET_ASM_FILE_END file_end_indicate_exec_stack
  
  /* Uninitialized common symbols in non-PIE executables, even with
-Index: b/src/gcc/config/aarch64/aarch64-protos.h
-===================================================================
 --- a/src/gcc/config/aarch64/aarch64-protos.h
 +++ b/src/gcc/config/aarch64/aarch64-protos.h
-@@ -547,6 +547,9 @@ enum aarch64_parse_opt_result aarch64_pa
- std::string aarch64_get_extension_string_for_isa_flags (unsigned long,
- 							unsigned long);
+@@ -538,6 +538,9 @@ bool aarch64_operands_adjust_ok_for_ldps
+ extern void aarch64_asm_output_pool_epilogue (FILE *, const char *,
+ 					      tree, HOST_WIDE_INT);
  
 +/* Defined in aarch64-d.c  */
 +extern void aarch64_d_target_versions (void);
 +
- rtl_opt_pass *make_pass_fma_steering (gcc::context *ctxt);
- 
- poly_uint64 aarch64_regmode_natural_size (machine_mode);
-Index: b/src/gcc/config/aarch64/aarch64.h
-===================================================================
+ /* Defined in common/config/aarch64-common.c.  */
+ bool aarch64_handle_option (struct gcc_options *, struct gcc_options *,
+ 			     const struct cl_decoded_option *, location_t);
 --- a/src/gcc/config/aarch64/aarch64.h
 +++ b/src/gcc/config/aarch64/aarch64.h
 @@ -26,6 +26,9 @@
@@ -400,8 +389,6 @@ Index: b/src/gcc/config/aarch64/aarch64.h
  
  
  #define REGISTER_TARGET_PRAGMAS() aarch64_register_pragmas ()
-Index: b/src/gcc/config/aarch64/t-aarch64
-===================================================================
 --- a/src/gcc/config/aarch64/t-aarch64
 +++ b/src/gcc/config/aarch64/t-aarch64
 @@ -56,6 +56,10 @@ aarch64-c.o: $(srcdir)/config/aarch64/aa
@@ -415,8 +402,6 @@ Index: b/src/gcc/config/aarch64/t-aarch64
  PASSES_EXTRA += $(srcdir)/config/aarch64/aarch64-passes.def
  
  cortex-a57-fma-steering.o: $(srcdir)/config/aarch64/cortex-a57-fma-steering.c \
-Index: b/src/gcc/config/alpha/alpha-d.c
-===================================================================
 --- /dev/null
 +++ b/src/gcc/config/alpha/alpha-d.c
 @@ -0,0 +1,41 @@
@@ -461,8 +446,6 @@ Index: b/src/gcc/config/alpha/alpha-d.c
 +      d_add_builtin_version ("Alpha_HardFloat");
 +    }
 +}
-Index: b/src/gcc/config/alpha/alpha-protos.h
-===================================================================
 --- a/src/gcc/config/alpha/alpha-protos.h
 +++ b/src/gcc/config/alpha/alpha-protos.h
 @@ -118,3 +118,6 @@ class rtl_opt_pass;
@@ -472,8 +455,6 @@ Index: b/src/gcc/config/alpha/alpha-protos.h
 +
 +/* Routines implemented in alpha-d.c  */
 +extern void alpha_d_target_versions (void);
-Index: b/src/gcc/config/alpha/alpha.h
-===================================================================
 --- a/src/gcc/config/alpha/alpha.h
 +++ b/src/gcc/config/alpha/alpha.h
 @@ -94,6 +94,9 @@ along with GCC; see the file COPYING3.
@@ -486,8 +467,6 @@ Index: b/src/gcc/config/alpha/alpha.h
  /* Run-time compilation parameters selecting different hardware subsets.  */
  
  /* Which processor to schedule for. The cpu attribute defines a list that
-Index: b/src/gcc/config/alpha/linux.h
-===================================================================
 --- a/src/gcc/config/alpha/linux.h
 +++ b/src/gcc/config/alpha/linux.h
 @@ -33,6 +33,19 @@ along with GCC; see the file COPYING3.
@@ -510,8 +489,6 @@ Index: b/src/gcc/config/alpha/linux.h
  #undef LIB_SPEC
  #define LIB_SPEC \
    "%{pthread:-lpthread} \
-Index: b/src/gcc/config/alpha/t-alpha
-===================================================================
 --- a/src/gcc/config/alpha/t-alpha
 +++ b/src/gcc/config/alpha/t-alpha
 @@ -16,4 +16,8 @@
@@ -523,8 +500,6 @@ Index: b/src/gcc/config/alpha/t-alpha
 +	$(POSTCOMPILE)
 +
  PASSES_EXTRA += $(srcdir)/config/alpha/alpha-passes.def
-Index: b/src/gcc/config/arm/arm-d.c
-===================================================================
 --- /dev/null
 +++ b/src/gcc/config/arm/arm-d.c
 @@ -0,0 +1,53 @@
@@ -581,8 +556,6 @@ Index: b/src/gcc/config/arm/arm-d.c
 +  else if (TARGET_HARD_FLOAT)
 +    d_add_builtin_version ("D_HardFloat");
 +}
-Index: b/src/gcc/config/arm/arm-protos.h
-===================================================================
 --- a/src/gcc/config/arm/arm-protos.h
 +++ b/src/gcc/config/arm/arm-protos.h
 @@ -373,6 +373,9 @@ extern void arm_lang_object_attributes_i
@@ -595,8 +568,6 @@ Index: b/src/gcc/config/arm/arm-protos.h
  extern bool arm_is_constant_pool_ref (rtx);
  
  /* The bits in this mask specify which instruction scheduling options should
-Index: b/src/gcc/config/arm/arm.h
-===================================================================
 --- a/src/gcc/config/arm/arm.h
 +++ b/src/gcc/config/arm/arm.h
 @@ -47,6 +47,9 @@ extern char arm_arch_name[];
@@ -609,8 +580,6 @@ Index: b/src/gcc/config/arm/arm.h
  #include "config/arm/arm-opts.h"
  
  /* The processor for which instructions should be scheduled.  */
-Index: b/src/gcc/config/arm/linux-eabi.h
-===================================================================
 --- a/src/gcc/config/arm/linux-eabi.h
 +++ b/src/gcc/config/arm/linux-eabi.h
 @@ -30,6 +30,9 @@
@@ -623,8 +592,6 @@ Index: b/src/gcc/config/arm/linux-eabi.h
  /* We default to a soft-float ABI so that binaries can run on all
     target hardware.  If you override this to use the hard-float ABI then
     change the setting of GLIBC_DYNAMIC_LINKER_DEFAULT as well.  */
-Index: b/src/gcc/config/arm/t-arm
-===================================================================
 --- a/src/gcc/config/arm/t-arm
 +++ b/src/gcc/config/arm/t-arm
 @@ -144,4 +144,8 @@ arm-c.o: $(srcdir)/config/arm/arm-c.c $(
@@ -636,8 +603,6 @@ Index: b/src/gcc/config/arm/t-arm
 +	$(POSTCOMPILE)
 +
  arm-common.o: arm-cpu-cdata.h
-Index: b/src/gcc/config/default-d.c
-===================================================================
 --- /dev/null
 +++ b/src/gcc/config/default-d.c
 @@ -0,0 +1,25 @@
@@ -666,8 +631,6 @@ Index: b/src/gcc/config/default-d.c
 +#include "d/d-target-def.h"
 +
 +struct gcc_targetdm targetdm = TARGETDM_INITIALIZER;
-Index: b/src/gcc/config/glibc-d.c
-===================================================================
 --- /dev/null
 +++ b/src/gcc/config/glibc-d.c
 @@ -0,0 +1,64 @@
@@ -735,8 +698,6 @@ Index: b/src/gcc/config/glibc-d.c
 +#define TARGET_D_CRITSEC_SIZE glibc_d_critsec_size
 +
 +struct gcc_targetdm targetdm = TARGETDM_INITIALIZER;
-Index: b/src/gcc/config/gnu.h
-===================================================================
 --- a/src/gcc/config/gnu.h
 +++ b/src/gcc/config/gnu.h
 @@ -31,3 +31,9 @@ along with GCC.  If not, see <http://www
@@ -749,8 +710,6 @@ Index: b/src/gcc/config/gnu.h
 +	builtin_version ("Hurd");		\
 +	builtin_version ("CRuntime_Glibc");	\
 +    } while (0)
-Index: b/src/gcc/config/i386/i386-d.c
-===================================================================
 --- /dev/null
 +++ b/src/gcc/config/i386/i386-d.c
 @@ -0,0 +1,44 @@
@@ -798,8 +757,6 @@ Index: b/src/gcc/config/i386/i386-d.c
 +  else
 +    d_add_builtin_version ("D_SoftFloat");
 +}
-Index: b/src/gcc/config/i386/i386-protos.h
-===================================================================
 --- a/src/gcc/config/i386/i386-protos.h
 +++ b/src/gcc/config/i386/i386-protos.h
 @@ -238,6 +238,9 @@ extern bool ix86_bnd_prefixed_insn_p (rt
@@ -812,8 +769,6 @@ Index: b/src/gcc/config/i386/i386-protos.h
  /* In winnt.c  */
  extern void i386_pe_unique_section (tree, int);
  extern void i386_pe_declare_function_type (FILE *, const char *, int);
-Index: b/src/gcc/config/i386/i386.h
-===================================================================
 --- a/src/gcc/config/i386/i386.h
 +++ b/src/gcc/config/i386/i386.h
 @@ -705,6 +705,9 @@ extern const char *host_detect_local_cpu
@@ -826,8 +781,6 @@ Index: b/src/gcc/config/i386/i386.h
  #ifndef CC1_SPEC
  #define CC1_SPEC "%(cc1_cpu) "
  #endif
-Index: b/src/gcc/config/i386/linux-common.h
-===================================================================
 --- a/src/gcc/config/i386/linux-common.h
 +++ b/src/gcc/config/i386/linux-common.h
 @@ -27,6 +27,12 @@ along with GCC; see the file COPYING3.
@@ -843,8 +796,6 @@ Index: b/src/gcc/config/i386/linux-common.h
  #undef CC1_SPEC
  #define CC1_SPEC \
    LINUX_OR_ANDROID_CC (GNU_USER_TARGET_CC1_SPEC, \
-Index: b/src/gcc/config/i386/t-i386
-===================================================================
 --- a/src/gcc/config/i386/t-i386
 +++ b/src/gcc/config/i386/t-i386
 @@ -40,6 +40,10 @@ x86-tune-sched-core.o: $(srcdir)/config/
@@ -858,8 +809,6 @@ Index: b/src/gcc/config/i386/t-i386
  i386.o: i386-builtin-types.inc
  
  i386-builtin-types.inc: s-i386-bt ; @true
-Index: b/src/gcc/config/kfreebsd-gnu.h
-===================================================================
 --- a/src/gcc/config/kfreebsd-gnu.h
 +++ b/src/gcc/config/kfreebsd-gnu.h
 @@ -29,6 +29,12 @@ along with GCC; see the file COPYING3.
@@ -875,8 +824,6 @@ Index: b/src/gcc/config/kfreebsd-gnu.h
  #define GNU_USER_DYNAMIC_LINKER        GLIBC_DYNAMIC_LINKER
  #define GNU_USER_DYNAMIC_LINKER32      GLIBC_DYNAMIC_LINKER32
  #define GNU_USER_DYNAMIC_LINKER64      GLIBC_DYNAMIC_LINKER64
-Index: b/src/gcc/config/kopensolaris-gnu.h
-===================================================================
 --- a/src/gcc/config/kopensolaris-gnu.h
 +++ b/src/gcc/config/kopensolaris-gnu.h
 @@ -30,5 +30,11 @@ along with GCC; see the file COPYING3.
@@ -891,8 +838,6 @@ Index: b/src/gcc/config/kopensolaris-gnu.h
 +
  #undef GNU_USER_DYNAMIC_LINKER
  #define GNU_USER_DYNAMIC_LINKER "/lib/ld.so.1"
-Index: b/src/gcc/config/linux-android.h
-===================================================================
 --- a/src/gcc/config/linux-android.h
 +++ b/src/gcc/config/linux-android.h
 @@ -25,6 +25,12 @@
@@ -908,8 +853,6 @@ Index: b/src/gcc/config/linux-android.h
  #if ANDROID_DEFAULT
  # define NOANDROID "mno-android"
  #else
-Index: b/src/gcc/config/linux.h
-===================================================================
 --- a/src/gcc/config/linux.h
 +++ b/src/gcc/config/linux.h
 @@ -53,6 +53,19 @@ see the files COPYING3 and COPYING.RUNTI
@@ -932,8 +875,6 @@ Index: b/src/gcc/config/linux.h
  /* Determine which dynamic linker to use depending on whether GLIBC or
     uClibc or Bionic or musl is the default C library and whether
     -muclibc or -mglibc or -mbionic or -mmusl has been passed to change
-Index: b/src/gcc/config/mips/linux-common.h
-===================================================================
 --- a/src/gcc/config/mips/linux-common.h
 +++ b/src/gcc/config/mips/linux-common.h
 @@ -27,6 +27,9 @@ along with GCC; see the file COPYING3.
@@ -946,8 +887,6 @@ Index: b/src/gcc/config/mips/linux-common.h
  #undef  LINK_SPEC
  #define LINK_SPEC							\
    LINUX_OR_ANDROID_LD (GNU_USER_TARGET_LINK_SPEC,			\
-Index: b/src/gcc/config/mips/mips-d.c
-===================================================================
 --- /dev/null
 +++ b/src/gcc/config/mips/mips-d.c
 @@ -0,0 +1,56 @@
@@ -1007,8 +946,6 @@ Index: b/src/gcc/config/mips/mips-d.c
 +      d_add_builtin_version ("D_SoftFloat");
 +    }
 +}
-Index: b/src/gcc/config/mips/mips-protos.h
-===================================================================
 --- a/src/gcc/config/mips/mips-protos.h
 +++ b/src/gcc/config/mips/mips-protos.h
 @@ -385,4 +385,7 @@ extern mulsidi3_gen_fn mips_mulsidi3_gen
@@ -1019,8 +956,6 @@ Index: b/src/gcc/config/mips/mips-protos.h
 +extern void mips_d_target_versions (void);
 +
  #endif /* ! GCC_MIPS_PROTOS_H */
-Index: b/src/gcc/config/mips/mips.h
-===================================================================
 --- a/src/gcc/config/mips/mips.h
 +++ b/src/gcc/config/mips/mips.h
 @@ -644,6 +644,9 @@ struct mips_cpu_info {
@@ -1033,8 +968,6 @@ Index: b/src/gcc/config/mips/mips.h
  /* Default target_flags if no switches are specified  */
  
  #ifndef TARGET_DEFAULT
-Index: b/src/gcc/config/mips/t-mips
-===================================================================
 --- a/src/gcc/config/mips/t-mips
 +++ b/src/gcc/config/mips/t-mips
 @@ -24,3 +24,7 @@ $(srcdir)/config/mips/mips-tables.opt: $
@@ -1045,8 +978,6 @@ Index: b/src/gcc/config/mips/t-mips
 +mips-d.o: $(srcdir)/config/mips/mips-d.c
 +	$(COMPILE) $<
 +	$(POSTCOMPILE)
-Index: b/src/gcc/config/powerpcspe/linux.h
-===================================================================
 --- a/src/gcc/config/powerpcspe/linux.h
 +++ b/src/gcc/config/powerpcspe/linux.h
 @@ -57,6 +57,19 @@
@@ -1069,8 +1000,6 @@ Index: b/src/gcc/config/powerpcspe/linux.h
  #undef	CPP_OS_DEFAULT_SPEC
  #define CPP_OS_DEFAULT_SPEC "%(cpp_os_linux)"
  
-Index: b/src/gcc/config/powerpcspe/linux64.h
-===================================================================
 --- a/src/gcc/config/powerpcspe/linux64.h
 +++ b/src/gcc/config/powerpcspe/linux64.h
 @@ -391,6 +391,19 @@ extern int dot_symbols;
@@ -1093,8 +1022,6 @@ Index: b/src/gcc/config/powerpcspe/linux64.h
  #undef  CPP_OS_DEFAULT_SPEC
  #define CPP_OS_DEFAULT_SPEC "%(cpp_os_linux) %(include_extra)"
  
-Index: b/src/gcc/config/powerpcspe/powerpcspe-d.c
-===================================================================
 --- /dev/null
 +++ b/src/gcc/config/powerpcspe/powerpcspe-d.c
 @@ -0,0 +1,45 @@
@@ -1143,8 +1070,6 @@ Index: b/src/gcc/config/powerpcspe/powerpcspe-d.c
 +      d_add_builtin_version ("D_SoftFloat");
 +    }
 +}
-Index: b/src/gcc/config/powerpcspe/powerpcspe-protos.h
-===================================================================
 --- a/src/gcc/config/powerpcspe/powerpcspe-protos.h
 +++ b/src/gcc/config/powerpcspe/powerpcspe-protos.h
 @@ -231,6 +231,9 @@ extern void rs6000_target_modify_macros
@@ -1157,8 +1082,6 @@ Index: b/src/gcc/config/powerpcspe/powerpcspe-protos.h
  #if TARGET_MACHO
  char *output_call (rtx_insn *, rtx *, int, int);
  #endif
-Index: b/src/gcc/config/powerpcspe/powerpcspe.h
-===================================================================
 --- a/src/gcc/config/powerpcspe/powerpcspe.h
 +++ b/src/gcc/config/powerpcspe/powerpcspe.h
 @@ -829,6 +829,9 @@ extern unsigned char rs6000_recip_bits[]
@@ -1171,8 +1094,6 @@ Index: b/src/gcc/config/powerpcspe/powerpcspe.h
  /* This is used by rs6000_cpu_cpp_builtins to indicate the byte order
     we're compiling for.  Some configurations may need to override it.  */
  #define RS6000_CPU_CPP_ENDIAN_BUILTINS()	\
-Index: b/src/gcc/config/powerpcspe/t-powerpcspe
-===================================================================
 --- a/src/gcc/config/powerpcspe/t-powerpcspe
 +++ b/src/gcc/config/powerpcspe/t-powerpcspe
 @@ -26,6 +26,10 @@ powerpcspe-c.o: $(srcdir)/config/powerpc
@@ -1186,8 +1107,6 @@ Index: b/src/gcc/config/powerpcspe/t-powerpcspe
  $(srcdir)/config/powerpcspe/powerpcspe-tables.opt: $(srcdir)/config/powerpcspe/genopt.sh \
    $(srcdir)/config/powerpcspe/powerpcspe-cpus.def
  	$(SHELL) $(srcdir)/config/powerpcspe/genopt.sh $(srcdir)/config/powerpcspe > \
-Index: b/src/gcc/config/rs6000/linux.h
-===================================================================
 --- a/src/gcc/config/rs6000/linux.h
 +++ b/src/gcc/config/rs6000/linux.h
 @@ -57,6 +57,19 @@
@@ -1210,8 +1129,6 @@ Index: b/src/gcc/config/rs6000/linux.h
  #undef	CPP_OS_DEFAULT_SPEC
  #define CPP_OS_DEFAULT_SPEC "%(cpp_os_linux)"
  
-Index: b/src/gcc/config/rs6000/linux64.h
-===================================================================
 --- a/src/gcc/config/rs6000/linux64.h
 +++ b/src/gcc/config/rs6000/linux64.h
 @@ -391,6 +391,19 @@ extern int dot_symbols;
@@ -1234,8 +1151,6 @@ Index: b/src/gcc/config/rs6000/linux64.h
  #undef  CPP_OS_DEFAULT_SPEC
  #define CPP_OS_DEFAULT_SPEC "%(cpp_os_linux) %(include_extra)"
  
-Index: b/src/gcc/config/rs6000/rs6000-d.c
-===================================================================
 --- /dev/null
 +++ b/src/gcc/config/rs6000/rs6000-d.c
 @@ -0,0 +1,45 @@
@@ -1284,8 +1199,6 @@ Index: b/src/gcc/config/rs6000/rs6000-d.c
 +      d_add_builtin_version ("D_SoftFloat");
 +    }
 +}
-Index: b/src/gcc/config/rs6000/rs6000-protos.h
-===================================================================
 --- a/src/gcc/config/rs6000/rs6000-protos.h
 +++ b/src/gcc/config/rs6000/rs6000-protos.h
 @@ -233,6 +233,9 @@ extern void rs6000_target_modify_macros
@@ -1298,8 +1211,6 @@ Index: b/src/gcc/config/rs6000/rs6000-protos.h
  #if TARGET_MACHO
  char *output_call (rtx_insn *, rtx *, int, int);
  #endif
-Index: b/src/gcc/config/rs6000/rs6000.h
-===================================================================
 --- a/src/gcc/config/rs6000/rs6000.h
 +++ b/src/gcc/config/rs6000/rs6000.h
 @@ -800,6 +800,9 @@ extern unsigned char rs6000_recip_bits[]
@@ -1312,8 +1223,6 @@ Index: b/src/gcc/config/rs6000/rs6000.h
  /* This is used by rs6000_cpu_cpp_builtins to indicate the byte order
     we're compiling for.  Some configurations may need to override it.  */
  #define RS6000_CPU_CPP_ENDIAN_BUILTINS()	\
-Index: b/src/gcc/config/rs6000/t-rs6000
-===================================================================
 --- a/src/gcc/config/rs6000/t-rs6000
 +++ b/src/gcc/config/rs6000/t-rs6000
 @@ -35,6 +35,10 @@ rs6000-p8swap.o: $(srcdir)/config/rs6000
@@ -1327,8 +1236,6 @@ Index: b/src/gcc/config/rs6000/t-rs6000
  $(srcdir)/config/rs6000/rs6000-tables.opt: $(srcdir)/config/rs6000/genopt.sh \
    $(srcdir)/config/rs6000/rs6000-cpus.def
  	$(SHELL) $(srcdir)/config/rs6000/genopt.sh $(srcdir)/config/rs6000 > \
-Index: b/src/gcc/config/s390/s390-d.c
-===================================================================
 --- /dev/null
 +++ b/src/gcc/config/s390/s390-d.c
 @@ -0,0 +1,41 @@
@@ -1373,8 +1280,6 @@ Index: b/src/gcc/config/s390/s390-d.c
 +  else if (TARGET_HARD_FLOAT)
 +    d_add_builtin_version ("D_HardFloat");
 +}
-Index: b/src/gcc/config/s390/s390-protos.h
-===================================================================
 --- a/src/gcc/config/s390/s390-protos.h
 +++ b/src/gcc/config/s390/s390-protos.h
 @@ -165,3 +165,6 @@ extern void s390_register_target_pragmas
@@ -1384,8 +1289,6 @@ Index: b/src/gcc/config/s390/s390-protos.h
 +
 +/* Routines for s390-d.c  */
 +extern void s390_d_target_versions (void);
-Index: b/src/gcc/config/s390/s390.h
-===================================================================
 --- a/src/gcc/config/s390/s390.h
 +++ b/src/gcc/config/s390/s390.h
 @@ -194,6 +194,9 @@ enum processor_flags
@@ -1398,8 +1301,6 @@ Index: b/src/gcc/config/s390/s390.h
  #ifdef DEFAULT_TARGET_64BIT
  #define TARGET_DEFAULT     (MASK_64BIT | MASK_ZARCH | MASK_HARD_DFP	\
                              | MASK_OPT_HTM | MASK_OPT_VX)
-Index: b/src/gcc/config/s390/t-s390
-===================================================================
 --- a/src/gcc/config/s390/t-s390
 +++ b/src/gcc/config/s390/t-s390
 @@ -25,3 +25,7 @@ s390-c.o: $(srcdir)/config/s390/s390-c.c
@@ -1410,8 +1311,6 @@ Index: b/src/gcc/config/s390/t-s390
 +s390-d.o: $(srcdir)/config/s390/s390-d.c
 +	$(COMPILE) $<
 +	$(POSTCOMPILE)
-Index: b/src/gcc/config/sparc/sparc-d.c
-===================================================================
 --- /dev/null
 +++ b/src/gcc/config/sparc/sparc-d.c
 @@ -0,0 +1,48 @@
@@ -1463,8 +1362,6 @@ Index: b/src/gcc/config/sparc/sparc-d.c
 +      d_add_builtin_version ("SPARC_SoftFloat");
 +    }
 +}
-Index: b/src/gcc/config/sparc/sparc-protos.h
-===================================================================
 --- a/src/gcc/config/sparc/sparc-protos.h
 +++ b/src/gcc/config/sparc/sparc-protos.h
 @@ -111,4 +111,7 @@ unsigned int sparc_regmode_natural_size
@@ -1475,8 +1372,6 @@ Index: b/src/gcc/config/sparc/sparc-protos.h
 +extern void sparc_d_target_versions (void);
 +
  #endif /* __SPARC_PROTOS_H__ */
-Index: b/src/gcc/config/sparc/sparc.h
-===================================================================
 --- a/src/gcc/config/sparc/sparc.h
 +++ b/src/gcc/config/sparc/sparc.h
 @@ -27,6 +27,9 @@ along with GCC; see the file COPYING3.
@@ -1489,8 +1384,6 @@ Index: b/src/gcc/config/sparc/sparc.h
  /* Specify this in a cover file to provide bi-architecture (32/64) support.  */
  /* #define SPARC_BI_ARCH */
  
-Index: b/src/gcc/config/sparc/t-sparc
-===================================================================
 --- a/src/gcc/config/sparc/t-sparc
 +++ b/src/gcc/config/sparc/t-sparc
 @@ -23,3 +23,7 @@ PASSES_EXTRA += $(srcdir)/config/sparc/s
@@ -1501,8 +1394,6 @@ Index: b/src/gcc/config/sparc/t-sparc
 +sparc-d.o: $(srcdir)/config/sparc/sparc-d.c
 +	$(COMPILE) $<
 +	$(POSTCOMPILE)
-Index: b/src/gcc/config/t-glibc
-===================================================================
 --- a/src/gcc/config/t-glibc
 +++ b/src/gcc/config/t-glibc
 @@ -19,3 +19,7 @@
@@ -1513,8 +1404,6 @@ Index: b/src/gcc/config/t-glibc
 +glibc-d.o: config/glibc-d.c
 +	$(COMPILE) $<
 +	$(POSTCOMPILE)
-Index: b/src/gcc/configure
-===================================================================
 --- a/src/gcc/configure
 +++ b/src/gcc/configure
 @@ -612,6 +612,7 @@ ISLLIBS
@@ -1534,7 +1423,7 @@ Index: b/src/gcc/configure
  tm_p_include_list
  tm_p_file_list
  tm_defines
-@@ -11810,6 +11813,7 @@ fi
+@@ -11811,6 +11814,7 @@ fi
  
  tm_file="${tm_file} defaults.h"
  tm_p_file="${tm_p_file} tm-preds.h"
@@ -1542,7 +1431,7 @@ Index: b/src/gcc/configure
  host_xm_file="auto-host.h ansidecl.h ${host_xm_file}"
  build_xm_file="${build_auto} ansidecl.h ${build_xm_file}"
  # We don't want ansidecl.h in target files, write code there in ISO/GNU C.
-@@ -12179,6 +12183,21 @@ for f in $tm_p_file; do
+@@ -12180,6 +12184,21 @@ for f in $tm_p_file; do
    esac
  done
  
@@ -1564,8 +1453,6 @@ Index: b/src/gcc/configure
  xm_file_list=
  xm_include_list=
  for f in $xm_file; do
-Index: b/src/gcc/configure.ac
-===================================================================
 --- a/src/gcc/configure.ac
 +++ b/src/gcc/configure.ac
 @@ -1725,6 +1725,7 @@ AC_SUBST(build_subdir)
@@ -1615,8 +1502,6 @@ Index: b/src/gcc/configure.ac
  AC_SUBST(target_cpu_default)
  
  AC_SUBST_FILE(language_hooks)
-Index: b/src/gcc/genhooks.c
-===================================================================
 --- a/src/gcc/genhooks.c
 +++ b/src/gcc/genhooks.c
 @@ -34,6 +34,7 @@ static struct hook_desc hook_array[] = {
