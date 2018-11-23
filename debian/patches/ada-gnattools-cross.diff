@@ -22,8 +22,6 @@ This patch depends on ada-libgnatvsn.diff.
 # DP:   This link will be done by /usr/bin/$(host_alias)-gnat*, thus
 # DP:   the native gnat with the same major version will be required.
 
-Index: b/src/gcc/ada/gcc-interface/Makefile.in
-===================================================================
 --- a/src/gcc/ada/gcc-interface/Makefile.in
 +++ b/src/gcc/ada/gcc-interface/Makefile.in
 @@ -1286,6 +1286,11 @@ ifeq ($(strip $(filter-out s390% linux%,
@@ -218,19 +216,17 @@ Index: b/src/gcc/ada/gcc-interface/Makefile.in
  
  # ??? we need to add the option to support auto-import of arrays/records to
  # the GNATLIBFLAGS when this will be supported by GNAT. At this point we will
-Index: b/src/gnattools/Makefile.in
-===================================================================
 --- a/src/gnattools/Makefile.in
 +++ b/src/gnattools/Makefile.in
-@@ -70,15 +70,21 @@ INCLUDES_FOR_SUBDIR = -iquote . -iquote
- ADA_INCLUDES_FOR_SUBDIR = -I. -I$(fsrcdir)/ada
+@@ -76,15 +76,21 @@ CXX_LFLAGS = \
+  -L../../../$(target_noncanonical)/libstdc++-v3/libsupc++/.libs
  
  # Variables for gnattools, native
 +rtsdir := $(abspath ../gcc/ada/rts)
 +vsndir := $(abspath ../$(target_noncanonical)/libgnatvsn)
  TOOLS_FLAGS_TO_PASS_NATIVE= \
  	"CC=../../xgcc -B../../" \
- 	"CXX=$(CXX)" \
+ 	"CXX=../../xg++ -B../../ $(CXX_LFLAGS)" \
  	"CFLAGS=$(CFLAGS) $(WARN_CFLAGS)" \
 -	"LDFLAGS=$(LDFLAGS)" \
 -	"ADAFLAGS=$(ADAFLAGS)" \
@@ -247,7 +243,7 @@ Index: b/src/gnattools/Makefile.in
  	"exeext=$(exeext)" \
  	"fsrcdir=$(fsrcdir)" \
  	"srcdir=$(fsrcdir)" \
-@@ -184,6 +190,10 @@ $(GCC_DIR)/stamp-tools:
+@@ -190,6 +196,10 @@ $(GCC_DIR)/stamp-tools:
  # to be able to build gnatmake without a version of gnatmake around. Once 
  # everything has been compiled once, gnatmake can be recompiled with itself 
  # (see target regnattools) 
@@ -258,7 +254,7 @@ Index: b/src/gnattools/Makefile.in
  gnattools-native: $(GCC_DIR)/stamp-tools $(GCC_DIR)/stamp-gnatlib-rts
  	# gnattools1
  	$(MAKE) -C $(GCC_DIR)/ada/tools -f ../Makefile \
-@@ -192,6 +202,13 @@ gnattools-native: $(GCC_DIR)/stamp-tools
+@@ -198,6 +208,13 @@ gnattools-native: $(GCC_DIR)/stamp-tools
  	# gnattools2
  	$(MAKE) -C $(GCC_DIR)/ada/tools -f ../Makefile \
  	  $(TOOLS_FLAGS_TO_PASS_NATIVE) common-tools
