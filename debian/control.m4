@@ -97,7 +97,7 @@ Homepage: http://gdcproject.org/
 Homepage: http://gcc.gnu.org/
 ')dnl SRCNAME
 Vcs-Browser: https://salsa.debian.org/toolchain-team/gcc/tree/gcc-7-debian
-Vcs-Svn: https://salsa.debian.org/toolchain-team/gcc.git
+Vcs-Git: https://salsa.debian.org/toolchain-team/gcc.git -b gcc-7-debian
 XS-Testsuite: autopkgtest
 
 ifelse(regexp(SRCNAME, `gcc-snapshot'),0,`dnl
