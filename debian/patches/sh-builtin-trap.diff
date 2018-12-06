@@ -1,7 +1,5 @@
 # DP: Proposed patch for PR target/70216, __builtin_trap() on SH
 
-Index: b/src/gcc/config/sh/sh-c.c
-===================================================================
 --- a/src/gcc/config/sh/sh-c.c
 +++ b/src/gcc/config/sh/sh-c.c
 @@ -139,4 +139,7 @@ sh_cpu_cpp_builtins (cpp_reader* pfile)
@@ -12,8 +10,6 @@ Index: b/src/gcc/config/sh/sh-c.c
 +  if (TARGET_SH4_TRAPA_SLEEP_BUG)
 +    builtin_define ("__SH4_TRAPA_SLEEP_BUG__");
  }
-Index: b/src/gcc/config/sh/sh-protos.h
-===================================================================
 --- a/src/gcc/config/sh/sh-protos.h
 +++ b/src/gcc/config/sh/sh-protos.h
 @@ -35,6 +35,46 @@ enum sh_function_kind {
@@ -63,8 +59,6 @@ Index: b/src/gcc/config/sh/sh-protos.h
  #ifdef RTX_CODE
  extern rtx sh_fsca_sf2int (void);
  extern rtx sh_fsca_int2sf (void);
-Index: b/src/gcc/config/sh/sh.c
-===================================================================
 --- a/src/gcc/config/sh/sh.c
 +++ b/src/gcc/config/sh/sh.c
 @@ -752,6 +752,102 @@ got_mode_name:;
@@ -181,8 +175,6 @@ Index: b/src/gcc/config/sh/sh.c
    register_sh_passes ();
  }
  
-Index: b/src/gcc/config/sh/sh.md
-===================================================================
 --- a/src/gcc/config/sh/sh.md
 +++ b/src/gcc/config/sh/sh.md
 @@ -8902,6 +8902,55 @@
@@ -241,11 +233,9 @@ Index: b/src/gcc/config/sh/sh.md
  ;; String/block move insn.
  
  (define_expand "movmemsi"
-Index: b/src/gcc/config.gcc
-===================================================================
 --- a/src/gcc/config.gcc
 +++ b/src/gcc/config.gcc
-@@ -2692,6 +2692,39 @@ sh-*-elf* | sh[12346l]*-*-elf* | \
+@@ -2694,6 +2694,39 @@ sh-*-elf* | sh[12346l]*-*-elf* | \
  	case ${with_endian} in
  	little*)	tm_file="sh/little.h ${tm_file}" ;;
  	esac
@@ -285,8 +275,6 @@ Index: b/src/gcc/config.gcc
  	tm_file="${tm_file} dbxelf.h elfos.h sh/elf.h"
  	case ${target} in
  	sh*-*-linux*)	tmake_file="${tmake_file} sh/t-linux"
-Index: b/src/gcc/config/sh/sh.opt
-===================================================================
 --- a/src/gcc/config/sh/sh.opt
 +++ b/src/gcc/config/sh/sh.opt
 @@ -301,3 +301,11 @@ Enable the use of the fsrra instruction.
