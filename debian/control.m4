@@ -5433,7 +5433,8 @@ ifenabled(`source',`
 Package: gcc`'PV-source
 Architecture: all
 Priority: PRI(optional)
-Depends: make, autoconf2.64, quilt, patchutils, sharutils, gawk, ${misc:Depends}
+Depends: make, autoconf2.64, quilt, patchutils, sharutils, gawk, lsb-release,
+  ${misc:Depends}
 Description: Source of the GNU Compiler Collection
  This package contains the sources and patches which are needed to
  build the GNU Compiler Collection (GCC).
