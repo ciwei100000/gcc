@@ -387,7 +387,7 @@
  dependencies = { module=all-gnattools; on=all-target-libgnatvsn; };
 --- a/src/configure.ac
 +++ b/src/configure.ac
-@@ -168,6 +168,7 @@ target_libraries="target-libgcc \
+@@ -167,6 +167,7 @@ target_libraries="target-libgcc \
  		target-libffi \
  		target-libobjc \
  		target-libada \
@@ -395,7 +395,7 @@
  		${target_libiberty} \
  		target-libgnatvsn \
  		target-libgo \
-@@ -455,7 +456,7 @@ AC_ARG_ENABLE(libada,
+@@ -454,7 +455,7 @@ AC_ARG_ENABLE(libada,
  ENABLE_LIBADA=$enableval,
  ENABLE_LIBADA=yes)
  if test "${ENABLE_LIBADA}" != "yes" ; then
@@ -415,7 +415,7 @@
  
  # Link flags used to build gnat tools.  By default we prefer to statically
  # link with libgcc to avoid a dependency on shared libgcc (which is tricky
-@@ -586,6 +586,26 @@ install-gnatlib: ../stamp-gnatlib-$(RTSD
+@@ -561,6 +561,26 @@ install-gnatlib: ../stamp-gnatlib-$(RTSD
  	cd $(DESTDIR)$(ADA_INCLUDE_DIR); $(CHMOD) a-wx *.adb
  	cd $(DESTDIR)$(ADA_INCLUDE_DIR); $(CHMOD) a-wx *.ads
  
@@ -442,16 +442,15 @@
  ../stamp-gnatlib2-$(RTSDIR):
  	$(RM) $(RTSDIR)/s-*.ali
  	$(RM) $(RTSDIR)/s-*$(objext)
-@@ -848,7 +868,7 @@ gnatlib-shared:
- # commenting the pragma instead of deleting the line, as the latter might
- # result in getting multiple blank lines, hence possible style check errors.
+@@ -826,6 +846,7 @@ gnatlib-shared:
  gnatlib-sjlj:
--	$(MAKE) $(FLAGS_TO_PASS) EH_MECHANISM="" \
-+	$(MAKE) $(FLAGS_TO_PASS) EH_MECHANISM="-gcc" RTSDIR="$(RTSDIR)" \
- 	THREAD_KIND="$(THREAD_KIND)" ../stamp-gnatlib1-$(RTSDIR)
- 	sed \
- 	  -e 's/Frontend_Exceptions.*/Frontend_Exceptions       : constant Boolean := True;/' \
-@@ -857,6 +877,7 @@ gnatlib-sjlj:
+ 	$(MAKE) $(FLAGS_TO_PASS) \
+ 	     EH_MECHANISM="" \
++	     RTSDIR="$(RTSDIR)" \
+ 	     MULTISUBDIR="$(MULTISUBDIR)" \
+ 	     THREAD_KIND="$(THREAD_KIND)" \
+ 	     ../stamp-gnatlib1-$(RTSDIR)
+@@ -835,6 +856,7 @@ gnatlib-sjlj:
  	  $(RTSDIR)/system.ads > $(RTSDIR)/s.ads
  	$(MV) $(RTSDIR)/s.ads $(RTSDIR)/system.ads
  	$(MAKE) $(FLAGS_TO_PASS) \
@@ -459,7 +458,7 @@
  	     EH_MECHANISM="" \
  	     GNATLIBFLAGS="$(GNATLIBFLAGS)" \
  	     GNATLIBCFLAGS="$(GNATLIBCFLAGS)" \
-@@ -908,6 +929,8 @@ b_gnatm.o : b_gnatm.adb
+@@ -889,6 +911,8 @@ b_gnatm.o : b_gnatm.adb
  
  ADA_INCLUDE_DIR = $(libsubdir)/adainclude
  ADA_RTL_OBJ_DIR = $(libsubdir)/adalib
@@ -470,9 +469,9 @@
  
 --- a/src/gcc/ada/gcc-interface/config-lang.in
 +++ b/src/gcc/ada/gcc-interface/config-lang.in
-@@ -34,8 +34,8 @@ gtfiles="\$(srcdir)/ada/gcc-interface/ad
- 
- outputs="ada/gcc-interface/Makefile ada/Makefile"
+@@ -43,8 +43,8 @@ if test "x$cross_compiling/$build/$host"
+   lang_requires="c c++"
+ fi
  
 -target_libs="target-libada target-libgnatvsn"
 -lang_dirs="libada gnattools"
@@ -483,7 +482,7 @@
  build_by_default=no
 --- a/src/gcc/ada/gcc-interface/Make-lang.in
 +++ b/src/gcc/ada/gcc-interface/Make-lang.in
-@@ -846,6 +846,7 @@ ada.install-common:
+@@ -837,6 +837,7 @@ ada.install-common:
  
  install-gnatlib:
  	$(MAKE) -C ada $(COMMON_FLAGS_TO_PASS) $(ADA_FLAGS_TO_PASS) install-gnatlib$(LIBGNAT_TARGET)
