@@ -3565,7 +3565,8 @@ ifdef(`TARGET',`Multi-Arch: foreign
 ')dnl
 Priority: optional
 Depends: BASEDEP, gcc`'PV`'TS (= ${gcc:Version}), libidevdep(gfortran`'PV-dev,,=), ${dep:libcdev}, ${shlibs:Depends}, ${misc:Depends}
-Provides: fortran95-compiler, ${fortran:mod-version}
+ifdef(`TARGET',`',`Provides: fortran95-compiler, ${fortran:mod-version}
+')dnl
 Suggests: ${gfortran:multilib}, gfortran`'PV-doc,
  libdbgdep(gfortran`'FORTRAN_SO-dbg,),
  libcoarrays-dev
@@ -3900,7 +3901,8 @@ ifdef(`TARGET',`Multi-Arch: foreign
 ')dnl
 Priority: optional
 Depends: BASEDEP, ifdef(`STANDALONEGO',`${dep:libcc1}, ',`gcc`'PV`'TS (= ${gcc:Version}), ')libidevdep(go`'GO_SO,,>=), ${dep:libcdev}, ${shlibs:Depends}, ${misc:Depends}
-Provides: go-compiler
+ifdef(`TARGET',`',`Provides: go-compiler
+')dnl
 Suggests: ${go:multilib}, gccgo`'PV-doc, libdbgdep(go`'GO_SO-dbg,)
 Conflicts: ${golang:Conflicts}
 Breaks: libgo12`'LS (<< 8-20171209-2)
@@ -4858,7 +4860,8 @@ ifdef(`TARGET',`Multi-Arch: foreign
 ')dnl
 Priority: optional
 Depends: SOFTBASEDEP, g++`'PV`'TS (>= ${gcc:SoftVersion}), ${dep:gdccross}, ${dep:phobosdev}, ${shlibs:Depends}, ${misc:Depends}
-Provides: gdc, d-compiler, d-v2-compiler
+ifdef(`TARGET',`',`Provides: gdc, d-compiler, d-v2-compiler
+')dnl
 Replaces: gdc (<< 4.4.6-5)
 BUILT_USING`'dnl
 Description: GNU D compiler (version 2)`'ifdef(`TARGET)',` (cross compiler for TARGET architecture)', `')
