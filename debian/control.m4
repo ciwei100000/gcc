@@ -198,7 +198,7 @@ Package: libgcc1`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
 Section: ifdef(`TARGET',`devel',`libs')
-Priority: ifdef(`TARGET',`optional',required)
+Priority: optional
 Depends: BASELDEP, ${shlibs:Depends}, ${misc:Depends}
 Provides: ifdef(`TARGET',`libgcc1-TARGET-dcv1',`libgcc1-armel [armel], libgcc1-armhf [armhf]')
 ifdef(`MULTIARCH', `Multi-Arch: same
@@ -239,7 +239,7 @@ Package: libgcc2`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`m68k')
 Section: ifdef(`TARGET',`devel',`libs')
-Priority: ifdef(`TARGET',`optional',required)
+Priority: optional
 Depends: BASELDEP, ${shlibs:Depends}, ${misc:Depends}
 ifdef(`TARGET',`Provides: libgcc2-TARGET-dcv1
 ')`'dnl
@@ -305,7 +305,7 @@ Pre-Depends: ${misc:Pre-Depends}
 Breaks: ${multiarch:breaks}
 ')`'dnl
 Section: ifdef(`TARGET',`devel',`libs')
-Priority: ifdef(`TARGET',`optional',required)
+Priority: optional
 Depends: BASELDEP, ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
 Description: GCC support library`'ifdef(`TARGET)',` (TARGET)', `')
@@ -4095,7 +4095,7 @@ Package: libstdc++CXX_SO`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
 Section: ifdef(`TARGET',`devel',`libs')
-Priority: ifdef(`TARGET',`optional',PRI(important))
+Priority: optional
 Depends: BASELDEP, ${dep:libc}, ${shlibs:Depends}, ${misc:Depends}
 Provides: ifdef(`TARGET',`libstdc++CXX_SO-TARGET-dcv1',`libstdc++'CXX_SO`-armel [armel], libstdc++'CXX_SO`-armhf [armhf]')
 ifdef(`MULTIARCH', `Multi-Arch: same
