@@ -1,0 +1,41 @@
+# DP: Fix PR sanitizer/88426, taken from the trunk.
+
+gcc/c/
+
+2018-12-11  Jakub Jelinek  <jakub@redhat.com>
+
+	PR sanitizer/88426
+	* c-convert.c (convert): Call c_fully_fold before calling
+	ubsan_instrument_float_cast.
+
+gcc/testsuite/
+
+2018-12-11  Jakub Jelinek  <jakub@redhat.com>
+
+	PR sanitizer/88426
+	* c-c++-common/ubsan/float-cast-overflow-11.c: New test.
+
+ 
+--- a/src/gcc/c/c-convert.c
++++ a/src/gcc/c/c-convert.c
+@@ -115,6 +115,7 @@
+ 	  && COMPLETE_TYPE_P (type))
+ 	{
+ 	  expr = save_expr (expr);
++	  expr = c_fully_fold (expr, false, NULL);
+ 	  tree check = ubsan_instrument_float_cast (loc, type, expr);
+ 	  expr = fold_build1 (FIX_TRUNC_EXPR, type, expr);
+ 	  if (check == NULL_TREE)
+--- a/src/gcc/testsuite/c-c++-common/ubsan/float-cast-overflow-11.c
++++ b/src/gcc/testsuite/c-c++-common/ubsan/float-cast-overflow-11.c
+@@ -0,0 +1,10 @@
++/* PR sanitizer/88426 */
++/* { dg-do compile } */
++/* { dg-options "-fsanitize=float-cast-overflow" } */
++
++int
++foo (void)
++{
++  const float v = 0.0f;
++  return (int) (v < 0.0f ? v : 0.0f);
++}
