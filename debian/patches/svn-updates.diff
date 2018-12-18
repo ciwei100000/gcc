@@ -1,10 +1,10 @@
-# DP: updates from the 7 branch upto 20181211 (r266973).
+# DP: updates from the 7 branch upto 20181218 (r267229).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Tue Dec 11 09:59:59 CET 2018
-Tue Dec 11 08:59:59 UTC 2018 (revision 266973)
+Tue Dec 18 13:17:45 CET 2018
+Tue Dec 18 12:17:45 UTC 2018 (revision 267229)
 EOF
 }
 
@@ -12,13 +12,225 @@ LANG=C svn diff svn://gcc.gnu.org/svn/gcc/tags/gcc_7_4_0_release svn://gcc.gnu.o
 	| sed -r 's,^--- (\S+)\t(\S+)(.*)$,--- a/src/\1\t\2,;s,^\+\+\+ (\S+)\t(\S+)(.*)$,+++ b/src/\1\t\2,' \
 	| awk '/^Index:.*\.(class|texi)/ {skip=1; next} /^Index:/ { skip=0 } skip==0'
 
+Index: libitm/ChangeLog
+===================================================================
+--- a/src/libitm/ChangeLog	(.../tags/gcc_7_4_0_release)
++++ b/src/libitm/ChangeLog	(.../branches/gcc-7-branch)
+@@ -1,3 +1,11 @@
++2018-12-13  Peter Bergner  <bergner@linux.ibm.com>
++
++	Backport from mainline
++	2018-12-13  Peter Bergner  <bergner@linux.ibm.com>
++
++	* config/powerpc/target.h (htm_available):  Add support for
++	PPC_FEATURE2_HTM_NO_SUSPEND.  Use __builtin_cpu_supports if available.
++
+ 2018-12-06  Release Manager
+ 
+ 	* GCC 7.4.0 released.
+Index: libitm/config/powerpc/target.h
+===================================================================
+--- a/src/libitm/config/powerpc/target.h	(.../tags/gcc_7_4_0_release)
++++ b/src/libitm/config/powerpc/target.h	(.../branches/gcc-7-branch)
+@@ -81,7 +81,20 @@
+ static inline bool
+ htm_available (void)
+ {
+-  return (getauxval (AT_HWCAP2) & PPC_FEATURE2_HAS_HTM) ? true : false;
++#ifdef __BUILTIN_CPU_SUPPORTS__
++  if (__builtin_cpu_supports ("htm-no-suspend")
++      || __builtin_cpu_supports ("htm"))
++    return true;
++#else
++  unsigned long htm_flags = PPC_FEATURE2_HAS_HTM
++#ifdef PPC_FEATURE2_HTM_NO_SUSPEND
++			    | PPC_FEATURE2_HTM_NO_SUSPEND
++#endif
++			    | 0;
++  if (getauxval (AT_HWCAP2) & htm_flags)
++    return true;
++#endif
++  return false;
+ }
+ 
+ static inline uint32_t
 Index: gcc/DATESTAMP
 ===================================================================
 --- a/src/gcc/DATESTAMP	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-7-branch)
 @@ -1 +1 @@
 -20181206
-+20181211
++20181218
+Index: gcc/ChangeLog
+===================================================================
+--- a/src/gcc/ChangeLog	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/ChangeLog	(.../branches/gcc-7-branch)
+@@ -1,3 +1,51 @@
++2018-12-17  Senthil Kumar Selvaraj  <senthilkumar.selvaraj@microchip.com>
++
++	Backport from trunk
++	2018-12-17  Senthil Kumar Selvaraj  <senthilkumar.selvaraj@microchip.com>
++
++	PR rtl-optimization/88253
++	* combine.c (combine_simplify_rtx): Test for side-effects before
++	substituting by zero.
++
++2018-12-15  Segher Boessenkool  <segher@kernel.crashing.org>
++
++	Backport from trunk
++	2018-12-14  Segher Boessenkool  <segher@kernel.crashing.org>
++
++	PR rtl-optimization/88001
++	* function.c (match_asm_constraints_1): Don't invalidly share RTL.
++
++2018-12-13  Andreas Krebbel  <krebbel@linux.ibm.com>
++
++	Backport from mainline
++	2018-12-13  Andreas Krebbel  <krebbel@linux.ibm.com>
++
++	* config/s390/s390-builtins.def (s390_vec_double_s64): Map to
++	s390_vec_double_s64 instead of s390_vcdgb.
++	(s390_vec_double_u64): Map to s390_vec_double_u64 instead of
++	s390_vcdlgb.
++
++2018-12-13  Andreas Krebbel  <krebbel@linux.ibm.com>
++
++	Backport from mainline
++	2018-12-13  Andreas Krebbel  <krebbel@linux.ibm.com>
++
++	* config/s390/vx-builtins.md ("vec_ctd_s64", "vec_ctd_u64")
++	("vec_ctsl", "vec_ctul"): Replace 0 with VEC_NOINEXACT.
++	("vec_double_s64", "vec_double_u64"): Replace 4 with VEC_INEXACT.
++
++2018-12-12  Peter Bergner  <bergner@linux.ibm.com>
++
++	Backport from mainline
++	2018-12-07  Peter Bergner  <bergner@linux.ibm.com>
++
++	PR target/87496
++	* config/rs6000/rs6000.c (rs6000_option_override_internal): Disallow
++	-mabi=ieeelongdouble and -mabi=ibmlongdouble without -mlong-double-128.
++	Do not error for -mabi=ibmlongdouble and no ISA 2.06 support.
++	* doc/invoke.texi: Document -mabi=ibmlongdouble and -mabi=ieeelongdouble
++	require -mlong-double-128.
++
+ 2018-12-06  Release Manager
+ 
+ 	* GCC 7.4.0 released.
+Index: gcc/testsuite/gcc.target/powerpc/pr87496-2.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/pr87496-2.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/pr87496-2.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,10 @@
++/* PR target/87496 */
++/* { dg-do compile { target { powerpc*-*-* } } } */
++/* { dg-skip-if "" { powerpc*-*-darwin* } } */
++/* { dg-skip-if "do not override -mcpu" { powerpc*-*-* } { "-mcpu=*" } { "-mcpu=power7" } } */
++/* { dg-options "-O2 -mcpu=power7 -mabi=ieeelongdouble -mlong-double-64 -Wno-psabi" } */
++
++int i;
++
++/* { dg-error "'-mabi=ieeelongdouble' requires '-mlong-double-128'" "PR87496" { target *-*-* } 0 } */
++/* { dg-warning "using IEEE extended precision long double" "" { target *-*-* } 0 } */
+Index: gcc/testsuite/gcc.target/powerpc/pr87496-3.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/pr87496-3.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/pr87496-3.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,9 @@
++/* PR target/87496 */
++/* { dg-do compile { target { powerpc*-*-* } } } */
++/* { dg-skip-if "" { powerpc*-*-darwin* } } */
++/* { dg-options "-O2 -mabi=ibmlongdouble -mlong-double-64 -Wno-psabi" } */
++
++int i;
++
++/* { dg-error "'-mabi=ibmlongdouble' requires '-mlong-double-128'" "PR87496" { target *-*-* } 0 } */
++/* { dg-warning "using IBM extended precision long double" "" { target *-*-* } 0 } */
+Index: gcc/testsuite/gcc.target/powerpc/pr87496-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/pr87496-1.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/pr87496-1.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,11 @@
++/* PR target/87496 */
++/* { dg-do compile { target { powerpc*-*-* && lp64 } } } */
++/* { dg-skip-if "" { powerpc*-*-darwin* } } */
++/* { dg-skip-if "do not override -mcpu" { powerpc*-*-* } { "-mcpu=*" } { "-mcpu=power7" } } */
++/* { dg-require-effective-target longdouble128 } */
++/* { dg-options "-O2 -mcpu=power7 -mabi=ieeelongdouble -mno-popcntd -Wno-psabi" } */
++
++int i;
++
++/* { dg-error "'-mabi=ieeelongdouble' requires full ISA 2.06 support" "PR87496" { target *-*-* } 0 } */
++/* { dg-warning "using IEEE extended precision long double" "" { target *-*-* } 0 } */
+Index: gcc/testsuite/gcc.target/avr/pr88253.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/avr/pr88253.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/avr/pr88253.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,16 @@
++/* { dg-do compile } */
++/* { dg-options "-Os -w" } */
++ 
++static int aRead() __attribute__((always_inline));
++static int aRead() {
++    unsigned char h,l;
++    l = (*(volatile unsigned char *)(0x78)) ;
++    h = (*(volatile unsigned char *)(0x79)) ;
++    return (h<<8) | l;
++}
++ 
++int main() {
++    volatile unsigned char x;
++     x = aRead()^42;
++ }
++ /* { dg-final { scan-assembler "lds r\\d+,121" } } */
+Index: gcc/testsuite/gcc.target/s390/zvector/vec-double-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/s390/zvector/vec-double-1.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/s390/zvector/vec-double-1.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,12 @@
++/* { dg-do compile } */
++/* { dg-options "-O3 -mzarch -march=z13 -mzvector" } */
++
++#include <vecintrin.h>
++
++vector double
++test (vector unsigned long long x)
++{
++  return vec_double (x);
++}
++
++/* { dg-final { scan-assembler-times "vcdlgb\t" 1 } } */
+Index: gcc/testsuite/gcc.target/s390/zvector/vec-double-2.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/s390/zvector/vec-double-2.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/s390/zvector/vec-double-2.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,12 @@
++/* { dg-do compile } */
++/* { dg-options "-O3 -mzarch -march=z13 -mzvector" } */
++
++#include <vecintrin.h>
++
++vector double
++test (vector long long x)
++{
++  return vec_double (x);
++}
++
++/* { dg-final { scan-assembler-times "vcdgb\t" 1 } } */
+Index: gcc/testsuite/gfortran.dg/pr88155.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr88155.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr88155.f90	(.../branches/gcc-7-branch)
+@@ -0,0 +1,9 @@
++! { dg-do compile }
++program p
++   type t
++      integer :: a
++   end type
++   type(t) :: x
++   data x /t()1/     ! { dg-error "No initializer for component" }
++   print *, x
++end
 Index: gcc/testsuite/gfortran.dg/pr88269.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr88269.f90	(.../tags/gcc_7_4_0_release)
@@ -56,6 +268,16 @@ Index: gcc/testsuite/gfortran.dg/pr88228.f90
 +   integer :: j = .true. .or. 1
 +end
 +
+Index: gcc/testsuite/gfortran.dg/pr70870_1.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr70870_1.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr70870_1.f90	(.../branches/gcc-7-branch)
+@@ -1,4 +1,5 @@
+ ! { dg-do compile }
++! { dg-options "-std=gnu" }
+ ! PR fortran/70870
+ ! Contributed by Vittorio Zecca <zeccav at gmail dot com >
+       type t
 Index: gcc/testsuite/gfortran.dg/pr88205.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr88205.f90	(.../tags/gcc_7_4_0_release)
@@ -75,11 +297,79 @@ Index: gcc/testsuite/gfortran.dg/pr88205.f90
 +  logical, parameter :: status = .false.
 +  open (newunit=a, status=status)         ! { dg-error "STATUS requires" }
 +end
+Index: gcc/testsuite/gfortran.dg/pr88249.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr88249.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr88249.f90	(.../branches/gcc-7-branch)
+@@ -0,0 +1,7 @@
++! { dg-do compile }
++program p
++   backspace (err=1) ! { dg-error "UNIT number missing" }
++   endfile (err=1)   ! { dg-error "UNIT number missing" }
++   flush (err=1)     ! { dg-error "UNIT number missing" }
++   rewind (err=1)    ! { dg-error "UNIT number missing" }
++end
+Index: gcc/testsuite/gfortran.dg/pr88138.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr88138.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr88138.f90	(.../branches/gcc-7-branch)
+@@ -0,0 +1,9 @@
++! { dg-do compile }
++program p
++   type t
++      character :: c = 'c'
++   end type
++   type(t), parameter :: x  = 1.e1  ! { dg-error "Incompatible initialization between a" }s
++   print *, 'a' // x%c
++end
++! { dg-prune-output "has no IMPLICIT type" }
 Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,23 @@
+@@ -1,3 +1,65 @@
++2018-12-17  Senthil Kumar Selvaraj  <senthilkumar.selvaraj@microchip.com>
++
++	Backport from trunk
++	2018-12-17  Senthil Kumar Selvaraj  <senthilkumar.selvaraj@microchip.com>
++
++	PR rtl-optimization/88253
++	* gcc.target/avr/pr88253.c: New test.
++
++2018-12-15  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/88138
++	* gfortran.dg/pr88138.f90: new test.
++
++2018-12-13  Andreas Krebbel  <krebbel@linux.ibm.com>
++
++	Backport from mainline
++	2018-12-13  Andreas Krebbel  <krebbel@linux.ibm.com>
++
++	* gcc.target/s390/zvector/vec-double-1.c: New test.
++	* gcc.target/s390/zvector/vec-double-2.c: New test.
++
++2018-12-12  Peter Bergner  <bergner@linux.ibm.com>
++
++	Backport from mainline
++	2018-12-07  Peter Bergner  <bergner@linux.ibm.com>
++
++	PR target/87496
++	* gcc.target/powerpc/pr87496-1.c: New test.
++	* gcc.target/powerpc/pr87496-2.c: New test.
++	* gcc.target/powerpc/pr87496-3.c: New test.
++
++2018-12-11  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/88155
++	* gfortran.dg/pr70870_1.f90: Update testcase to use -std=gnu.
++	* gfortran.dg/pr88155.f90: New test.
++
++2018-12-11  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/88249
++	* gfortran.dg/pr88249.f90: New test.
++
 +2018-12-10  Steven G. Kargl  <kargl@gcc.gnu.org>
 +
 +	PR fortran/88269
@@ -103,11 +393,72 @@ Index: gcc/testsuite/ChangeLog
  2018-12-06  Release Manager
  
  	* GCC 7.4.0 released.
+Index: gcc/fortran/decl.c
+===================================================================
+--- a/src/gcc/fortran/decl.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/fortran/decl.c	(.../branches/gcc-7-branch)
+@@ -2544,6 +2544,22 @@
+       goto cleanup;
+     }
+ 
++  /* Before adding a possible initilizer, do a simple check for compatibility
++     of lhs and rhs types.  Assigning a REAL value to a derive type is not a
++     good thing.  */
++  if (current_ts.type == BT_DERIVED && initializer
++      && (gfc_numeric_ts (&initializer->ts)
++	  || initializer->ts.type == BT_LOGICAL
++	  || initializer->ts.type == BT_CHARACTER))
++    {
++      gfc_error ("Incompatible initialization between a derive type "
++		 "entity and an entity with %qs type at %C",
++		  gfc_typename (&initializer->ts));
++      m = MATCH_ERROR;
++      goto cleanup;
++    }
++
++
+   /* Add the initializer.  Note that it is fine if initializer is
+      NULL here, because we sometimes also need to check if a
+      declaration *must* have an initialization expression.  */
+Index: gcc/fortran/gfortran.h
+===================================================================
+--- a/src/gcc/fortran/gfortran.h	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/fortran/gfortran.h	(.../branches/gcc-7-branch)
+@@ -3269,7 +3269,7 @@
+ void gfc_free_close (gfc_close *);
+ bool gfc_resolve_close (gfc_close *);
+ void gfc_free_filepos (gfc_filepos *);
+-bool gfc_resolve_filepos (gfc_filepos *);
++bool gfc_resolve_filepos (gfc_filepos *, locus *);
+ void gfc_free_inquire (gfc_inquire *);
+ bool gfc_resolve_inquire (gfc_inquire *);
+ void gfc_free_dt (gfc_dt *);
 Index: gcc/fortran/ChangeLog
 ===================================================================
 --- a/src/gcc/fortran/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/fortran/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,27 @@
+@@ -1,3 +1,48 @@
++2018-12-15  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/88138
++	* decl.c (variable_decl): Check that a derived isn't being assigned
++	an incompatible entity in an initialization.
++ 
++2018-12-11  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/88155
++	* primary.c (gfc_match_structure_constructor):  Set the locus of
++	an expression to avoid a NULL pointer dereference.
++
++2018-12-11  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/88249
++	* gfortran.h: Update prototype for gfc_resolve_filepos().
++	* io.c (gfc_resolve_filepos): Check for UNIT number if ERR= is present.
++	Use passed in locus for error message.
++	* resolve.c (gfc_resolve_code): Pass locus in gfc_resolve_filepos()
++	call.
++
 +2018-12-10  Steven G. Kargl  <kargl@gcc.gnu.org>
 +
 +	PR fortran/88269
@@ -207,7 +558,36 @@ Index: gcc/fortran/io.c
    /* Things that are not allowed for unformatted I/O.  */
    if (open->form && open->form->expr_type == EXPR_CONSTANT
        && (open->delim || open->decimal || open->encoding || open->round
-@@ -3617,10 +3617,13 @@
+@@ -2774,22 +2774,21 @@
+ 
+ 
+ bool
+-gfc_resolve_filepos (gfc_filepos *fp)
++gfc_resolve_filepos (gfc_filepos *fp, locus *where)
+ {
+   RESOLVE_TAG (&tag_unit, fp->unit);
+   RESOLVE_TAG (&tag_iostat, fp->iostat);
+   RESOLVE_TAG (&tag_iomsg, fp->iomsg);
+-  if (!gfc_reference_st_label (fp->err, ST_LABEL_TARGET))
+-    return false;
+ 
+-  if (!fp->unit && (fp->iostat || fp->iomsg))
++  if (!fp->unit && (fp->iostat || fp->iomsg || fp->err))
+     {
+-      locus where;
+-      where = fp->iostat ? fp->iostat->where : fp->iomsg->where;
+-      gfc_error ("UNIT number missing in statement at %L", &where);
++      gfc_error ("UNIT number missing in statement at %L", where);
+       return false;
+     }
+ 
++  if (!gfc_reference_st_label (fp->err, ST_LABEL_TARGET))
++    return false;
++
+   if (fp->unit->expr_type == EXPR_CONSTANT
+       && fp->unit->ts.type == BT_INTEGER
+       && mpz_sgn (fp->unit->value.integer) < 0)
+@@ -3617,10 +3616,13 @@
  check_io_constraints (io_kind k, gfc_dt *dt, gfc_code *io_code,
  		      locus *spec_end)
  {
@@ -223,7 +603,7 @@ Index: gcc/fortran/io.c
      m = MATCH_ERROR;\
    }
  
-@@ -3680,11 +3683,14 @@
+@@ -3680,11 +3682,14 @@
    if (expr && expr->ts.type != BT_CHARACTER)
      {
  
@@ -263,6 +643,15 @@ Index: gcc/fortran/resolve.c
  	}
  
        if (op1->ts.type == BT_LOGICAL)
+@@ -11163,7 +11163,7 @@
+ 	case EXEC_ENDFILE:
+ 	case EXEC_REWIND:
+ 	case EXEC_FLUSH:
+-	  if (!gfc_resolve_filepos (code->ext.filepos))
++	  if (!gfc_resolve_filepos (code->ext.filepos, &code->loc))
+ 	    break;
+ 
+ 	  resolve_branch (code->ext.filepos->err, code);
 Index: gcc/fortran/match.c
 ===================================================================
 --- a/src/gcc/fortran/match.c	(.../tags/gcc_7_4_0_release)
@@ -286,6 +675,150 @@ Index: gcc/fortran/match.c
    /* If a type is not matched, simply return MATCH_NO.  */
    gfc_current_locus = old_locus;
    return MATCH_NO;
+Index: gcc/fortran/primary.c
+===================================================================
+--- a/src/gcc/fortran/primary.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/fortran/primary.c	(.../branches/gcc-7-branch)
+@@ -2980,6 +2980,7 @@
+   e = gfc_get_expr ();
+   e->symtree = symtree;
+   e->expr_type = EXPR_FUNCTION;
++  e->where = gfc_current_locus;
+ 
+   gcc_assert (gfc_fl_struct (sym->attr.flavor)
+ 	      && symtree->n.sym->attr.flavor == FL_PROCEDURE);
+Index: gcc/function.c
+===================================================================
+--- a/src/gcc/function.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/function.c	(.../branches/gcc-7-branch)
+@@ -6604,7 +6604,7 @@
+       output_matched[match] = true;
+ 
+       start_sequence ();
+-      emit_move_insn (output, input);
++      emit_move_insn (output, copy_rtx (input));
+       insns = get_insns ();
+       end_sequence ();
+       emit_insn_before (insns, insn);
+Index: gcc/combine.c
+===================================================================
+--- a/src/gcc/combine.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/combine.c	(.../branches/gcc-7-branch)
+@@ -5807,8 +5807,9 @@
+ 	    && GET_MODE_PRECISION (mode) < GET_MODE_PRECISION (op0_mode)
+ 	    && subreg_lowpart_offset (mode, op0_mode) == SUBREG_BYTE (x)
+ 	    && HWI_COMPUTABLE_MODE_P (op0_mode)
+-	    && (nonzero_bits (SUBREG_REG (x), op0_mode)
+-		& GET_MODE_MASK (mode)) == 0)
++	    && ((nonzero_bits (SUBREG_REG (x), op0_mode)
++		 & GET_MODE_MASK (mode)) == 0)
++	    && !side_effects_p (SUBREG_REG (x)))
+ 	  return CONST0_RTX (mode);
+       }
+ 
+Index: gcc/config/s390/s390-builtins.def
+===================================================================
+--- a/src/gcc/config/s390/s390-builtins.def	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/config/s390/s390-builtins.def	(.../branches/gcc-7-branch)
+@@ -2804,8 +2804,8 @@
+ B_DEF      (s390_vfsqdb,                sqrtv2df2,          0,                  B_VX,               0,                  BT_FN_V2DF_V2DF)
+ 
+ OB_DEF     (s390_vec_double,            s390_vec_double_s64,s390_vec_double_u64,B_VX,               BT_FN_OV4SI_OV4SI)
+-OB_DEF_VAR (s390_vec_double_s64,        s390_vcdgb,         0,                  0,                  BT_OV_V2DF_V2DI)
+-OB_DEF_VAR (s390_vec_double_u64,        s390_vcdlgb,        0,                  0,                  BT_OV_V2DF_UV2DI)
++OB_DEF_VAR (s390_vec_double_s64,        s390_vec_double_s64,0,                  0,                  BT_OV_V2DF_V2DI)
++OB_DEF_VAR (s390_vec_double_u64,        s390_vec_double_u64,0,                  0,                  BT_OV_V2DF_UV2DI)
+ 
+ B_DEF      (s390_vec_double_s64,        vec_double_s64,     0,                  B_INT | B_VX,       0,                  BT_FN_V2DF_V2DI)  /* vcdgb */
+ B_DEF      (s390_vec_double_u64,        vec_double_u64,     0,                  B_INT | B_VX,       0,                  BT_FN_V2DF_UV2DI) /* vcdlgb */
+Index: gcc/config/s390/vx-builtins.md
+===================================================================
+--- a/src/gcc/config/s390/vx-builtins.md	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/config/s390/vx-builtins.md	(.../branches/gcc-7-branch)
+@@ -1607,7 +1607,7 @@
+ (define_expand "vec_ctd_s64"
+   [(set (match_operand:V2DF               0 "register_operand" "")
+ 	(unspec:V2DF [(match_operand:V2DI 1 "register_operand" "")
+-		      (const_int 4) ; inexact suppressed
++		      (const_int VEC_NOINEXACT)
+ 		      (const_int VEC_RND_CURRENT)]
+ 		     UNSPEC_VEC_VCDGB))
+    (use (match_operand:QI 2 "const_int_operand" ""))
+@@ -1638,7 +1638,7 @@
+ (define_expand "vec_ctd_u64"
+   [(set (match_operand:V2DF               0 "register_operand" "")
+ 	(unspec:V2DF [(match_operand:V2DI 1 "register_operand" "")
+-		      (const_int 4) ; inexact suppressed
++		      (const_int VEC_NOINEXACT)
+ 		      (const_int VEC_RND_CURRENT)]
+ 		     UNSPEC_VEC_VCDLGB))
+    (use (match_operand:QI 2 "const_int_operand" ""))
+@@ -1672,7 +1672,7 @@
+ 				 (match_dup 3)))
+    (set (match_operand:V2DI 0 "register_operand" "")
+ 	(unspec:V2DI [(match_dup 4)
+-		      (const_int 4) ; inexact suppressed
++		      (const_int VEC_NOINEXACT)
+ 		      (const_int VEC_RND_CURRENT)]
+ 		     UNSPEC_VEC_VCGDB))]
+   "TARGET_VX"
+@@ -1705,7 +1705,7 @@
+ 				 (match_dup 3)))
+    (set (match_operand:V2DI 0 "register_operand" "")
+ 	(unspec:V2DI [(match_dup 4)
+-		      (const_int 4) ; inexact suppressed
++		      (const_int VEC_NOINEXACT)
+ 		      (const_int VEC_RND_CURRENT)]
+ 		     UNSPEC_VEC_VCLGDB))]
+   "TARGET_VX"
+@@ -2026,7 +2026,7 @@
+ (define_expand "vec_double_s64"
+   [(set (match_operand:V2DF               0 "register_operand")
+ 	(unspec:V2DF [(match_operand:V2DI 1 "register_operand")
+-		      (const_int 0)  ; inexact suppression disabled
++		      (const_int VEC_INEXACT)
+ 		      (const_int VEC_RND_CURRENT)]
+ 		     UNSPEC_VEC_VCDGB))]
+   "TARGET_VX")
+@@ -2034,7 +2034,7 @@
+ (define_expand "vec_double_u64"
+   [(set (match_operand:V2DF               0 "register_operand")
+ 	(unspec:V2DF [(match_operand:V2DI 1 "register_operand")
+-		      (const_int 0)  ; inexact suppression disabled
++		      (const_int VEC_INEXACT)
+ 		      (const_int VEC_RND_CURRENT)]
+ 		     UNSPEC_VEC_VCDLGB))]
+   "TARGET_VX")
+Index: gcc/config/rs6000/rs6000.c
+===================================================================
+--- a/src/gcc/config/rs6000/rs6000.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/config/rs6000/rs6000.c	(.../branches/gcc-7-branch)
+@@ -4829,6 +4829,13 @@
+       else
+ 	rs6000_long_double_type_size = RS6000_DEFAULT_LONG_DOUBLE_SIZE;
+     }
++  else if (global_options_set.x_rs6000_ieeequad)
++    {
++      if (global_options.x_rs6000_ieeequad)
++	error ("%qs requires %qs", "-mabi=ieeelongdouble", "-mlong-double-128");
++      else
++	error ("%qs requires %qs", "-mabi=ibmlongdouble", "-mlong-double-128");
++    }
+ 
+   /* Set -mabi=ieeelongdouble on some old targets.  Note, AIX and Darwin
+      explicitly redefine TARGET_IEEEQUAD to 0, so those systems will not
+@@ -4838,6 +4845,11 @@
+     rs6000_ieeequad = 1;
+ #endif
+ 
++  if (global_options_set.x_rs6000_ieeequad
++      && global_options.x_rs6000_ieeequad
++      && (!TARGET_POPCNTD || !TARGET_VSX))
++    error ("%qs requires full ISA 2.06 support", "-mabi=ieeelongdouble");
++
+   /* Enable the default support for IEEE 128-bit floating point on Linux VSX
+      sytems, but don't enable the __float128 keyword.  */
+   if (TARGET_VSX && TARGET_LONG_DOUBLE_128
 Index: libgfortran/runtime/backtrace.c
 ===================================================================
 --- a/src/libgfortran/runtime/backtrace.c	(.../tags/gcc_7_4_0_release)
