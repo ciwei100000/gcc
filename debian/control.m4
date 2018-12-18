@@ -5352,23 +5352,6 @@ ifenabled(`libs',`
 ')`'dnl commonlibs
 ')`'dnl
 
-ifenabled(`fixincl',`
-Package: fixincludes
-Architecture: any
-Priority: PRI(optional)
-Depends: BASEDEP, gcc`'PV (= ${gcc:Version}), ${shlibs:Depends}, ${misc:Depends}
-BUILT_USING`'dnl
-Description: Fix non-ANSI header files
- FixIncludes was created to fix non-ANSI system header files. Many
- system manufacturers supply proprietary headers that are not ANSI compliant.
- The GNU compilers cannot compile non-ANSI headers. Consequently, the
- FixIncludes shell script was written to fix the header files.
- .
- Not all packages with header files are installed on the system, when the
- package is built, so we make fixincludes available at build time of other
- packages, such that checking tools like lintian can make use of it.
-')`'dnl fixincl
-
 ifenabled(`cdev',`
 ifdef(`TARGET', `', `
 ifenabled(`gfdldoc',`
