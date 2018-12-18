@@ -3879,7 +3879,7 @@ Depends: BASELDEP, ${dep:libc}, ${shlibs:Depends}, ${misc:Depends}
 Provides: ifdef(`TARGET',`libstdc++CXX_SO-TARGET-dcv1',`libstdc++'CXX_SO`-armel [armel], libstdc++'CXX_SO`-armhf [armhf]')
 ifdef(`MULTIARCH', `Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
-Breaks: ${multiarch:breaks}, PR66145BREAKS
+Breaks: ${multiarch:breaks}
 ')`'dnl
 Conflicts: scim (<< 1.4.2-1)
 Replaces: libstdc++CXX_SO`'PV-dbg`'LS (<< 4.9.0-3)
