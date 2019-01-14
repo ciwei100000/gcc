@@ -34,6 +34,10 @@ define __do_asan
 		mkdir -p debian/$(p_l)/usr/share/lintian/overrides; \
 		cp debian/$(p_l).overrides debian/$(p_l)/usr/share/lintian/overrides/$(p_l); \
 	fi
+	$(if $(2), \
+	  mkdir -p debian/$(p_l)/usr/share/lintian/overrides; \
+	  echo "$(p_l): symbols-file-contains-current-version-with-debian-revision" \
+	    >> debian/$(p_l)/usr/share/lintian/overrides/$(p_l))
 
 	dh_strip -p$(p_l) --dbg-package=$(p_d)
 	$(cross_makeshlibs) dh_makeshlibs $(ldconfig_arg) -p$(p_l)

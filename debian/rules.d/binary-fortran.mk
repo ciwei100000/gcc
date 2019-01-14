@@ -128,6 +128,10 @@ define __do_libgfortran_dev
 		$(gcc_lib_dir$(2))/libcaf_single.a
 	$(call install_gcc_lib,libgfortran,$(FORTRAN_SONAME),$(2),$(p_l))
 
+	$(if $(2),, \
+	  $(dh_compat2) dh_movefiles -p$(p_l) \
+		$(gcc_lib_dir$(2))/include/ISO_Fortran_binding.h)
+
 	debian/dh_doclink -p$(p_l) $(p_lbase)
 	debian/dh_rmemptydirs -p$(p_l)
 

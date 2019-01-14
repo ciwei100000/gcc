@@ -58,7 +58,7 @@ Uploaders: Iain Buclaw <ibuclaw@ubuntu.com>, Matthias Klose <doko@debian.org>
 ', `dnl
 Uploaders: Matthias Klose <doko@debian.org>
 ')dnl SRCNAME
-Standards-Version: 4.2.1
+Standards-Version: 4.3.0
 ifdef(`TARGET',`dnl cross
 Build-Depends: DEBHELPER_BUILD_DEP DPKG_BUILD_DEP
   LIBC_BUILD_DEP, LIBC_BIARCH_BUILD_DEP
@@ -2961,8 +2961,6 @@ Pre-Depends: ${misc:Pre-Depends}
 Priority: optional
 Depends: BASEDEP, libgccjit`'GCCJIT_SO (= ${gcc:Version}),
  ${shlibs:Depends}, ${misc:Depends}
-Breaks: libgccjit-5-dbg, libgccjit-6-dbg
-Replaces: libgccjit-5-dbg, libgccjit-6-dbg
 BUILT_USING`'dnl
 Description: GCC just-in-time compilation (debug information)
  libgccjit provides an embeddable shared library with an API for adding
@@ -2975,7 +2973,7 @@ Section: doc
 Architecture: all
 Priority: optional
 Depends: BASEDEP, ${misc:Depends}
-Conflicts: libgccjit-5-doc, libgccjit-6-doc, libgccjit-7-doc
+Conflicts: libgccjit-5-doc, libgccjit-6-doc, libgccjit-7-doc, libgccjit-8-doc,
 Description: GCC just-in-time compilation (documentation)
  libgccjit provides an embeddable shared library with an API for adding
  compilation to existing programs using GCC.

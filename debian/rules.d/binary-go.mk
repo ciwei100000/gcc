@@ -274,7 +274,7 @@ endif
 	echo '$(p_go) binary: unstripped-binary-or-object' \
 	  > $(d_go)/usr/share/lintian/overrides/$(p_go)
 	echo '$(p_go) binary: hardening-no-pie' \
-	  > $(d_go)/usr/share/lintian/overrides/$(p_go)
+	  >> $(d_go)/usr/share/lintian/overrides/$(p_go)
 ifeq ($(GFDL_INVARIANT_FREE),yes)
 	echo '$(p_go) binary: binary-without-manpage' \
 	  >> $(d_go)/usr/share/lintian/overrides/$(p_go)
@@ -308,6 +308,10 @@ $(binary_stamp)-gccgo-multi: $(install_stamp)
 
 	$(foreach flavour,$(flavours), \
 		$(call do_go_dev,$(flavour),$(p_go_m)))
+
+	mkdir -p $(d_go_m)/usr/share/lintian/overrides
+	echo '$(p_go_m) binary: non-multi-arch-lib-dir' \
+	  > $(d_go_m)/usr/share/lintian/overrides/$(p_go_m)
 
 	debian/dh_doclink -p$(p_go_m) $(p_xbase)
 	debian/dh_rmemptydirs -p$(p_go_m)

@@ -3,7 +3,7 @@ Section: devel
 Priority: optional
 Maintainer: Debian GCC Maintainers <debian-gcc@lists.debian.org>
 Uploaders: Matthias Klose <doko@debian.org>
-Standards-Version: 4.2.1
+Standards-Version: 4.3.0
 Build-Depends: debhelper (>= 9.20141010), dpkg-dev (>= 1.17.14), g++-multilib [amd64 i386 kfreebsd-amd64 mips mips64 mips64el mips64r6 mips64r6el mipsel mipsn32 mipsn32el mipsn32r6 mipsn32r6el mipsr6 mipsr6el powerpc ppc64 s390 s390x sparc sparc64 x32] <!cross>, 
   libc6.1-dev (>= 2.13-5) [alpha ia64] | libc0.3-dev (>= 2.13-5) [hurd-i386] | libc0.1-dev (>= 2.13-5) [kfreebsd-i386 kfreebsd-amd64] | libc6-dev (>= 2.13-5), libc6-dev (>= 2.13-31) [armel armhf], libc6-dev-amd64 [i386 x32], libc6-dev-sparc64 [sparc], libc6-dev-sparc [sparc64], libc6-dev-s390 [s390x], libc6-dev-s390x [s390], libc6-dev-i386 [amd64 x32], libc6-dev-powerpc [ppc64], libc6-dev-ppc64 [powerpc], libc0.1-dev-i386 [kfreebsd-amd64], lib32gcc1 [amd64 ppc64 kfreebsd-amd64 mipsn32 mipsn32el mips64 mips64el mipsn32r6 mipsn32r6el mips64r6 mips64r6el s390x sparc64 x32], libn32gcc1 [mips mipsel mips64 mips64el mipsr6 mipsr6el mips64r6 mips64r6el], lib64gcc1 [i386 mips mipsel mipsn32 mipsn32el mipsr6 mipsr6el mipsn32r6 mipsn32r6el powerpc sparc s390 x32], libc6-dev-mips64 [mips mipsel mipsn32 mipsn32el mipsr6 mipsr6el mipsn32r6 mipsn32r6el], libc6-dev-mipsn32 [mips mipsel mips64 mips64el mipsr6 mipsr6el mips64r6 mips64r6el], libc6-dev-mips32 [mipsn32 mipsn32el mips64 mips64el mipsn32r6 mipsn32r6el mips64r6 mips64r6el], libc6-dev-x32 [amd64 i386], libx32gcc1 [amd64 i386], libc6.1-dbg [alpha ia64] | libc0.3-dbg [hurd-i386] | libc0.1-dbg [kfreebsd-i386 kfreebsd-amd64] | libc6-dbg, 
   kfreebsd-kernel-headers (>= 0.84) [kfreebsd-any], linux-libc-dev [m68k], 
@@ -1206,8 +1206,6 @@ Pre-Depends: ${misc:Pre-Depends}
 Priority: optional
 Depends: gcc-9-base (= ${gcc:Version}), libgccjit0 (= ${gcc:Version}),
  ${shlibs:Depends}, ${misc:Depends}
-Breaks: libgccjit-5-dbg, libgccjit-6-dbg
-Replaces: libgccjit-5-dbg, libgccjit-6-dbg
 Description: GCC just-in-time compilation (debug information)
  libgccjit provides an embeddable shared library with an API for adding
  compilation to existing programs using GCC.
@@ -1217,7 +1215,7 @@ Section: doc
 Architecture: all
 Priority: optional
 Depends: gcc-9-base (= ${gcc:Version}), ${misc:Depends}
-Conflicts: libgccjit-5-doc, libgccjit-6-doc, libgccjit-7-doc
+Conflicts: libgccjit-5-doc, libgccjit-6-doc, libgccjit-7-doc, libgccjit-8-doc,
 Description: GCC just-in-time compilation (documentation)
  libgccjit provides an embeddable shared library with an API for adding
  compilation to existing programs using GCC.
@@ -2037,6 +2035,125 @@ Description: GNU Standard C++ Library v3 (documentation files)
  alphabetical list, compound list, file list, namespace members,
  compound members and file members.
 
+Package: gnat-9
+Architecture: any
+Priority: optional
+Pre-Depends: ${misc:Pre-Depends}
+Depends: gcc-9-base (= ${gcc:Version}), gcc-9 (>= ${gcc:SoftVersion}), ${dep:libgnat}, ${dep:libcdev}, ${shlibs:Depends}, ${misc:Depends}
+Suggests: gnat-9-doc, ada-reference-manual-2012, gnat-9-sjlj
+Breaks:   gnat (<< 4.6.1), dh-ada-library (<< 6.0), gnat-4.6-base (= 4.6.4-2),
+ gnat-4.9-base (= 4.9-20140330-1)
+Replaces: gnat (<< 4.6.1), dh-ada-library (<< 6.0), gnat-4.6-base (= 4.6.4-2),
+ gnat-4.9-base (= 4.9-20140330-1)
+# Takes over symlink from gnat (<< 4.6.1): /usr/bin/gnatgcc.
+# Takes over file from dh-ada-library (<< 6.0): debian_packaging.mk.
+# g-base 4.6.4-2, 4.9-20140330-1 contain debian_packaging.mk by mistake.
+# Newer versions of gnat and dh-ada-library will not provide these files.
+Conflicts: gnat (<< 4.1), gnat-3.1, gnat-3.2, gnat-3.3, gnat-3.4, gnat-3.5,
+ gnat-4.0, gnat-4.1, gnat-4.2, gnat-4.3, gnat-4.4, gnat-4.6, gnat-4.7, gnat-4.8,
+ gnat-4.9, gnat-5, gnat-6, gnat-7, gnat-8,
+# These other packages will continue to provide /usr/bin/gnatmake and
+# other files.
+Description: GNU Ada compiler
+ GNAT is a compiler for the Ada programming language. It produces optimized
+ code on platforms supported by the GNU Compiler Collection (GCC).
+ .
+ This package provides the compiler, tools and runtime library that handles
+ exceptions using the default zero-cost mechanism.
+
+Package: libgnat-9
+X-DH-Build-For-Type: target
+Section: libs
+Architecture: any
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+Priority: optional
+Depends: gcc-9-base (= ${gcc:Version}), ${shlibs:Depends}, ${misc:Depends}
+Description: runtime for applications compiled with GNAT (shared library)
+ GNAT is a compiler for the Ada programming language. It produces optimized
+ code on platforms supported by the GNU Compiler Collection (GCC).
+ .
+ The libgnat library provides runtime components needed by most
+ applications produced with GNAT.
+ .
+ This package contains the runtime shared library.
+
+Package: libgnat-9-dbg
+X-DH-Build-For-Type: target
+Section: debug
+Architecture: any
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+Priority: optional
+Depends: gcc-9-base (= ${gcc:Version}), libgnat-9 (= ${gnat:Version}), ${misc:Depends}
+Description: runtime for applications compiled with GNAT (debugging symbols)
+ GNAT is a compiler for the Ada programming language. It produces optimized
+ code on platforms supported by the GNU Compiler Collection (GCC).
+ .
+ The libgnat library provides runtime components needed by most
+ applications produced with GNAT.
+ .
+ This package contains the debugging symbols.
+
+Package: libgnatvsn9-dev
+X-DH-Build-For-Type: target
+Section: libdevel
+Architecture: any
+Priority: optional
+Depends: gcc-9-base (= ${gcc:Version}), gnat-9 (= ${gnat:Version}),
+ libgnatvsn9 (= ${gnat:Version}), ${misc:Depends}
+Conflicts: libgnatvsn-dev (<< 9),
+ libgnatvsn4.1-dev, libgnatvsn4.3-dev, libgnatvsn4.4-dev,
+ libgnatvsn4.5-dev, libgnatvsn4.6-dev, libgnatvsn4.9-dev,
+ libgnatvsn5-dev, libgnatvsn6-dev, libgnatvsn7-dev,
+Description: GNU Ada compiler selected components (development files)
+ GNAT is a compiler for the Ada programming language. It produces optimized
+ code on platforms supported by the GNU Compiler Collection (GCC).
+ .
+ The libgnatvsn library exports selected GNAT components for use in other
+ packages, most notably ASIS tools. It is licensed under the GNAT-Modified
+ GPL, allowing to link proprietary programs with it.
+ .
+ This package contains the development files and static library.
+
+Package: libgnatvsn9
+X-DH-Build-For-Type: target
+Architecture: any
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+Priority: optional
+Section: libs
+Depends: gcc-9-base (= ${gcc:Version}), libgnat-9 (= ${gnat:Version}),
+ ${shlibs:Depends}, ${misc:Depends}
+Description: GNU Ada compiler selected components (shared library)
+ GNAT is a compiler for the Ada programming language. It produces optimized
+ code on platforms supported by the GNU Compiler Collection (GCC).
+ .
+ The libgnatvsn library exports selected GNAT components for use in other
+ packages, most notably ASIS tools. It is licensed under the GNAT-Modified
+ GPL, allowing to link proprietary programs with it.
+ .
+ This package contains the runtime shared library.
+
+Package: libgnatvsn9-dbg
+X-DH-Build-For-Type: target
+Architecture: any
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+Priority: optional
+Section: debug
+Depends: gcc-9-base (= ${gcc:Version}), libgnatvsn9 (= ${gnat:Version}), ${misc:Depends}
+Suggests: gnat
+Description: GNU Ada compiler selected components (debugging symbols)
+ GNAT is a compiler for the Ada programming language. It produces optimized
+ code on platforms supported by the GNU Compiler Collection (GCC).
+ .
+ The libgnatvsn library exports selected GNAT components for use in other
+ packages, most notably ASIS tools. It is licensed under the GNAT-Modified
+ GPL, allowing to link proprietary programs with it.
+ .
+ This package contains the debugging symbols.
+
 Package: gdc-9
 Architecture: any
 Priority: optional
@@ -2300,6 +2417,16 @@ Description: HSAIL runtime library (debug symbols)
  .
  The library contains both the code required to run kernels on the agent
  and also functions implementing more complex HSAIL instructions.
+
+#Package: gcc`'PV-soft-float
+#Architecture: arm armel armhf
+#Priority: PRI(optional)
+#Depends: BASEDEP, depifenabled(`cdev',`gcc`'PV (= ${gcc:Version}),') ${shlibs:Depends}, ${misc:Depends}
+#Conflicts: gcc-4.4-soft-float, gcc-4.5-soft-float, gcc-4.6-soft-float
+#BUILT_USING`'dnl
+#Description: GCC soft-floating-point gcc libraries (ARM)
+# These are versions of basic static libraries such as libgcc.a compiled
+# with the -msoft-float option, for CPUs without a floating-point unit.
 
 Package: gcc-9-offload-nvptx
 Architecture: amd64
