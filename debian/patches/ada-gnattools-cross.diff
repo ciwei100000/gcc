@@ -27,7 +27,7 @@ This patch depends on ada-libgnatvsn.diff.
 
 --- a/src/gcc/ada/Makefile.rtl
 +++ b/src/gcc/ada/Makefile.rtl
-@@ -1802,6 +1802,11 @@ ifeq ($(strip $(filter-out s390% linux%,
+@@ -1781,6 +1781,11 @@ ifeq ($(strip $(filter-out s390% linux%,
    LIBRARY_VERSION := $(LIB_VERSION)
  endif
  
@@ -41,7 +41,7 @@ This patch depends on ada-libgnatvsn.diff.
    LIBGNAT_TARGET_PAIRS = \
 --- a/src/gcc/ada/gcc-interface/Makefile.in
 +++ b/src/gcc/ada/gcc-interface/Makefile.in
-@@ -507,6 +507,20 @@ gnatlink-re: ../stamp-tools gnatmake-re
+@@ -482,6 +482,20 @@ gnatlink-re: ../stamp-tools gnatmake-re
  	  --GCC="$(CC) $(ADA_INCLUDES)" --LINK="$(GCC_LINK)" $(TOOLS_LIBS)
  	$(MV)  ../../gnatlinknew$(exeext)  ../../gnatlink$(exeext)
  
@@ -62,7 +62,7 @@ This patch depends on ada-libgnatvsn.diff.
  # Needs to be built with CC=gcc
  # Since the RTL should be built with the latest compiler, remove the
  #  stamp target in the parent directory whenever gnat1 is rebuilt
-@@ -556,14 +570,10 @@ install-gnatlib: ../stamp-gnatlib-$(RTSD
+@@ -531,14 +545,10 @@ install-gnatlib: ../stamp-gnatlib-$(RTSD
  #     Also install the .dSYM directories if they exist (these directories
  #     contain the debug information for the shared libraries on darwin)
  	for file in gnat gnarl; do \
@@ -79,7 +79,7 @@ This patch depends on ada-libgnatvsn.diff.
  	   if [ -d $(RTSDIR)/lib$${file}$(hyphen)$(LIBRARY_VERSION)$(soext).dSYM ]; then \
  	      $(CP) -r $(RTSDIR)/lib$${file}$(hyphen)$(LIBRARY_VERSION)$(soext).dSYM \
  	        $(DESTDIR)$(ADA_RTL_OBJ_DIR); \
-@@ -633,7 +643,7 @@ $(RTSDIR)/s-oscons.ads: ../stamp-gnatlib
+@@ -608,7 +618,7 @@ $(RTSDIR)/s-oscons.ads: ../stamp-gnatlib
  	    $(OSCONS_EXTRACT) ; \
  	    ../bldtools/oscons/xoscons s-oscons)
  
@@ -88,7 +88,7 @@ This patch depends on ada-libgnatvsn.diff.
  	test -f $(RTSDIR)/s-oscons.ads || exit 1
  # C files
  	$(MAKE) -C $(RTSDIR) \
-@@ -667,36 +677,51 @@ gnatlib: ../stamp-gnatlib1-$(RTSDIR) ../
+@@ -642,36 +652,51 @@ gnatlib: ../stamp-gnatlib1-$(RTSDIR) ../
  		$(RANLIB_FOR_TARGET) $(RTSDIR)/libgmem$(arext)
          endif
  	$(CHMOD) a-wx $(RTSDIR)/*.ali
@@ -156,7 +156,7 @@ This patch depends on ada-libgnatvsn.diff.
  
  	# Create static libgnat and libgnarl compiled with -fPIC
  	$(RM) $(RTSDIR)/libgnat_pic$(arext) $(RTSDIR)/libgnarl_pic$(arext)
-@@ -707,6 +732,8 @@ gnatlib-shared-default:
+@@ -682,6 +707,8 @@ gnatlib-shared-default:
  	   $(addprefix $(RTSDIR)/,$(GNATRTL_TASKING_OBJS))
  	$(RANLIB_FOR_TARGET) $(RTSDIR)/libgnarl_pic$(arext)
  
@@ -165,8 +165,8 @@ This patch depends on ada-libgnatvsn.diff.
  
  gnatlib-shared-dual:
  	$(MAKE) $(FLAGS_TO_PASS) \
-@@ -715,21 +742,15 @@ gnatlib-shared-dual:
- 	     GNATLIBCFLAGS_FOR_C="$(GNATLIBCFLAGS_FOR_C)" \
+@@ -691,21 +718,15 @@ gnatlib-shared-dual:
+ 	     PICFLAG_FOR_TARGET="$(PICFLAG_FOR_TARGET)" \
  	     MULTISUBDIR="$(MULTISUBDIR)" \
  	     THREAD_KIND="$(THREAD_KIND)" \
 -             gnatlib-shared-default
@@ -190,7 +190,7 @@ This patch depends on ada-libgnatvsn.diff.
  
  gnatlib-shared-dual-win32:
  	$(MAKE) $(FLAGS_TO_PASS) \
-@@ -739,17 +760,15 @@ gnatlib-shared-dual-win32:
+@@ -715,17 +736,15 @@ gnatlib-shared-dual-win32:
  	     PICFLAG_FOR_TARGET="$(PICFLAG_FOR_TARGET)" \
  	     MULTISUBDIR="$(MULTISUBDIR)" \
  	     THREAD_KIND="$(THREAD_KIND)" \
