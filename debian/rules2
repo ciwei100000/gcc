@@ -265,7 +265,7 @@ endif
 ifeq ($(with_bootstrap),off)
   CONFARGS += --disable-bootstrap
 else ifneq ($(with_bootstrap),)
-  CONFARGS += --enable-bootstrap=$(with_bootstrap)
+  CONFARGS += --enable-bootstrap
 endif
 
 ifneq ($(with_sysroot),)
@@ -785,39 +785,16 @@ endif
 
 ifeq ($(with_bootstrap),off)
   bootstrap_target =
+else ifeq ($(with_bootstrap),profiled)
+  bootstrap_target = profiledbootstrap
+  bootstrap_target = profiledbootstrap-lean
 else ifeq ($(with_bootstrap),)
   bootstrap_target = bootstrap
-  # no profiledbootstrap on the following architectures
-  # - m68k: we're happy that it builds at all
-  no_profiled_bs_archs := alpha arm hppa m68k mips mipsel mips64 mips64el \
-	powerpcspe s390 sh4 sparc sparc64
-  ifeq (,$(filter $(DEB_TARGET_ARCH),$(no_profiled_bs_archs)))
-    bootstrap_target = profiledbootstrap
-  endif
   ifneq (, $(filter $(PKGSOURCE),gcc-$(BASE_VERSION) gnat-$(BASE_VERSION) gcc-snapshot))
     bootstrap_target = bootstrap
   endif
   ifneq (,$(DEB_STAGE))
     bootstrap_target = bootstrap
-  endif
-
-  ifeq ($(derivative),Debian)
-    # disable profiled bootstrap for backports
-    ifneq (,$(filter $(distrelease),squeeze wheezy jessie))
-      bootstrap_target = bootstrap
-    endif
-    # disable profiled bootstrap on slow archs, get to testing first ...
-    ifneq (,$(filter $(DEB_TARGET_ARCH), arm arm64 armel armhf mips mipsel sparc))
-      bootstrap_target = bootstrap
-    endif
-  endif
-  ifeq ($(derivative),Ubuntu)
-    ifneq (,$(filter $(distrelease),lucid precise trusty utopic vivid wily))
-      bootstrap_target = bootstrap
-    endif
-    ifeq ($(with_linaro_branch),yes)
-      bootstrap_target = bootstrap
-    endif
   endif
 endif
 

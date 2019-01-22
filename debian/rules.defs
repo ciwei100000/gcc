@@ -318,6 +318,16 @@ ifneq ($(findstring gccdebug, $(DEB_BUILD_OPTIONS)),)
   export DEB_BUILD_OPTIONS
 endif
 
+ifneq ($(trunk_build),yes)
+  ifeq ($(build_type),build-native)
+    ifeq (,$(DEB_STAGE))
+      ifneq (,$(filter $(DEB_HOST_ARCH), amd64 i386 armhf arm64 ppc64el s390x))
+        with_bootstrap := profiled
+      endif
+    endif
+  endif
+endif
+
 # -------------------------------------------------------------------
 # stage options
 ifdef DEB_STAGE
