@@ -119,7 +119,8 @@ $(binary_stamp)-libgnat: $(install_stamp)
 	    fi; \
 	  done; \
 	done
-	$(cross_makeshlibs) dh_makeshlibs $(ldconfig_arg) -p$(p_lgnat) -V '$(p_lgnat) (>= $(DEB_VERSION))'
+	$(cross_makeshlibs) dh_makeshlibs $(ldconfig_arg) -p$(p_lgnat) \
+		-V '$(p_lgnat) (>= $(shell echo $(DEB_VERSION) | sed 's/-.*//'))'
 	$(call cross_mangle_shlibs,$(p_lgnat))
 
 ifneq (,$(filter $(build_type), build-native cross-build-native))
