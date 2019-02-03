@@ -1,10 +1,10 @@
-# DP: updates from the 7 branch upto 20190202 (r268474).
+# DP: updates from the 7 branch upto 20190203 (r268483).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Sat Feb  2 10:44:25 CET 2019
-Sat Feb  2 09:44:25 UTC 2019 (revision 268474)
+Sun Feb  3 10:30:48 CET 2019
+Sun Feb  3 09:30:48 UTC 2019 (revision 268483)
 EOF
 }
 
@@ -522,7 +522,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-7-branch)
 @@ -1 +1 @@
 -20181206
-+20190202
++20190203
 Index: gcc/lra.c
 ===================================================================
 --- a/src/gcc/lra.c	(.../tags/gcc_7_4_0_release)
@@ -1734,6 +1734,27 @@ Index: gcc/testsuite/gfortran.dg/dec_structure_15.f90
  ! { dg-options "" }
  !
  ! PR fortran/77584
+Index: gcc/testsuite/gfortran.dg/c_funptr_1_mod.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/c_funptr_1_mod.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/c_funptr_1_mod.f90	(.../branches/gcc-7-branch)
+@@ -0,0 +1,16 @@
++! { dg-do  run }
++! { dg-additional-sources c_funptr_1.f90 }
++! Additional module to go with c_funptr_1.f90
++module win32_types
++  use, intrinsic :: iso_c_binding, only: C_INT,C_FUNPTR
++  implicit none
++  private
++
++  public WNDCLASSEX_T
++  type, bind(C) :: WNDCLASSEX_T
++     integer(C_INT) :: cbSize
++     type(C_FUNPTR) :: lpfnWndProc
++
++  end type WNDCLASSEX_T
++
++end module win32_types
 Index: gcc/testsuite/gfortran.dg/pr88169_2.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr88169_2.f90	(.../tags/gcc_7_4_0_release)
@@ -1785,6 +1806,49 @@ Index: gcc/testsuite/gfortran.dg/pr35031.f90
 +   integer, intent(in) :: x
 +   entry func2_c(x) bind(c)   ! { dg-error "prohibited in an elemental" }
 +end function func2
+Index: gcc/testsuite/gfortran.dg/c_funptr_1.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/c_funptr_1.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/c_funptr_1.f90	(.../branches/gcc-7-branch)
+@@ -0,0 +1,38 @@
++! { dg-do preprocess }
++! { dg-additional-options "-cpp" }
++! PR 57048 - this used not to compile. Original test case by Angelo
++! Graziosi.  Only works if compiled c_funptr_1_mod.f90, hence the
++! do-nothing directive above.
++module procs
++  
++  implicit none
++  private
++
++  public WndProc
++
++contains
++  function WndProc()
++    integer :: WndProc
++    
++    WndProc = 0
++  end function WndProc
++end module procs
++
++function WinMain()
++  use, intrinsic :: iso_c_binding, only: C_INT,c_sizeof,c_funloc
++  use win32_types
++  use procs
++  implicit none
++
++  integer :: WinMain
++
++  type(WNDCLASSEX_T) :: WndClass
++
++  WndClass%cbSize = int(c_sizeof(Wndclass),C_INT)
++  WndClass%lpfnWndProc = c_funloc(WndProc)
++
++  WinMain = 0
++end function WinMain
++
++program main
++end 
 Index: gcc/testsuite/gfortran.dg/debug/pr35154-stabs.f
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/debug/pr35154-stabs.f	(.../tags/gcc_7_4_0_release)
@@ -1840,6 +1904,19 @@ Index: gcc/testsuite/gfortran.dg/associate_44.f90
 +       PrTer%elev=0                  ! ICE here
 +    end associate
 +end subroutine  CustomSolidBodies
+Index: gcc/testsuite/gfortran.dg/warn_conversion_10.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/warn_conversion_10.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/warn_conversion_10.f90	(.../branches/gcc-7-branch)
+@@ -0,0 +1,8 @@
++! { dg-do compile }
++! { dg-options "-fno-range-check -Wconversion" }
++! PR 88298 - this used to warn unnecessarily.  Original test case by
++! Harald Anlauf.
++subroutine bug (j, js)
++  integer    :: j, js(3,2)
++  js(:,:) = cshift (js(:,:), shift=j, dim=1)
++end subroutine bug
 Index: gcc/testsuite/gfortran.dg/dec_structure_14.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/dec_structure_14.f90	(.../tags/gcc_7_4_0_release)
@@ -2788,7 +2865,20 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,322 @@
+@@ -1,3 +1,335 @@
++2019-02-02  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/88298
++	Backport from trunk
++	* gfortran.dg/warn_conversion_10.f90: New test.
++
++2019-02-02  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/57048
++	Backport from trunk
++	* gfortran.dg/c_funptr_1.f90: New file.
++	* gfortran.dg/c_funptr_1_mod.f90: New file.
++
 +2019-01-30  Manfred Schwarb  <manfred99@gmx.ch>
 +
 +	* gfortran.dg/pr68318_1.f90: Fix a dg directive.
@@ -2798,7 +2888,7 @@ Index: gcc/testsuite/ChangeLog
 +	Backport from mainline
 +	2019-01-20  Kewen Lin  <linkw@gcc.gnu.org>
 +
-+	* gcc.target/powerpc/altivec_vld_vst_addr.c: Remove, split into 
++	* gcc.target/powerpc/altivec_vld_vst_addr.c: Remove, split into
 +	altivec_vld_vst_addr-1.c and altivec_vld_vst_addr-2.c.
 +	* gcc.target/powerpc/altivec_vld_vst_addr-1.c: New test.
 +	* gcc.target/powerpc/altivec_vld_vst_addr-2.c: Ditto.
@@ -3854,6 +3944,39 @@ Index: gcc/gimple-ssa-strength-reduction.c
      {
        /* Record an interpretation for the multiply-immediate.  */
        c = create_mul_imm_cand (gs, rhs1, rhs2, speed);
+Index: gcc/fortran/interface.c
+===================================================================
+--- a/src/gcc/fortran/interface.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/fortran/interface.c	(.../branches/gcc-7-branch)
+@@ -691,6 +691,15 @@
+   if (ts1->type == BT_VOID || ts2->type == BT_VOID)
+     return true;
+ 
++  /* Special case for our C interop types.  There should be a better
++     way of doing this...  */
++
++  if (((ts1->type == BT_INTEGER && ts2->type == BT_DERIVED)
++       || (ts1->type == BT_DERIVED && ts2->type == BT_INTEGER))
++      && ts1->u.derived && ts2->u.derived
++      && ts1->u.derived == ts2->u.derived)
++    return true;
++
+   /* The _data component is not always present, therefore check for its
+      presence before assuming, that its derived->attr is available.
+      When the _data component is not present, then nevertheless the
+Index: gcc/fortran/intrinsic.c
+===================================================================
+--- a/src/gcc/fortran/intrinsic.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/fortran/intrinsic.c	(.../branches/gcc-7-branch)
+@@ -4919,6 +4919,8 @@
+   if (ts->type == BT_UNKNOWN)
+     goto bad;
+ 
++  expr->do_not_warn = ! wflag;
++
+   /* NULL and zero size arrays get their type here.  */
+   if (expr->expr_type == EXPR_NULL
+       || (expr->expr_type == EXPR_ARRAY && expr->value.constructor == NULL))
 Index: gcc/fortran/trans-expr.c
 ===================================================================
 --- a/src/gcc/fortran/trans-expr.c	(.../tags/gcc_7_4_0_release)
@@ -4051,7 +4174,17 @@ Index: gcc/fortran/gfortran.h
 ===================================================================
 --- a/src/gcc/fortran/gfortran.h	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/fortran/gfortran.h	(.../branches/gcc-7-branch)
-@@ -3269,7 +3269,7 @@
+@@ -2106,6 +2106,9 @@
+   /* Will require finalization after use.  */
+   unsigned int must_finalize : 1;
+ 
++  /* Set this if no warning should be given somewhere in a lower level.  */
++
++  unsigned int do_not_warn : 1;
+   /* If an expression comes from a Hollerith constant or compile-time
+      evaluation of a transfer statement, it may have a prescribed target-
+      memory representation, and these cannot always be backformed from
+@@ -3269,7 +3272,7 @@
  void gfc_free_close (gfc_close *);
  bool gfc_resolve_close (gfc_close *);
  void gfc_free_filepos (gfc_filepos *);
@@ -4064,7 +4197,24 @@ Index: gcc/fortran/ChangeLog
 ===================================================================
 --- a/src/gcc/fortran/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/fortran/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,111 @@
+@@ -1,3 +1,128 @@
++2019-02-02  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/88298
++	Backport from trunk
++	* arith.c (gfc_int2int): Do not warn if src->do_not_warn is set.
++	* gfortran.h (gfc_expr): Add flag do_not_warn.
++	* intrinsic.c (gfc_convert_type_warn): Set expr->do_not_warn if
++	no warning is desired.
++
++2019-02-02  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/57048
++	Backport from trunk
++	* interface.c (gfc_compare_types): If a derived type and an
++	integer both have a derived type, and they are identical,
++	this is a C binding type and compares equal.
++
 +2019-01-27  Paul Thomas  <pault@gcc.gnu.org>
 +
 +	Backport from trunk
@@ -4554,6 +4704,19 @@ Index: gcc/fortran/match.c
    /* If a type is not matched, simply return MATCH_NO.  */
    gfc_current_locus = old_locus;
    return MATCH_NO;
+Index: gcc/fortran/arith.c
+===================================================================
+--- a/src/gcc/fortran/arith.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/fortran/arith.c	(.../branches/gcc-7-branch)
+@@ -2050,7 +2050,7 @@
+       gfc_convert_mpz_to_signed (result->value.integer,
+ 				 gfc_integer_kinds[k].bit_size);
+ 
+-      if (warn_conversion && kind < src->ts.kind)
++      if (warn_conversion && !src->do_not_warn && kind < src->ts.kind)
+ 	gfc_warning_now (OPT_Wconversion, "Conversion from %qs to %qs at %L",
+ 			 gfc_typename (&src->ts), gfc_typename (&result->ts),
+ 			 &src->where);
 Index: gcc/fortran/primary.c
 ===================================================================
 --- a/src/gcc/fortran/primary.c	(.../tags/gcc_7_4_0_release)
