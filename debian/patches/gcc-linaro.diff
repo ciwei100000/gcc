@@ -7,7 +7,7 @@ LANG=C git diff --no-renames bb85d61e6bfbadee4494e034a5d8187cf0626aed 1604249e38
  | filterdiff --strip=1 --addoldprefix=a/src/  --addnewprefix=b/src/ \
  | sed 's,a/src//dev/null,/dev/null,'
 
-LANG=C svn diff svn://gcc.gnu.org/svn/gcc/branches/gcc-8-branch@263242 svn://gcc.gnu.org/svn/gcc/branches/ARM/arm-8-branch \
+LANG=C svn diff svn://gcc.gnu.org/svn/gcc/branches/gcc-8-branch@268147 svn://gcc.gnu.org/svn/gcc/branches/ARM/arm-8-branch \
 	| sed -r 's,^--- (\S+)\t(\S+)(.*)$,--- a/src/\1\t\2,;s,^\+\+\+ (\S+)\t(\S+)(.*)$,+++ b/src/\1\t\2,' \
 	| awk '/^Index:.*\.(class|texi)/ {skip=1; next} /^Index:/ { skip=0 } skip==0'
 
@@ -512,7 +512,13 @@ Index: gcc/testsuite/ChangeLog.arm
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog.arm	(.../gcc-8-branch)
 +++ b/src/gcc/testsuite/ChangeLog.arm	(.../ARM/arm-8-branch)
-@@ -0,0 +1,9 @@
+@@ -0,0 +1,15 @@
++2018-07-31  Richard Earnshaw  <rearnsha@arm.com>
++
++	* c-c++-common/spec-barrier-1.c: New test.
++	* c-c++-common/spec-barrier-2.c: New test.
++	* gcc.dg/spec-barrier-3.c: New test.
++
 +2018-08-14  Yvan Roux  <yvan.roux@linaro.org>
 +
 +	* gcc.dg/cpp/linaro-macros.c: New test.
@@ -1029,7 +1035,7 @@ Index: gcc/config/i386/i386.md
  ])
  
  ;; Constants to represent rounding modes in the ROUND instruction
-@@ -20774,6 +20777,13 @@
+@@ -20777,6 +20780,13 @@
    "movdir64b\t{%1, %0|%0, %1}"
    [(set_attr "type" "other")])
  
@@ -1927,7 +1933,7 @@ Index: gcc/config/aarch64/aarch64.c
 ===================================================================
 --- a/src/gcc/config/aarch64/aarch64.c	(.../gcc-8-branch)
 +++ b/src/gcc/config/aarch64/aarch64.c	(.../ARM/arm-8-branch)
-@@ -6684,6 +6684,12 @@
+@@ -6704,6 +6704,12 @@
        break;
  
      case 'H':
@@ -1940,7 +1946,7 @@ Index: gcc/config/aarch64/aarch64.c
        if (!REG_P (x) || !GP_REGNUM_P (REGNO (x) + 1))
  	{
  	  output_operand_lossage ("invalid operand for '%%%c'", code);
-@@ -12510,6 +12516,19 @@
+@@ -12536,6 +12542,19 @@
  	fixed_regs[i] = 1;
  	call_used_regs[i] = 1;
        }
@@ -1960,7 +1966,7 @@ Index: gcc/config/aarch64/aarch64.c
  }
  
  /* Walk down the type tree of TYPE counting consecutive base elements.
-@@ -14357,7 +14376,16 @@
+@@ -14383,7 +14402,16 @@
  
    if (strong_zero_p)
      {
@@ -1978,7 +1984,7 @@ Index: gcc/config/aarch64/aarch64.c
        x = gen_rtx_IF_THEN_ELSE (VOIDmode, x,
  				gen_rtx_LABEL_REF (Pmode, label2), pc_rtx);
        aarch64_emit_unlikely_jump (gen_rtx_SET (pc_rtx, x));
-@@ -14375,7 +14403,16 @@
+@@ -14401,7 +14429,16 @@
  
    if (!is_weak)
      {
@@ -1996,7 +2002,7 @@ Index: gcc/config/aarch64/aarch64.c
        x = gen_rtx_IF_THEN_ELSE (VOIDmode, x,
  				gen_rtx_LABEL_REF (Pmode, label1), pc_rtx);
        aarch64_emit_unlikely_jump (gen_rtx_SET (pc_rtx, x));
-@@ -14711,7 +14748,16 @@
+@@ -14737,7 +14774,16 @@
    aarch64_emit_store_exclusive (mode, cond, mem,
  				gen_lowpart (mode, new_out), model_rtx);
  
@@ -2014,7 +2020,7 @@ Index: gcc/config/aarch64/aarch64.c
    x = gen_rtx_IF_THEN_ELSE (VOIDmode, x,
  			    gen_rtx_LABEL_REF (Pmode, label), pc_rtx);
    aarch64_emit_unlikely_jump (gen_rtx_SET (pc_rtx, x));
-@@ -17390,6 +17436,45 @@
+@@ -17416,6 +17462,45 @@
      }
  }
  
@@ -2060,7 +2066,7 @@ Index: gcc/config/aarch64/aarch64.c
  /* Target-specific selftests.  */
  
  #if CHECKING_P
-@@ -17859,6 +17944,9 @@
+@@ -17885,6 +17970,9 @@
  #undef TARGET_SELECT_EARLY_REMAT_MODES
  #define TARGET_SELECT_EARLY_REMAT_MODES aarch64_select_early_remat_modes
  
@@ -2074,7 +2080,7 @@ Index: gcc/config/rs6000/rs6000.c
 ===================================================================
 --- a/src/gcc/config/rs6000/rs6000.c	(.../gcc-8-branch)
 +++ b/src/gcc/config/rs6000/rs6000.c	(.../ARM/arm-8-branch)
-@@ -16838,7 +16838,7 @@
+@@ -16900,7 +16900,7 @@
  
      case MISC_BUILTIN_SPEC_BARRIER:
        {
