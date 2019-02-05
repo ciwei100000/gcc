@@ -4667,7 +4667,7 @@ Description: GNU D compiler (version 2, multilib support)`'ifdef(`TARGET)',` (cr
  for the non-default multilib architecture(s).
 ')`'dnl multilib
 
-ifenabled(`libphobos',`
+ifenabled(`libdevphobos',`
 Package: libgphobos`'PV-dev`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`libphobos_archs')
@@ -4683,6 +4683,92 @@ Description: Phobos D standard library
  .
  For more information check http://www.dlang.org/phobos/
 
+Package: lib64gphobos`'PV-dev`'LS
+TARGET_PACKAGE`'dnl
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
+Section: libdevel
+Priority: optional
+Depends: BASELDEP, lib64gphobos`'PHOBOS_V`'LS (>= ${gdc:Version}),
+  libdevdep(gcc`'PV-dev,64), ifdef(`TARGET',`',`lib64z1-dev,') ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: Phobos D standard library (64bit development files)
+ This is the Phobos standard library that comes with the D2 compiler.
+ .
+ For more information check http://www.dlang.org/phobos/
+
+Package: lib32gphobos`'PV-dev`'LS
+TARGET_PACKAGE`'dnl
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
+Section: libdevel
+Priority: optional
+Depends: BASELDEP, lib32gphobos`'PHOBOS_V`'LS (>= ${gdc:Version}),
+  libdevdep(gcc`'PV-dev,32), ifdef(`TARGET',`',`lib32z1-dev,') ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: Phobos D standard library (32bit development files)
+ This is the Phobos standard library that comes with the D2 compiler.
+ .
+ For more information check http://www.dlang.org/phobos/
+
+ifenabled(`libdevn32phobos',`
+Package: libn32gphobos`'PV-dev`'LS
+TARGET_PACKAGE`'dnl
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
+Section: libdevel
+Priority: optional
+Depends: BASELDEP, libn32gphobos`'PHOBOS_V`'LS (>= ${gdc:Version}),
+  libdevdep(gcc`'PV-dev,n32), ifdef(`TARGET',`',`libn32z1-dev,') ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: Phobos D standard library (n32 development files)
+ This is the Phobos standard library that comes with the D2 compiler.
+ .
+ For more information check http://www.dlang.org/phobos/
+')`'dnl libn32phobos
+
+ifenabled(`libdevx32phobos',`
+Package: libx32gphobos`'PV-dev`'LS
+TARGET_PACKAGE`'dnl
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
+Section: libdevel
+Priority: optional
+Depends: BASELDEP, libx32gphobos`'PHOBOS_V`'LS (>= ${gdc:Version}),
+  libdevdep(gcc`'PV-dev,x32), ifdef(`TARGET',`',`${dep:libx32z},') ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: Phobos D standard library (x32 development files)
+ This is the Phobos standard library that comes with the D2 compiler.
+ .
+ For more information check http://www.dlang.org/phobos/
+')`'dnl libx32phobos
+
+ifenabled(`armml',`
+Package: libhfgphobos`'PV-dev`'LS
+TARGET_PACKAGE`'dnl
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
+Section: libdevel
+Priority: optional
+Depends: BASELDEP, libhfgphobos`'PHOBOS_V`'LS (>= ${gdc:Version}),
+  libdevdep(gcc`'PV-dev,hf), ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: Phobos D standard library (hard float ABI development files)
+ This is the Phobos standard library that comes with the D2 compiler.
+ .
+ For more information check http://www.dlang.org/phobos/
+
+Package: libsfgphobos`'PV-dev`'LS
+TARGET_PACKAGE`'dnl
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
+Section: libdevel
+Priority: optional
+Depends: BASELDEP, libsfgphobos`'PHOBOS_V`'LS (>= ${gdc:Version}),
+  libdevdep(gcc`'PV-dev,sf), ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: Phobos D standard library (soft float ABI development files)
+ This is the Phobos standard library that comes with the D2 compiler.
+ .
+ For more information check http://www.dlang.org/phobos/
+')`'dnl armml
+')`'dnl libdevphobos
+
+ifenabled(`libphobos',`
 Package: libgphobos`'PHOBOS_V`'LS
 TARGET_PACKAGE`'dnl
 Section: ifdef(`TARGET',`devel',`libs')
@@ -4713,19 +4799,6 @@ Description: Phobos D standard library (debug symbols)
  .
  For more information check http://www.dlang.org/phobos/
 
-Package: lib64gphobos`'PV-dev`'LS
-TARGET_PACKAGE`'dnl
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
-Section: libdevel
-Priority: optional
-Depends: BASELDEP, lib64gphobos`'PHOBOS_V`'LS (>= ${gdc:Version}),
-  libdevdep(gcc`'PV-dev,64), ifdef(`TARGET',`',`lib64z1-dev,') ${shlibs:Depends}, ${misc:Depends}
-BUILT_USING`'dnl
-Description: Phobos D standard library (64bit development files)
- This is the Phobos standard library that comes with the D2 compiler.
- .
- For more information check http://www.dlang.org/phobos/
-
 Package: lib64gphobos`'PHOBOS_V`'LS
 TARGET_PACKAGE`'dnl
 Section: ifdef(`TARGET',`devel',`libs')
@@ -4748,19 +4821,6 @@ Depends: BASELDEP, lib64gphobos`'PHOBOS_V`'LS (= ${gdc:Version}), ${misc:Depends
 Replaces: lib64gphobos68-dbg`'LS
 BUILT_USING`'dnl
 Description: Phobos D standard library (debug symbols)
- This is the Phobos standard library that comes with the D2 compiler.
- .
- For more information check http://www.dlang.org/phobos/
-
-Package: lib32gphobos`'PV-dev`'LS
-TARGET_PACKAGE`'dnl
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
-Section: libdevel
-Priority: optional
-Depends: BASELDEP, lib32gphobos`'PHOBOS_V`'LS (>= ${gdc:Version}),
-  libdevdep(gcc`'PV-dev,32), ifdef(`TARGET',`',`lib32z1-dev,') ${shlibs:Depends}, ${misc:Depends}
-BUILT_USING`'dnl
-Description: Phobos D standard library (32bit development files)
  This is the Phobos standard library that comes with the D2 compiler.
  .
  For more information check http://www.dlang.org/phobos/
@@ -4792,19 +4852,6 @@ Description: Phobos D standard library (debug symbols)
  For more information check http://www.dlang.org/phobos/
 
 ifenabled(`libn32phobos',`
-Package: libn32gphobos`'PV-dev`'LS
-TARGET_PACKAGE`'dnl
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
-Section: libdevel
-Priority: optional
-Depends: BASELDEP, libn32gphobos`'PHOBOS_V`'LS (>= ${gdc:Version}),
-  libdevdep(gcc`'PV-dev,n32), ifdef(`TARGET',`',`libn32z1-dev,') ${shlibs:Depends}, ${misc:Depends}
-BUILT_USING`'dnl
-Description: Phobos D standard library (n32 development files)
- This is the Phobos standard library that comes with the D2 compiler.
- .
- For more information check http://www.dlang.org/phobos/
-
 Package: libn32gphobos`'PHOBOS_V`'LS
 TARGET_PACKAGE`'dnl
 Section: ifdef(`TARGET',`devel',`libs')
@@ -4831,19 +4878,6 @@ Description: Phobos D standard library (debug symbols)
 ')`'dnl libn32phobos
 
 ifenabled(`libx32phobos',`
-Package: libx32gphobos`'PV-dev`'LS
-TARGET_PACKAGE`'dnl
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
-Section: libdevel
-Priority: optional
-Depends: BASELDEP, libx32gphobos`'PHOBOS_V`'LS (>= ${gdc:Version}),
-  libdevdep(gcc`'PV-dev,x32), ifdef(`TARGET',`',`${dep:libx32z},') ${shlibs:Depends}, ${misc:Depends}
-BUILT_USING`'dnl
-Description: Phobos D standard library (x32 development files)
- This is the Phobos standard library that comes with the D2 compiler.
- .
- For more information check http://www.dlang.org/phobos/
-
 Package: libx32gphobos`'PHOBOS_V`'LS
 TARGET_PACKAGE`'dnl
 Section: ifdef(`TARGET',`devel',`libs')
@@ -4872,19 +4906,6 @@ Description: Phobos D standard library (debug symbols)
 ')`'dnl libx32phobos
 
 ifenabled(`armml',`
-Package: libhfgphobos`'PV-dev`'LS
-TARGET_PACKAGE`'dnl
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
-Section: libdevel
-Priority: optional
-Depends: BASELDEP, libhfgphobos`'PHOBOS_V`'LS (>= ${gdc:Version}),
-  libdevdep(gcc`'PV-dev,hf), ${shlibs:Depends}, ${misc:Depends}
-BUILT_USING`'dnl
-Description: Phobos D standard library (hard float ABI development files)
- This is the Phobos standard library that comes with the D2 compiler.
- .
- For more information check http://www.dlang.org/phobos/
-
 Package: libhfgphobos`'PHOBOS_V`'LS
 TARGET_PACKAGE`'dnl
 Section: ifdef(`TARGET',`devel',`libs')
@@ -4907,19 +4928,6 @@ Depends: BASELDEP, libhfgphobos`'PHOBOS_V`'LS (= ${gdc:Version}), ${misc:Depends
 Replaces: libhfgphobos68-dbg`'LS
 BUILT_USING`'dnl
 Description: Phobos D standard library (debug symbols)
- This is the Phobos standard library that comes with the D2 compiler.
- .
- For more information check http://www.dlang.org/phobos/
-
-Package: libsfgphobos`'PV-dev`'LS
-TARGET_PACKAGE`'dnl
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
-Section: libdevel
-Priority: optional
-Depends: BASELDEP, libsfgphobos`'PHOBOS_V`'LS (>= ${gdc:Version}),
-  libdevdep(gcc`'PV-dev,sf), ${shlibs:Depends}, ${misc:Depends}
-BUILT_USING`'dnl
-Description: Phobos D standard library (soft float ABI development files)
  This is the Phobos standard library that comes with the D2 compiler.
  .
  For more information check http://www.dlang.org/phobos/

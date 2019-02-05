@@ -964,28 +964,25 @@ ifeq ($(with_d)-$(with_separate_gdc),yes-yes)
 endif
 
 ifeq ($(with_d),yes)
-  libphobos_archs = amd64 arm64 armel armhf i386 x32 kfreebsd-amd64 kfreebsd-i386
-  libphobos_archs += hppa
-  libphobos_archs += mips mipsel mips64el
-  ifneq (,$(libphobos_archs))
-    with_phobos := yes
-  endif
-  ifneq (,$(filter $(DEB_TARGET_ARCH), $(libphobos_archs)))
+  phobos_archs = amd64 arm64 armel armhf i386 x32 kfreebsd-amd64 kfreebsd-i386
+  phobos_archs += hppa
+  phobos_archs += mips mipsel mips64el
+  ifneq (,$(filter $(DEB_TARGET_ARCH), $(phobos_archs)))
     with_libphobos := yes
   endif
 
-  libphobos_no_cpus := alpha avr arm64 hppa ia64 m68k \
+  phobos_no_cpus := alpha avr arm64 hppa ia64 m68k \
 	mips64 mipsn32 mipsn32el \
 	mipsr6 mipsr6el mips64r6 mips64r6el mipsn32r6 mipsn32r6el \
 	powerpc ppc64 s390 s390x sh4 sparc sparc64
-  libphobos_no_systems := gnu kfreebsd-gnu
-  ifneq (,$(filter $(DEB_TARGET_ARCH_CPU),$(libphobos_no_cpus)))
-    with_libphobos := disabled for cpu $(DEB_TARGET_ARCH_CPU)
+  phobos_no_systems := gnu kfreebsd-gnu
+  ifneq (,$(filter $(DEB_TARGET_ARCH_CPU),$(phobos_no_cpus)))
+    with_phobos := disabled for cpu $(DEB_TARGET_ARCH_CPU)
   endif
-  ifneq (,$(filter $(DEB_TARGET_GNU_SYSTEM),$(libphobos_no_systems)))
-    with_libphobos := disabled for system $(DEB_TARGET_GNU_SYSTEM)
+  ifneq (,$(filter $(DEB_TARGET_GNU_SYSTEM),$(phobos_no_systems)))
+    with_phobos := disabled for system $(DEB_TARGET_GNU_SYSTEM)
   endif
-  with_libphobosdev := $(with_libphobos)
+  with_libphobosdev := $(with_phobos)
 
   enabled_languages += d
 endif
@@ -1317,12 +1314,11 @@ else
   endif
 
   # libasan -----------------
-  # asan changes soname in GCC 8
-  #ifeq ($(with_asan)-$(with_common_libs),yes-yes)
+  ifeq ($(with_asan)-$(with_common_libs),yes-yes)
     ifeq ($(with_asan),yes)
       with_libasan := yes
     endif
-  #endif
+  endif
 
   # liblsan -----------------
   ifeq ($(with_lsan)-$(with_common_libs),yes-yes)
@@ -1337,12 +1333,11 @@ else
   endif
 
   # libubsan -----------------
-  # ubsan changes soname in GCC 8
-  #ifeq ($(with_ubsan)-$(with_common_libs),yes-yes)
+  ifeq ($(with_ubsan)-$(with_common_libs),yes-yes)
     ifeq ($(with_ubsan),yes)
       with_libubsan := yes
     endif
-  #endif
+  endif
 
   # libvtv -----------------
   ifeq ($(with_vtv)-$(with_common_libs),yes-yes)
@@ -1369,6 +1364,13 @@ else
     with_shared_libgcc := yes
     ifeq ($(with_common_libs),yes)
       with_libgcc := yes
+    endif
+  endif
+
+  # libphobos -----------------
+  ifeq ($(with_phobos)-$(with_common_libs),yes-yes)
+    ifeq ($(with_common_libs),yes)
+      with_libphobos := yes
     endif
   endif
 
@@ -1621,7 +1623,7 @@ define gen_biarch
     ifeq ($(with_brig),yes)
       biarch_multidir_names += libhsail-rt
     endif
-    ifeq ($(with_libphobos),yes)
+    ifeq ($(with_phobos),yes)
       ifeq (,$(filter $1, hf))
         biarch_multidir_names += libphobos
       endif

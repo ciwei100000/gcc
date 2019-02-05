@@ -4,8 +4,10 @@ ifneq ($(DEB_STAGE),rtlibs)
   endif
   arch_binaries := $(arch_binaries) gdc
 
-  ifeq ($(with_libphobos),yes)
+  ifeq ($(with_libphobosdev),yes)
     $(lib_binaries) += libphobos-dev
+  endif
+  ifeq ($(with_libphobos),yes)
     $(lib_binaries) += libphobos
   endif
 
