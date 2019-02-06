@@ -1,5 +1,3 @@
-Index: b/src/fixincludes/Makefile.in
-===================================================================
 --- a/src/fixincludes/Makefile.in
 +++ b/src/fixincludes/Makefile.in
 @@ -52,9 +52,9 @@ target_noncanonical:=@target_noncanonica
@@ -14,11 +12,18 @@ Index: b/src/fixincludes/Makefile.in
  # Where our executable files go
  itoolsdir = $(libexecsubdir)/install-tools
  # Where our data files go
-Index: b/src/libgfortran/Makefile.in
-===================================================================
 --- a/src/libgfortran/Makefile.in
 +++ b/src/libgfortran/Makefile.in
-@@ -629,12 +629,12 @@ libgfortran_la_LDFLAGS = -version-info `
+@@ -717,7 +717,7 @@ gcc_version := $(shell @get_gcc_base_ver
+ @LIBGFOR_USE_SYMVER_GNU_TRUE@@LIBGFOR_USE_SYMVER_TRUE@version_dep = $(srcdir)/gfortran.map
+ @LIBGFOR_USE_SYMVER_SUN_TRUE@@LIBGFOR_USE_SYMVER_TRUE@version_dep = gfortran.map-sun
+ gfor_c_HEADERS = $(srcdir)/ISO_Fortran_binding.h
+-gfor_cdir = $(libdir)/gcc/$(target_alias)/$(gcc_version)$(MULTISUBDIR)/include
++gfor_cdir = $(libdir)/gcc-cross/$(target_alias)/$(gcc_version)$(MULTISUBDIR)/include
+ LTLDFLAGS = $(shell $(SHELL) $(top_srcdir)/../libtool-ldflags $(LDFLAGS)) \
+ 	    $(lt_host_flags)
+ 
+@@ -732,12 +732,12 @@ libgfortran_la_LDFLAGS = -version-info `
  
  libgfortran_la_DEPENDENCIES = $(version_dep) libgfortran.spec $(LIBQUADLIB_DEP)
  cafexeclib_LTLIBRARIES = libcaf_single.la
@@ -33,11 +38,18 @@ Index: b/src/libgfortran/Makefile.in
  @IEEE_SUPPORT_TRUE@nodist_finclude_HEADERS = ieee_arithmetic.mod ieee_exceptions.mod ieee_features.mod
  AM_CPPFLAGS = -iquote$(srcdir)/io -I$(srcdir)/$(MULTISRCTOP)../gcc \
  	      -I$(srcdir)/$(MULTISRCTOP)../gcc/config $(LIBQUADINCLUDE) \
-Index: b/src/libgfortran/Makefile.am
-===================================================================
 --- a/src/libgfortran/Makefile.am
 +++ b/src/libgfortran/Makefile.am
-@@ -44,14 +44,14 @@ libgfortran_la_LDFLAGS = -version-info `
+@@ -31,7 +31,7 @@ version_dep =
+ endif
+ 
+ gfor_c_HEADERS = $(srcdir)/ISO_Fortran_binding.h
+-gfor_cdir = $(libdir)/gcc/$(target_alias)/$(gcc_version)$(MULTISUBDIR)/include
++gfor_cdir = $(libdir)/gcc-cross/$(target_alias)/$(gcc_version)$(MULTISUBDIR)/include
+ 
+ LTLDFLAGS = $(shell $(SHELL) $(top_srcdir)/../libtool-ldflags $(LDFLAGS)) \
+ 	    $(lt_host_flags)
+@@ -47,14 +47,14 @@ libgfortran_la_LDFLAGS = -version-info `
  libgfortran_la_DEPENDENCIES = $(version_dep) libgfortran.spec $(LIBQUADLIB_DEP)
  
  cafexeclib_LTLIBRARIES = libcaf_single.la
@@ -54,11 +66,9 @@ Index: b/src/libgfortran/Makefile.am
  nodist_finclude_HEADERS = ieee_arithmetic.mod ieee_exceptions.mod ieee_features.mod
  endif
  
-Index: b/src/lto-plugin/Makefile.in
-===================================================================
 --- a/src/lto-plugin/Makefile.in
 +++ b/src/lto-plugin/Makefile.in
-@@ -256,7 +256,7 @@ with_libiberty = @with_libiberty@
+@@ -338,7 +338,7 @@ with_libiberty = @with_libiberty@
  ACLOCAL_AMFLAGS = -I .. -I ../config
  AUTOMAKE_OPTIONS = no-dependencies
  gcc_version := $(shell @get_gcc_base_ver@ $(top_srcdir)/../gcc/BASE-VER)
@@ -67,8 +77,6 @@ Index: b/src/lto-plugin/Makefile.in
  AM_CPPFLAGS = -I$(top_srcdir)/../include $(DEFS)
  AM_CFLAGS = @ac_lto_plugin_warn_cflags@
  AM_LDFLAGS = @ac_lto_plugin_ldflags@
-Index: b/src/lto-plugin/Makefile.am
-===================================================================
 --- a/src/lto-plugin/Makefile.am
 +++ b/src/lto-plugin/Makefile.am
 @@ -5,7 +5,7 @@ AUTOMAKE_OPTIONS = no-dependencies
@@ -80,11 +88,9 @@ Index: b/src/lto-plugin/Makefile.am
  
  AM_CPPFLAGS = -I$(top_srcdir)/../include $(DEFS)
  AM_CFLAGS = @ac_lto_plugin_warn_cflags@
-Index: b/src/libitm/Makefile.in
-===================================================================
 --- a/src/libitm/Makefile.in
 +++ b/src/libitm/Makefile.in
-@@ -336,8 +336,8 @@ SUBDIRS = testsuite
+@@ -458,8 +458,8 @@ SUBDIRS = testsuite
  gcc_version := $(shell @get_gcc_base_ver@ $(top_srcdir)/../gcc/BASE-VER)
  abi_version = -fabi-version=4
  search_path = $(addprefix $(top_srcdir)/config/, $(config_path)) $(top_srcdir)
@@ -95,11 +101,9 @@ Index: b/src/libitm/Makefile.in
  AM_CPPFLAGS = $(addprefix -I, $(search_path))
  AM_CFLAGS = $(XCFLAGS)
  AM_CXXFLAGS = $(XCFLAGS) -std=gnu++0x -funwind-tables -fno-exceptions \
-Index: b/src/libitm/Makefile.am
-===================================================================
 --- a/src/libitm/Makefile.am
 +++ b/src/libitm/Makefile.am
-@@ -11,8 +11,8 @@ abi_version = -fabi-version=4
+@@ -12,8 +12,8 @@ abi_version = -fabi-version=4
  config_path = @config_path@
  search_path = $(addprefix $(top_srcdir)/config/, $(config_path)) $(top_srcdir)
  
@@ -110,11 +114,9 @@ Index: b/src/libitm/Makefile.am
  
  vpath % $(strip $(search_path))
  
-Index: b/src/gcc/gcc.c
-===================================================================
 --- a/src/gcc/gcc.c
 +++ b/src/gcc/gcc.c
-@@ -4265,7 +4265,7 @@ process_command (unsigned int decoded_op
+@@ -4425,7 +4425,7 @@ process_command (unsigned int decoded_op
  	 GCC_EXEC_PREFIX is typically a directory name with a trailing
  	 / (which is ignored by make_relative_prefix), so append a
  	 program name.  */
@@ -123,7 +125,7 @@ Index: b/src/gcc/gcc.c
        gcc_libexec_prefix = get_relative_prefix (tmp_prefix,
  						standard_exec_prefix,
  						standard_libexec_prefix);
-@@ -4291,15 +4291,15 @@ process_command (unsigned int decoded_op
+@@ -4451,15 +4451,15 @@ process_command (unsigned int decoded_op
      {
        int len = strlen (gcc_exec_prefix);
  
@@ -143,11 +145,9 @@ Index: b/src/gcc/gcc.c
  	}
  
        set_std_prefix (gcc_exec_prefix, len);
-Index: b/src/gcc/Makefile.in
-===================================================================
 --- a/src/gcc/Makefile.in
 +++ b/src/gcc/Makefile.in
-@@ -615,9 +615,9 @@ libexecdir = @libexecdir@
+@@ -617,9 +617,9 @@ libexecdir = @libexecdir@
  # --------
  
  # Directory in which the compiler finds libraries etc.
@@ -159,7 +159,7 @@ Index: b/src/gcc/Makefile.in
  # Directory in which all plugin resources are installed
  plugin_resourcesdir = $(libsubdir)/plugin
   # Directory in which plugin headers are installed
-@@ -2199,8 +2199,8 @@ default-d.o: config/default-d.c
+@@ -2170,8 +2170,8 @@ default-d.o: config/default-d.c
  
  DRIVER_DEFINES = \
    -DSTANDARD_STARTFILE_PREFIX=\"$(unlibsubdir)/\" \
@@ -170,7 +170,7 @@ Index: b/src/gcc/Makefile.in
    -DDEFAULT_TARGET_VERSION=\"$(version)\" \
    -DDEFAULT_REAL_TARGET_MACHINE=\"$(real_target_noncanonical)\" \
    -DDEFAULT_TARGET_MACHINE=\"$(target_noncanonical)\" \
-@@ -2888,7 +2888,7 @@ PREPROCESSOR_DEFINES = \
+@@ -2863,7 +2863,7 @@ PREPROCESSOR_DEFINES = \
    -DTOOL_INCLUDE_DIR=\"$(gcc_tooldir)/include\" \
    -DNATIVE_SYSTEM_HEADER_DIR=\"$(NATIVE_SYSTEM_HEADER_DIR)\" \
    -DPREFIX=\"$(prefix)/\" \
@@ -179,11 +179,9 @@ Index: b/src/gcc/Makefile.in
    @TARGET_SYSTEM_ROOT_DEFINE@
  
  CFLAGS-cppbuiltin.o += $(PREPROCESSOR_DEFINES) -DBASEVER=$(BASEVER_s)
-Index: b/src/libssp/Makefile.in
-===================================================================
 --- a/src/libssp/Makefile.in
 +++ b/src/libssp/Makefile.in
-@@ -291,7 +291,7 @@ gcc_version := $(shell @get_gcc_base_ver
+@@ -365,7 +365,7 @@ gcc_version := $(shell @get_gcc_base_ver
  @LIBSSP_USE_SYMVER_SUN_TRUE@@LIBSSP_USE_SYMVER_TRUE@version_dep = ssp.map-sun
  AM_CFLAGS = -Wall $(XCFLAGS)
  toolexeclib_LTLIBRARIES = libssp.la libssp_nonshared.la
@@ -192,8 +190,6 @@ Index: b/src/libssp/Makefile.in
  nobase_libsubinclude_HEADERS = ssp/ssp.h ssp/string.h ssp/stdio.h ssp/unistd.h
  libssp_la_SOURCES = \
  	ssp.c gets-chk.c memcpy-chk.c memmove-chk.c mempcpy-chk.c \
-Index: b/src/libssp/Makefile.am
-===================================================================
 --- a/src/libssp/Makefile.am
 +++ b/src/libssp/Makefile.am
 @@ -39,7 +39,7 @@ AM_CFLAGS += $(XCFLAGS)
@@ -205,24 +201,20 @@ Index: b/src/libssp/Makefile.am
  nobase_libsubinclude_HEADERS = ssp/ssp.h ssp/string.h ssp/stdio.h ssp/unistd.h
  
  libssp_la_SOURCES = \
-Index: b/src/libquadmath/Makefile.in
-===================================================================
 --- a/src/libquadmath/Makefile.in
 +++ b/src/libquadmath/Makefile.in
-@@ -358,7 +358,7 @@ AUTOMAKE_OPTIONS = 1.8 foreign
+@@ -467,7 +467,7 @@ AUTOMAKE_OPTIONS = foreign info-in-build
  
  @BUILD_LIBQUADMATH_TRUE@libquadmath_la_DEPENDENCIES = $(version_dep) $(libquadmath_la_LIBADD)
  @BUILD_LIBQUADMATH_TRUE@nodist_libsubinclude_HEADERS = quadmath.h quadmath_weak.h
 -@BUILD_LIBQUADMATH_TRUE@libsubincludedir = $(libdir)/gcc/$(target_alias)/$(gcc_version)/include
 +@BUILD_LIBQUADMATH_TRUE@libsubincludedir = $(libdir)/gcc-cross/$(target_alias)/$(gcc_version)/include
  @BUILD_LIBQUADMATH_TRUE@libquadmath_la_SOURCES = \
- @BUILD_LIBQUADMATH_TRUE@  math/x2y2m1q.c math/isinf_nsq.c math/acoshq.c math/fmodq.c \
+ @BUILD_LIBQUADMATH_TRUE@  math/x2y2m1q.c math/acoshq.c math/fmodq.c \
  @BUILD_LIBQUADMATH_TRUE@  math/acosq.c math/frexpq.c \
-Index: b/src/libquadmath/Makefile.am
-===================================================================
 --- a/src/libquadmath/Makefile.am
 +++ b/src/libquadmath/Makefile.am
-@@ -42,7 +42,7 @@ libquadmath_la_LDFLAGS = -version-info `
+@@ -41,7 +41,7 @@ libquadmath_la_LDFLAGS = -version-info `
  libquadmath_la_DEPENDENCIES = $(version_dep) $(libquadmath_la_LIBADD)
  
  nodist_libsubinclude_HEADERS = quadmath.h quadmath_weak.h
@@ -230,9 +222,7 @@ Index: b/src/libquadmath/Makefile.am
 +libsubincludedir = $(libdir)/gcc-cross/$(target_alias)/$(gcc_version)/include
  
  libquadmath_la_SOURCES = \
-   math/x2y2m1q.c math/isinf_nsq.c math/acoshq.c math/fmodq.c \
-Index: b/src/libobjc/Makefile.in
-===================================================================
+   math/x2y2m1q.c math/acoshq.c math/fmodq.c \
 --- a/src/libobjc/Makefile.in
 +++ b/src/libobjc/Makefile.in
 @@ -48,7 +48,7 @@ extra_ldflags_libobjc = @extra_ldflags_l
@@ -244,8 +234,6 @@ Index: b/src/libobjc/Makefile.in
  
  # Multilib support variables.
  MULTISRCTOP =
-Index: b/src/libada/Makefile.in
-===================================================================
 --- a/src/libada/Makefile.in
 +++ b/src/libada/Makefile.in
 @@ -68,7 +68,7 @@ GCC_DIR=$(MULTIBUILDTOP)../../$(host_sub
@@ -255,13 +243,11 @@ Index: b/src/libada/Makefile.in
 -libsubdir := $(libdir)/gcc/$(target_noncanonical)/$(version)$(MULTISUBDIR)
 +libsubdir := $(libdir)/gcc-cross/$(target_noncanonical)/$(version)$(MULTISUBDIR)
  ADA_RTS_DIR=$(GCC_DIR)/ada/rts$(subst /,_,$(MULTISUBDIR))
- ADA_RTS_SUBDIR=./rts$(subst /,_,$(MULTISUBDIR))
  
-Index: b/src/libgomp/Makefile.in
-===================================================================
+ # exeext should not be used because it's the *host* exeext.  We're building
 --- a/src/libgomp/Makefile.in
 +++ b/src/libgomp/Makefile.in
-@@ -406,8 +406,8 @@ gcc_version := $(shell @get_gcc_base_ver
+@@ -520,8 +520,8 @@ gcc_version := $(shell @get_gcc_base_ver
  search_path = $(addprefix $(top_srcdir)/config/, $(config_path)) $(top_srcdir) \
  	      $(top_srcdir)/../include
  
@@ -272,11 +258,9 @@ Index: b/src/libgomp/Makefile.in
  AM_CPPFLAGS = $(addprefix -I, $(search_path))
  AM_CFLAGS = $(XCFLAGS)
  AM_LDFLAGS = $(XLDFLAGS) $(SECTION_LDFLAGS) $(OPT_LDFLAGS)
-Index: b/src/libgomp/Makefile.am
-===================================================================
 --- a/src/libgomp/Makefile.am
 +++ b/src/libgomp/Makefile.am
-@@ -10,8 +10,8 @@ config_path = @config_path@
+@@ -11,8 +11,8 @@ config_path = @config_path@
  search_path = $(addprefix $(top_srcdir)/config/, $(config_path)) $(top_srcdir) \
  	      $(top_srcdir)/../include
  
@@ -287,11 +271,9 @@ Index: b/src/libgomp/Makefile.am
  
  vpath % $(strip $(search_path))
  
-Index: b/src/libgcc/Makefile.in
-===================================================================
 --- a/src/libgcc/Makefile.in
 +++ b/src/libgcc/Makefile.in
-@@ -197,7 +197,7 @@ STRIP = @STRIP@
+@@ -199,7 +199,7 @@ STRIP = @STRIP@
  STRIP_FOR_TARGET = $(STRIP)
  
  # Directory in which the compiler finds libraries etc.
@@ -300,8 +282,6 @@ Index: b/src/libgcc/Makefile.in
  # Used to install the shared libgcc.
  slibdir = @slibdir@
  # Maybe used for DLLs on Windows targets.
-Index: b/src/libffi/include/Makefile.am
-===================================================================
 --- a/src/libffi/include/Makefile.am
 +++ b/src/libffi/include/Makefile.am
 @@ -8,6 +8,6 @@ EXTRA_DIST=ffi.h.in
@@ -312,11 +292,9 @@ Index: b/src/libffi/include/Makefile.am
 +toollibffidir := $(libdir)/gcc-cross/$(target_alias)/$(gcc_version)/include
  
  toollibffi_HEADERS = ffi.h ffitarget.h
-Index: b/src/libffi/include/Makefile.in
-===================================================================
 --- a/src/libffi/include/Makefile.in
 +++ b/src/libffi/include/Makefile.in
-@@ -254,7 +254,7 @@ EXTRA_DIST = ffi.h.in
+@@ -321,7 +321,7 @@ EXTRA_DIST = ffi.h.in
  
  # Where generated headers like ffitarget.h get installed.
  gcc_version := $(shell @get_gcc_base_ver@ $(top_srcdir)/../gcc/BASE-VER)
@@ -325,8 +303,6 @@ Index: b/src/libffi/include/Makefile.in
  toollibffi_HEADERS = ffi.h ffitarget.h
  all: all-am
  
-Index: b/src/libcc1/Makefile.am
-===================================================================
 --- a/src/libcc1/Makefile.am
 +++ b/src/libcc1/Makefile.am
 @@ -37,7 +37,7 @@ libiberty = $(if $(wildcard $(libiberty_
@@ -338,11 +314,9 @@ Index: b/src/libcc1/Makefile.am
  cc1libdir = $(libdir)/$(libsuffix)
  
  if ENABLE_PLUGIN
-Index: b/src/libcc1/Makefile.in
-===================================================================
 --- a/src/libcc1/Makefile.in
 +++ b/src/libcc1/Makefile.in
-@@ -303,7 +303,7 @@ libiberty = $(if $(wildcard $(libiberty_
+@@ -393,7 +393,7 @@ libiberty = $(if $(wildcard $(libiberty_
  	    $(Wc)$(libiberty_normal)))
  
  libiberty_dep = $(patsubst $(Wc)%,%,$(libiberty))
@@ -351,8 +325,6 @@ Index: b/src/libcc1/Makefile.in
  cc1libdir = $(libdir)/$(libsuffix)
  @ENABLE_PLUGIN_TRUE@plugin_LTLIBRARIES = libcc1plugin.la libcp1plugin.la
  @ENABLE_PLUGIN_TRUE@cc1lib_LTLIBRARIES = libcc1.la
-Index: b/src/libsanitizer/Makefile.am
-===================================================================
 --- a/src/libsanitizer/Makefile.am
 +++ b/src/libsanitizer/Makefile.am
 @@ -1,6 +1,6 @@
@@ -363,11 +335,9 @@ Index: b/src/libsanitizer/Makefile.am
  
  nodist_saninclude_HEADERS =
  
-Index: b/src/libsanitizer/Makefile.in
-===================================================================
 --- a/src/libsanitizer/Makefile.in
 +++ b/src/libsanitizer/Makefile.in
-@@ -291,7 +291,7 @@ top_build_prefix = @top_build_prefix@
+@@ -357,7 +357,7 @@ top_build_prefix = @top_build_prefix@
  top_builddir = @top_builddir@
  top_srcdir = @top_srcdir@
  ACLOCAL_AMFLAGS = -I .. -I ../config
@@ -376,24 +346,20 @@ Index: b/src/libsanitizer/Makefile.in
  nodist_saninclude_HEADERS = $(am__append_1)
  @SANITIZER_SUPPORTED_TRUE@SUBDIRS = sanitizer_common $(am__append_2) \
  @SANITIZER_SUPPORTED_TRUE@	$(am__append_3) lsan asan ubsan \
-Index: b/src/libphobos/configure.ac
-===================================================================
 --- a/src/libphobos/configure.ac
 +++ b/src/libphobos/configure.ac
-@@ -154,6 +154,8 @@ PHOBOS_SOVERSION="76:2:0"
- AC_SUBST([DRUNTIME_SOVERSION])
- AC_SUBST([PHOBOS_SOVERSION])
+@@ -152,6 +152,8 @@ AC_SUBST(SPEC_PHOBOS_DEPS)
+ libtool_VERSION=76:3:0
+ AC_SUBST(libtool_VERSION)
  
 +# trigger rebuild of the configure file
 +
  # Set default flags (after DRUNTIME_WERROR!)
  if test -z "$GDCFLAGS"; then
      GDCFLAGS="-Wall $WERROR_FLAG -g -frelease -O2"
-Index: b/src/libphobos/m4/druntime.m4
-===================================================================
 --- a/src/libphobos/m4/druntime.m4
 +++ b/src/libphobos/m4/druntime.m4
-@@ -98,6 +98,7 @@ AC_DEFUN([DRUNTIME_INSTALL_DIRECTORIES],
+@@ -105,6 +105,7 @@ AC_DEFUN([DRUNTIME_INSTALL_DIRECTORIES],
  
    # Default case for install directory for D sources files.
    gdc_include_dir='$(libdir)/gcc/${target_alias}/${gcc_version}/include/d'
