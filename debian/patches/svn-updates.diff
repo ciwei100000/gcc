@@ -1,10 +1,10 @@
-# DP: updates from the 7 branch upto 20190203 (r268483).
+# DP: updates from the 7 branch upto 20190209 (r268721).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Sun Feb  3 10:30:48 CET 2019
-Sun Feb  3 09:30:48 UTC 2019 (revision 268483)
+Sat Feb  9 12:22:03 CET 2019
+Sat Feb  9 11:22:03 UTC 2019 (revision 268721)
 EOF
 }
 
@@ -522,7 +522,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-7-branch)
 @@ -1 +1 @@
 -20181206
-+20190203
++20190209
 Index: gcc/lra.c
 ===================================================================
 --- a/src/gcc/lra.c	(.../tags/gcc_7_4_0_release)
@@ -559,7 +559,56 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,345 @@
+@@ -1,3 +1,394 @@
++2019-02-08  Eric Botcazou  <ebotcazou@adacore.com>
++
++	Backport from mainline
++	2018-06-11  Segher Boessenkool  <segher@kernel.crashing.org>
++
++	PR target/85755
++	* config/rs6000/rs6000.md (*movdi_internal32): Put constraint modifiers
++	on the correct operand.
++	(*movdi_internal64): Ditto.
++
++2019-02-06  Kelvin Nilsen  <kelvin@gcc.gnu.org>
++
++	Backport from mainline.
++	2019-01-30  Kelvin Nilsen  <kelvin@gcc.gnu.org>
++	* config/rs6000/rs6000-c.c (altivec-resolve_overloaded_builtin):
++	Change handling of ALTIVEC_BUILTIN_VEC_EXTRACT.  Coerce result to
++	type of vector element when vec_extract is implemented by direct
++	move.
++
++2019-02-06  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* config/i386/i386.c (ix86_expand_prologue): Emit a memory blockage
++	after restoring registers saved to allocate the frame on Windows.
++
++2019-02-05  Andreas Krebbel  <krebbel@linux.ibm.com>
++
++	Backport from mainline
++	2019-02-05  Andreas Krebbel  <krebbel@linux.ibm.com>
++
++	PR target/88856
++	* config/s390/s390.md: Remove load and test FP splitter.
++
++2019-02-04  Bill Schmidt  <wshmidt@linux.ibm.com>
++
++	PR target/87064
++	Backport from mainline
++
++	2019-01-30  Bill Schmidt  <wschmidt@linux.ibm.com>
++
++	PR target/87064
++	* config/rs6000/vsx.md (*vsx_reduc_<VEC_reduc_name>_v4sf_scalar):
++	Disable for little-endian.
++
++	2019-01-22  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/87064
++	* config/rs6000/vsx.md (*vsx_reduc_<VEC_reduc_name>_v2df_scalar):
++	Disable for little endian.
++
 +2018-01-31  Bill Schmidt  <wschmidt@linux.ibm.com>
 +
 +	Backport from mainline
@@ -905,7 +954,7 @@ Index: gcc/ChangeLog
  2018-12-06  Release Manager
  
  	* GCC 7.4.0 released.
-@@ -19,13 +365,13 @@
+@@ -19,13 +414,13 @@
  	* gcc/dwarf2out.c (FUNC_SECOND_SECT_LABEL): New.
  	(dwarf2out_switch_text_section): Generate a local label for the second
  	function sub-section and apply it as the second FDE start label.
@@ -1140,6 +1189,38 @@ Index: gcc/testsuite/gcc.target/powerpc/altivec_vld_vst_addr-1.c
 +  __builtin_vec_st (v, 0, address);
 +}
 +
+Index: gcc/testsuite/gcc.target/powerpc/vec-extract-uint128-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vec-extract-uint128-1.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vec-extract-uint128-1.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,27 @@
++/* Test to verify that the vec_extract from a vector of
++   unsigned __int128s remains unsigned.  */
++/* { dg-do run } */
++/* { dg-options "-ansi -mcpu=power8 " } */
++/* { dg-require-effective-target p8vector_hw } */
++/* { dg-skip-if "do not override -mcpu" { powerpc*-*-* } { "-mcpu=*" } { "-mcpu=power8" } } */
++
++#include <altivec.h>
++#include <stdio.h>
++#include <stdlib.h>
++
++int test1(unsigned __int128 ul) {
++
++  vector unsigned __int128 v = vec_splats(ul);
++
++  if (vec_extract (v, 0) < ul)
++    abort();
++  return 0;
++}
++
++int main()
++{
++  test1 (((__int128) 0xf600000000000000LL) << 64);
++  test1 (((__int128) 0x7600000000000000LL) << 64);
++  test1 (((__int128) 0x0600000000000000LL) << 64);
++  return 0;
++}
 Index: gcc/testsuite/gcc.target/powerpc/altivec_vld_vst_addr-2.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/powerpc/altivec_vld_vst_addr-2.c	(.../tags/gcc_7_4_0_release)
@@ -1237,6 +1318,306 @@ Index: gcc/testsuite/gcc.target/powerpc/altivec_vld_vst_addr-2.c
 +  __builtin_vec_st (v, 0, address);
 +}
 +
+Index: gcc/testsuite/gcc.target/powerpc/vec-extract-slong-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vec-extract-slong-1.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vec-extract-slong-1.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,27 @@
++/* Test to verify that the vec_extract from a vector of
++   signed longs remains signed.  */
++/* { dg-do run } */
++/* { dg-options "-ansi -mcpu=power8 " } */
++/* { dg-require-effective-target p8vector_hw } */
++/* { dg-skip-if "do not override -mcpu" { powerpc*-*-* } { "-mcpu=*" } { "-mcpu=power8" } } */
++
++#include <altivec.h>
++#include <stdio.h>
++#include <stdlib.h>
++
++int test1(signed long long int sl) {
++
++  vector signed long long int v = vec_splats(sl);
++
++  if (vec_extract (v, 0) > sl)
++    abort();
++  return 0;
++}
++
++int main()
++{
++  test1 (0xf600000000000000LL);
++  test1 (0x7600000000000000LL);
++  test1 (0x0600000000000000LL);
++  return 0;
++}
+Index: gcc/testsuite/gcc.target/powerpc/vec-extract-ushort-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vec-extract-ushort-1.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vec-extract-ushort-1.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,29 @@
++/* Test to verify that the vec_extract from a vector of
++   signed shorts remains signed.  */
++/* { dg-do run } */
++/* { dg-options "-ansi -mcpu=power8 " } */
++/* { dg-require-effective-target p8vector_hw } */
++/* { dg-skip-if "do not override -mcpu" { powerpc*-*-* } { "-mcpu=*" } { "-mcpu=power8" } } */
++
++#include <altivec.h>
++#include <stdio.h>
++#include <stdlib.h>
++
++int test1(unsigned short us) {
++  int use;
++
++  vector unsigned short v = vec_splats(us);
++  use = vec_extract(v,0);
++
++  if (use != us)
++    abort();
++  return 0;
++}
++
++int main()
++{
++  test1 (0xf600);
++  test1 (0x7600);
++  test1 (0x0600);
++  return 0;
++}
+Index: gcc/testsuite/gcc.target/powerpc/vec-extract-uint-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vec-extract-uint-1.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vec-extract-uint-1.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,29 @@
++/* Test to verify that the vec_extract from a vector of
++   unsigned ints remains unsigned.  */
++/* { dg-do run } */
++/* { dg-options "-ansi -mcpu=power8 " } */
++/* { dg-require-effective-target p8vector_hw } */
++/* { dg-skip-if "do not override -mcpu" { powerpc*-*-* } { "-mcpu=*" } { "-mcpu=power8" } } */
++
++#include <altivec.h>
++#include <stdio.h>
++#include <stdlib.h>
++
++int test1(unsigned int ui) {
++  long long int uie;
++
++  vector unsigned int v = vec_splats(ui);
++  uie = vec_extract(v,0);
++
++  if (uie != ui)
++    abort();
++  return 0;
++}
++
++int main()
++{
++  test1 (0xf6000000);
++  test1 (0x76000000);
++  test1 (0x06000000);
++  return 0;
++}
+Index: gcc/testsuite/gcc.target/powerpc/vec-extract-schar-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vec-extract-schar-1.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vec-extract-schar-1.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,29 @@
++/* Test to verify that the vec_extract from a vector of
++   signed chars remains signed.  */
++/* { dg-do run } */
++/* { dg-options "-ansi -mcpu=power8 " } */
++/* { dg-require-effective-target p8vector_hw } */
++/* { dg-skip-if "do not override -mcpu" { powerpc*-*-* } { "-mcpu=*" } { "-mcpu=power8" } } */
++
++#include <altivec.h>
++#include <stdio.h>
++#include <stdlib.h>
++
++int test1(signed char sc) {
++  int sce;
++
++  vector signed char v = vec_splats(sc);
++  sce = vec_extract(v,0);
++
++  if (sce != sc)
++    abort();
++  return 0;
++}
++
++int main()
++{
++  test1 (0xf6);
++  test1 (0x76);
++  test1 (0x06);
++  return 0;
++}
+Index: gcc/testsuite/gcc.target/powerpc/vec-extract-sint128-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vec-extract-sint128-1.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vec-extract-sint128-1.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,27 @@
++/* Test to verify that the vec_extract from a vector of
++   signed __int128s remains signed.  */
++/* { dg-do run } */
++/* { dg-options "-ansi -mcpu=power8 " } */
++/* { dg-require-effective-target p8vector_hw } */
++/* { dg-skip-if "do not override -mcpu" { powerpc*-*-* } { "-mcpu=*" } { "-mcpu=power8" } } */
++
++#include <altivec.h>
++#include <stdio.h>
++#include <stdlib.h>
++
++int test1(signed __int128 st) {
++
++  vector signed __int128 v = vec_splats(st);
++
++  if (vec_extract (v, 0) > st)
++    abort();
++  return 0;
++}
++
++int main()
++{
++  test1 (((__int128) 0xf600000000000000LL) << 64);
++  test1 (((__int128) 0x7600000000000000LL) << 64);
++  test1 (((__int128) 0x0600000000000000LL) << 64);
++  return 0;
++}
+Index: gcc/testsuite/gcc.target/powerpc/vec-extract-sshort-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vec-extract-sshort-1.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vec-extract-sshort-1.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,29 @@
++/* Test to verify that the vec_extract from a vector of
++   signed shorts remains signed.  */
++/* { dg-do run } */
++/* { dg-options "-ansi -mcpu=power8 " } */
++/* { dg-require-effective-target p8vector_hw } */
++/* { dg-skip-if "do not override -mcpu" { powerpc*-*-* } { "-mcpu=*" } { "-mcpu=power8" } } */
++
++#include <altivec.h>
++#include <stdio.h>
++#include <stdlib.h>
++
++int test1(signed short ss) {
++  int sse;
++
++  vector signed short v = vec_splats(ss);
++  sse = vec_extract(v,0);
++
++  if (sse != ss)
++    abort();
++  return 0;
++}
++
++int main()
++{
++  test1 (0xf600);
++  test1 (0x7600);
++  test1 (0x0600);
++  return 0;
++}
+Index: gcc/testsuite/gcc.target/powerpc/vec-extract-ulong-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vec-extract-ulong-1.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vec-extract-ulong-1.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,27 @@
++/* Test to verify that the vec_extract from a vector of
++   unsigned longs remains unsigned.  */
++/* { dg-do run } */
++/* { dg-options "-ansi -mcpu=power8 " } */
++/* { dg-require-effective-target p8vector_hw } */
++/* { dg-skip-if "do not override -mcpu" { powerpc*-*-* } { "-mcpu=*" } { "-mcpu=power8" } } */
++
++#include <altivec.h>
++#include <stdio.h>
++#include <stdlib.h>
++
++int test1(unsigned long long int ul) {
++
++  vector unsigned long long int v = vec_splats(ul);
++
++  if (vec_extract (v, 0) < ul)
++    abort();
++  return 0;
++}
++
++int main()
++{
++  test1 (0xf600000000000000LL);
++  test1 (0x7600000000000000LL);
++  test1 (0x0600000000000000LL);
++  return 0;
++}
+Index: gcc/testsuite/gcc.target/powerpc/vec-extract-uchar-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vec-extract-uchar-1.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vec-extract-uchar-1.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,29 @@
++/* Test to verify that the vec_extract from a vector of
++   unsigned chars remains unsigned.  */
++/* { dg-do run } */
++/* { dg-options "-ansi -mcpu=power8 " } */
++/* { dg-require-effective-target p8vector_hw } */
++/* { dg-skip-if "do not override -mcpu" { powerpc*-*-* } { "-mcpu=*" } { "-mcpu=power8" } } */
++
++#include <altivec.h>
++#include <stdio.h>
++#include <stdlib.h>
++
++int test1(unsigned char uc) {
++  int uce;
++
++  vector unsigned char v = vec_splats(uc);
++  uce = vec_extract(v,0);
++
++  if (uce != uc)
++    abort();
++  return 0;
++}
++
++int main()
++{
++  test1 (0xf6);
++  test1 (0x76);
++  test1 (0x06);
++  return 0;
++}
+Index: gcc/testsuite/gcc.target/powerpc/vec-extract-sint-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vec-extract-sint-1.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vec-extract-sint-1.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,29 @@
++/* Test to verify that the vec_extract from a vector of
++   signed ints remains signed.  */
++/* { dg-do run } */
++/* { dg-options "-ansi -mcpu=power8 " } */
++/* { dg-require-effective-target p8vector_hw } */
++/* { dg-skip-if "do not override -mcpu" { powerpc*-*-* } { "-mcpu=*" } { "-mcpu=power8" } } */
++
++#include <altivec.h>
++#include <stdio.h>
++#include <stdlib.h>
++
++int test1(signed int si) {
++  long long int sie;
++
++  vector signed int v = vec_splats(si);
++  sie = vec_extract(v,0);
++
++  if (sie != si)
++    abort();
++  return 0;
++}
++
++int main()
++{
++  test1 (0xf6000000);
++  test1 (0x76000000);
++  test1 (0x06000000);
++  return 0;
++}
 Index: gcc/testsuite/gcc.target/powerpc/pr87496-1.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/powerpc/pr87496-1.c	(.../tags/gcc_7_4_0_release)
@@ -1755,6 +2136,39 @@ Index: gcc/testsuite/gfortran.dg/c_funptr_1_mod.f90
 +  end type WNDCLASSEX_T
 +
 +end module win32_types
+Index: gcc/testsuite/gfortran.dg/warn_undefined_1.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/warn_undefined_1.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/warn_undefined_1.f90	(.../branches/gcc-7-branch)
+@@ -0,0 +1,28 @@
++! { dg-do compile }
++! { dg-options "-O2 -Wuninitialized" }
++! PR 67679 - this used to cause an undefined warning for
++! variables generated by the compiler.
++
++subroutine s(h, Gmin, r)
++
++   implicit none
++   real, intent(in) ::  Gmin(3), h(3)
++   integer, intent(inout) :: r
++
++   integer :: x_min(3), x_max(3), k, iStat
++   logical, dimension(:), allocatable :: check
++
++   do k = 1,1
++      x_min(k) = int(Gmin(k)*h(k))
++      x_max(k) = int(Gmin(k)*h(k))
++   end do
++
++   allocate(check(x_min(1):x_max(1)),stat=iStat)
++
++   check(:) = .false.
++
++   do k = x_min(1),x_max(1)
++            r = r + 1
++   end do
++
++end
 Index: gcc/testsuite/gfortran.dg/pr88169_2.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr88169_2.f90	(.../tags/gcc_7_4_0_release)
@@ -1977,6 +2391,21 @@ Index: gcc/testsuite/gfortran.dg/pr88269.f90
 +   write (end=1e1) ! { dg-error "tag not allowed" }
 +end
 +
+Index: gcc/testsuite/gfortran.dg/coarray_lock_7.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/coarray_lock_7.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/coarray_lock_7.f90	(.../branches/gcc-7-branch)
+@@ -35,8 +35,8 @@
+ ! { dg-final { scan-tree-dump-times "_gfortran_caf_lock \\(caf_token.., 0, 0, 0B, 0B, 0B, 0\\);" 1 "original" } }
+ ! { dg-final { scan-tree-dump-times "_gfortran_caf_unlock \\(caf_token.., 0, 0, 0B, 0B, 0\\);" 1 "original" } }
+ 
+-! { dg-final { scan-tree-dump-times "_gfortran_caf_lock \\(caf_token.., \\(3 - \\(integer\\(kind=4\\)\\) parm...dim\\\[0\\\].lbound\\) \\+ \\(integer\\(kind=4\\)\\) MAX_EXPR <\\(parm...dim\\\[0\\\].ubound - parm...dim\\\[0\\\].lbound\\) \\+ 1, 0> \\* \\(3 - \\(integer\\(kind=4\\)\\) parm...dim\\\[1\\\].lbound\\), 0, 0B, &ii, 0B, 0\\);|_gfortran_caf_lock \\(caf_token.1, \\(3 - parm...dim\\\[0\\\].lbound\\) \\+ MAX_EXPR <\\(parm...dim\\\[0\\\].ubound - parm...dim\\\[0\\\].lbound\\) \\+ 1, 0> \\* \\(3 - parm...dim\\\[1\\\].lbound\\), 0, 0B, &ii, 0B, 0\\);" 1 "original" } }
+-! { dg-final { scan-tree-dump-times "_gfortran_caf_unlock \\(caf_token.., \\(2 - \\(integer\\(kind=4\\)\\) parm...dim\\\[0\\\].lbound\\) \\+ \\(integer\\(kind=4\\)\\) MAX_EXPR <\\(parm...dim\\\[0\\\].ubound - parm...dim\\\[0\\\].lbound\\) \\+ 1, 0> \\* \\(3 - \\(integer\\(kind=4\\)\\) parm...dim\\\[1\\\].lbound\\), 0, &ii, 0B, 0\\);|_gfortran_caf_unlock \\(caf_token.., \\(2 - parm...dim\\\[0\\\].lbound\\) \\+ MAX_EXPR <\\(parm...dim\\\[0\\\].ubound - parm...dim\\\[0\\\].lbound\\) \\+ 1, 0> \\* \\(3 - parm...dim\\\[1\\\].lbound\\), 0, &ii, 0B, 0\\);" 1 "original" } }
++! { dg-final { scan-tree-dump-times "_gfortran_caf_lock \\(caf_token.., \\(3 - \\(integer\\(kind=4\\)\\) parm....dim\\\[0\\\].lbound\\) \\+ \\(integer\\(kind=4\\)\\) MAX_EXPR <\\(parm....dim\\\[0\\\].ubound - parm....dim\\\[0\\\].lbound\\) \\+ 1, 0> \\* \\(3 - \\(integer\\(kind=4\\)\\) parm....dim\\\[1\\\].lbound\\), 0, 0B, &ii, 0B, 0\\);|_gfortran_caf_lock \\(caf_token.1, \\(3 - parm....dim\\\[0\\\].lbound\\) \\+ MAX_EXPR <\\(parm....dim\\\[0\\\].ubound - parm....dim\\\[0\\\].lbound\\) \\+ 1, 0> \\* \\(3 - parm....dim\\\[1\\\].lbound\\), 0, 0B, &ii, 0B, 0\\);" 1 "original" } }
++! { dg-final { scan-tree-dump-times "_gfortran_caf_unlock \\(caf_token.., \\(2 - \\(integer\\(kind=4\\)\\) parm....dim\\\[0\\\].lbound\\) \\+ \\(integer\\(kind=4\\)\\) MAX_EXPR <\\(parm....dim\\\[0\\\].ubound - parm....dim\\\[0\\\].lbound\\) \\+ 1, 0> \\* \\(3 - \\(integer\\(kind=4\\)\\) parm....dim\\\[1\\\].lbound\\), 0, &ii, 0B, 0\\);|_gfortran_caf_unlock \\(caf_token.., \\(2 - parm....dim\\\[0\\\].lbound\\) \\+ MAX_EXPR <\\(parm....dim\\\[0\\\].ubound - parm....dim\\\[0\\\].lbound\\) \\+ 1, 0> \\* \\(3 - parm....dim\\\[1\\\].lbound\\), 0, &ii, 0B, 0\\);" 1 "original" } }
+ 
+ ! { dg-final { scan-tree-dump-times "_gfortran_caf_lock \\(three.token, 0, 5 - \\(integer\\(kind=4\\)\\) three.dim\\\[0\\\].lbound, &acquired.\[0-9\]+, 0B, 0B, 0\\);|_gfortran_caf_lock \\(three.token, 0, 5 - three.dim\\\[0\\\].lbound, &acquired.\[0-9\]+, 0B, 0B, 0\\);" 1 "original" } }
+ ! { dg-final { scan-tree-dump-times "_gfortran_caf_unlock \\(three.token, 0, 8 - \\(integer\\(kind=4\\)\\) three.dim\\\[0\\\].lbound, &ii, 0B, 0\\);|_gfortran_caf_unlock \\(three.token, 0, 8 - three.dim\\\[0\\\].lbound, &ii, 0B, 0\\);" 1 "original" } }
 Index: gcc/testsuite/gfortran.dg/pr88206.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr88206.f90	(.../tags/gcc_7_4_0_release)
@@ -2182,6 +2611,48 @@ Index: gcc/testsuite/gfortran.dg/ptr_func_assign_5.f08
 +   t(2) = "World!"
 +   if (s .ne. "Hello World!") Stop 4
 +end program p
+Index: gcc/testsuite/gfortran.dg/alloc_comp_assign_16.f03
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/alloc_comp_assign_16.f03	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/alloc_comp_assign_16.f03	(.../branches/gcc-7-branch)
+@@ -0,0 +1,37 @@
++! { dg-do run }
++!
++! Test the fix for PR88393 in which a segfault occurred as indicated.
++!
++! Contributed by Janus Weil  <janus@gcc.gnu.org>
++!
++module m
++   implicit none
++   type :: t
++      character(len=:), allocatable :: cs
++   contains
++      procedure :: ass
++      generic :: assignment(=) => ass
++   end type
++contains
++   subroutine ass(a, b)
++      class(t), intent(inout) :: a
++      class(t), intent(in)    :: b
++      a%cs = b%cs
++      print *, "ass"
++   end subroutine
++end module
++
++program p
++   use m
++   implicit none
++   type :: t2
++      type(t) :: c
++   end type
++   type(t2), dimension(1:2) :: arr
++   arr(1)%c%cs = "abcd"
++   arr(2)%c = arr(1)%c  ! Segfault here.
++   print *, "done", arr(2)%c%cs, arr(2)%c%cs
++! Make sure with valgrind that there are no memory leaks.
++   deallocate (arr(1)%c%cs)
++   deallocate (arr(2)%c%cs)
++end
 Index: gcc/testsuite/gfortran.dg/pr88205.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr88205.f90	(.../tags/gcc_7_4_0_release)
@@ -2382,6 +2853,47 @@ Index: gcc/testsuite/gnat.dg/opt75.adb
 +procedure Opt75 is
 +begin
 +  null;
++end;
+Index: gcc/testsuite/gnat.dg/opt76.adb
+===================================================================
+--- a/src/gcc/testsuite/gnat.dg/opt76.adb	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gnat.dg/opt76.adb	(.../branches/gcc-7-branch)
+@@ -0,0 +1,36 @@
++-- { dg-do run }
++-- { dg-options "-O2 -gnatp -fno-omit-frame-pointer" }
++
++procedure Opt76 is
++
++   type Integer_Access is access Integer;
++   type Registry_Array is array (Natural range <>) of Integer_Access;
++
++   procedure Nested (Input, Parser : Integer; A, B : Boolean) is
++
++      Index : Registry_Array (1 .. 1024);
++      Not_B : constant Boolean := not B;
++
++      procedure Inner (Input : Integer) is
++      begin
++         if Input /= 1 then
++            raise Program_Error;
++         end if;
++
++         if Parser = 128 and then A and then Not_B then
++            Inner (Input);
++            Index (Index'First) := null;
++         end if;
++      end;
++
++   begin
++      Inner (Input);
++   end;
++
++   Input : Integer := 1 with Volatile;
++   Parser : Integer := 2 with Volatile;
++      
++begin
++   Nested (Input, Parser, False, True);
++   Nested (Input, Parser, True, False);
 +end;
 Index: gcc/testsuite/gnat.dg/opt75_pkg.adb
 ===================================================================
@@ -2865,7 +3377,52 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,335 @@
+@@ -1,3 +1,380 @@
++2019-02-06  Kelvin Nilsen  <kelvin@gcc.gnu.org>
++
++	2019-02-05  Kelvin Nilsen  <kelvin@gcc.gnu.org>
++	* gcc.target/powerpc/vec-extract-slong-1.c: Require p8 execution
++	hardware.
++	* gcc.target/powerpc/vec-extract-schar-1.c: Likewise.
++	* gcc.target/powerpc/vec-extract-sint128-1.c: Likewise.
++	* gcc.target/powerpc/vec-extract-sshort-1.c: Likewise.
++	* gcc.target/powerpc/vec-extract-ulong-1.c: Likewise.
++	* gcc.target/powerpc/vec-extract-uchar-1.c: Likewise.
++	* gcc.target/powerpc/vec-extract-sint-1.c: Likewise.
++	* gcc.target/powerpc/vec-extract-uint128-1.c: Likewise.
++	* gcc.target/powerpc/vec-extract-ushort-1.c: Likewise.
++	* gcc.target/powerpc/vec-extract-uint-1.c: Likewise.
++
++	Backport from mainline.
++	2019-01-30  Kelvin Nilsen  <kelvin@gcc.gnu.org>
++	* gcc.target/powerpc/vec-extract-schar-1.c: New test.
++	* gcc.target/powerpc/vec-extract-sint-1.c: New test.
++	* gcc.target/powerpc/vec-extract-sint128-1.c: New test.
++	* gcc.target/powerpc/vec-extract-slong-1.c: New test.
++	* gcc.target/powerpc/vec-extract-sshort-1.c: New test.
++	* gcc.target/powerpc/vec-extract-uchar-1.c: New test.
++	* gcc.target/powerpc/vec-extract-uint-1.c: New test.
++	* gcc.target/powerpc/vec-extract-uint128-1.c: New test.
++	* gcc.target/powerpc/vec-extract-ulong-1.c: New test.
++	* gcc.target/powerpc/vec-extract-ushort-1.c: New test.
++
++2019-02-06  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* gnat.dg/opt76.adb: New test.
++
++2019-02-05  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/67679
++	Backport from trunk
++	* gfortran.dg/warn_undefined_1.f90: New test.
++	* gfortran.dg/coarray_lock_7.f90: Fix patterns in test.
++
++2019-02-03  Paul Thomas  <pault@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/88393
++	* gfortran.dg/alloc_comp_assign_16.f03 : New test.
++
 +2019-02-02  Thomas Koenig  <tkoenig@gcc.gnu.org>
 +
 +	PR fortran/88298
@@ -3705,7 +4262,30 @@ Index: gcc/ada/ChangeLog
 ===================================================================
 --- a/src/gcc/ada/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/ada/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,31 @@
+@@ -1,3 +1,54 @@
++2019-02-08  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* gcc-interface/trans.c (Loop_Statement_to_gnu): Replace tests on
++	individual flag_unswitch_loops and flag_tree_loop_vectorize switches
++	with test on global optimize switch.
++	(Raise_Error_to_gnu): Likewise.
++
++2019-02-07  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* s-linux-sparc.ads (ETIMEDOUT): Set to correct value.
++
++2019-02-06  Eric Botcazou  <ebotcazou@adacore.com>
++
++	Backport from mainline
++	2017-09-05  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* gcc-interface/decl.c (annotate_value): Tidy up.
++	<INTEGER_CST>: Set TCODE instead of recursing.
++	<COMPONENT_REF>: Set TCODE instead of calling Create_Node manually.
++	<MULT_EXPR, PLUS_EXPR>: Fold conversions into inner operations.
++	<BIT_AND_EXPR>: Adjust.
++	<CALL_EXPR>: Do not fall through.
++
 +2019-01-27  Eric Botcazou  <ebotcazou@adacore.com>
 +
 +	* gcc-interface/decl.c (array_type_has_nonaliased_component): Return
@@ -3737,6 +4317,19 @@ Index: gcc/ada/ChangeLog
  2018-12-06  Release Manager
  
  	* GCC 7.4.0 released.
+Index: gcc/ada/s-linux-sparc.ads
+===================================================================
+--- a/src/gcc/ada/s-linux-sparc.ads	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/ada/s-linux-sparc.ads	(.../branches/gcc-7-branch)
+@@ -70,7 +70,7 @@
+    EINVAL    : constant := 22;
+    ENOMEM    : constant := 12;
+    EPERM     : constant := 1;
+-   ETIMEDOUT : constant := 110;
++   ETIMEDOUT : constant := 60;
+ 
+    -------------
+    -- Signals --
 Index: gcc/ada/adaint.c
 ===================================================================
 --- a/src/gcc/ada/adaint.c	(.../tags/gcc_7_4_0_release)
@@ -3814,7 +4407,26 @@ Index: gcc/ada/gcc-interface/decl.c
    /* Otherwise, rely exclusively on properties of the element type.  */
    return type_for_nonaliased_component_p (TREE_TYPE (gnu_type));
  }
-@@ -8078,8 +8074,9 @@
+@@ -8052,9 +8048,8 @@
+ annotate_value (tree gnu_size)
+ {
+   TCode tcode;
+-  Node_Ref_Or_Val ops[3], ret, pre_op1 = No_Uint;
++  Node_Ref_Or_Val ops[3] = { No_Uint, No_Uint, No_Uint };
+   struct tree_int_map in;
+-  int i;
+ 
+   /* See if we've already saved the value for this node.  */
+   if (EXPR_P (gnu_size))
+@@ -8071,49 +8066,56 @@
+     in.base.from = NULL_TREE;
+ 
+   /* If we do not return inside this switch, TCODE will be set to the
+-     code to use for a Create_Node operand and LEN (set above) will be
+-     the number of recursive calls for us to make.  */
+-
++     code to be used in a call to Create_Node.  */
+   switch (TREE_CODE (gnu_size))
      {
      case INTEGER_CST:
        /* For negative values, build NEGATE_EXPR of the opposite.  Such values
@@ -3825,16 +4437,65 @@ Index: gcc/ada/gcc-interface/decl.c
 +      if (tree_int_cst_sign_bit (gnu_size))
  	{
  	  tree t = wide_int_to_tree (sizetype, wi::neg (gnu_size));
- 	  return annotate_value (build1 (NEGATE_EXPR, sizetype, t));
-@@ -8111,7 +8108,6 @@
+-	  return annotate_value (build1 (NEGATE_EXPR, sizetype, t));
++	  tcode = Negate_Expr;
++	  ops[0] = UI_From_gnu (t);
+ 	}
++      else
++	return TREE_OVERFLOW (gnu_size) ? No_Uint : UI_From_gnu (gnu_size);
++      break;
+ 
+-      return TREE_OVERFLOW (gnu_size) ? No_Uint : UI_From_gnu (gnu_size);
+-
+     case COMPONENT_REF:
+       /* The only case we handle here is a simple discriminant reference.  */
+       if (DECL_DISCRIMINANT_NUMBER (TREE_OPERAND (gnu_size, 1)))
+ 	{
+-	  tree n = DECL_DISCRIMINANT_NUMBER (TREE_OPERAND (gnu_size, 1));
++	  tree ref = gnu_size;
++	  gnu_size = TREE_OPERAND (ref, 1);
+ 
+ 	  /* Climb up the chain of successive extensions, if any.  */
+-	  while (TREE_CODE (TREE_OPERAND (gnu_size, 0)) == COMPONENT_REF
+-		 && DECL_NAME (TREE_OPERAND (TREE_OPERAND (gnu_size, 0), 1))
++	  while (TREE_CODE (TREE_OPERAND (ref, 0)) == COMPONENT_REF
++		 && DECL_NAME (TREE_OPERAND (TREE_OPERAND (ref, 0), 1))
+ 		    == parent_name_id)
+-	    gnu_size = TREE_OPERAND (gnu_size, 0);
++	    ref = TREE_OPERAND (ref, 0);
+ 
+-	  if (TREE_CODE (TREE_OPERAND (gnu_size, 0)) == PLACEHOLDER_EXPR)
+-	    return
+-	      Create_Node (Discrim_Val, annotate_value (n), No_Uint, No_Uint);
++	  if (TREE_CODE (TREE_OPERAND (ref, 0)) == PLACEHOLDER_EXPR)
++	    {
++	      /* Fall through to common processing as a FIELD_DECL.  */
++	      tcode = Discrim_Val;
++	      ops[0] = UI_From_gnu (DECL_DISCRIMINANT_NUMBER (gnu_size));
++	    }
++	  else
++	    return No_Uint;
+ 	}
++      else
++	return No_Uint;
++      break;
+ 
+-      return No_Uint;
+-
+-    CASE_CONVERT:   case NON_LVALUE_EXPR:
++    CASE_CONVERT:
++    case NON_LVALUE_EXPR:
+       return annotate_value (TREE_OPERAND (gnu_size, 0));
  
        /* Now just list the operations we handle.  */
      case COND_EXPR:		tcode = Cond_Expr; break;
 -    case PLUS_EXPR:		tcode = Plus_Expr; break;
      case MINUS_EXPR:		tcode = Minus_Expr; break;
-     case MULT_EXPR:		tcode = Mult_Expr; break;
+-    case MULT_EXPR:		tcode = Mult_Expr; break;
      case TRUNC_DIV_EXPR:	tcode = Trunc_Div_Expr; break;
-@@ -8138,20 +8134,28 @@
+     case CEIL_DIV_EXPR:		tcode = Ceil_Div_Expr; break;
+     case FLOOR_DIV_EXPR:	tcode = Floor_Div_Expr; break;
+@@ -8138,20 +8140,56 @@
      case EQ_EXPR:		tcode = Eq_Expr; break;
      case NE_EXPR:		tcode = Ne_Expr; break;
  
@@ -3844,11 +4505,39 @@ Index: gcc/ada/gcc-interface/decl.c
 +	  && tree_int_cst_sign_bit (TREE_OPERAND (gnu_size, 1)))
 +	{
 +	  tcode = Minus_Expr;
++	  ops[0] = annotate_value (TREE_OPERAND (gnu_size, 0));
 +	  wide_int op1 = wi::neg (TREE_OPERAND (gnu_size, 1));
-+	  pre_op1 = annotate_value (wide_int_to_tree (sizetype, op1));
++	  ops[1] = annotate_value (wide_int_to_tree (sizetype, op1));
++	  break;
 +	}
-+      else
-+	tcode = Plus_Expr;
++
++      /* ... fall through ... */
++
++    case MULT_EXPR:
++      tcode = (TREE_CODE (gnu_size) == MULT_EXPR ? Mult_Expr : Plus_Expr);
++      /* Fold conversions from bytes to bits into inner operations.  */
++      if (TREE_CODE (TREE_OPERAND (gnu_size, 1)) == INTEGER_CST
++	  && CONVERT_EXPR_P (TREE_OPERAND (gnu_size, 0)))
++	{
++	  tree inner_op = TREE_OPERAND (TREE_OPERAND (gnu_size, 0), 0);
++	  if (TREE_CODE (inner_op) == TREE_CODE (gnu_size)
++	      && TREE_CODE (TREE_OPERAND (inner_op, 1)) == INTEGER_CST)
++	    {
++	      ops[0] = annotate_value (TREE_OPERAND (inner_op, 0));
++	      tree inner_op_op1 = TREE_OPERAND (inner_op, 1);
++	      tree gnu_size_op1 = TREE_OPERAND (gnu_size, 1);
++	      wide_int op1;
++	      if (TREE_CODE (gnu_size) == MULT_EXPR)
++		op1 = wi::mul (inner_op_op1, gnu_size_op1);
++	      else
++		{
++		  op1 = wi::add (inner_op_op1, gnu_size_op1);
++		  if (wi::zext (op1, TYPE_PRECISION (sizetype)) == 0)
++		    return ops[0];
++		}
++	      ops[1] = annotate_value (wide_int_to_tree (sizetype, op1));
++	    }
++	}
 +      break;
 +
      case BIT_AND_EXPR:
@@ -3868,9 +4557,62 @@ Index: gcc/ada/gcc-interface/decl.c
 -	    }
 +	  wide_int op1 = wi::sext (TREE_OPERAND (gnu_size, 1),
 +				   TYPE_PRECISION (sizetype));
-+	  pre_op1 = annotate_value (wide_int_to_tree (sizetype, op1));
++	  ops[1] = annotate_value (wide_int_to_tree (sizetype, op1));
  	}
        break;
+ 
+@@ -8162,14 +8200,11 @@
+       if (List_Representation_Info == 3 || type_annotate_only)
+ 	{
+ 	  tree t = maybe_inline_call_in_expr (gnu_size);
+-	  if (t)
+-	    return annotate_value (t);
++	  return t ? annotate_value (t) : No_Uint;
+ 	}
+       else
+ 	return Uint_Minus_1;
+ 
+-      /* Fall through... */
+-
+     default:
+       return No_Uint;
+     }
+@@ -8176,20 +8211,15 @@
+ 
+   /* Now get each of the operands that's relevant for this code.  If any
+      cannot be expressed as a repinfo node, say we can't.  */
+-  for (i = 0; i < 3; i++)
+-    ops[i] = No_Uint;
+-
+-  for (i = 0; i < TREE_CODE_LENGTH (TREE_CODE (gnu_size)); i++)
+-    {
+-      if (i == 1 && pre_op1 != No_Uint)
+-	ops[i] = pre_op1;
+-      else
++  for (int i = 0; i < TREE_CODE_LENGTH (TREE_CODE (gnu_size)); i++)
++    if (ops[i] == No_Uint)
++      {
+ 	ops[i] = annotate_value (TREE_OPERAND (gnu_size, i));
+-      if (ops[i] == No_Uint)
+-	return No_Uint;
+-    }
++	if (ops[i] == No_Uint)
++	  return No_Uint;
++      }
+ 
+-  ret = Create_Node (tcode, ops[0], ops[1], ops[2]);
++  Node_Ref_Or_Val ret = Create_Node (tcode, ops[0], ops[1], ops[2]);
+ 
+   /* Save the result in the cache.  */
+   if (in.base.from)
+@@ -8202,7 +8232,7 @@
+       h = annotate_value_cache->find_slot (&in, INSERT);
+       gcc_assert (!*h);
+       *h = ggc_alloc<tree_int_map> ();
+-      (*h)->base.from = gnu_size;
++      (*h)->base.from = in.base.from;
+       (*h)->to = ret;
+     }
  
 Index: gcc/ada/gcc-interface/trans.c
 ===================================================================
@@ -3892,6 +4634,53 @@ Index: gcc/ada/gcc-interface/trans.c
  
    /* Set the condition under which the loop must keep going.
       For the case "LOOP .... END LOOP;" the condition is always true.  */
+@@ -3104,7 +3102,7 @@
+ 	 unswitching is enabled, do not require the loop bounds to be also
+ 	 invariant, as their evaluation will still be ahead of the loop.  */
+       if (vec_safe_length (gnu_loop_info->checks) > 0
+-	 && (make_invariant (&gnu_low, &gnu_high) || flag_unswitch_loops))
++	 && (make_invariant (&gnu_low, &gnu_high) || optimize >= 3))
+ 	{
+ 	  struct range_check_info_d *rci;
+ 	  unsigned int i, n_remaining_checks = 0;
+@@ -3156,14 +3154,15 @@
+ 
+ 	  /* Note that loop unswitching can only be applied a small number of
+ 	     times to a given loop (PARAM_MAX_UNSWITCH_LEVEL default to 3).  */
+-	  if (0 < n_remaining_checks && n_remaining_checks <= 3
+-	      && optimize > 1 && !optimize_size)
++	  if (IN_RANGE (n_remaining_checks, 1, 3)
++	      && optimize >= 2
++	      && !optimize_size)
+ 	    FOR_EACH_VEC_ELT (*gnu_loop_info->checks, i, rci)
+ 	      if (rci->invariant_cond != boolean_false_node)
+ 		{
+ 		  TREE_OPERAND (rci->inserted_cond, 0) = rci->invariant_cond;
+ 
+-		  if (flag_unswitch_loops)
++		  if (optimize >= 3)
+ 		    add_stmt_with_node_force (rci->inserted_cond, gnat_node);
+ 		}
+ 	}
+@@ -3170,8 +3169,7 @@
+ 
+       /* Second, if loop vectorization is enabled and the iterations of the
+ 	 loop can easily be proved as independent, mark the loop.  */
+-      if (optimize
+-	  && flag_tree_loop_vectorize
++      if (optimize >= 3
+ 	  && independent_iterations_p (LOOP_STMT_BODY (gnu_loop_stmt)))
+ 	LOOP_STMT_IVDEP (gnu_loop_stmt) = 1;
+ 
+@@ -5639,7 +5637,7 @@
+ 		= build1 (SAVE_EXPR, boolean_type_node, boolean_true_node);
+ 	      vec_safe_push (loop->checks, rci);
+ 	      gnu_cond = build_noreturn_cond (gnat_to_gnu (gnat_cond));
+-	      if (flag_unswitch_loops)
++	      if (optimize >= 3)
+ 		gnu_cond = build_binary_op (TRUTH_ANDIF_EXPR,
+ 					    boolean_type_node,
+ 					    rci->inserted_cond,
 @@ -6906,14 +6904,22 @@
  	  /* Or else, use memset when the conditions are met.  */
  	  else if (use_memset_p)
@@ -4074,6 +4863,93 @@ Index: gcc/fortran/trans-expr.c
    gfc_int4_type_node = gfc_get_int_type (4);
  
    /* In case of integer operands with kinds 1 or 2, we call the integer kind 4
+@@ -5635,6 +5712,16 @@
+ 	      break;
+ 	    }
+ 
++	  if (e->ts.type == BT_DERIVED && fsym && fsym->ts.type == BT_CLASS)
++	    {
++	      /* The derived type is passed to gfc_deallocate_alloc_comp.
++		 Therefore, class actuals can be handled correctly but derived
++		 types passed to class formals need the _data component.  */
++	      tmp = gfc_class_data_get (tmp);
++	      if (!CLASS_DATA (fsym)->attr.dimension)
++		tmp = build_fold_indirect_ref_loc (input_location, tmp);
++	    }
++
+ 	  if (e->expr_type == EXPR_OP
+ 		&& e->value.op.op == INTRINSIC_PARENTHESES
+ 		&& e->value.op.op1->expr_type == EXPR_VARIABLE)
+@@ -5646,16 +5733,6 @@
+ 	      gfc_add_expr_to_block (&se->post, local_tmp);
+ 	    }
+ 
+-	  if (e->ts.type == BT_DERIVED && fsym && fsym->ts.type == BT_CLASS)
+-	    {
+-	      /* The derived type is passed to gfc_deallocate_alloc_comp.
+-		 Therefore, class actuals can handled correctly but derived
+-		 types passed to class formals need the _data component.  */
+-	      tmp = gfc_class_data_get (tmp);
+-	      if (!CLASS_DATA (fsym)->attr.dimension)
+-		tmp = build_fold_indirect_ref_loc (input_location, tmp);
+-	    }
+-
+ 	  tmp = gfc_deallocate_alloc_comp (e->ts.u.derived, tmp, parm_rank);
+ 
+ 	  gfc_prepend_expr_to_block (&post, tmp);
+Index: gcc/fortran/trans-array.c
+===================================================================
+--- a/src/gcc/fortran/trans-array.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/fortran/trans-array.c	(.../branches/gcc-7-branch)
+@@ -5482,6 +5482,7 @@
+   tree var_overflow = NULL_TREE;
+   tree cond;
+   tree set_descriptor;
++  tree not_prev_allocated = NULL_TREE;
+   stmtblock_t set_descriptor_block;
+   stmtblock_t elseblock;
+   gfc_expr **lower;
+@@ -5619,8 +5620,6 @@
+ 	}
+     }
+ 
+-  gfc_start_block (&elseblock);
+-
+   /* Allocate memory to store the data.  */
+   if (POINTER_TYPE_P (TREE_TYPE (se->expr)))
+     se->expr = build_fold_indirect_ref_loc (input_location, se->expr);
+@@ -5636,6 +5635,19 @@
+     pointer = gfc_conv_descriptor_data_get (se->expr);
+   STRIP_NOPS (pointer);
+ 
++  if (allocatable)
++    {
++      not_prev_allocated = gfc_create_var (logical_type_node,
++					   "not_prev_allocated");
++      tmp = fold_build2_loc (input_location, EQ_EXPR,
++			     logical_type_node, pointer,
++			     build_int_cst (TREE_TYPE (pointer), 0));
++
++      gfc_add_modify (&se->pre, not_prev_allocated, tmp);
++    }
++
++  gfc_start_block (&elseblock);
++
+   /* The allocatable variant takes the old pointer as first argument.  */
+   if (allocatable)
+     gfc_allocate_allocatable (&elseblock, pointer, size, token,
+@@ -5672,6 +5684,11 @@
+       cond = fold_build2_loc (input_location, EQ_EXPR,
+ 			  logical_type_node, status,
+ 			  build_int_cst (TREE_TYPE (status), 0));
++
++      if (not_prev_allocated != NULL_TREE)
++	cond = fold_build2_loc (input_location, TRUTH_OR_EXPR,
++				logical_type_node, cond, not_prev_allocated);
++
+       gfc_add_expr_to_block (&se->pre,
+ 		 fold_build3_loc (input_location, COND_EXPR, void_type_node,
+ 				  cond,
 Index: gcc/fortran/decl.c
 ===================================================================
 --- a/src/gcc/fortran/decl.c	(.../tags/gcc_7_4_0_release)
@@ -4197,7 +5073,24 @@ Index: gcc/fortran/ChangeLog
 ===================================================================
 --- a/src/gcc/fortran/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/fortran/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,128 @@
+@@ -1,3 +1,145 @@
++2019-02-05  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/67679
++	Backport from trunk
++	* trans-array.c (gfc_array_allocate):  For setting the bounds on
++	the new array, add a condition for a not previously allocated
++	variable.
++
++2019-02-03  Paul Thomas  <pault@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/88393
++	* trans-expr.c (gfc_conv_procedure_call): For derived entities,
++	passed in parentheses to class formals, invert the order of
++	copying allocatable components to taking the _data of the
++	class expression.
++
 +2019-02-02  Thomas Koenig  <tkoenig@gcc.gnu.org>
 +
 +	PR fortran/88298
@@ -5020,6 +5913,47 @@ Index: gcc/config/alpha/alpha.c
    /* Find the value.  Note that this will be a stable indirection, or
       a composite of stable indirections in the case of complex.  */
    r = alpha_gimplify_va_arg_1 (type, base, offset, pre_p);
+Index: gcc/config/s390/s390.md
+===================================================================
+--- a/src/gcc/config/s390/s390.md	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/config/s390/s390.md	(.../branches/gcc-7-branch)
+@@ -1332,10 +1332,11 @@
+ ; (TF|DF|SF|TD|DD|SD) instructions
+ 
+ 
+-; load and test instructions turn SNaN into QNaN what is not
++; FIXME: load and test instructions turn SNaN into QNaN what is not
+ ; acceptable if the target will be used afterwards.  On the other hand
+ ; they are quite convenient for implementing comparisons with 0.0. So
+-; try to enable them via splitter if the value isn't needed anymore.
++; try to enable them via splitter/peephole if the value isn't needed anymore.
++; See testcases: load-and-test-fp-1.c and load-and-test-fp-2.c
+ 
+ ; ltxbr, ltdbr, ltebr, ltxtr, ltdtr
+ (define_insn "*cmp<mode>_ccs_0"
+@@ -1348,22 +1349,6 @@
+    [(set_attr "op_type" "RRE")
+     (set_attr "type"  "fsimp<mode>")])
+ 
+-(define_split
+-  [(set (match_operand 0 "cc_reg_operand")
+-	(compare (match_operand:FP 1 "register_operand")
+-		 (match_operand:FP 2 "const0_operand")))]
+-  "TARGET_HARD_FLOAT && REG_P (operands[1]) && dead_or_set_p (insn, operands[1])"
+-  [(parallel
+-    [(set (match_dup 0) (match_dup 3))
+-     (clobber (match_dup 1))])]
+- {
+-   /* s390_match_ccmode requires the compare to have the same CC mode
+-      as the CC destination register.  */
+-   operands[3] = gen_rtx_COMPARE (GET_MODE (operands[0]),
+-				  operands[1], operands[2]);
+- })
+-
+-
+ ; VX: TFmode in FPR pairs: use cxbr instead of wfcxb
+ ; cxtr, cdtr, cxbr, cdbr, cebr, cdb, ceb, wfcsb, wfcdb
+ (define_insn "*cmp<mode>_ccs"
 Index: gcc/config/s390/s390-builtins.def
 ===================================================================
 --- a/src/gcc/config/s390/s390-builtins.def	(.../tags/gcc_7_4_0_release)
@@ -6122,7 +7056,35 @@ Index: gcc/config/i386/i386.c
  	  || ix86_incoming_stack_boundary < 128))
      {
        crtl->preferred_stack_boundary = 128;
-@@ -24118,7 +24124,7 @@
+@@ -14493,8 +14499,9 @@
+ 	}
+       m->fs.sp_offset += allocate;
+ 
+-      /* Use stack_pointer_rtx for relative addressing so that code
+-	 works for realigned stack, too.  */
++      /* Use stack_pointer_rtx for relative addressing so that code works for
++	 realigned stack.  But this means that we need a blockage to prevent
++	 stores based on the frame pointer from being scheduled before.  */
+       if (r10_live && eax_live)
+         {
+ 	  t = gen_rtx_PLUS (Pmode, stack_pointer_rtx, eax);
+@@ -14503,6 +14510,7 @@
+ 	  t = plus_constant (Pmode, t, UNITS_PER_WORD);
+ 	  emit_move_insn (gen_rtx_REG (word_mode, AX_REG),
+ 			  gen_frame_mem (word_mode, t));
++	  emit_insn (gen_memory_blockage ());
+ 	}
+       else if (eax_live || r10_live)
+ 	{
+@@ -14510,6 +14518,7 @@
+ 	  emit_move_insn (gen_rtx_REG (word_mode,
+ 				       (eax_live ? AX_REG : R10_REG)),
+ 			  gen_frame_mem (word_mode, t));
++	  emit_insn (gen_memory_blockage ());
+ 	}
+     }
+   gcc_assert (m->fs.sp_offset == frame.stack_pointer_offset);
+@@ -24118,7 +24127,7 @@
    return true;
  }
  
@@ -6131,7 +7093,7 @@ Index: gcc/config/i386/i386.c
  
  static rtx
  ix86_expand_sse_cmp (rtx dest, enum rtx_code code, rtx cmp_op0, rtx cmp_op1,
-@@ -24144,9 +24150,12 @@
+@@ -24144,9 +24153,12 @@
    else
      cmp_mode = cmp_ops_mode;
  
@@ -6146,7 +7108,7 @@ Index: gcc/config/i386/i386.c
      cmp_op1 = force_reg (cmp_ops_mode, cmp_op1);
  
    if (optimize
-@@ -24266,7 +24275,7 @@
+@@ -24266,7 +24278,7 @@
        rtx (*gen) (rtx, rtx, rtx, rtx) = NULL;
        rtx d = dest;
  
@@ -6155,7 +7117,7 @@ Index: gcc/config/i386/i386.c
  	op_true = force_reg (mode, op_true);
  
        op_false = force_reg (mode, op_false);
-@@ -38388,6 +38397,16 @@
+@@ -38388,6 +38400,16 @@
            unsigned char lsb_index = INTVAL (op1) & 0xFF;
            op1 = GEN_INT (length);
            op2 = GEN_INT (lsb_index);
@@ -6239,6 +7201,21 @@ Index: gcc/config/rs6000/rs6000-c.c
    { ALTIVEC_BUILTIN_VEC_ST, ALTIVEC_BUILTIN_STVX_V4SF,
      RS6000_BTI_void, RS6000_BTI_V4SF, RS6000_BTI_INTSI, ~RS6000_BTI_V4SF },
    { ALTIVEC_BUILTIN_VEC_ST, ALTIVEC_BUILTIN_STVX_V4SF,
+@@ -6037,7 +6057,13 @@
+ 	    }
+ 
+ 	  if (call)
+-	    return build_call_expr (call, 2, arg1, arg2);
++	    {
++	      tree result = build_call_expr (call, 2, arg1, arg2);
++	      /* Coerce the result to vector element type.  May be no-op.  */
++	      arg1_inner_type = TREE_TYPE (arg1_type);
++	      result = fold_convert (arg1_inner_type, result);
++	      return result;
++	    }
+ 	}
+ 
+       /* Build *(((arg1_inner_type*)&(vector type){arg1})+arg2). */
 Index: gcc/config/rs6000/rs6000.c
 ===================================================================
 --- a/src/gcc/config/rs6000/rs6000.c	(.../tags/gcc_7_4_0_release)
@@ -6282,6 +7259,75 @@ Index: gcc/config/rs6000/vsx.md
    "#"
    "&& reload_completed"
    [(set (match_dup 0) (match_dup 4))]
+@@ -3585,7 +3585,7 @@
+ 	  (match_dup 1))
+ 	 (parallel [(const_int 1)])))
+    (clobber (match_scratch:DF 2 "=0,0,&wd,&wa"))]
+-  "VECTOR_UNIT_VSX_P (V2DFmode)"
++  "BYTES_BIG_ENDIAN && VECTOR_UNIT_VSX_P (V2DFmode)"
+   "#"
+   ""
+   [(const_int 0)]
+@@ -3613,7 +3613,7 @@
+    (clobber (match_scratch:V4SF 2 "=&wf,&wa"))
+    (clobber (match_scratch:V4SF 3 "=&wf,&wa"))
+    (clobber (match_scratch:V4SF 4 "=0,0"))]
+-  "VECTOR_UNIT_VSX_P (V4SFmode)"
++  "BYTES_BIG_ENDIAN && VECTOR_UNIT_VSX_P (V4SFmode)"
+   "#"
+   ""
+   [(const_int 0)]
+Index: gcc/config/rs6000/rs6000.md
+===================================================================
+--- a/src/gcc/config/rs6000/rs6000.md	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/config/rs6000/rs6000.md	(.../branches/gcc-7-branch)
+@@ -8564,16 +8564,16 @@
+ 
+ (define_insn "*movdi_internal32"
+   [(set (match_operand:DI 0 "rs6000_nonimmediate_operand"
+-         "=Y,        r,         r,         ^m,        ^d,         ^d,
+-          r,         ^wY,       $Z,        ^wb,       $wv,        ^wi,
++         "=Y,        r,         r,         m,         ^d,         ^d,
++          r,         wY,        Z,         ^wb,       $wv,        ^wi,
+           *wo,       *wo,       *wv,       *wi,       *wi,        *wv,
+           *wv")
+ 
+ 	(match_operand:DI 1 "input_operand"
+-          "r,        Y,         r,         d,         m,          d,
+-           IJKnGHF,  wb,        wv,        wY,        Z,          wi,
+-           Oj,       wM,        OjwM,      Oj,        wM,         wS,
+-           wB"))]
++         "r,         Y,         r,         ^d,        m,          ^d,
++          IJKnGHF,   ^wb,       $wv,       wY,        Z,          ^wi,
++          Oj,        wM,        OjwM,      Oj,        wM,         wS,
++          wB"))]
+ 
+   "! TARGET_POWERPC64
+    && (gpc_reg_operand (operands[0], DImode)
+@@ -8641,17 +8641,17 @@
+ (define_insn "*movdi_internal64"
+   [(set (match_operand:DI 0 "nonimmediate_operand"
+                "=YZ,       r,         r,         r,         r,          r,
+-                ^m,        ^d,        ^d,        ^wY,       $Z,         $wb,
++                m,         ^d,        ^d,        wY,        Z,          $wb,
+                 $wv,       ^wi,       *wo,       *wo,       *wv,        *wi,
+                 *wi,       *wv,       *wv,       r,         *h,         *h,
+                 ?*r,       ?*wg,      ?*r,       ?*wj")
+ 
+ 	(match_operand:DI 1 "input_operand"
+-                "r,        YZ,        r,         I,         L,          nF,
+-                 d,        m,         d,         wb,        wv,         wY,
+-                 Z,        wi,        Oj,        wM,        OjwM,       Oj,
+-                 wM,       wS,        wB,        *h,        r,          0,
+-                 wg,       r,         wj,        r"))]
++               "r,         YZ,        r,         I,         L,          nF,
++                ^d,        m,         ^d,        ^wb,       $wv,        wY,
++                Z,         ^wi,       Oj,        wM,        OjwM,       Oj,
++                wM,        wS,        wB,        *h,        r,          0,
++                wg,        r,         wj,        r"))]
+ 
+   "TARGET_POWERPC64
+    && (gpc_reg_operand (operands[0], DImode)
 Index: gcc/config/darwin.h
 ===================================================================
 --- a/src/gcc/config/darwin.h	(.../tags/gcc_7_4_0_release)
@@ -6378,14 +7424,30 @@ Index: libgfortran/ChangeLog
 ===================================================================
 --- a/src/libgfortran/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/libgfortran/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,18 @@
+@@ -1,3 +1,34 @@
++2019-02-03  Uroš Bizjak  <ubizjak@gmail.com>
++
++	PR libfortran/88678
++	Revert:
++	2016-11-16  Szabolcs Nagy  <szabolcs.nagy@arm.com>
++
++	PR libfortran/78314
++	* config/fpu-glibc.h (support_fpu_trap): Use feenableexcept.
++
++2019-02-03  Uroš Bizjak  <ubizjak@gmail.com>
++
++	PR libfortran/88678
++	* config/fpu-glibc.h (set_fpu_trap_exceptions): Clear stalled
++	exception flags before changing trap mode.  Optimize to call
++	feenableexcept and fedisableexcept only once.
++
 +2019-01-13  Jerry DeLisle  <jvdelisle@gcc.gnu.org>
 +
 +	PR libfortran/88776
 +	* io/list_read.c (namelist_read): Use nml_err_ret path on read error
 +	not based on stdin_unit.
 +	* io/open.c (newunit): Free format buffer if the unit specified is for
-+	stdin, stdout, or stderr. 
++	stdin, stdout, or stderr.
 +
 +2018-12-06  Janne Blomqvist  <jb@gcc.gnu.org>
 +
@@ -6397,6 +7459,122 @@ Index: libgfortran/ChangeLog
  2018-12-06  Release Manager
  
  	* GCC 7.4.0 released.
+Index: libgfortran/config/fpu-glibc.h
+===================================================================
+--- a/src/libgfortran/config/fpu-glibc.h	(.../tags/gcc_7_4_0_release)
++++ b/src/libgfortran/config/fpu-glibc.h	(.../branches/gcc-7-branch)
+@@ -39,48 +39,56 @@
+ 
+ void set_fpu_trap_exceptions (int trap, int notrap)
+ {
++  int mode_set = 0, mode_clr = 0;
++
+ #ifdef FE_INVALID
+   if (trap & GFC_FPE_INVALID)
+-    feenableexcept (FE_INVALID);
++    mode_set |= FE_INVALID;
+   if (notrap & GFC_FPE_INVALID)
+-    fedisableexcept (FE_INVALID);
++    mode_clr |= FE_INVALID;
+ #endif
+ 
+ /* Some glibc targets (like alpha) have FE_DENORMAL, but not many.  */
+ #ifdef FE_DENORMAL
+   if (trap & GFC_FPE_DENORMAL)
+-    feenableexcept (FE_DENORMAL);
++    mode_set |= FE_DENORMAL;
+   if (notrap & GFC_FPE_DENORMAL)
+-    fedisableexcept (FE_DENORMAL);
++    mode_clr |= FE_DENORMAL;
+ #endif
+ 
+ #ifdef FE_DIVBYZERO
+   if (trap & GFC_FPE_ZERO)
+-    feenableexcept (FE_DIVBYZERO);
++    mode_set |= FE_DIVBYZERO;
+   if (notrap & GFC_FPE_ZERO)
+-    fedisableexcept (FE_DIVBYZERO);
++    mode_clr |= FE_DIVBYZERO;
+ #endif
+ 
+ #ifdef FE_OVERFLOW
+   if (trap & GFC_FPE_OVERFLOW)
+-    feenableexcept (FE_OVERFLOW);
++    mode_set |= FE_OVERFLOW;
+   if (notrap & GFC_FPE_OVERFLOW)
+-    fedisableexcept (FE_OVERFLOW);
++    mode_clr |= FE_OVERFLOW;
+ #endif
+ 
+ #ifdef FE_UNDERFLOW
+   if (trap & GFC_FPE_UNDERFLOW)
+-    feenableexcept (FE_UNDERFLOW);
++    mode_set |= FE_UNDERFLOW;
+   if (notrap & GFC_FPE_UNDERFLOW)
+-    fedisableexcept (FE_UNDERFLOW);
++    mode_clr |= FE_UNDERFLOW;
+ #endif
+ 
+ #ifdef FE_INEXACT
+   if (trap & GFC_FPE_INEXACT)
+-    feenableexcept (FE_INEXACT);
++    mode_set |= FE_INEXACT;
+   if (notrap & GFC_FPE_INEXACT)
+-    fedisableexcept (FE_INEXACT);
++    mode_clr |= FE_INEXACT;
+ #endif
++
++  /* Clear stalled exception flags.  */
++  feclearexcept (FE_ALL_EXCEPT);
++
++  feenableexcept (mode_set);
++  fedisableexcept (mode_clr);
+ }
+ 
+ 
+@@ -121,41 +129,7 @@
+ int
+ support_fpu_trap (int flag)
+ {
+-  int exceptions = 0;
+-  int old;
+-
+-  if (!support_fpu_flag (flag))
+-    return 0;
+-
+-#ifdef FE_INVALID
+-  if (flag & GFC_FPE_INVALID) exceptions |= FE_INVALID;
+-#endif
+-
+-#ifdef FE_DIVBYZERO
+-  if (flag & GFC_FPE_ZERO) exceptions |= FE_DIVBYZERO;
+-#endif
+-
+-#ifdef FE_OVERFLOW
+-  if (flag & GFC_FPE_OVERFLOW) exceptions |= FE_OVERFLOW;
+-#endif
+-
+-#ifdef FE_UNDERFLOW
+-  if (flag & GFC_FPE_UNDERFLOW) exceptions |= FE_UNDERFLOW;
+-#endif
+-
+-#ifdef FE_DENORMAL
+-  if (flag & GFC_FPE_DENORMAL) exceptions |= FE_DENORMAL;
+-#endif
+-
+-#ifdef FE_INEXACT
+-  if (flag & GFC_FPE_INEXACT) exceptions |= FE_INEXACT;
+-#endif
+-
+-  old = feenableexcept (exceptions);
+-  if (old == -1)
+-    return 0;
+-  fedisableexcept (exceptions & ~old);
+-  return 1;
++  return support_fpu_flag (flag);
+ }
+ 
+ 
 Index: libgfortran/io/open.c
 ===================================================================
 --- a/src/libgfortran/io/open.c	(.../tags/gcc_7_4_0_release)
