@@ -1,7 +1,5 @@
 # DP : Don't add the __LINARO_RELEASE__ and __LINARO_SPIN__ macros for distro builds.
 
-Index: b/src/gcc/cppbuiltin.c
-===================================================================
 --- a/src/gcc/cppbuiltin.c
 +++ b/src/gcc/cppbuiltin.c
 @@ -53,41 +53,18 @@ parse_basever (int *major, int *minor, i
@@ -47,11 +45,9 @@ Index: b/src/gcc/cppbuiltin.c
    cpp_define_formatted (pfile, "__ATOMIC_RELAXED=%d", MEMMODEL_RELAXED);
    cpp_define_formatted (pfile, "__ATOMIC_SEQ_CST=%d", MEMMODEL_SEQ_CST);
    cpp_define_formatted (pfile, "__ATOMIC_ACQUIRE=%d", MEMMODEL_ACQUIRE);
-Index: b/src/gcc/Makefile.in
-===================================================================
 --- a/src/gcc/Makefile.in
 +++ b/src/gcc/Makefile.in
-@@ -845,12 +845,10 @@ BASEVER     := $(srcdir)/BASE-VER  # 4.x
+@@ -854,12 +854,10 @@ BASEVER     := $(srcdir)/BASE-VER  # 4.x
  DEVPHASE    := $(srcdir)/DEV-PHASE # experimental, prerelease, ""
  DATESTAMP   := $(srcdir)/DATESTAMP # YYYYMMDD or empty
  REVISION    := $(srcdir)/REVISION  # [BRANCH revision XXXXXX]
@@ -64,7 +60,7 @@ Index: b/src/gcc/Makefile.in
  
  ifeq (,$(wildcard $(REVISION)))
  REVISION_c  :=
-@@ -877,7 +875,6 @@ DATESTAMP_s := \
+@@ -886,7 +884,6 @@ DATESTAMP_s := \
    "\"$(if $(DEVPHASE_c)$(filter-out 0,$(PATCHLEVEL_c)), $(DATESTAMP_c))\""
  PKGVERSION_s:= "\"@PKGVERSION@\""
  BUGURL_s    := "\"@REPORT_BUGS_TO@\""
@@ -72,7 +68,7 @@ Index: b/src/gcc/Makefile.in
  
  PKGVERSION  := @PKGVERSION@
  BUGURL_TEXI := @REPORT_BUGS_TEXI@
-@@ -2804,9 +2801,8 @@ PREPROCESSOR_DEFINES = \
+@@ -2886,9 +2883,8 @@ PREPROCESSOR_DEFINES = \
    -DSTANDARD_EXEC_PREFIX=\"$(libdir)/gcc/\" \
    @TARGET_SYSTEM_ROOT_DEFINE@
  
@@ -84,9 +80,37 @@ Index: b/src/gcc/Makefile.in
  
  CFLAGS-cppdefault.o += $(PREPROCESSOR_DEFINES)
  
-Index: b/src/gcc/LINARO-VERSION
-===================================================================
 --- a/src/gcc/LINARO-VERSION
 +++ /dev/null
-@@ -1,1 +0,0 @@
+@@ -1 +0,0 @@
 -8.2-2018.08~dev
+--- a/src/gcc/testsuite/ChangeLog.arm
++++ b/src/gcc/testsuite/ChangeLog.arm
+@@ -3,10 +3,6 @@
+ 	* c-c++-common/spec-barrier-1.c: New test.
+ 	* c-c++-common/spec-barrier-2.c: New test.
+ 	* gcc.dg/spec-barrier-3.c: New test.
+-
+-2018-08-14  Yvan Roux  <yvan.roux@linaro.org>
+-
+-	* gcc.dg/cpp/linaro-macros.c: New test.
+ 
+ Copyright (C) 2018 Free Software Foundation, Inc.
+ 
+--- a/src/gcc/testsuite/gcc.dg/cpp/linaro-macros.c
++++ /dev/null
+@@ -1,14 +0,0 @@
+-/* Test __LINARO_RELEASE__ and __LINARO_SPIN__.  */
+-/* { dg-do compile } */
+-
+-#if defined(__LINARO_RELEASE__) && __LINARO_RELEASE__ >= 201808
+-int i;
+-#else
+-#error "Bad __LINARO_RELEASE__."
+-#endif
+-
+-#if defined(__LINARO_SPIN__) && __LINARO_SPIN__ >= 0
+-int j;
+-#else
+-#error "Bad __LINARO_SPIN__."
+-#endif
