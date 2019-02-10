@@ -1,6 +1,13 @@
 # -*- makefile -*-
 # definitions used in more than one Makefile / rules file
 
+NJOBS :=
+USE_CPUS := 1
+ifneq (,$(filter parallel=%,$(subst $(COMMA), ,$(DEB_BUILD_OPTIONS))))
+  USE_CPUS := $(subst parallel=,,$(filter parallel=%,$(subst $(COMMA), ,$(DEB_BUILD_OPTIONS))))
+  NJOBS := -j $(USE_CPUS)
+endif
+
 # common vars
 SHELL		= /bin/bash -e	# brace expansion used in rules file
 srcdir		= $(CURDIR)/src
@@ -99,18 +106,6 @@ DEB_VERSION := $(strip $(shell echo $(SOURCE_VERSION) | \
 EPOCH := 1
 DEB_EVERSION := $(EPOCH):$(DEB_VERSION)
 BASE_VERSION := $(shell echo $(DEB_VERSION) | sed -e 's/\([1-9]\).*-.*/\1/')
-
-NJOBS :=
-USE_CPUS := 1
-ifneq (,$(filter parallel=%,$(subst $(COMMA), ,$(DEB_BUILD_OPTIONS))))
-  USE_CPUS := $(subst parallel=,,$(filter parallel=%,$(subst $(COMMA), ,$(DEB_BUILD_OPTIONS))))
-  NJOBS := -j $(USE_CPUS)
-  NJOBS_TESTS := -j $(USE_CPUS)
-endif
-# Debian s390x buildds only have 4GB RAM, libgo tests time out
-ifeq ($(derivative)-$(DEB_HOST_ARCH),Debian-s390x)
-  NJOBS_TESTS :=
-endif
 
 ifneq (,$(findstring gcc-snapshot, $(PKGSOURCE)))
   single_package = yes
