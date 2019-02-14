@@ -103,7 +103,7 @@ $(binary_stamp)-gdc: $(install_stamp)
 
 	$(dh_compat2) dh_movefiles -p$(p_gdc) -X/zlib/ $(files_gdc)
 
-ifeq ($(with_libphobos),yes)
+ifeq ($(with_phobos),yes)
 	mv $(d)/$(usr_lib)/libgphobos.spec $(d_gdc)/$(gcc_lib_dir)/
 endif
 
