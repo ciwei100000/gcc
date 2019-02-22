@@ -17,8 +17,6 @@ libgomp/
 	* target.c (gomp_load_plugin_for_device): If a plugin can't be
 	dlopened, assume it has no devices silently.
 
-Index: b/src/gcc/gcc.c
-===================================================================
 --- a/src/gcc/gcc.c
 +++ b/src/gcc/gcc.c
 @@ -291,6 +291,10 @@ static const char *spec_host_machine = D
@@ -53,8 +51,6 @@ Index: b/src/gcc/gcc.c
      }
  
    free (offload_targets);
-Index: b/src/gcc/lto-wrapper.c
-===================================================================
 --- a/src/gcc/lto-wrapper.c
 +++ b/src/gcc/lto-wrapper.c
 @@ -52,6 +52,7 @@ along with GCC; see the file COPYING3.
@@ -65,7 +61,7 @@ Index: b/src/gcc/lto-wrapper.c
  
  enum lto_mode_d {
    LTO_MODE_NONE,			/* Not doing LTO.  */
-@@ -808,8 +809,10 @@ compile_images_for_offload_targets (unsi
+@@ -871,8 +872,10 @@ compile_images_for_offload_targets (unsi
    if (!target_names)
      return;
    unsigned num_targets = parse_env_var (target_names, &names, NULL);
@@ -76,7 +72,7 @@ Index: b/src/gcc/lto-wrapper.c
    const char *compiler_path = getenv ("COMPILER_PATH");
    if (!compiler_path)
      goto out;
-@@ -822,18 +825,32 @@ compile_images_for_offload_targets (unsi
+@@ -885,18 +888,32 @@ compile_images_for_offload_targets (unsi
        /* HSA does not use LTO-like streaming and a different compiler, skip
  	 it. */
        if (strcmp (names[i], "hsa") == 0)
@@ -112,8 +108,6 @@ Index: b/src/gcc/lto-wrapper.c
   out:
    free_array_of_ptrs ((void **) names, num_targets);
  }
-Index: b/src/libgomp/target.c
-===================================================================
 --- a/src/libgomp/target.c
 +++ b/src/libgomp/target.c
 @@ -2514,7 +2514,7 @@ gomp_load_plugin_for_device (struct gomp
