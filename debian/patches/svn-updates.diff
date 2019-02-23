@@ -12,3 +12,157 @@ LANG=C svn diff svn://gcc.gnu.org/svn/gcc/tags/gcc_8_3_0_release svn://gcc.gnu.o
 	| sed -r 's,^--- (\S+)\t(\S+)(.*)$,--- a/src/\1\t\2,;s,^\+\+\+ (\S+)\t(\S+)(.*)$,+++ b/src/\1\t\2,' \
 	| awk '/^Index:.*\.(class|texi)/ {skip=1; next} /^Index:/ { skip=0 } skip==0'
 
+Index: libstdc++-v3/include/bits/char_traits.h
+===================================================================
+--- a/src/libstdc++-v3/include/bits/char_traits.h	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/include/bits/char_traits.h	(.../branches/gcc-8-branch)
+@@ -248,7 +248,7 @@
+     __constant_char_array_p(const _CharT* __a, size_t __n)
+     {
+       size_t __i = 0;
+-      while (__builtin_constant_p(__a[__i]) && __i < __n)
++      while (__i < __n && __builtin_constant_p(__a[__i]))
+ 	__i++;
+       return __i == __n;
+     }
+Index: libstdc++-v3/ChangeLog
+===================================================================
+--- a/src/libstdc++-v3/ChangeLog	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/ChangeLog	(.../branches/gcc-8-branch)
+@@ -1,3 +1,11 @@
++2019-02-22  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/89446
++	* include/bits/char_traits.h (__constant_char_array): Check index is
++	in range before dereferencing.
++	* testsuite/21_strings/basic_string_view/operators/char/89446.cc:
++	New test.
++
+ 2019-02-22  Release Manager
+ 
+ 	* GCC 8.3.0 released.
+Index: libstdc++-v3/testsuite/21_strings/basic_string_view/operators/char/89446.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/21_strings/basic_string_view/operators/char/89446.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/21_strings/basic_string_view/operators/char/89446.cc	(.../branches/gcc-8-branch)
+@@ -0,0 +1,28 @@
++// Copyright (C) 2019 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-options "-std=gnu++17 -fexceptions -fnon-call-exceptions -O1" }
++// { dg-do run { target { powerpc*-*-linux* i?86-*-linux* x86_64-*-linux* } } }
++// { dg-require-effective-target c++17 }
++
++#include <string_view>
++
++int main()
++{
++  std::string_view s1, s2;
++  return s1 != s2;
++}
+Index: gcc/DATESTAMP
+===================================================================
+--- a/src/gcc/DATESTAMP	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/DATESTAMP	(.../branches/gcc-8-branch)
+@@ -1 +1 @@
+-20190222
++20190223
+Index: gcc/testsuite/gfortran.dg/coarray_data_1.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/coarray_data_1.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/coarray_data_1.f90	(.../branches/gcc-8-branch)
+@@ -0,0 +1,11 @@
++! { dg-do  run }
++! { dg-options "-fcoarray=lib -lcaf_single " }
++! PR 71066 - this used to ICE
++program p
++   real :: a(2,2)[*]
++   integer :: b(2,2)[*]
++   data a /4*0.0/
++   data b /1234, 2345, 3456, 4567/
++   if (any (a /= 0.0)) stop 1
++   if (any (b /= reshape([1234, 2345, 3456, 4567],[2,2]))) stop 2
++end
+Index: gcc/testsuite/ChangeLog
+===================================================================
+--- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-8-branch)
+@@ -1,3 +1,9 @@
++2019-02-12  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/71066
++	Backport from trunk
++	* gfortran.dg/coarray_data_1.f90: New test.
++
+ 2019-02-22  Release Manager
+ 
+ 	* GCC 8.3.0 released.
+Index: gcc/fortran/ChangeLog
+===================================================================
+--- a/src/gcc/fortran/ChangeLog	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/fortran/ChangeLog	(.../branches/gcc-8-branch)
+@@ -1,3 +1,12 @@
++2019-02-22  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/71066
++	Backport from trunk
++	* trans-decl.c (generate_coarray_sym_init):  For an array
++	constructor in a DATA statement of a coarray variable, set the
++	rank to 1 to avoid confusion later on.  If the constructor
++	contains only one value, use that for initiailizig.
++
+ 2019-02-22  Release Manager
+ 
+ 	* GCC 8.3.0 released.
+Index: gcc/fortran/trans-decl.c
+===================================================================
+--- a/src/gcc/fortran/trans-decl.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/fortran/trans-decl.c	(.../branches/gcc-8-branch)
+@@ -5384,6 +5384,33 @@
+   /* Handle "static" initializer.  */
+   if (sym->value)
+     {
++      if (sym->value->expr_type == EXPR_ARRAY)
++	{
++	  gfc_constructor *c, *cnext;
++
++	  /* Test if the array has more than one element.  */
++	  c = gfc_constructor_first (sym->value->value.constructor);
++	  gcc_assert (c);  /* Empty constructor should not happen here.  */
++	  cnext = gfc_constructor_next (c);
++
++	  if (cnext)
++	    {
++	      /* An EXPR_ARRAY with a rank > 1 here has to come from a
++		 DATA statement.  Set its rank here as not to confuse
++		 the following steps.   */
++	      sym->value->rank = 1;
++	    }
++	  else
++	    {
++	      /* There is only a single value in the constructor, use
++		 it directly for the assignment.  */
++	      gfc_expr *new_expr;
++	      new_expr = gfc_copy_expr (c->expr);
++	      gfc_free_expr (sym->value);
++	      sym->value = new_expr;
++	    }
++	}
++
+       sym->attr.pointer = 1;
+       tmp = gfc_trans_assignment (gfc_lval_expr_from_sym (sym), sym->value,
+ 				  true, false);
