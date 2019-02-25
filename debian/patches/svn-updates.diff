@@ -1,10 +1,10 @@
-# DP: updates from the 8 branch upto 201902xx (r268938).
+# DP: updates from the 8 branch upto 20190225 (r269183).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Fri Feb 15 14:29:10 CET 2019
-Fri Feb 15 13:29:10 UTC 2019 (revision 268938)
+Mon Feb 25 08:56:13 CET 2019
+Mon Feb 25 07:56:13 UTC 2019 (revision 269183)
 EOF
 }
 
@@ -80,7 +80,22 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-8-branch)
 @@ -1 +1 @@
 -20190222
-+20190223
++20190225
+Index: gcc/ChangeLog
+===================================================================
+--- a/src/gcc/ChangeLog	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/ChangeLog	(.../branches/gcc-8-branch)
+@@ -1,3 +1,10 @@
++2019-02-24  Alan Modra  <amodra@gmail.com>
++
++	PR target/89271
++	* config/rs6000/rs6000.md (<bd>_<mode> split): Check for an int
++	output reg on add insn.
++	(<bd>tf_<mode> split): Likewise.  Match predicates with insn.
++
+ 2019-02-22  Release Manager
+ 
+ 	* GCC 8.3.0 released.
 Index: gcc/testsuite/gfortran.dg/coarray_data_1.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/coarray_data_1.f90	(.../tags/gcc_8_3_0_release)
@@ -97,11 +112,64 @@ Index: gcc/testsuite/gfortran.dg/coarray_data_1.f90
 +   if (any (a /= 0.0)) stop 1
 +   if (any (b /= reshape([1234, 2345, 3456, 4567],[2,2]))) stop 2
 +end
+Index: gcc/testsuite/gfortran.dg/deferred_character_32.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/deferred_character_32.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/deferred_character_32.f90	(.../branches/gcc-8-branch)
+@@ -0,0 +1,13 @@
++! { dg-do run }
++!
++! Test the fix for PR88117.
++!
++! Contributed by Gerhard Steinmetz  <gscfq@t-online.de>
++!
++program p
++   character(:), pointer :: z(:)
++   allocate (z, source  = ['abcd', 'bcde'])
++   z = (z) ! gimplifier choked here.
++   if (any (z .ne. ['abcd', 'bcde'])) stop 1
++   deallocate (z)
++end
+Index: gcc/testsuite/gfortran.dg/warn_conversion_11.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/warn_conversion_11.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/warn_conversion_11.f90	(.../branches/gcc-8-branch)
+@@ -0,0 +1,18 @@
++! { dg-do compile }
++! { dg-options "-Wconversion" }
++! PR 86119 - this used to warn.
++program proglen
++
++implicit none
++
++   class(*), allocatable :: s
++   integer :: l2
++
++   allocate(s, source = '123  ')
++
++   select type(s)
++   type is (character(len=*))
++      l2 = len(s)
++   end select
++
++end program proglen
 Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,9 @@
+@@ -1,3 +1,21 @@
++2019-02-23  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/86119
++	Backport from trunk
++	* gfortran.dg/warn_conversion_11.f90: New test.
++
++2019-02-23  Paul Thomas  <pault@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/88117
++	* gfortran.dg/deferred_character_32.f90: New test
++
 +2019-02-12  Thomas Koenig  <tkoenig@gcc.gnu.org>
 +
 +	PR fortran/71066
@@ -111,11 +179,159 @@ Index: gcc/testsuite/ChangeLog
  2019-02-22  Release Manager
  
  	* GCC 8.3.0 released.
+Index: gcc/ada/ChangeLog
+===================================================================
+--- a/src/gcc/ada/ChangeLog	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/ada/ChangeLog	(.../branches/gcc-8-branch)
+@@ -1,3 +1,13 @@
++2019-02-23  Eric Botcazou  <ebotcazou@adacore.com>
++
++	PR ada/89349
++	Backport from mainline
++	2018-05-25  Arnaud Charlet  <charlet@adacore.com>
++
++	* osint.ads (Unknown_Attributes): No longer pretend this is a constant.
++	(No_File_Info_Cache): Initialize separately.
++	* osint.adb (No_File_Info_Cache): Update initializer.
++
+ 2019-02-22  Release Manager
+ 
+ 	* GCC 8.3.0 released.
+Index: gcc/ada/osint.adb
+===================================================================
+--- a/src/gcc/ada/osint.adb	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/ada/osint.adb	(.../branches/gcc-8-branch)
+@@ -250,8 +250,7 @@
+       Attr : aliased File_Attributes;
+    end record;
+ 
+-   No_File_Info_Cache : constant File_Info_Cache :=
+-                          (No_File, Unknown_Attributes);
++   No_File_Info_Cache : constant File_Info_Cache := (No_File, (others => 0));
+ 
+    package File_Name_Hash_Table is new GNAT.HTable.Simple_HTable (
+      Header_Num => File_Hash_Num,
+Index: gcc/ada/osint.ads
+===================================================================
+--- a/src/gcc/ada/osint.ads	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/ada/osint.ads	(.../branches/gcc-8-branch)
+@@ -255,10 +255,26 @@
+    --  from the disk and then cached in the File_Attributes parameter (possibly
+    --  along with other values).
+ 
+-   type File_Attributes is private;
+-   Unknown_Attributes : constant File_Attributes;
++   File_Attributes_Size : constant Natural := 32;
++   --  This should be big enough to fit a "struct file_attributes" on any
++   --  system. It doesn't cause any malfunction if it is too big (which avoids
++   --  the need for either mapping the struct exactly or importing the sizeof
++   --  from C, which would result in dynamic code). However, it does waste
++   --  space (e.g. when a component of this type appears in a record, if it is
++   --  unnecessarily large). Note: for runtime units, use System.OS_Constants.
++   --  SIZEOF_struct_file_attributes instead, which has the exact value.
++
++   type File_Attributes is
++     array (1 .. File_Attributes_Size)
++       of System.Storage_Elements.Storage_Element;
++   for File_Attributes'Alignment use Standard'Maximum_Alignment;
++
++   Unknown_Attributes : File_Attributes;
+    --  A cache for various attributes for a file (length, accessibility,...)
+-   --  This must be initialized to Unknown_Attributes prior to the first call.
++   --  Will be initialized properly at elaboration (for efficiency later on,
++   --  avoid function calls every time we want to reset the attributes) prior
++   --  to the first usage. We cannot make it constant since the compiler may
++   --  put it in a read-only section.
+ 
+    function Is_Directory
+      (Name : C_File_Name;
+@@ -754,22 +770,4 @@
+    --  detected, the file being written is deleted, and a fatal error is
+    --  signalled.
+ 
+-   File_Attributes_Size : constant Natural := 32;
+-   --  This should be big enough to fit a "struct file_attributes" on any
+-   --  system. It doesn't cause any malfunction if it is too big (which avoids
+-   --  the need for either mapping the struct exactly or importing the sizeof
+-   --  from C, which would result in dynamic code). However, it does waste
+-   --  space (e.g. when a component of this type appears in a record, if it is
+-   --  unnecessarily large). Note: for runtime units, use System.OS_Constants.
+-   --  SIZEOF_struct_file_attributes instead, which has the exact value.
+-
+-   type File_Attributes is
+-     array (1 .. File_Attributes_Size)
+-       of System.Storage_Elements.Storage_Element;
+-   for File_Attributes'Alignment use Standard'Maximum_Alignment;
+-
+-   Unknown_Attributes : constant File_Attributes := (others => 0);
+-   --  Will be initialized properly at elaboration (for efficiency later on,
+-   --  avoid function calls every time we want to reset the attributes).
+-
+ end Osint;
+Index: gcc/fortran/class.c
+===================================================================
+--- a/src/gcc/fortran/class.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/fortran/class.c	(.../branches/gcc-8-branch)
+@@ -561,7 +561,7 @@
+    ref to the _len component.  */
+ 
+ gfc_expr *
+-gfc_get_len_component (gfc_expr *e)
++gfc_get_len_component (gfc_expr *e, int k)
+ {
+   gfc_expr *ptr;
+   gfc_ref *ref, **last;
+@@ -586,6 +586,14 @@
+     }
+   /* And replace if with a ref to the _len component.  */
+   gfc_add_len_component (ptr);
++  if (k != ptr->ts.kind)
++    {
++      gfc_typespec ts;
++      gfc_clear_ts (&ts);
++      ts.type = BT_INTEGER;
++      ts.kind = k;
++      gfc_convert_type_warn (ptr, &ts, 2, 0);
++    }
+   return ptr;
+ }
+ 
+Index: gcc/fortran/gfortran.h
+===================================================================
+--- a/src/gcc/fortran/gfortran.h	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/fortran/gfortran.h	(.../branches/gcc-8-branch)
+@@ -3426,7 +3426,7 @@
+ bool gfc_is_class_container_ref (gfc_expr *e);
+ gfc_expr *gfc_class_initializer (gfc_typespec *, gfc_expr *);
+ unsigned int gfc_hash_value (gfc_symbol *);
+-gfc_expr *gfc_get_len_component (gfc_expr *e);
++gfc_expr *gfc_get_len_component (gfc_expr *e, int);
+ bool gfc_build_class_symbol (gfc_typespec *, symbol_attribute *,
+ 			     gfc_array_spec **);
+ gfc_symbol *gfc_find_derived_vtab (gfc_symbol *);
 Index: gcc/fortran/ChangeLog
 ===================================================================
 --- a/src/gcc/fortran/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/fortran/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,12 @@
+@@ -1,3 +1,30 @@
++2019-02-23  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/86119
++	Backport from trunk
++	* class.c (gfc_get_len_component): Add argument k for kind.
++	If the kind of the resulting expression is not equal to k,
++	convert it.
++	* gfortran.h (gfc_len_component): Adjust prototype.
++	* simplify.c (gfc_simplify_len): Pass kind to
++	gfc_get_len_component.
++
++2019-02-23  Paul Thomas  <pault@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/88117
++	* resolve.c (deferred_op_assign): Return if the lhs expression
++	has the pointer attribute.
++
 +2019-02-22  Thomas Koenig  <tkoenig@gcc.gnu.org>
 +
 +	PR fortran/71066
@@ -128,6 +344,20 @@ Index: gcc/fortran/ChangeLog
  2019-02-22  Release Manager
  
  	* GCC 8.3.0 released.
+Index: gcc/fortran/resolve.c
+===================================================================
+--- a/src/gcc/fortran/resolve.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/fortran/resolve.c	(.../branches/gcc-8-branch)
+@@ -11011,6 +11011,9 @@
+   if (!gfc_check_dependency ((*code)->expr1, (*code)->expr2, 1))
+     return false;
+ 
++  if (gfc_expr_attr ((*code)->expr1).pointer)
++    return false;
++
+   tmp_expr = get_temp_from_expr ((*code)->expr1, ns);
+   tmp_expr->where = (*code)->loc;
+ 
 Index: gcc/fortran/trans-decl.c
 ===================================================================
 --- a/src/gcc/fortran/trans-decl.c	(.../tags/gcc_8_3_0_release)
@@ -166,3 +396,47 @@ Index: gcc/fortran/trans-decl.c
        sym->attr.pointer = 1;
        tmp = gfc_trans_assignment (gfc_lval_expr_from_sym (sym), sym->value,
  				  true, false);
+Index: gcc/fortran/simplify.c
+===================================================================
+--- a/src/gcc/fortran/simplify.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/fortran/simplify.c	(.../branches/gcc-8-branch)
+@@ -4469,7 +4469,7 @@
+     /* The expression in assoc->target points to a ref to the _data component
+        of the unlimited polymorphic entity.  To get the _len component the last
+        _data ref needs to be stripped and a ref to the _len component added.  */
+-    return gfc_get_len_component (e->symtree->n.sym->assoc->target);
++    return gfc_get_len_component (e->symtree->n.sym->assoc->target, k);
+   else
+     return NULL;
+ }
+Index: gcc/config/rs6000/rs6000.md
+===================================================================
+--- a/src/gcc/config/rs6000/rs6000.md	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/rs6000/rs6000.md	(.../branches/gcc-8-branch)
+@@ -12699,7 +12699,7 @@
+ 				const0_rtx);
+   emit_insn (gen_rtx_SET (operands[3],
+ 			  gen_rtx_COMPARE (CCmode, operands[1], const1_rtx)));
+-  if (gpc_reg_operand (operands[0], <MODE>mode))
++  if (int_reg_operand (operands[0], <MODE>mode))
+     emit_insn (gen_add<mode>3 (operands[0], operands[1], constm1_rtx));
+   else
+     {
+@@ -12768,7 +12768,7 @@
+ 		       (const_int 0)]))
+ 	  (match_operand 4)
+ 	  (match_operand 5)))
+-   (set (match_operand:P 6 "int_reg_operand")
++   (set (match_operand:P 6 "nonimmediate_operand")
+ 	(plus:P (match_dup 0)
+ 		(const_int -1)))
+    (clobber (match_scratch:P 7))
+@@ -12801,7 +12801,7 @@
+   else
+      emit_insn (gen_cceq_ior_compare_complement (operands[9], andexpr, ctrcmpcc,
+ 						 operands[8], cccmp, ccin));
+-  if (gpc_reg_operand (operands[0], <MODE>mode))
++  if (int_reg_operand (ctrout, <MODE>mode))
+      emit_insn (gen_add<mode>3 (ctrout, ctr, constm1_rtx));
+   else
+     {
