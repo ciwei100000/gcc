@@ -1,10 +1,10 @@
-# DP: updates from the 7 branch upto 20190209 (r268732).
+# DP: updates from the 7 branch upto 20190225 (r269187).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Sat Feb  9 23:10:01 CET 2019
-Sat Feb  9 22:10:01 UTC 2019 (revision 268732)
+Mon Feb 25 13:36:42 CET 2019
+Mon Feb 25 12:36:42 UTC 2019 (revision 269187)
 EOF
 }
 
@@ -111,11 +111,32 @@ Index: libstdc++-v3/configure.host
    *djgpp*)      # leading * picks up "msdosdjgpp"
      os_include_dir="os/djgpp"
      error_constants_dir="os/djgpp"
+Index: libstdc++-v3/include/bits/char_traits.h
+===================================================================
+--- a/src/libstdc++-v3/include/bits/char_traits.h	(.../tags/gcc_7_4_0_release)
++++ b/src/libstdc++-v3/include/bits/char_traits.h	(.../branches/gcc-7-branch)
+@@ -246,7 +246,7 @@
+     __constant_char_array_p(const _CharT* __a, size_t __n)
+     {
+       size_t __i = 0;
+-      while (__builtin_constant_p(__a[__i]) && __i < __n)
++      while (__i < __n && __builtin_constant_p(__a[__i]))
+ 	__i++;
+       return __i == __n;
+     }
 Index: libstdc++-v3/ChangeLog
 ===================================================================
 --- a/src/libstdc++-v3/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/libstdc++-v3/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,34 @@
+@@ -1,3 +1,42 @@
++2019-02-22  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/89446
++	* include/bits/char_traits.h (__constant_char_array): Check index is
++	in range before dereferencing.
++	* testsuite/21_strings/basic_string_view/operators/char/89446.cc:
++	New test.
++
 +2018-12-24  Iain Sandoe  <iain@sandoe.co.uk>
 +
 +	Backport from mainline
@@ -150,6 +171,39 @@ Index: libstdc++-v3/ChangeLog
  2018-12-06  Release Manager
  
  	* GCC 7.4.0 released.
+Index: libstdc++-v3/testsuite/21_strings/basic_string_view/operators/char/89446.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/21_strings/basic_string_view/operators/char/89446.cc	(.../tags/gcc_7_4_0_release)
++++ b/src/libstdc++-v3/testsuite/21_strings/basic_string_view/operators/char/89446.cc	(.../branches/gcc-7-branch)
+@@ -0,0 +1,28 @@
++// Copyright (C) 2019 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-options "-std=gnu++17 -fexceptions -fnon-call-exceptions -O1" }
++// { dg-do run { target { powerpc*-*-linux* i?86-*-linux* x86_64-*-linux* } } }
++// { dg-require-effective-target c++1z }
++
++#include <string_view>
++
++int main()
++{
++  std::string_view s1, s2;
++  return s1 != s2;
++}
 Index: libstdc++-v3/testsuite/17_intro/headers/c++2014/all_attributes.cc
 ===================================================================
 --- a/src/libstdc++-v3/testsuite/17_intro/headers/c++2014/all_attributes.cc	(.../tags/gcc_7_4_0_release)
@@ -522,7 +576,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-7-branch)
 @@ -1 +1 @@
 -20181206
-+20190209
++20190225
 Index: gcc/lra.c
 ===================================================================
 --- a/src/gcc/lra.c	(.../tags/gcc_7_4_0_release)
@@ -555,11 +609,73 @@ Index: gcc/tree.h
  
  /* COND_EXPR accessors.  */
  #define COND_EXPR_COND(NODE)	(TREE_OPERAND (COND_EXPR_CHECK (NODE), 0))
+Index: gcc/ipa-cp.c
+===================================================================
+--- a/src/gcc/ipa-cp.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/ipa-cp.c	(.../branches/gcc-7-branch)
+@@ -810,7 +810,7 @@
+   topo->stack = XCNEWVEC (struct cgraph_node *, symtab->cgraph_count);
+ 
+   gcc_checking_assert (topo->stack_top == 0);
+-  topo->nnodes = ipa_reduced_postorder (topo->order, true, true, NULL);
++  topo->nnodes = ipa_reduced_postorder (topo->order, true, NULL);
+ }
+ 
+ /* Free information about strongly connected components and the arrays in
+Index: gcc/ipa-reference.c
+===================================================================
+--- a/src/gcc/ipa-reference.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/ipa-reference.c	(.../branches/gcc-7-branch)
+@@ -730,7 +730,7 @@
+      the global information.  All the nodes within a cycle will have
+      the same info so we collapse cycles first.  Then we can do the
+      propagation in one pass from the leaves to the roots.  */
+-  order_pos = ipa_reduced_postorder (order, true, true, ignore_edge_p);
++  order_pos = ipa_reduced_postorder (order, true, ignore_edge_p);
+   if (dump_file)
+     ipa_print_order (dump_file, "reduced", order, order_pos);
+ 
 Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,400 @@
+@@ -1,3 +1,436 @@
++2019-02-15  Martin Liska  <mliska@suse.cz>
++
++	Backport from mainline
++	2019-02-14  Martin Liska  <mliska@suse.cz>
++
++	PR rtl-optimization/89242
++	* dce.c (delete_unmarked_insns): Call free_dominance_info we
++	process a transformation.
++
++2019-02-15  Martin Liska  <mliska@suse.cz>
++
++	Backport from mainline
++	2019-02-11  Martin Liska  <mliska@suse.cz>
++
++	PR ipa/89009
++	* ipa-cp.c (build_toporder_info): Remove usage of a param.
++	* ipa-inline.c (inline_small_functions): Likewise.
++	* ipa-pure-const.c (propagate_pure_const): Likewise.
++	(propagate_nothrow): Likewise.
++	* ipa-reference.c (propagate): Likewise.
++	* ipa-utils.c (struct searchc_env): Remove unused field.
++	(searchc): Always search across AVAIL_INTERPOSABLE.
++	(ipa_reduced_postorder): Always allow AVAIL_INTERPOSABLE as
++	the only called IPA pure const can properly not propagate
++	across interposable boundary.
++	* ipa-utils.h (ipa_reduced_postorder): Remove param.
++
++2019-02-11  Stefan Agner  <stefan@agner.ch>
++
++	Backport from mainline.
++	2019-01-10  Stefan Agner  <stefan@agner.ch>
++
++	PR target/88648
++	* config/arm/arm.c (arm_option_override_internal): Force
++	opts->x_inline_asm_unified to true only if TARGET_THUMB2_P.
++
 +2019-02-09  Alan Modra  <amodra@gmail.com>
 +
 +	PR target/88343
@@ -960,7 +1076,7 @@ Index: gcc/ChangeLog
  2018-12-06  Release Manager
  
  	* GCC 7.4.0 released.
-@@ -19,13 +420,13 @@
+@@ -19,13 +456,13 @@
  	* gcc/dwarf2out.c (FUNC_SECOND_SECT_LABEL): New.
  	(dwarf2out_switch_text_section): Generate a local label for the second
  	function sub-section and apply it as the second FDE start label.
@@ -1640,6 +1756,25 @@ Index: gcc/testsuite/gcc.target/powerpc/pr87496-1.c
 +
 +/* { dg-error "'-mabi=ieeelongdouble' requires full ISA 2.06 support" "PR87496" { target *-*-* } 0 } */
 +/* { dg-warning "using IEEE extended precision long double" "" { target *-*-* } 0 } */
+Index: gcc/testsuite/gcc.target/arm/pr88648-asm-syntax-unified.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/arm/pr88648-asm-syntax-unified.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/arm/pr88648-asm-syntax-unified.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,14 @@
++/* Test for unified syntax assembly generation.  */
++/* { dg-do compile } */
++/* { dg-require-effective-target arm_arch_v7a_ok } */
++/* { dg-add-options arm_arch_v7a } */
++/* { dg-options "-marm -march=armv7-a -masm-syntax-unified" } */
++
++void test ()
++{
++  asm("nop");
++}
++
++/* { dg-final { scan-assembler-times {\.syntax\sunified} 3 } } */
++/* { dg-final { scan-assembler-not {\.syntax\sdivided} } } */
++
 Index: gcc/testsuite/gcc.target/avr/pr88253.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/avr/pr88253.c	(.../tags/gcc_7_4_0_release)
@@ -1970,6 +2105,19 @@ Index: gcc/testsuite/gcc.target/sparc/tls-ld-uint32.c
 +/* { dg-final { scan-assembler-times "ld\t\[^\n\]*tldo_add" 2 } } */
 +/* { dg-final { scan-assembler-times "lduw\t\[^\n\]*tldo_add" 2 { target lp64 } } } */
 +/* { dg-final { scan-assembler-times "st\t\[^\n\]*tldo_add" 2 } } */
+Index: gcc/testsuite/gcc.target/sparc/struct-ret-check-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/sparc/struct-ret-check-1.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/sparc/struct-ret-check-1.c	(.../branches/gcc-7-branch)
+@@ -7,7 +7,7 @@
+ 
+ /* Origin: Carlos O'Donell <carlos@codesourcery.com> */
+ /* { dg-do run { target sparc*-*-solaris* sparc*-*-linux* sparc*-*-*bsd* } } */
+-/* { dg-options "-mstd-struct-return" } */
++/* { dg-options "-mstd-struct-return -fno-pie" } */
+ /* { dg-require-effective-target ilp32 } */
+ #include <stdio.h>
+ #include <stdlib.h>
 Index: gcc/testsuite/gcc.target/i386/pr88938.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/pr88938.c	(.../tags/gcc_7_4_0_release)
@@ -2110,6 +2258,22 @@ Index: gcc/testsuite/gfortran.dg/pr85798.f90
 +   type(u) :: q
 +   data z%a(1) / 789 /     ! { dg-error "Allocatable component" }
 +   data q%y%a(1) / 789 /   ! { dg-error "Allocatable component" }
++end
+Index: gcc/testsuite/gfortran.dg/pr89077.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr89077.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr89077.f90	(.../branches/gcc-7-branch)
+@@ -0,0 +1,11 @@
++! { dg-do run }
++!
++! PR fortran/89077 - ICE using * as len specifier for character parameter
++
++program test
++  implicit none
++  integer :: i
++  character(*), parameter :: s = 'abcdef'
++  character(*), parameter :: t = transfer ([(s(i:i), i=1,len(s))], s)
++  if (len (t) /= len (s) .or. t /= s) stop 1
 +end
 Index: gcc/testsuite/gfortran.dg/dec_structure_15.f90
 ===================================================================
@@ -2347,6 +2511,22 @@ Index: gcc/testsuite/gfortran.dg/dec_structure_14.f90
    ! { dg-options "-fdec-structure" }
    !
    ! Test that structures inside a common block do not require the
+Index: gcc/testsuite/gfortran.dg/coarray_data_1.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/coarray_data_1.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/coarray_data_1.f90	(.../branches/gcc-7-branch)
+@@ -0,0 +1,11 @@
++! { dg-do  run }
++! { dg-options "-fcoarray=lib -lcaf_single " }
++! PR 71066 - this used to ICE
++program p
++   real :: a(2,2)[*]
++   integer :: b(2,2)[*]
++   data a /4*0.0/
++   data b /1234, 2345, 3456, 4567/
++   if (any (a /= 0.0)) stop 1
++   if (any (b /= reshape([1234, 2345, 3456, 4567],[2,2]))) stop 2
++end
 Index: gcc/testsuite/gfortran.dg/pr88169_1.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr88169_1.f90	(.../tags/gcc_7_4_0_release)
@@ -2437,6 +2617,46 @@ Index: gcc/testsuite/gfortran.dg/pr88206.f90
 +   print *, [real(z(k))]
 +end
 +
+Index: gcc/testsuite/gfortran.dg/pointer_init_2.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pointer_init_2.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pointer_init_2.f90	(.../branches/gcc-7-branch)
+@@ -18,7 +18,7 @@
+   integer, pointer :: dp0 => 13  ! { dg-error "Error in pointer initialization" }
+   integer, pointer :: dp1 => r   ! { dg-error "Different types in pointer assignment" }
+   integer, pointer :: dp2 => v   ! { dg-error "Different ranks in pointer assignment" }
+-  integer, pointer :: dp3 => i   ! { dg-error "is neither TARGET nor POINTER" }
++  integer, pointer :: dp3 => i   ! { dg-error "Pointer assignment target in initialization expression does not have the TARGET attribute" }
+   integer, pointer :: dp4 => j   ! { dg-error "must have the SAVE attribute" }
+   integer, pointer :: dp5 => a   ! { dg-error "must not be ALLOCATABLE" }
+ 
+@@ -35,7 +35,7 @@
+   end type t3
+ 
+   type t4
+-    integer, pointer :: dpc3 => i   ! { dg-error "Pointer assignment target is neither TARGET nor POINTER" }
++    integer, pointer :: dpc3 => i   ! { dg-error "Pointer assignment target in initialization expression does not have the TARGET attribute" }
+   end type t4
+ 
+   type t5
+Index: gcc/testsuite/gfortran.dg/deferred_character_32.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/deferred_character_32.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/deferred_character_32.f90	(.../branches/gcc-7-branch)
+@@ -0,0 +1,13 @@
++! { dg-do run }
++!
++! Test the fix for PR88117.
++!
++! Contributed by Gerhard Steinmetz  <gscfq@t-online.de>
++!
++program p
++   character(:), pointer :: z(:)
++   allocate (z, source  = ['abcd', 'bcde'])
++   z = (z) ! gimplifier choked here.
++   if (any (z .ne. ['abcd', 'bcde'])) stop 1
++   deallocate (z)
++end
 Index: gcc/testsuite/gfortran.dg/class_66.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/class_66.f90	(.../tags/gcc_7_4_0_release)
@@ -2447,6 +2667,19 @@ Index: gcc/testsuite/gfortran.dg/class_66.f90
  !
  ! Test the fix for PR78641 in which an ICE occured on assignment
  ! of a class array constructor to a derived type array.
+Index: gcc/testsuite/gfortran.dg/pointer_init_6.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pointer_init_6.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pointer_init_6.f90	(.../branches/gcc-7-branch)
+@@ -13,7 +13,7 @@
+  integer, target :: i
+  type(t), target :: x
+  integer, pointer :: p1 => i
+- integer, pointer :: p2 => p1   ! { dg-error "must have the TARGET attribute" }
++ integer, pointer :: p2 => p1   ! { dg-error "Pointer assignment target in initialization expression does not have the TARGET attribute at" }
+  integer, pointer :: p3 => x%p  ! { dg-error "must have the TARGET attribute" }
+  integer, pointer :: p4 => x%i
+  integer, pointer :: p5 => u    ! { dg-error "has no IMPLICIT type" }
 Index: gcc/testsuite/gfortran.dg/pr88228.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr88228.f90	(.../tags/gcc_7_4_0_release)
@@ -2747,6 +2980,24 @@ Index: gcc/testsuite/gfortran.dg/pr88169_3.f90
 +   namelist /bar/a  ! { dg-error "already is USE associated" }
 +end program
 +! { dg-final { cleanup-modules "foo_nml" } }
+Index: gcc/testsuite/gfortran.dg/pointer_init_9.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pointer_init_9.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pointer_init_9.f90	(.../branches/gcc-7-branch)
+@@ -0,0 +1,13 @@
++! { dg-do compile }
++! PR 71237 - this used to ICE.
++module data_mod
++  implicit none
++
++  type data_t
++    integer :: i
++  end type
++
++  type(data_t), pointer :: data
++  integer, pointer :: idata => data%i ! { dg-error "Pointer assignment target in initialization expression does not have the TARGET attribute" }
++
++end module
 Index: gcc/testsuite/gfortran.dg/pr68318_1.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr68318_1.f90	(.../tags/gcc_7_4_0_release)
@@ -3395,7 +3646,62 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,386 @@
+@@ -1,3 +1,441 @@
++2019-02-23  Paul Thomas  <pault@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/88117
++	* gfortran.dg/deferred_character_32.f90 : New test
++
++2019-02-23  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/71066
++	Backport from trunk
++	* gfortran.dg/coarray_data_1.f90: New test.
++
++2019-02-15  Martin Liska  <mliska@suse.cz>
++
++	Backport from mainline
++	2019-02-14  Martin Liska  <mliska@suse.cz>
++
++	PR rtl-optimization/89242
++	* g++.dg/pr89242.C: New test.
++
++2019-02-15  Martin Liska  <mliska@suse.cz>
++
++	Backport from mainline
++	2019-02-11  Martin Liska  <mliska@suse.cz>
++
++	PR ipa/89009
++	* g++.dg/ipa/pr89009.C: New test.
++
++2019-02-15  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* gcc.target/sparc/struct-ret-check-1.c: Add -fno-pie option.
++
++2019-02-11  Stefan Agner  <stefan@agner.ch>
++
++	Backport from mainline
++	2019-01-10  Stefan Agner  <stefan@agner.ch>
++
++	PR target/88648
++	* gcc.target/arm/pr88648-asm-syntax-unified.c: Add test to
++	check if -masm-syntax-unified gets applied properly.
++
++2019-02-10  Harald Anlauf  <anlauf@gmx.de>
++
++	Backport from trunk
++	PR fortran/89077
++	* gfortran.dg/pr89077.f90: New test.
++
++2019-02-10  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/71723
++	Backport from trunk
++	* gfortran.dg/pointer_init_2.f90: Adjust error messages.
++	* gfortran.dg/pointer_init_6.f90: Likewise.
++	* gfortran.dg/pointer_init_9.f90: New test.
++
 +2019-02-09  Thomas Koenig  <tkoenig@gcc.gnu.org>
 +
 +	PR fortran/71860
@@ -4258,6 +4564,102 @@ Index: gcc/cp/cp-tree.h
  extern tree finish_label_stmt			(tree);
  extern void finish_label_decl			(tree);
  extern cp_expr finish_parenthesized_expr	(cp_expr);
+Index: gcc/ipa-pure-const.c
+===================================================================
+--- a/src/gcc/ipa-pure-const.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/ipa-pure-const.c	(.../branches/gcc-7-branch)
+@@ -1233,7 +1233,7 @@
+   bool remove_p = false;
+   bool has_cdtor;
+ 
+-  order_pos = ipa_reduced_postorder (order, true, false,
++  order_pos = ipa_reduced_postorder (order, true,
+ 				     ignore_edge_for_pure_const);
+   if (dump_file)
+     {
+@@ -1566,7 +1566,7 @@
+   int i;
+   struct ipa_dfs_info * w_info;
+ 
+-  order_pos = ipa_reduced_postorder (order, true, false,
++  order_pos = ipa_reduced_postorder (order, true,
+ 				     ignore_edge_for_nothrow);
+   if (dump_file)
+     {
+Index: gcc/ipa-utils.c
+===================================================================
+--- a/src/gcc/ipa-utils.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/ipa-utils.c	(.../branches/gcc-7-branch)
+@@ -63,7 +63,6 @@
+   int order_pos;
+   splay_tree nodes_marked_new;
+   bool reduce;
+-  bool allow_overwritable;
+   int count;
+ };
+ 
+@@ -105,7 +104,7 @@
+ 
+       if (w->aux
+ 	  && (avail > AVAIL_INTERPOSABLE
+-	      || (env->allow_overwritable && avail == AVAIL_INTERPOSABLE)))
++	      || avail == AVAIL_INTERPOSABLE))
+ 	{
+ 	  w_info = (struct ipa_dfs_info *) w->aux;
+ 	  if (w_info->new_node)
+@@ -162,7 +161,7 @@
+ 
+ int
+ ipa_reduced_postorder (struct cgraph_node **order,
+-		       bool reduce, bool allow_overwritable,
++		       bool reduce,
+ 		       bool (*ignore_edge) (struct cgraph_edge *))
+ {
+   struct cgraph_node *node;
+@@ -175,7 +174,6 @@
+   env.nodes_marked_new = splay_tree_new (splay_tree_compare_ints, 0, 0);
+   env.count = 1;
+   env.reduce = reduce;
+-  env.allow_overwritable = allow_overwritable;
+ 
+   FOR_EACH_DEFINED_FUNCTION (node)
+     {
+@@ -182,8 +180,7 @@
+       enum availability avail = node->get_availability ();
+ 
+       if (avail > AVAIL_INTERPOSABLE
+-	  || (allow_overwritable
+-	      && (avail == AVAIL_INTERPOSABLE)))
++	  || avail == AVAIL_INTERPOSABLE)
+ 	{
+ 	  /* Reuse the info if it is already there.  */
+ 	  struct ipa_dfs_info *info = (struct ipa_dfs_info *) node->aux;
+Index: gcc/ipa-utils.h
+===================================================================
+--- a/src/gcc/ipa-utils.h	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/ipa-utils.h	(.../branches/gcc-7-branch)
+@@ -36,7 +36,7 @@
+ 
+ /* In ipa-utils.c  */
+ void ipa_print_order (FILE*, const char *, struct cgraph_node**, int);
+-int ipa_reduced_postorder (struct cgraph_node **, bool, bool,
++int ipa_reduced_postorder (struct cgraph_node **, bool,
+ 			  bool (*ignore_edge) (struct cgraph_edge *));
+ void ipa_free_postorder_info (void);
+ vec<cgraph_node *> ipa_get_nodes_in_cycle (struct cgraph_node *);
+Index: gcc/ipa-inline.c
+===================================================================
+--- a/src/gcc/ipa-inline.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/ipa-inline.c	(.../branches/gcc-7-branch)
+@@ -1745,7 +1745,7 @@
+      metrics.  */
+ 
+   max_count = 0;
+-  ipa_reduced_postorder (order, true, true, NULL);
++  ipa_reduced_postorder (order, true, NULL);
+   free (order);
+ 
+   FOR_EACH_DEFINED_FUNCTION (node)
 Index: gcc/opts.c
 ===================================================================
 --- a/src/gcc/opts.c	(.../tags/gcc_7_4_0_release)
@@ -4286,7 +4688,17 @@ Index: gcc/ada/ChangeLog
 ===================================================================
 --- a/src/gcc/ada/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/ada/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,54 @@
+@@ -1,3 +1,64 @@
++2019-02-23  Eric Botcazou  <ebotcazou@adacore.com>
++
++	PR ada/89349
++	Backport from mainline
++	2018-05-25  Arnaud Charlet  <charlet@adacore.com>
++
++	* osint.ads (Unknown_Attributes): No longer pretend this is a constant.
++	(No_File_Info_Cache): Initialize separately.
++	* osint.adb (No_File_Info_Cache): Update initializer.
++
 +2019-02-08  Eric Botcazou  <ebotcazou@adacore.com>
 +
 +	* gcc-interface/trans.c (Loop_Statement_to_gnu): Replace tests on
@@ -4744,6 +5156,77 @@ Index: gcc/ada/gcc-interface/trans.c
  	    }
  
  	  /* Otherwise build a regular assignment.  */
+Index: gcc/ada/osint.adb
+===================================================================
+--- a/src/gcc/ada/osint.adb	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/ada/osint.adb	(.../branches/gcc-7-branch)
+@@ -250,8 +250,7 @@
+       Attr : aliased File_Attributes;
+    end record;
+ 
+-   No_File_Info_Cache : constant File_Info_Cache :=
+-                          (No_File, Unknown_Attributes);
++   No_File_Info_Cache : constant File_Info_Cache := (No_File, (others => 0));
+ 
+    package File_Name_Hash_Table is new GNAT.HTable.Simple_HTable (
+      Header_Num => File_Hash_Num,
+Index: gcc/ada/osint.ads
+===================================================================
+--- a/src/gcc/ada/osint.ads	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/ada/osint.ads	(.../branches/gcc-7-branch)
+@@ -273,10 +273,26 @@
+    --  from the disk and then cached in the File_Attributes parameter (possibly
+    --  along with other values).
+ 
+-   type File_Attributes is private;
+-   Unknown_Attributes : constant File_Attributes;
++   File_Attributes_Size : constant Natural := 32;
++   --  This should be big enough to fit a "struct file_attributes" on any
++   --  system. It doesn't cause any malfunction if it is too big (which avoids
++   --  the need for either mapping the struct exactly or importing the sizeof
++   --  from C, which would result in dynamic code). However, it does waste
++   --  space (e.g. when a component of this type appears in a record, if it is
++   --  unnecessarily large). Note: for runtime units, use System.OS_Constants.
++   --  SIZEOF_struct_file_attributes instead, which has the exact value.
++
++   type File_Attributes is
++     array (1 .. File_Attributes_Size)
++       of System.Storage_Elements.Storage_Element;
++   for File_Attributes'Alignment use Standard'Maximum_Alignment;
++
++   Unknown_Attributes : File_Attributes;
+    --  A cache for various attributes for a file (length, accessibility,...)
+-   --  This must be initialized to Unknown_Attributes prior to the first call.
++   --  Will be initialized properly at elaboration (for efficiency later on,
++   --  avoid function calls every time we want to reset the attributes) prior
++   --  to the first usage. We cannot make it constant since the compiler may
++   --  put it in a read-only section.
+ 
+    function Is_Directory
+      (Name : C_File_Name;
+@@ -769,22 +785,4 @@
+    --  detected, the file being written is deleted, and a fatal error is
+    --  signalled.
+ 
+-   File_Attributes_Size : constant Natural := 32;
+-   --  This should be big enough to fit a "struct file_attributes" on any
+-   --  system. It doesn't cause any malfunction if it is too big (which avoids
+-   --  the need for either mapping the struct exactly or importing the sizeof
+-   --  from C, which would result in dynamic code). However, it does waste
+-   --  space (e.g. when a component of this type appears in a record, if it is
+-   --  unnecessarily large). Note: for runtime units, use System.OS_Constants.
+-   --  SIZEOF_struct_file_attributes instead, which has the exact value.
+-
+-   type File_Attributes is
+-     array (1 .. File_Attributes_Size)
+-       of System.Storage_Elements.Storage_Element;
+-   for File_Attributes'Alignment use Standard'Maximum_Alignment;
+-
+-   Unknown_Attributes : constant File_Attributes := (others => 0);
+-   --  Will be initialized properly at elaboration (for efficiency later on,
+-   --  avoid function calls every time we want to reset the attributes).
+-
+ end Osint;
 Index: gcc/gimple-ssa-strength-reduction.c
 ===================================================================
 --- a/src/gcc/gimple-ssa-strength-reduction.c	(.../tags/gcc_7_4_0_release)
@@ -5017,6 +5500,15 @@ Index: gcc/fortran/decl.c
        m = top_val_list (new_data);
        if (m != MATCH_YES)
  	goto cleanup;
+@@ -1771,7 +1796,7 @@
+ 		    }
+ 		  else if (init->ts.u.cl && init->ts.u.cl->length)
+ 		    sym->ts.u.cl->length =
+-				gfc_copy_expr (sym->value->ts.u.cl->length);
++				gfc_copy_expr (init->ts.u.cl->length);
+ 		}
+ 	    }
+ 	  /* Update initializer character length according symbol.  */
 @@ -2544,6 +2569,22 @@
        goto cleanup;
      }
@@ -5084,6 +5576,15 @@ Index: gcc/fortran/gfortran.h
    /* If an expression comes from a Hollerith constant or compile-time
       evaluation of a transfer statement, it may have a prescribed target-
       memory representation, and these cannot always be backformed from
+@@ -3124,7 +3127,7 @@
+ 
+ bool gfc_check_conformance (gfc_expr *, gfc_expr *, const char *, ...) ATTRIBUTE_PRINTF_3;
+ bool gfc_check_assign (gfc_expr *, gfc_expr *, int, bool c = true);
+-bool gfc_check_pointer_assign (gfc_expr *, gfc_expr *);
++bool gfc_check_pointer_assign (gfc_expr *, gfc_expr *, bool is_init_expr = false);
+ bool gfc_check_assign_symbol (gfc_symbol *, gfc_component *, gfc_expr *);
+ 
+ gfc_expr *gfc_build_default_init_expr (gfc_typespec *, locus *);
 @@ -3269,7 +3272,7 @@
  void gfc_free_close (gfc_close *);
  bool gfc_resolve_close (gfc_close *);
@@ -5097,7 +5598,40 @@ Index: gcc/fortran/ChangeLog
 ===================================================================
 --- a/src/gcc/fortran/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/fortran/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,145 @@
+@@ -1,3 +1,178 @@
++2019-02-23  Paul Thomas  <pault@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/88117
++	* resolve.c (deferred_op_assign): Return if the lhs expression
++	has the pointer attribute.
++
++2019-02-23  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/71066
++	Backport from trunk
++	* trans-decl.c (generate_coarray_sym_init):  For an array
++	constructor in a DATA statement of a coarray variable, set the
++	rank to 1 to avoid confusion later on.  If the constructor
++	contains only one value, use that for initiailizig.
++
++2019-02-10  Harald Anlauf  <anlauf@gmx.de>
++
++	Backport from trunk
++	PR fortran/89077
++	* decl.c (add_init_expr_to_sym): Copy length of string initializer
++	to declared symbol.
++
++2019-02-10  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/71723
++	Backport from trunk
++	* expr.c (gfc_check_assign): Add argument is_init_expr.  If we are
++	looking at an init expression, issue error if the target is not a
++	TARGET and we are not looking at a procedure pointer.
++	* gfortran.h (gfc_check_assign): Add optional argument
++	is_init_expr.
++
 +2019-02-05  Thomas Koenig  <tkoenig@gcc.gnu.org>
 +
 +	PR fortran/67679
@@ -5243,6 +5777,69 @@ Index: gcc/fortran/ChangeLog
  2018-12-06  Release Manager
  
  	* GCC 7.4.0 released.
+Index: gcc/fortran/expr.c
+===================================================================
+--- a/src/gcc/fortran/expr.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/fortran/expr.c	(.../branches/gcc-7-branch)
+@@ -3342,7 +3342,7 @@
+    NULLIFY statement.  */
+ 
+ bool
+-gfc_check_pointer_assign (gfc_expr *lvalue, gfc_expr *rvalue)
++gfc_check_pointer_assign (gfc_expr *lvalue, gfc_expr *rvalue, bool is_init_expr)
+ {
+   symbol_attribute attr, lhs_attr;
+   gfc_ref *ref;
+@@ -3773,12 +3773,36 @@
+       return false;
+     }
+ 
+-  if (!attr.target && !attr.pointer)
++  if (is_init_expr)
+     {
+-      gfc_error ("Pointer assignment target is neither TARGET "
+-		 "nor POINTER at %L", &rvalue->where);
+-      return false;
++      gfc_symbol *sym;
++      bool target;
++
++      gcc_assert (rvalue->symtree);
++      sym = rvalue->symtree->n.sym;
++
++      if (sym->ts.type == BT_CLASS && sym->attr.class_ok)
++	target = CLASS_DATA (sym)->attr.target;
++      else
++	target = sym->attr.target;
++
++      if (!target && !proc_pointer)
++	{
++	  gfc_error ("Pointer assignment target in initialization expression "
++		     "does not have the TARGET attribute at %L",
++		     &rvalue->where);
++	  return false;
++	}
+     }
++  else
++    {
++      if (!attr.target && !attr.pointer)
++	{
++	  gfc_error ("Pointer assignment target is neither TARGET "
++		     "nor POINTER at %L", &rvalue->where);
++	  return false;
++	}
++    }
+ 
+   if (is_pure && gfc_impure_variable (rvalue->symtree->n.sym))
+     {
+@@ -3903,7 +3927,7 @@
+     }
+ 
+   if (pointer || proc_pointer)
+-    r = gfc_check_pointer_assign (&lvalue, rvalue);
++    r = gfc_check_pointer_assign (&lvalue, rvalue, true);
+   else
+     {
+       /* If a conversion function, e.g., __convert_i8_i4, was inserted
 Index: gcc/fortran/module.c
 ===================================================================
 --- a/src/gcc/fortran/module.c	(.../tags/gcc_7_4_0_release)
@@ -5565,7 +6162,17 @@ Index: gcc/fortran/resolve.c
    as = NULL;
    ref = NULL;
    aref = NULL;
-@@ -11163,7 +11185,7 @@
+@@ -10754,6 +10776,9 @@
+   if (!gfc_check_dependency ((*code)->expr1, (*code)->expr2, 1))
+     return false;
+ 
++  if (gfc_expr_attr ((*code)->expr1).pointer)
++    return false;
++
+   tmp_expr = get_temp_from_expr ((*code)->expr1, ns);
+   tmp_expr->where = (*code)->loc;
+ 
+@@ -11163,7 +11188,7 @@
  	case EXEC_ENDFILE:
  	case EXEC_REWIND:
  	case EXEC_FLUSH:
@@ -5574,7 +6181,7 @@ Index: gcc/fortran/resolve.c
  	    break;
  
  	  resolve_branch (code->ext.filepos->err, code);
-@@ -14854,7 +14876,7 @@
+@@ -14854,7 +14879,7 @@
    /* Set the formal_arg_flag so that check_conflict will not throw
       an error for host associated variables in the specification
       expression for an array_valued function.  */
@@ -5598,6 +6205,40 @@ Index: gcc/fortran/trans-decl.c
  	  || sym->attr.if_source != IFSRC_DECL)
  	{
  	  decl = gfc_get_extern_function_decl (sym);
+@@ -5220,6 +5222,33 @@
+   /* Handle "static" initializer.  */
+   if (sym->value)
+     {
++      if (sym->value->expr_type == EXPR_ARRAY)
++	{
++	  gfc_constructor *c, *cnext;
++
++	  /* Test if the array has more than one element.  */
++	  c = gfc_constructor_first (sym->value->value.constructor);
++	  gcc_assert (c);  /* Empty constructor should not happen here.  */
++	  cnext = gfc_constructor_next (c);
++
++	  if (cnext)
++	    {
++	      /* An EXPR_ARRAY with a rank > 1 here has to come from a
++		 DATA statement.  Set its rank here as not to confuse
++		 the following steps.   */
++	      sym->value->rank = 1;
++	    }
++	  else
++	    {
++	      /* There is only a single value in the constructor, use
++		 it directly for the assignment.  */
++	      gfc_expr *new_expr;
++	      new_expr = gfc_copy_expr (c->expr);
++	      gfc_free_expr (sym->value);
++	      sym->value = new_expr;
++	    }
++	}
++
+       sym->attr.pointer = 1;
+       tmp = gfc_trans_assignment (gfc_lval_expr_from_sym (sym), sym->value,
+ 				  true, false);
 Index: gcc/fortran/match.c
 ===================================================================
 --- a/src/gcc/fortran/match.c	(.../tags/gcc_7_4_0_release)
@@ -7460,6 +8101,36 @@ Index: gcc/config/darwin.h
  /* On Darwin, we don't (at the time of writing) have linkonce sections
     with names, so it's safe to make the class data not comdat.  */
  #define TARGET_CXX_CLASS_DATA_ALWAYS_COMDAT hook_bool_void_false
+Index: gcc/config/arm/arm.c
+===================================================================
+--- a/src/gcc/config/arm/arm.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/config/arm/arm.c	(.../branches/gcc-7-branch)
+@@ -3001,7 +3001,8 @@
+ 
+   /* Thumb2 inline assembly code should always use unified syntax.
+      This will apply to ARM and Thumb1 eventually.  */
+-  opts->x_inline_asm_unified = TARGET_THUMB2_P (opts->x_target_flags);
++  if (TARGET_THUMB2_P (opts->x_target_flags))
++    opts->x_inline_asm_unified = true;
+ 
+ #ifdef SUBTARGET_OVERRIDE_INTERNAL_OPTIONS
+   SUBTARGET_OVERRIDE_INTERNAL_OPTIONS;
+Index: gcc/dce.c
+===================================================================
+--- a/src/gcc/dce.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/dce.c	(.../branches/gcc-7-branch)
+@@ -635,7 +635,10 @@
+ 
+   /* Deleted a pure or const call.  */
+   if (must_clean)
+-    delete_unreachable_blocks ();
++    {
++      delete_unreachable_blocks ();
++      free_dominance_info (CDI_DOMINATORS);
++    }
+ }
+ 
+ 
 Index: libgfortran/runtime/backtrace.c
 ===================================================================
 --- a/src/libgfortran/runtime/backtrace.c	(.../tags/gcc_7_4_0_release)
