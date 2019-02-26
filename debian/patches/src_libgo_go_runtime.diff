@@ -1,315 +1,266 @@
-Index: gcc-8-8-20180308-1.1/src/libgo/go/runtime/netpoll_gnu.go
+Index: gcc-8-8.3.0/src/libgo/go/runtime/netpoll.go
+===================================================================
+--- gcc-8-8.3.0.orig/src/libgo/go/runtime/netpoll.go
++++ gcc-8-8.3.0/src/libgo/go/runtime/netpoll.go
+@@ -170,7 +170,7 @@ func poll_runtime_pollWait(pd *pollDesc,
+ 		return err
+ 	}
+ 	// As for now only Solaris uses level-triggered IO.
+-	if GOOS == "solaris" {
++	if GOOS == "solaris" || GOOS == "gnu" {
+ 		netpollarm(pd, mode)
+ 	}
+ 	for !netpollblock(pd, int32(mode), false) {
+Index: gcc-8-8.3.0/src/libgo/go/runtime/netpoll_gnu.go
 ===================================================================
 --- /dev/null
-+++ gcc-8-8-20180308-1.1/src/libgo/go/runtime/netpoll_gnu.go
-@@ -0,0 +1,303 @@
-+// Copyright 2013 The Go Authors. All rights reserved.
++++ gcc-8-8.3.0/src/libgo/go/runtime/netpoll_gnu.go
+@@ -0,0 +1,241 @@
++// Copyright 2019 The Go Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style
 +// license that can be found in the LICENSE file.
 +
-+// FIXME: Fake network poller for gnu.
-+// This is based on the former libgo/runtime/netpoll_select.c implementation
-+// except that it uses poll instead of select and is written in Go.
-+// Inspiration was also taken from netpoll_aix.go and netpoll_solaris.go
-+
-+// +build gnu
-+
 +package runtime
 +
-+import (
-+	"unsafe"
-+)
++import "unsafe"
 +
-+//From /usr/include/i386-gnu/bits/poll.h
-+const _POLLIN   =  01           // There is data to read.
-+const _POLLPRI  =  02           // There is urgent data to read.
-+const _POLLOUT  =  04           // Writing now will not block.
-+const _POLLERR  = 010           // Error condition.
-+const _POLLHUP  = 020           // Hung up.
-+const _POLLNVAL = 040           // Invalid polling request.
-+
-+type pollfd struct {
-+        fd      int32           // File descriptor to poll.
-+        events  int16           // Types of events poller cares about.
-+        revents int16           // Types of events that actually occurred.
-+}
++// FIXME: Improve network poller for hurd.
++// This is based on the former libgo/runtime/netpoll_select.c implementation
++// except that it uses poll instead of select and is written in Go.
++// It's also based on Solaris implementation for the arming mechanisms
++// Inspiration was also taken from netpoll_aix.go and netpoll_solaris.go
 +
 +//From /usr/include/x86_64-linux-gnu/sys/poll.h
++//go:noescape
 +//extern poll
-+func poll (polldata_array *pollfd, nfds int32, timeout int32) int32
++func libc_poll(pfds *pollfd, nfds int32, timeout int32) int32
 +
++//go:noescape
 +//extern pipe2
 +func libc_pipe2(fd *int32, flags int32) int32
 +
++//pollfd represents the poll structure for GNU/Hurd operating system.
++type pollfd struct {
++	fd      int32 // File descriptor to poll.
++	events  int16 // Types of events poller cares about.
++	revents int16 // Types of events that actually occurred.
++}
++
++//From /usr/include/i386-gnu/bits/poll.h
++const _POLLIN = 01    // There is data to read.
++const _POLLPRI = 02   // There is urgent data to read.
++const _POLLOUT = 04   // Writing now will not block.
++const _POLLERR = 010  // Error condition.
++const _POLLHUP = 020  // Hung up.
++const _POLLNVAL = 040 // Invalid polling request.
++
 +var (
-+	pipefd      [2]int32
-+	pollfds     int32 = -1
-+	nfds        int32 = 0
-+	rdwake      int32
-+	wrwake      int32
-+	fds         [207]pollfd
-+	data        [207]*pollDesc
-+	pd          *pollDesc
-+	pmtx        mutex
-+	needsUpdate bool
-+	b           byte
-+	err         int32 = 0
++	pfds           []pollfd
++	pds            []*pollDesc
++	mtxpoll        mutex
++	mtxset         mutex
++	rdwake         int32
++	wrwake         int32
++	pendingUpdates int32
 +)
 +
-+func netpollinit() {
++const pollVerbose = false
 +
-+	ret := libc_pipe2(&pipefd[0], _O_CLOEXEC|_O_NONBLOCK);
-+	if ret == -1 {
++func netpollinit() {
++	var p [2]int32
++
++	// Create the pipe we use to wakeup poll.
++	if err := libc_pipe2(&p[0], _O_CLOEXEC|_O_NONBLOCK); err < 0 {
 +		throw("runtime:netpollinit(): failed to create pipe2")
 +	}
++	rdwake = p[0]
++	wrwake = p[1]
 +
-+	rdwake = pipefd[0]
-+	wrwake = pipefd[1]
++	// Pre-allocate array of pollfd structures for poll.
++	if pollVerbose {
++		println("*** allocating")
++	}
++	pfds = make([]pollfd, 1, 128)
++	if pollVerbose {
++		println("*** allocating done", &pfds[0])
++	}
 +
-+	// Add the read side of the pipe to the pollset.
-+	lock(&pmtx)
-+	fds[0].fd = int32(rdwake)
-+	fds[0].events = int16(_POLLIN)
-+	fds[0].revents = int16(0)
++	// Poll the read side of the pipe.
++	pfds[0].fd = int32(rdwake)
++	pfds[0].events = int16(_POLLIN)
++	pfds[0].revents = int16(0)
 +
-+// 	Checks for pd != nil are made in netpoll()
-+	data[0] = nil
-+	unlock(&pmtx)
-+
-+	nfds = 1
-+	pollfds = 1
-+
-+	return
++	pds = make([]*pollDesc, 1, 128)
++	// Checks for pd != nil are made in netpoll.
++	pds[0] = nil
 +}
 +
 +func netpolldescriptor() uintptr {
-+	// FIXME: see src/libgo/go/os/exec/exec_test.go
-+	// Need to return two fds here: wrwake and rdwake
-+	return ^uintptr(0)
++	// Both fds must be returned.
++	if rdwake > 0xFFFF || wrwake > 0xFFFF {
++		throw("netpolldescriptor: invalid fd number")
++	}
++	return uintptr(rdwake<<16 | wrwake)
 +}
 +
-+func fdadd(fd uintptr, events int16, pd *pollDesc) {
-+//	println("netpollopen:fdadd: nfds =", nfds, "fd =", fd)
-+
-+	fdfound := false
-+	// Omit fds[0].fd = rdwake
-+	for i := int32(1); i < nfds; i++ {
-+		fdsi := fds[i]
-+		if fdsi.fd == int32(fd) {
-+			fdfound = true
-+			fdsi.events = int16(events)
-+			fdsi.revents = int16(0)
-+			data[i] = pd
-+			break
++// netpollwakeup writes on wrwake to wakeup poll before any changes.
++func netpollwakeup() {
++	if pendingUpdates == 0 {
++		pendingUpdates = 1
++		if pollVerbose {
++			println("*** writing 1 byte")
 +		}
++		b := [1]byte{0}
++		write(uintptr(wrwake), unsafe.Pointer(&b[0]), 1)
 +	}
-+	// fd not found, add it.
-+	if fdfound == false {
-+		fds[nfds].fd = int32(fd)
-+		fds[nfds].events = int16(events)
-+		fds[nfds].revents = int16(0)
-+		data[nfds] = pd
-+		nfds++
-+	}
-+
-+//	for l := int32(0); l < nfds; l++ {
-+//		println("fds[", l, "].fd =", fds[l].fd)
-+//	}
-+
-+	return
 +}
 +
 +func netpollopen(fd uintptr, pd *pollDesc) int32 {
-+	lock(&pmtx)
-+	needsUpdate = true
-+	unlock(&pmtx)
-+
-+	// poll will block so wakeup using wrwake first.
-+wrloop1:
-+	nwritten := write(uintptr(wrwake), unsafe.Pointer(&b), 1)
-+	if nwritten == 0 {
-+		println("runtime:netpollopen: write retuned zero, fd =", wrwake)
-+		return -1
++	if pollVerbose {
++		println("*** netpollopen", fd)
 +	}
-+	if nwritten == -1 {
-+		err = int32(errno())
-+		if err == _EAGAIN {
-+			goto wrloop1
-+		}
-+		println("runtime:netpollopen: write failed fd =", wrwake, "errno =", err)
-+		return err
-+	}
++	lock(&mtxpoll)
++	netpollwakeup()
 +
-+	// Add fd to the pollset.
-+	lock(&pmtx)
-+	fdadd(fd, _POLLIN|_POLLOUT, pd)
-+	needsUpdate = false
-+	unlock(&pmtx)
++	lock(&mtxset)
++	unlock(&mtxpoll)
 +
++	pd.user = uint32(len(pfds))
++	pfds = append(pfds, pollfd{fd: int32(fd)})
++	pds = append(pds, pd)
++	unlock(&mtxset)
 +	return 0
 +}
 +
-+func fdremove(fd uintptr) {
-+//	println("netpollclose():fdremove() nfds =", nfds, "fd =", fd)
-+
-+	fdfound := false
-+	// Omit fds[0].fd = rdwake
-+	j := 1
-+	for i := int32(1); i < nfds; i++ {
-+		fdsi := fds[i]
-+		if fdsi.fd == int32(fd) {
-+			fdfound = true
-+			fdsi.fd = int32(0)
-+			fdsi.events = int16(0)
-+			fdsi.revents = int16(0)
-+			data[i] = nil
-+		} else {
-+			fds[j].fd = fdsi.fd
-+			fds[j].events = fdsi.events
-+			fds[j].revents = int16(0)
-+			data[j] = data[i]
-+			j++
-+		}
-+	}
-+	nfds--
-+	// fd not found, print an error
-+	//FIXME: Still output from here
-+	if fdfound == false {
-+		println("netpollclose:fdremove: fd =", fd, "NOT FOUND")
-+	}
-+
-+//	for l := int32(0); l < nfds; l++ {
-+//		println("fds[", l, "].fd =", fds[l].fd)
-+//	}
-+
-+	return
-+}
-+
 +func netpollclose(fd uintptr) int32 {
-+	lock(&pmtx)
-+	needsUpdate = true
-+	unlock(&pmtx)
-+
-+	// poll will block so wakeup using wrwake first.
-+wrloop2:
-+	nwritten := write(uintptr(wrwake), unsafe.Pointer(&b), 1)
-+	if nwritten == 0 {
-+		println("runtime:netpollclose: write retuned zero, fd =", wrwake)
-+		return -1
++	if pollVerbose {
++		println("*** netpollclose", fd)
 +	}
-+	if nwritten == -1 {
-+		err = int32(errno())
-+		if err == _EAGAIN {
-+			goto wrloop2
++	lock(&mtxpoll)
++	netpollwakeup()
++
++	lock(&mtxset)
++	unlock(&mtxpoll)
++
++	for i := 0; i < len(pfds); i++ {
++		if pfds[i].fd == int32(fd) {
++			pfds[i] = pfds[len(pfds)-1]
++			pfds = pfds[:len(pfds)-1]
++
++			pds[i] = pds[len(pds)-1]
++			pds[i].user = uint32(i)
++			pds = pds[:len(pds)-1]
++			break
 +		}
-+		println("runtime:netpollclose: write failed fd =", wrwake, "errno =", err)
-+		return err
 +	}
-+
-+	// Remove fd from the pollset.
-+	lock(&pmtx)
-+	fdremove(fd)
-+	needsUpdate = false
-+	unlock(&pmtx)
-+
++	unlock(&mtxset)
 +	return 0
 +}
 +
 +func netpollarm(pd *pollDesc, mode int) {
-+	throw("runtime:netpollarm() unused")
++	if pollVerbose {
++		println("*** netpollarm", pd.fd, mode)
++	}
++	lock(&mtxpoll)
++	netpollwakeup()
++
++	lock(&mtxset)
++	unlock(&mtxpoll)
++
++	switch mode {
++	case 'r':
++		pfds[pd.user].events |= _POLLIN
++	case 'w':
++		pfds[pd.user].events |= _POLLOUT
++	}
++	unlock(&mtxset)
 +}
 +
 +// polls for ready network connections
 +// returns list of goroutines that become runnable
++//go:nowritebarrierrec
 +func netpoll(block bool) *g {
-+	if pollfds == -1 {
-+		return nil
-+	}
-+
 +	timeout := int32(-1)
 +	if !block {
 +		timeout = 0
 +	}
 +
++	if pollVerbose {
++		println("*** netpoll", block)
++	}
 +retry:
-+	lock(&pmtx)
-+	if needsUpdate {
-+		unlock(&pmtx)
-+		osyield()
++	lock(&mtxpoll)
++	lock(&mtxset)
++	pendingUpdates = 0
++	unlock(&mtxpoll)
++
++	if pollVerbose {
++		println("*** netpoll before poll")
++	}
++	n := libc_poll(&pfds[0], int32(len(pfds)), timeout)
++	if pollVerbose {
++		println("*** netpoll after poll", n)
++	}
++	if n < 0 {
++		e := errno()
++		if e != _EINTR {
++			println("errno=", e, " len(pfds)=", len(pfds))
++			throw("poll failed")
++		}
++		if pollVerbose {
++			println("*** poll failed")
++		}
++		unlock(&mtxset)
 +		goto retry
 +	}
-+	unlock(&pmtx)
-+
-+	// Note: poll only returns fds with non-zero revents!
-+	nfound := poll(&fds[0], nfds, timeout)
-+	if nfound == 0 {
-+		return nil
-+	}
-+	if nfound < 0 {
-+		err = int32(errno())
-+		if err == _EINTR || err == _EAGAIN {
-+			goto retry
-+		}
-+		println("runtime: poll failed errno =", err)
-+		throw("runtime: netpoll failed")
-+	}
-+
-+	var mode int32
-+	var gp guintptr
-+	// We assume that nfound <= nfds
-+	for i := int32(0); i < nfds; i++ {
-+		fdsi := &fds[i]
-+
-+		// Skip fds with zero revents as poll does
-+		if fdsi.revents == 0 {
-+			continue
-+		}
-+
-+	    	mode = 0
-+		if fdsi.revents&(_POLLIN|_POLLHUP|_POLLERR) != 0 {
-+			if fdsi.fd == rdwake {
-+rdloop:
-+				nread := read(fdsi.fd, unsafe.Pointer(&b), 1)
-+				// EOF
-+				if nread == 0 {
-+					println("runtime:netpoll: read returned zero fd =", fdsi.fd)
-+					return nil
-+				}
-+				if nread == -1 {
-+					err = int32(errno())
-+					if err == _EAGAIN {
-+						goto rdloop
-+					}
-+				 	println("runtime:netpoll: read failed fd =", fdsi.fd, "errno =", err)
-+				 	return nil
-+				}
-+				continue
++	// Check if some descriptors need to be changed
++	if n != 0 && pfds[0].revents&(_POLLIN|_POLLHUP|_POLLERR) != 0 {
++		var b [1]byte
++		for read(rdwake, unsafe.Pointer(&b[0]), 1) == 1 {
++			if pollVerbose {
++				println("*** read 1 byte from pipe")
 +			}
-+			mode += 'r'
 +		}
-+		if fdsi.revents&(_POLLOUT|_POLLHUP|_POLLERR) != 0 {
++		// Do not look at the other fds in this case as the mode may have changed
++		// XXX only additions of flags are made, so maybe it is ok
++		unlock(&mtxset)
++		goto retry
++	}
++	var gp guintptr
++
++	for i := 0; i < len(pfds) && n > 0; i++ {
++		pfd := &pfds[i]
++
++		var mode int32
++		if pfd.revents&(_POLLIN|_POLLHUP|_POLLERR) != 0 {
++			mode += 'r'
++			pfd.events &= ^_POLLIN
++		}
++		if pfd.revents&(_POLLOUT|_POLLHUP|_POLLERR) != 0 {
 +			mode += 'w'
++			pfd.events &= ^_POLLOUT
 +		}
 +		if mode != 0 {
-+			lock(&pmtx)
-+			pd = data[i]
-+			unlock(&pmtx)
-+			if pd != nil {
-+				netpollready(&gp, pd, mode)
++			if pollVerbose {
++				println("*** netpollready i=", i, "revents=", pfd.revents, "events=", pfd.events, "pd=", pds[i])
 +			}
++			netpollready(&gp, pds[i], mode)
++			n--
 +		}
 +	}
-+
++	unlock(&mtxset)
 +	if block && gp == 0 {
 +		goto retry
 +	}
-+
-+        return gp.ptr()
++	if pollVerbose {
++		println("*** netpoll returning end")
++	}
++	return gp.ptr()
 +}
-Index: gcc-8-8-20180308-1.1/src/libgo/go/runtime/os_gnu.go
+Index: gcc-8-8.3.0/src/libgo/go/runtime/os_gnu.go
 ===================================================================
 --- /dev/null
-+++ gcc-8-8-20180308-1.1/src/libgo/go/runtime/os_gnu.go
++++ gcc-8-8.3.0/src/libgo/go/runtime/os_gnu.go
 @@ -0,0 +1,87 @@
 +// Copyright 2011 The Go Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style
@@ -398,10 +349,10 @@ Index: gcc-8-8-20180308-1.1/src/libgo/go/runtime/os_gnu.go
 +	}
 +}
 +
-Index: gcc-8-8-20180308-1.1/src/libgo/go/runtime/signal_gnu.go
+Index: gcc-8-8.3.0/src/libgo/go/runtime/signal_gnu.go
 ===================================================================
 --- /dev/null
-+++ gcc-8-8-20180308-1.1/src/libgo/go/runtime/signal_gnu.go
++++ gcc-8-8.3.0/src/libgo/go/runtime/signal_gnu.go
 @@ -0,0 +1,750 @@
 +// Copyright 2012 The Go Authors. All rights reserved.
 +// Use of this source code is governed by a BSD-style
