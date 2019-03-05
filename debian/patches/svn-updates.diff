@@ -1,10 +1,10 @@
-# DP: updates from the 8 branch upto 20190225 (r269183).
+# DP: updates from the 8 branch upto 20190305 (r269387).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Mon Feb 25 08:56:13 CET 2019
-Mon Feb 25 07:56:13 UTC 2019 (revision 269183)
+Tue Mar  5 10:37:05 CET 2019
+Tue Mar  5 09:37:05 UTC 2019 (revision 269387)
 EOF
 }
 
@@ -80,12 +80,132 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-8-branch)
 @@ -1 +1 @@
 -20190222
-+20190225
++20190305
+Index: gcc/rtlanal.c
+===================================================================
+--- a/src/gcc/rtlanal.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/rtlanal.c	(.../branches/gcc-8-branch)
+@@ -358,10 +358,10 @@
+   if (to == from)
+     return 0;
+ 
+-  /* It is not safe to call INITIAL_ELIMINATION_OFFSET
+-     before the reload pass.  We need to give at least
+-     an estimation for the resulting frame size.  */
+-  if (! reload_completed)
++  /* It is not safe to call INITIAL_ELIMINATION_OFFSET before the epilogue
++     is completed, but we need to give at least an estimate for the stack
++     pointer based on the frame size.  */
++  if (!epilogue_completed)
+     {
+       offset1 = crtl->outgoing_args_size + get_frame_size ();
+ #if !STACK_GROWS_DOWNWARD
 Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,10 @@
+@@ -1,3 +1,111 @@
++2019-03-05  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2019-02-26  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/89505
++	* tree-ssa-structalias.c (compute_dependence_clique): Make sure
++	to handle restrict pointed-to vars with multiple subvars
++	correctly.
++
++2019-03-01  Tamar Christina  <tamar.christina@arm.com>
++
++	PR target/89517
++	* config/aarch64/aarch64-option-extensions.def (fp, simd, crypto,
++	fp16): Collapse line.
++
++2019-03-01  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2019-03-01  Jakub Jelinek  <jakub@redhat.com>
++
++	PR bootstrap/89539
++	* dwarf2out.c (output_comdat_type_unit): Add ATTRIBUTE_UNUSED to
++	early_lto_debug argument.
++
++	2019-02-27  Richard Biener  <rguenther@suse.de>
++
++	PR debug/88878
++	* dwarf2out.c (use_debug_types): Disable when in_lto_p.
++
++	2019-02-27  Richard Biener  <rguenther@suse.de>
++
++	PR debug/88878
++	* dwarf2out.c (output_comdat_type_unit): Add early_lto_debug
++	parameter, prefix section name with .gnu.debuglto_ if true.
++	(dwarf2out_finish): Pass false to output_comdat_type_unit.
++	(dwarf2out_early_finish): Pass true to output_comdat_type_unit.
++
++	2019-02-27  Richard Biener  <rguenther@suse.de>
++
++	PR debug/89514
++	* dwarf2out.c (size_of_die): Key on AT_ref (a)->comdat_type_p
++	rather than on use_debug_types, doing what output_die does.
++	(value_format): Likewise.
++
++2019-02-28  Eric Botcazou  <ebotcazou@adacore.com>
++
++	PR tree-optimization/89536
++	* tree-ssa-dom.c (edge_info::derive_equivalences) <BIT_NOT_EXPR>: Test
++	only whether bit #0 of the value is 0 instead of the entire value.
++
++2019-02-28  Li Jia He  <helijia@linux.ibm.com>
++
++	Backport from trunk
++	2019-02-20  Li Jia He  <helijia@linux.ibm.com>
++
++	PR target/88100
++	* gcc/config/rs6000/rs6000.c (rs6000_gimple_fold_builtin)
++	<case ALTIVEC_BUILTIN_VSPLTISB, ALTIVEC_BUILTIN_VSPLTISH,
++	ALTIVEC_BUILTIN_VSPLTISW>: Don't convert the operand before
++	range checking it.
++
++2019-02-27  Uroš Bizjak  <ubizjak@gmail.com>
++
++	PR target/89397
++	* config/i386/i386.c (ix86_atomic_assign_expand_fenv): Check
++	TARGET_SSE in addition to TARGET_SSE_MATH.
++
++	(ix86_excess_precision): Ditto.
++	(ix86_float_exceptions_rounding_supported_p): Ditto.
++	(use_rsqrt_p): Ditto.
++	* config/i386/sse.md (rsqrt<mode>2): Ditto.
++
++2019-02-27  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from mainline
++	2019-02-18  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/89361
++	* config/s390/s390.c (s390_indirect_branch_attrvalue,
++	s390_indirect_branch_settings): Define unconditionally.
++	(s390_set_current_function): Likewise, but guard the whole body except
++	the s390_indirect_branch_settings call with
++	#if S390_USE_TARGET_ATTRIBUTE.
++	(TARGET_SET_CURRENT_FUNCTION): Redefine unconditionally.
++
++2019-02-26  Eric Botcazou  <ebotcazou@adacore.com>
++
++	Backport from mainline
++	2019-02-19  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* rtlanal.c (get_initial_register_offset): Fall back to the estimate
++	as long as the epilogue isn't completed.
++
++2019-02-26  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* tree-ssa-dom.c (edge_info::derive_equivalences) <BIT_IOR_EXPR>: Fix
++	and move around comment.
++	<BIT_AND_EXPR>: Likewise.
++	<BIT_NOT_EXPR>: Add specific handling for boolean types.
++
 +2019-02-24  Alan Modra  <amodra@gmail.com>
 +
 +	PR target/89271
@@ -96,6 +216,150 @@ Index: gcc/ChangeLog
  2019-02-22  Release Manager
  
  	* GCC 8.3.0 released.
+Index: gcc/testsuite/gcc.target/powerpc/pr88100.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/pr88100.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/pr88100.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,44 @@
++/* PR88100.  Verify that rs6000 gimple-folding code handles the
++   vec_splat_{su}{8,16,32} invalid data properly. */
++
++/* { dg-do compile } */
++/* { dg-require-effective-target powerpc_altivec_ok } */
++/* { dg-options "-maltivec" } */
++
++#include <altivec.h>
++
++vector unsigned char
++splatu1 (void)
++{
++  return vec_splat_u8(0x100);/* { dg-error "argument 1 must be a 5-bit signed literal" } */
++}
++
++vector unsigned short
++splatu2 (void)
++{
++  return vec_splat_u16(0x10000);/* { dg-error "argument 1 must be a 5-bit signed literal" } */
++}
++
++vector unsigned int
++splatu3 (void)
++{
++  return vec_splat_u32(0x10000000);/* { dg-error "argument 1 must be a 5-bit signed literal" } */
++}
++
++vector signed char
++splats1 (void)
++{
++  return vec_splat_s8(0x100);/* { dg-error "argument 1 must be a 5-bit signed literal" } */
++}
++
++vector signed short
++splats2 (void)
++{
++  return vec_splat_s16(0x10000);/* { dg-error "argument 1 must be a 5-bit signed literal" } */
++}
++
++vector signed int
++splats3 (void)
++{
++  return vec_splat_s32(0x10000000);/* { dg-error "argument 1 must be a 5-bit signed literal" } */
++}
+Index: gcc/testsuite/gfortran.dg/transfer_simplify_12.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/transfer_simplify_12.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/transfer_simplify_12.f90	(.../branches/gcc-8-branch)
+@@ -0,0 +1,27 @@
++! { dg-do run }
++! { dg-options "-O -std=legacy" }
++!
++! Test fixes for some findings while resolving PR fortran/89077
++
++program test
++  implicit none
++  integer :: i
++  character(*)  ,parameter :: s =  'abcdef'   ! Length will be 6
++  character(*)  ,parameter :: h = 6Habcdef    ! Length will be 8 (Hollerith!)
++  character(10) ,parameter :: k = 6Habcdef
++  character(10) ,parameter :: t = transfer (s, s)
++  character(10) ,save      :: u = transfer (s, s)
++  character(10) ,parameter :: v = transfer (h, h)
++  character(10) ,save      :: w = transfer (h, h)
++  character(10) ,parameter :: x = transfer ([(s(i:i),i=len(s),1,-1)], s)
++  character(10) ,save      :: y = transfer ([(s(i:i),i=len(s),1,-1)], s)
++  if (len (h) /= 8) stop 1
++  if (h /= s) stop 2
++  if (k /= s) stop 3
++  if (t /= s) stop 4
++  if (u /= s) stop 5
++  if (v /= s) stop 6
++  if (w /= s) stop 7
++  if (x /= "fedcba") stop 8
++  if (y /= x) stop 9
++end program test
+Index: gcc/testsuite/gfortran.dg/allocate_with_mold_3.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/allocate_with_mold_3.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/allocate_with_mold_3.f90	(.../branches/gcc-8-branch)
+@@ -0,0 +1,21 @@
++! { dg-do  run }
++! PR fortran/89174 - this used to segfault on execution.
++! Test case by Neil Carlson.
++module mod
++  type :: array_data
++    class(*), allocatable :: mold
++  contains
++    procedure :: push
++  end type
++contains
++  subroutine push(this, value)
++    class(array_data), intent(inout) :: this
++    class(*), intent(in) :: value
++    allocate(this%mold, mold=value) ! <== SEGFAULTS HERE
++  end subroutine
++end module
++
++use mod
++type(array_data) :: foo
++call foo%push(42)
++end
+Index: gcc/testsuite/gfortran.dg/dtio_34.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/dtio_34.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/dtio_34.f90	(.../branches/gcc-8-branch)
+@@ -0,0 +1,32 @@
++! { dg-do run }
++! PR84387 Defined output does not work for a derived type that
++! has no components 
++module m
++   type :: t
++      private
++      !integer :: m_i = 0  !<-- ***
++   contains
++      private
++      procedure, pass(this) :: write_t
++      generic, public :: write(formatted) => write_t
++   end type
++contains
++   subroutine write_t(this, lun, iotype, vlist, istat, imsg)
++      ! argument definitions
++      class(t), intent(in)            :: this
++      integer, intent(in)             :: lun
++      character(len=*), intent(in)    :: iotype
++      integer, intent(in)             :: vlist(:)
++      integer, intent(out)            :: istat
++      character(len=*), intent(inout) :: imsg
++      write(lun, fmt=*, iostat=istat, iomsg=imsg) "Hello World!"
++      return
++   end subroutine write_t
++
++end module
++
++program p
++   use m, only : t
++   type(t) :: foo
++   print "(dt)", foo ! { dg-output " Hello World!" }
++end program
 Index: gcc/testsuite/gfortran.dg/coarray_data_1.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/coarray_data_1.f90	(.../tags/gcc_8_3_0_release)
@@ -112,6 +376,57 @@ Index: gcc/testsuite/gfortran.dg/coarray_data_1.f90
 +   if (any (a /= 0.0)) stop 1
 +   if (any (b /= reshape([1234, 2345, 3456, 4567],[2,2]))) stop 2
 +end
+Index: gcc/testsuite/gfortran.dg/transfer_check_5.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/transfer_check_5.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/transfer_check_5.f90	(.../branches/gcc-8-branch)
+@@ -0,0 +1,14 @@
++! { dg-do compile }
++! { dg-options "-Wsurprising" }
++!
++! PR fortran/89516 - ICE in gfc_calculate_transfer_sizes at gcc/fortran/check.c:5506
++! Found by Martin Liška
++
++program test
++  character(*), parameter :: n = ''
++  character(*), parameter :: o = transfer ([''], n)
++  print *, transfer(1,'',size=0) ! No warning
++  print *, transfer(1,'',size=1) ! No warning
++  print *, transfer('',1,size=0) ! No warning
++  print *, transfer('',1,size=1) ! { dg-warning "has partly undefined result" }
++end program test
+Index: gcc/testsuite/gfortran.dg/pr89492.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr89492.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr89492.f90	(.../branches/gcc-8-branch)
+@@ -0,0 +1,27 @@
++! { dg-do compile }
++!
++! PR fortran/89492 - Endless compilation of an invalid TRANSFER after r269177
++! Test error recovery for invalid uses of TRANSFER
++! Test proper simplification for MOLD with size 0
++!
++! Derived from original testcase by Dominique d'Humieres
++
++program bug4a
++  implicit none
++  type bug4
++! Intentionally left empty
++  end type bug4
++  integer, parameter :: k = size(transfer('',['']))  ! k = 0
++  integer, parameter :: i = len (transfer('',['']))  ! i = 0
++  integer, parameter :: l = len (transfer('', '' ))  ! l = 0
++  integer, parameter :: m(k) = k
++  integer, parameter :: j(i) = i
++  integer, parameter :: n(l) = l
++  print *, k,i,l,m,j,n
++  print *,      transfer(1,[''])                ! { dg-error "shall not have storage size 0" }
++  print *,      transfer(1, '' )                ! No error
++  print *, size(transfer(1,['']))               ! { dg-error "shall not have storage size 0" }
++  print *, len (transfer(1, '' ))               ! No error
++  print *, size(transfer([1],[bug4()]))         ! { dg-error "shall not have storage size 0" }
++  print *, transfer(transfer([1],[bug4()]),[1]) ! { dg-error "shall not have storage size 0" }
++end program bug4a
 Index: gcc/testsuite/gfortran.dg/deferred_character_32.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/deferred_character_32.f90	(.../tags/gcc_8_3_0_release)
@@ -129,6 +444,175 @@ Index: gcc/testsuite/gfortran.dg/deferred_character_32.f90
 +   z = (z) ! gimplifier choked here.
 +   if (any (z .ne. ['abcd', 'bcde'])) stop 1
 +   deallocate (z)
++end
+Index: gcc/testsuite/gfortran.dg/substr_simplify.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/substr_simplify.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/substr_simplify.f90	(.../branches/gcc-8-branch)
+@@ -0,0 +1,20 @@
++! { dg-do run }
++!
++! Test fixes for substring simplications derived from
++! PR fortran/89077 - ICE using * as len specifier for character parameter
++
++program test
++  implicit none
++  integer :: i
++  character(*), parameter :: s = 'abcdef', y = 'efcdab'
++  character(6), save      :: t = transfer ([(s(i:i),  i=1,len(s)  )], s)
++  character(*), parameter :: u = transfer ([(s(i:i+2),i=1,len(s),3)], s)
++  character(6), save      :: v = transfer ([(s(i:i+2),i=1,len(s),3)], s)
++  character(*), parameter :: w = transfer ([(y(i:i+1),i=len(s)-1,1,-2)], s)
++  character(6), save      :: x = transfer ([(y(i:i+1),i=len(s)-1,1,-2)], s)
++  if (len (t) /= len (s) .or. t /= s) stop 1
++  if (len (u) /= len (s) .or. u /= s) stop 2
++  if (len (v) /= len (s) .or. v /= s) stop 3
++  if (len (w) /= len (s) .or. w /= s) stop 4
++  if (len (x) /= len (s) .or. x /= s) stop 5
++end
+Index: gcc/testsuite/gfortran.dg/altreturn_9_1.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/altreturn_9_1.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/altreturn_9_1.f90	(.../branches/gcc-8-branch)
+@@ -0,0 +1,7 @@
++! { dg-do compile }
++! { dg-options "-std=gnu" }
++! See altreturn_9_0.f90
++subroutine sub(i, *, j)
++  if (i == 10 .and. j == 20) return 1
++  return
++end subroutine sub
+Index: gcc/testsuite/gfortran.dg/pr89266.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr89266.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr89266.f90	(.../branches/gcc-8-branch)
+@@ -0,0 +1,25 @@
++! { dg-do run }
++!
++! PR fortran/89266 - ICE with TRANSFER of len=0 character array constructor
++
++program test
++  implicit none
++  character(*), parameter :: n = ''
++  character(*), parameter :: o = transfer ([''], n)
++  character(*), parameter :: p = transfer ( n , n)
++  character(*), parameter :: q = transfer ([n], n)
++  character(6), save      :: r = transfer ([''], n)
++  character(6), save      :: s = transfer ( n , n)
++  character(6), save      :: t = transfer ([n], n)
++  integer,      parameter :: a(0) = 0
++  integer,      parameter :: b(0) = transfer (a, a)
++  integer,      save      :: c(0) = transfer (a, a)
++  if (len (o) /= 0) stop 1
++  if (len (p) /= 0) stop 2
++  if (len (q) /= 0) stop 3
++  if (r /= "") stop 4
++  if (s /= "") stop 5
++  if (t /= "") stop 6
++  if (size (b) /= 0 .or. any (b /= 0)) stop 7
++  if (size (c) /= 0 .or. any (c /= 0)) stop 8
++end program test
+Index: gcc/testsuite/gfortran.dg/lto/20091028-1_0.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/lto/20091028-1_0.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/lto/20091028-1_0.f90	(.../branches/gcc-8-branch)
+@@ -1,5 +1,5 @@
+ ! { dg-lto-do link }
+-! { dg-extra-ld-options "-r -nostdlib -finline-functions" }
++! { dg-extra-ld-options "-r -nostdlib -finline-functions -Wno-lto-type-mismatch" }
+ 
+ SUBROUTINE int_gen_ti_header_char( hdrbuf, hdrbufsize, itypesize, &
+                               DataHandle, Element, VarName, Data, code )
+Index: gcc/testsuite/gfortran.dg/lto/20091028-2_0.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/lto/20091028-2_0.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/lto/20091028-2_0.f90	(.../branches/gcc-8-branch)
+@@ -1,5 +1,5 @@
+ ! { dg-lto-do link }
+-! { dg-extra-ld-options "-r -nostdlib -finline-functions" }
++! { dg-extra-ld-options "-r -nostdlib -finline-functions -Wno-lto-type-mismatch" }
+ 
+ SUBROUTINE int_gen_ti_header_char( hdrbuf, hdrbufsize, itypesize, &
+                               DataHandle, Element, VarName, Data, code )
+Index: gcc/testsuite/gfortran.dg/lto/pr87689_0.f
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/lto/pr87689_0.f	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/lto/pr87689_0.f	(.../branches/gcc-8-branch)
+@@ -0,0 +1,13 @@
++! { dg-lto-run }
++! PR 87689 - this used to fail for POWER, plus it used to
++! give warnings about mismatches with LTO.
++! Original test case by Judicaël Grasset.
++      program main
++        implicit none
++        character :: c
++        character(len=20) :: res, doesntwork_p8
++        external doesntwork_p8
++        c = 'o'
++        res = doesntwork_p8(c,1,2,3,4,5,6)
++        if (res /= 'foo') stop 3
++      end program main
+Index: gcc/testsuite/gfortran.dg/lto/pr87689_1.f
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/lto/pr87689_1.f	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/lto/pr87689_1.f	(.../branches/gcc-8-branch)
+@@ -0,0 +1,11 @@
++      function doesntwork_p8(c,a1,a2,a3,a4,a5,a6)
++        implicit none
++        character(len=20) :: doesntwork_p8
++        character :: c
++        integer :: a1,a2,a3,a4,a5,a6
++        if (a1 /= 1 .or. a2 /= 2 .or. a3 /= 3 .or. a4 /= 4 .or. a5 /= 5
++     &       .or. a6 /= 6) stop 1
++       if (c /= 'o ') stop 2
++       doesntwork_p8 = 'foo'
++       return
++       end
+Index: gcc/testsuite/gfortran.dg/pr77583.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr77583.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr77583.f90	(.../branches/gcc-8-branch)
+@@ -0,0 +1,10 @@
++! { dg-do compile }
++!
++! PR fortran/77583 - ICE in pp_quoted_string, at pretty-print.c:966
++! Contributed by Gerhard Steinmetz <gerhard.steinmetz.fortran@t-online.de>
++
++pure subroutine sub(s)
++contains
++   pure subroutine s  ! { dg-error "conflicts with DUMMY argument" }
++   end
++end
+Index: gcc/testsuite/gfortran.dg/altreturn_9_0.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/altreturn_9_0.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/altreturn_9_0.f90	(.../branches/gcc-8-branch)
+@@ -0,0 +1,10 @@
++! { dg-do  run }
++! { dg-options -std=gnu }
++! { dg-additional-sources altreturn_9_1.f90 }
++! PR 89496 - wrong type for alternate return was generated
++
++program main
++  call sub(10, *10, 20)
++  stop 1
++10 continue
++end program main
+Index: gcc/testsuite/gfortran.dg/pr88326.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr88326.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr88326.f90	(.../branches/gcc-8-branch)
+@@ -0,0 +1,11 @@
++! { dg-do compile }
++!
++! PR fortran/88326 - ICE in gfc_conv_array_initializer
++
++program p
++  character, parameter :: x(3) = ['a','b','c']
++  character    :: y(1) = transfer('', x) ! { dg-error "Different shape for array assignment" }
++  character(0) :: z(1) = transfer('', x) ! { dg-error "Different shape for array assignment" }
++  character    :: u(0) = transfer('', x)
++  print *, y, z, u
 +end
 Index: gcc/testsuite/gfortran.dg/warn_conversion_11.f90
 ===================================================================
@@ -153,11 +637,198 @@ Index: gcc/testsuite/gfortran.dg/warn_conversion_11.f90
 +   end select
 +
 +end program proglen
+Index: gcc/testsuite/gcc.c-torture/execute/20190228-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.c-torture/execute/20190228-1.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.c-torture/execute/20190228-1.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,16 @@
++/* PR tree-optimization/89536 */
++/* Testcase by Zhendong Su <su@cs.ucdavis.edu> */
++
++int a = 1;
++
++int main (void)
++{
++  a = ~(a && 1); 
++  if (a < -1)
++    a = ~a;
++  
++  if (!a)
++    __builtin_abort ();
++
++  return 0;
++}
+Index: gcc/testsuite/gnat.dg/opt77.adb
+===================================================================
+--- a/src/gcc/testsuite/gnat.dg/opt77.adb	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gnat.dg/opt77.adb	(.../branches/gcc-8-branch)
+@@ -0,0 +1,14 @@
++-- { dg-do run }
++-- { dg-options "-O -fno-inline" }
++
++with Opt77_Pkg; use Opt77_Pkg;
++
++procedure Opt77 is
++  N : Natural := 0;
++  To_Add : Boolean;
++begin
++  Proc ("One", N, To_Add);
++  if To_Add then
++    raise Program_Error;
++  end if;
++end;
+Index: gcc/testsuite/gnat.dg/opt77_pkg.adb
+===================================================================
+--- a/src/gcc/testsuite/gnat.dg/opt77_pkg.adb	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gnat.dg/opt77_pkg.adb	(.../branches/gcc-8-branch)
+@@ -0,0 +1,28 @@
++package body Opt77_Pkg is
++
++  function Compare (S : String) return Boolean is
++  begin
++    return S = "Two";
++  end;
++
++  procedure Proc (S : String; N : in out Natural; To_Add : out Boolean) is
++    To_Take : Boolean := False;
++    To_Read : Boolean := False;
++  begin
++    To_Add := False;
++
++    if S = "One" then
++      To_Read := True;
++      To_Take := Compare (S);
++    end if;
++
++    if To_Read and not To_Take then
++      N := N + 1;
++    end if;
++
++    if To_Take then
++      To_Add := True;
++    end if;
++  end;
++
++end Opt77_Pkg;
+Index: gcc/testsuite/gnat.dg/opt77_pkg.ads
+===================================================================
+--- a/src/gcc/testsuite/gnat.dg/opt77_pkg.ads	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gnat.dg/opt77_pkg.ads	(.../branches/gcc-8-branch)
+@@ -0,0 +1,5 @@
++package Opt77_Pkg is
++
++  procedure Proc (S : String; N : in out Natural; To_Add : out Boolean);
++
++end Opt77_Pkg;
+Index: gcc/testsuite/gcc.dg/torture/pr89505.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/torture/pr89505.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.dg/torture/pr89505.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,22 @@
++/* { dg-do run } */
++
++struct S { int i; void *p; int j; };
++int a;
++int __attribute__((noinline))
++foo (struct S * __restrict p, int q)
++{
++  int *x = &p->j;
++  if (q)
++    x = &a;
++  p->j = 1;
++  *x = 2;
++  return p->j;
++}
++
++int main()
++{
++  struct S s;
++  if (foo (&s, 0) != 2)
++    __builtin_abort ();
++  return 0;
++}
 Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,21 @@
+@@ -1,3 +1,98 @@
++2019-03-05  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2019-02-26  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/89505
++	* gcc.dg/torture/pr89505.c: New testcase.
++
++2019-03-03  Harald Anlauf  <anlauf@gmx.de>
++
++	Backport from trunk
++	PR fortran/89077
++	* gfortran.dg/transfer_simplify_12.f90: New test.
++	* gfortran.dg/substr_simplify.f90: New test.
++
++2019-03-03  Harald Anlauf  <anlauf@gmx.de>
++
++	Backport from trunk
++	PR fortran/77583
++	* gfortran.dg/pr77583.f90: New test.
++
++2019-03-03  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/89174
++	Backport from trunk
++	* gfortran.dg/allocate_with_mold_3.f90: New test.
++
++2019-03-03  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/87689
++	Backport from trunk
++	* gfortran.dg/lto/20091028-1_0.f90: Add -Wno-lto-type-mismatch to
++	options.
++	* gfortran.dg/lto/20091028-2_0.f90: Likewise.
++	* gfortran.dg/lto/pr87689_0.f: New file.
++	* gfortran.dg/lto/pr87689_1.f: New file.
++	* gfortran.dg/altreturn_9_0.f90: New file.
++	* gfortran.dg/altreturn_9_1.f90: New file.
++
++2019-03-02  Jerry DeLisle <jvdelisle@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/84387
++	* gfortran.dg/dtio_34.f90: New test.
++
++2019-03-02  Harald Anlauf  <anlauf@gmx.de>
++
++	Backport from trunk
++	PR fortran/89516
++	* gfortran.dg/pr89492.f90: Adjust testcase.
++	* gfortran.dg/transfer_check_5.f90: New test.
++
++	PR fortran/89492
++	* gfortran.dg/pr89492.f90: New test.
++
++	PR fortran/89266
++	PR fortran/88326
++	* gfortran.dg/pr89266.f90: New test.
++	* gfortran.dg/pr88326.f90: New test.
++
++2019-02-28  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* gcc.c-torture/execute/20190228-1.c: New test.
++
++2019-02-28  Li Jia He  <helijia@linux.ibm.com>
++
++	Backport from trunk
++	2019-02-20  Li Jia He  <helijia@linux.ibm.com>
++
++	PR target/88100
++	* gcc/testsuite/gcc.target/powerpc/pr88100.c: New testcase.
++
++2019-02-26  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* gnat.dg/opt77.adb: New test.
++	* gnat.dg/opt77_pkg.ad[sb]: New helper.
++
 +2019-02-23  Thomas Koenig  <tkoenig@gcc.gnu.org>
 +
 +	PR fortran/86119
@@ -179,6 +850,254 @@ Index: gcc/testsuite/ChangeLog
  2019-02-22  Release Manager
  
  	* GCC 8.3.0 released.
+Index: gcc/testsuite/g++.dg/cpp0x/nullptr41.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp0x/nullptr41.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp0x/nullptr41.C	(.../branches/gcc-8-branch)
+@@ -0,0 +1,19 @@
++// PR c++/89212
++// { dg-do compile { target c++11 } }
++
++template <int, typename T> using enable_if_t = int;
++
++template<typename U, typename W, typename Y, class X, W(X::*foo)() = nullptr>
++struct p
++{
++    template<U(Y::*fun)() = foo, typename T = enable_if_t<nullptr == fun, int>>
++    p(T) { }
++    p() = default;
++};
++
++struct A
++{
++    p<void, void, A, A> i = 1;
++    void bar();
++    p<void, void, A, A, &A::bar> j;
++};
+Index: gcc/testsuite/g++.dg/cpp0x/nullptr40.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp0x/nullptr40.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp0x/nullptr40.C	(.../branches/gcc-8-branch)
+@@ -0,0 +1,19 @@
++// PR c++/89212
++// { dg-do compile { target c++11 } }
++
++template <int, typename T> using enable_if_t = int;
++
++template<class X, void(X::*foo)() = nullptr>
++struct p
++{
++    template<void(X::*fun)() = foo, typename T = enable_if_t<nullptr == fun, int>>
++    p(T) { }
++    p() = default;
++};
++
++struct A
++{
++    p<A> i = 1;
++    void bar();
++    p<A, &A::bar> j;
++};
+Index: gcc/cp/ChangeLog
+===================================================================
+--- a/src/gcc/cp/ChangeLog	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/cp/ChangeLog	(.../branches/gcc-8-branch)
+@@ -1,3 +1,12 @@
++2019-02-26  Marek Polacek  <polacek@redhat.com>
++
++	Backported from mainline
++	2019-02-11  Marek Polacek  <polacek@redhat.com>
++
++	PR c++/89212 - ICE converting nullptr to pointer-to-member-function.
++	* pt.c (tsubst_copy_and_build) <case CONSTRUCTOR>: Return early for
++	null member pointer value.
++
+ 2019-02-22  Release Manager
+ 
+ 	* GCC 8.3.0 released.
+Index: gcc/cp/pt.c
+===================================================================
+--- a/src/gcc/cp/pt.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/cp/pt.c	(.../branches/gcc-8-branch)
+@@ -18797,6 +18797,12 @@
+ 	   looked up by digest_init.  */
+ 	process_index_p = !(type && MAYBE_CLASS_TYPE_P (type));
+ 
++	if (null_member_pointer_value_p (t))
++	  {
++	    gcc_assert (same_type_p (type, TREE_TYPE (t)));
++	    RETURN (t);
++	  }
++
+ 	n = vec_safe_copy (CONSTRUCTOR_ELTS (t));
+         newlen = vec_safe_length (n);
+ 	FOR_EACH_VEC_SAFE_ELT (n, idx, ce)
+Index: gcc/tree-ssa-dom.c
+===================================================================
+--- a/src/gcc/tree-ssa-dom.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/tree-ssa-dom.c	(.../branches/gcc-8-branch)
+@@ -170,11 +170,10 @@
+   gimple *def_stmt = SSA_NAME_DEF_STMT (name);
+   if (is_gimple_assign (def_stmt))
+     {
+-      /* We know the result of DEF_STMT was zero.  See if that allows
+-	 us to deduce anything about the SSA_NAMEs used on the RHS.  */
+       enum tree_code code = gimple_assign_rhs_code (def_stmt);
+       switch (code)
+ 	{
++	/* If the result of an OR is zero, then its operands are, too.  */
+ 	case BIT_IOR_EXPR:
+ 	  if (integer_zerop (value))
+ 	    {
+@@ -188,8 +187,7 @@
+ 	    }
+ 	  break;
+ 
+-      /* We know the result of DEF_STMT was one.  See if that allows
+-	 us to deduce anything about the SSA_NAMEs used on the RHS.  */
++	/* If the result of an AND is nonzero, then its operands are, too.  */
+ 	case BIT_AND_EXPR:
+ 	  if (!integer_zerop (value))
+ 	    {
+@@ -296,7 +294,6 @@
+ 	    break;
+ 	  }
+ 
+-
+ 	case EQ_EXPR:
+ 	case NE_EXPR:
+ 	  {
+@@ -336,7 +333,28 @@
+ 	case NEGATE_EXPR:
+ 	  {
+ 	    tree rhs = gimple_assign_rhs1 (def_stmt);
+-	    tree res = fold_build1 (code, TREE_TYPE (rhs), value);
++	    tree res;
++	    /* If this is a NOT and the operand has a boolean range, then we
++	       know its value must be zero or one.  We are not supposed to
++	       have a BIT_NOT_EXPR for boolean types with precision > 1 in
++	       the general case, see e.g. the handling of TRUTH_NOT_EXPR in
++	       the gimplifier, but it can be generated by match.pd out of
++	       a BIT_XOR_EXPR wrapped in a BIT_AND_EXPR.  Now the handling
++	       of BIT_AND_EXPR above already forces a specific semantics for
++	       boolean types with precision > 1 so we must do the same here,
++	       otherwise we could change the semantics of TRUTH_NOT_EXPR for
++	       boolean types with precision > 1.  */
++	    if (code == BIT_NOT_EXPR
++		&& TREE_CODE (rhs) == SSA_NAME
++		&& ssa_name_has_boolean_range (rhs))
++	      {
++		if ((TREE_INT_CST_LOW (value) & 1) == 0)
++		  res = build_one_cst (TREE_TYPE (rhs));
++		else
++		  res = build_zero_cst (TREE_TYPE (rhs));
++	      }
++	    else
++	      res = fold_build1 (code, TREE_TYPE (rhs), value);
+ 	    derive_equivalences (rhs, res, recursion_limit - 1);
+ 	    break;
+ 	  }
+Index: gcc/dwarf2out.c
+===================================================================
+--- a/src/gcc/dwarf2out.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/dwarf2out.c	(.../branches/gcc-8-branch)
+@@ -2875,9 +2875,13 @@
+    separate comdat sections since the linker will then be able to
+    remove duplicates.  But not all tools support .debug_types sections
+    yet.  For Dwarf V5 or higher .debug_types doesn't exist any more,
+-   it is DW_UT_type unit type in .debug_info section.  */
++   it is DW_UT_type unit type in .debug_info section.  For late LTO
++   debug there should be almost no types emitted so avoid enabling
++   -fdebug-types-section there.  */
+ 
+-#define use_debug_types (dwarf_version >= 4 && flag_debug_types_section)
++#define use_debug_types (dwarf_version >= 4 \
++			 && flag_debug_types_section \
++			 && !in_lto_p)
+ 
+ /* Various DIE's use offsets relative to the beginning of the
+    .debug_info section to refer to each other.  */
+@@ -3713,7 +3717,7 @@
+ static void output_die (dw_die_ref);
+ static void output_compilation_unit_header (enum dwarf_unit_type);
+ static void output_comp_unit (dw_die_ref, int, const unsigned char *);
+-static void output_comdat_type_unit (comdat_type_node *);
++static void output_comdat_type_unit (comdat_type_node *, bool);
+ static const char *dwarf2_name (tree, int);
+ static void add_pubname (tree, dw_die_ref);
+ static void add_enumerator_pubname (const char *, dw_die_ref);
+@@ -9425,7 +9429,7 @@
+ 		 we use DW_FORM_ref_addr.  In DWARF2, DW_FORM_ref_addr
+ 		 is sized by target address length, whereas in DWARF3
+ 		 it's always sized as an offset.  */
+-	      if (use_debug_types)
++	      if (AT_ref (a)->comdat_type_p)
+ 		size += DWARF_TYPE_SIGNATURE_SIZE;
+ 	      else if (dwarf_version == 2)
+ 		size += DWARF2_ADDR_SIZE;
+@@ -9869,7 +9873,12 @@
+       return DW_FORM_flag;
+     case dw_val_class_die_ref:
+       if (AT_ref_external (a))
+-	return use_debug_types ? DW_FORM_ref_sig8 : DW_FORM_ref_addr;
++	{
++	  if (AT_ref (a)->comdat_type_p)
++	    return DW_FORM_ref_sig8;
++	  else
++	    return DW_FORM_ref_addr;
++	}
+       else
+ 	return DW_FORM_ref;
+     case dw_val_class_fde_ref:
+@@ -11217,7 +11226,8 @@
+ /* Output a comdat type unit DIE and its children.  */
+ 
+ static void
+-output_comdat_type_unit (comdat_type_node *node)
++output_comdat_type_unit (comdat_type_node *node,
++			 bool early_lto_debug ATTRIBUTE_UNUSED)
+ {
+   const char *secname;
+   char *tmp;
+@@ -11244,14 +11254,16 @@
+   if (dwarf_version >= 5)
+     {
+       if (!dwarf_split_debug_info)
+-	secname = ".debug_info";
++	secname = early_lto_debug ? DEBUG_LTO_INFO_SECTION : DEBUG_INFO_SECTION;
+       else
+-	secname = ".debug_info.dwo";
++	secname = (early_lto_debug
++		   ? DEBUG_LTO_DWO_INFO_SECTION : DEBUG_DWO_INFO_SECTION);
+     }
+   else if (!dwarf_split_debug_info)
+-    secname = ".debug_types";
++    secname = early_lto_debug ? ".gnu.debuglto_.debug_types" : ".debug_types";
+   else
+-    secname = ".debug_types.dwo";
++    secname = (early_lto_debug
++	       ? ".gnu.debuglto_.debug_types.dwo" : ".debug_types.dwo");
+ 
+   tmp = XALLOCAVEC (char, 4 + DWARF_TYPE_SIGNATURE_SIZE * 2);
+   sprintf (tmp, dwarf_version >= 5 ? "wi." : "wt.");
+@@ -31398,7 +31410,7 @@
+                          ? dl_section_ref
+                          : debug_skeleton_line_section_label));
+ 
+-      output_comdat_type_unit (ctnode);
++      output_comdat_type_unit (ctnode, false);
+       *slot = ctnode;
+     }
+ 
+@@ -32039,7 +32051,7 @@
+                          ? debug_line_section_label
+                          : debug_skeleton_line_section_label));
+ 
+-      output_comdat_type_unit (ctnode);
++      output_comdat_type_unit (ctnode, true);
+       *slot = ctnode;
+     }
+ 
 Index: gcc/ada/ChangeLog
 ===================================================================
 --- a/src/gcc/ada/ChangeLog	(.../tags/gcc_8_3_0_release)
@@ -268,6 +1187,72 @@ Index: gcc/ada/osint.ads
 -   --  avoid function calls every time we want to reset the attributes).
 -
  end Osint;
+Index: gcc/fortran/trans-expr.c
+===================================================================
+--- a/src/gcc/fortran/trans-expr.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/fortran/trans-expr.c	(.../branches/gcc-8-branch)
+@@ -352,7 +352,7 @@
+    of refs following.  */
+ 
+ gfc_expr *
+-gfc_find_and_cut_at_last_class_ref (gfc_expr *e)
++gfc_find_and_cut_at_last_class_ref (gfc_expr *e, bool is_mold)
+ {
+   gfc_expr *base_expr;
+   gfc_ref *ref, *class_ref, *tail = NULL, *array_ref;
+@@ -394,7 +394,10 @@
+       e->ref = NULL;
+     }
+ 
+-  base_expr = gfc_copy_expr (e);
++  if (is_mold)
++    base_expr = gfc_expr_to_initialize (e);
++  else
++    base_expr = gfc_copy_expr (e);
+ 
+   /* Restore the original tail expression.  */
+   if (class_ref)
+@@ -3834,7 +3837,8 @@
+ 
+ 
+ static void
+-conv_function_val (gfc_se * se, gfc_symbol * sym, gfc_expr * expr)
++conv_function_val (gfc_se * se, gfc_symbol * sym, gfc_expr * expr,
++		   gfc_actual_arglist *actual_args)
+ {
+   tree tmp;
+ 
+@@ -3852,7 +3856,7 @@
+   else
+     {
+       if (!sym->backend_decl)
+-	sym->backend_decl = gfc_get_extern_function_decl (sym);
++	sym->backend_decl = gfc_get_extern_function_decl (sym, actual_args);
+ 
+       TREE_USED (sym->backend_decl) = 1;
+ 
+@@ -6276,7 +6280,7 @@
+ 
+   /* Generate the actual call.  */
+   if (base_object == NULL_TREE)
+-    conv_function_val (se, sym, expr);
++    conv_function_val (se, sym, expr, args);
+   else
+     conv_base_obj_fcn_val (se, base_object, expr);
+ 
+Index: gcc/fortran/symbol.c
+===================================================================
+--- a/src/gcc/fortran/symbol.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/fortran/symbol.c	(.../branches/gcc-8-branch)
+@@ -522,7 +522,7 @@
+   /* The copying of procedure dummy arguments for module procedures in
+      a submodule occur whilst the current state is COMP_CONTAINS. It
+      is necessary, therefore, to let this through.  */
+-  if (attr->dummy
++  if (name && attr->dummy
+       && (attr->function || attr->subroutine)
+       && gfc_current_state () == COMP_CONTAINS
+       && !(gfc_new_block && gfc_new_block->abr_modproc_decl))
 Index: gcc/fortran/class.c
 ===================================================================
 --- a/src/gcc/fortran/class.c	(.../tags/gcc_8_3_0_release)
@@ -296,6 +1281,50 @@ Index: gcc/fortran/class.c
    return ptr;
  }
  
+@@ -2661,6 +2669,7 @@
+ 	      gfc_namespace *sub_ns;
+ 	      gfc_namespace *contained;
+ 	      gfc_expr *e;
++	      size_t e_size;
+ 
+ 	      gfc_get_symbol (name, ns, &vtype);
+ 	      if (!gfc_add_flavor (&vtype->attr, FL_DERIVED, NULL,
+@@ -2695,11 +2704,13 @@
+ 	      e = gfc_get_expr ();
+ 	      e->ts = *ts;
+ 	      e->expr_type = EXPR_VARIABLE;
++	      if (ts->type == BT_CHARACTER)
++		e_size = ts->kind;
++	      else
++		gfc_element_size (e, &e_size);
+ 	      c->initializer = gfc_get_int_expr (gfc_size_kind,
+ 						 NULL,
+-						 ts->type == BT_CHARACTER
+-						 ? ts->kind
+-						 : gfc_element_size (e));
++						 e_size);
+ 	      gfc_free_expr (e);
+ 
+ 	      /* Add component _extends.  */
+Index: gcc/fortran/decl.c
+===================================================================
+--- a/src/gcc/fortran/decl.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/fortran/decl.c	(.../branches/gcc-8-branch)
+@@ -1678,6 +1678,14 @@
+       free (expr->value.character.string);
+       expr->value.character.string = s;
+       expr->value.character.length = len;
++      /* If explicit representation was given, clear it
++	 as it is no longer needed after padding.  */
++      if (expr->representation.length)
++	{
++	  expr->representation.length = 0;
++	  free (expr->representation.string);
++	  expr->representation.string = NULL;
++	}
+     }
+ }
+ 
 Index: gcc/fortran/gfortran.h
 ===================================================================
 --- a/src/gcc/fortran/gfortran.h	(.../tags/gcc_8_3_0_release)
@@ -313,7 +1342,79 @@ Index: gcc/fortran/ChangeLog
 ===================================================================
 --- a/src/gcc/fortran/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/fortran/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,30 @@
+@@ -1,3 +1,102 @@
++2019-03-03  Harald Anlauf  <anlauf@gmx.de>
++
++	Backport from trunk
++	PR fortran/89077
++	* decl.c (gfc_set_constant_character_len): Clear original string
++	representation after padding has been performed to target length.
++	* resolve.c (gfc_resolve_substring_charlen): Check substring
++	length for constantness prior to general calculation of length.
++
++2019-03-03  Harald Anlauf  <anlauf@gmx.de>
++	    Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/77583
++	* symbol.c (check_conflict): Check for valid procedure name
++	passed to error reporting routine.
++
++2019-03-03  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/89174
++	Backport from trunk
++	* trans-expr.c (gfc_find_and_cut_at_last_class_ref): Add is_mold
++	to garguments. If we are dealing with a MOLD, call
++	gfc_expr_to_initialize().
++	* trans-stmt.c (gfc_trans_allocate): For MOLD, pass is_mold=true
++	to gfc_find_and_cut_at_last_class_ref.
++	* trans.h (gfc_find_and_cut_at_last_class_ref): Add optional
++	argument is_mold with default false.
++
++2019-03-03  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/87689
++	Backport from trunk
++	* gfortran.dg/lto/20091028-1_0.f90: Add -Wno-lto-type-mismatch to
++	options.
++	* gfortran.dg/lto/20091028-2_0.f90: Likewise.
++	* gfortran.dg/lto/pr87689_0.f: New file.
++	* gfortran.dg/lto/pr87689_1.f: New file.
++	* gfortran.dg/altreturn_9_0.f90: New file.
++	* gfortran.dg/altreturn_9_1.f90: New file.
++
++2019-03-02  Jerry DeLisle <jvdelisle@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/84387
++	* trans-io.c (transfer_expr): Do not return if there are no
++	components to the derived type or class.
++
++2019-03-02  Harald Anlauf  <anlauf@gmx.de>
++
++	Backport from trunk
++	PR fortran/89516
++	* check.c (gfc_calculate_transfer_sizes): Correct checks for cases
++	where storage size of elements of MOLD is 0.
++
++	PR fortran/89492
++	* check.c (gfc_calculate_transfer_sizes): Handle cases where
++	storage size of elements of MOLD is 0.
++
++	PR fortran/89266
++	PR fortran/88326
++	* target-memory.c (gfc_element_size): Return false if element size
++	cannot be determined; element size is returned separately.
++	(gfc_target_expr_size): Return false if expression size cannot be
++	determined; expression size is returned separately.
++	* target-memory.h: Adjust prototypes.
++	* check.c (gfc_calculate_transfer_sizes): Adjust references to
++	gfc_target_expr_size, gfc_element_size.
++	* arith.c (hollerith2representation): Likewise.
++	* class.c (find_intrinsic_vtab): Likewise.
++	* simplify.c (gfc_simplify_sizeof): Likewise.
++
 +2019-02-23  Thomas Koenig  <tkoenig@gcc.gnu.org>
 +
 +	PR fortran/86119
@@ -344,11 +1445,174 @@ Index: gcc/fortran/ChangeLog
  2019-02-22  Release Manager
  
  	* GCC 8.3.0 released.
+Index: gcc/fortran/trans-stmt.c
+===================================================================
+--- a/src/gcc/fortran/trans-stmt.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/fortran/trans-stmt.c	(.../branches/gcc-8-branch)
+@@ -6606,7 +6606,7 @@
+ 	  /* Use class_init_assign to initialize expr.  */
+ 	  gfc_code *ini;
+ 	  ini = gfc_get_code (EXEC_INIT_ASSIGN);
+-	  ini->expr1 = gfc_find_and_cut_at_last_class_ref (expr);
++	  ini->expr1 = gfc_find_and_cut_at_last_class_ref (expr, true);
+ 	  tmp = gfc_trans_class_init_assign (ini);
+ 	  gfc_free_statements (ini);
+ 	  gfc_add_expr_to_block (&block, tmp);
+Index: gcc/fortran/trans-types.c
+===================================================================
+--- a/src/gcc/fortran/trans-types.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/fortran/trans-types.c	(.../branches/gcc-8-branch)
+@@ -2991,9 +2991,57 @@
+   return build_type_attribute_variant (fntype, tmp);
+ }
+ 
++/* Helper function - if we do not find an interface for a procedure,
++   construct it from the actual arglist.  Luckily, this can only
++   happen for call by reference, so the information we actually need
++   to provide (and which would be impossible to guess from the call
++   itself) is not actually needed.  */
+ 
++static void
++get_formal_from_actual_arglist (gfc_symbol *sym, gfc_actual_arglist *actual_args)
++{
++  gfc_actual_arglist *a;
++  gfc_formal_arglist **f;
++  gfc_symbol *s;
++  char name[GFC_MAX_SYMBOL_LEN + 1];
++  static int var_num;
++
++  f = &sym->formal;
++  for (a = actual_args; a != NULL; a = a->next)
++    {
++      (*f) = gfc_get_formal_arglist ();
++      if (a->expr)
++	{
++	  snprintf (name, GFC_MAX_SYMBOL_LEN, "_formal_%d", var_num ++);
++	  gfc_get_symbol (name, NULL, &s);
++	  if (a->expr->ts.type == BT_PROCEDURE)
++	    {
++	      s->attr.flavor = FL_PROCEDURE;
++	    }
++	  else
++	    {
++	      s->ts = a->expr->ts;
++	      s->attr.flavor = FL_VARIABLE;
++	      if (a->expr->rank > 0)
++		{
++		  s->attr.dimension = 1;
++		  s->as = gfc_get_array_spec ();
++		  s->as->type = AS_ASSUMED_SIZE;
++		}
++	    }
++	  s->attr.dummy = 1;
++	  s->attr.intent = INTENT_UNKNOWN;
++	  (*f)->sym = s;
++	}
++      else  /* If a->expr is NULL, this is an alternate rerturn.  */
++	(*f)->sym = NULL;
++
++      f = &((*f)->next);
++    }
++}
++
+ tree
+-gfc_get_function_type (gfc_symbol * sym)
++gfc_get_function_type (gfc_symbol * sym, gfc_actual_arglist *actual_args)
+ {
+   tree type;
+   vec<tree, va_gc> *typelist = NULL;
+@@ -3051,6 +3099,10 @@
+ 	    vec_safe_push (typelist, build_pointer_type(gfc_charlen_type_node));
+ 	}
+     }
++  if (sym->backend_decl == error_mark_node && actual_args != NULL
++      && sym->formal == NULL && (sym->attr.proc == PROC_EXTERNAL
++				 || sym->attr.proc == PROC_UNKNOWN))
++    get_formal_from_actual_arglist (sym, actual_args);
+ 
+   /* Build the argument types for the function.  */
+   for (f = gfc_sym_get_dummy_args (sym); f; f = f->next)
+Index: gcc/fortran/trans.h
+===================================================================
+--- a/src/gcc/fortran/trans.h	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/fortran/trans.h	(.../branches/gcc-8-branch)
+@@ -412,7 +412,7 @@
+ tree gfc_class_vptr_get (tree);
+ tree gfc_class_len_get (tree);
+ tree gfc_class_len_or_zero_get (tree);
+-gfc_expr * gfc_find_and_cut_at_last_class_ref (gfc_expr *);
++gfc_expr * gfc_find_and_cut_at_last_class_ref (gfc_expr *, bool is_mold = false);
+ /* Get an accessor to the class' vtab's * field, when a class handle is
+    available.  */
+ tree gfc_class_vtab_hash_get (tree);
+@@ -579,7 +579,8 @@
+ tree gfc_get_label_decl (gfc_st_label *);
+ 
+ /* Return the decl for an external function.  */
+-tree gfc_get_extern_function_decl (gfc_symbol *);
++tree gfc_get_extern_function_decl (gfc_symbol *,
++				   gfc_actual_arglist *args = NULL);
+ 
+ /* Return the decl for a function.  */
+ tree gfc_get_function_decl (gfc_symbol *);
+Index: gcc/fortran/trans-types.h
+===================================================================
+--- a/src/gcc/fortran/trans-types.h	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/fortran/trans-types.h	(.../branches/gcc-8-branch)
+@@ -88,7 +88,7 @@
+ tree gfc_typenode_for_spec (gfc_typespec *, int c = 0);
+ int gfc_copy_dt_decls_ifequal (gfc_symbol *, gfc_symbol *, bool);
+ 
+-tree gfc_get_function_type (gfc_symbol *);
++tree gfc_get_function_type (gfc_symbol *, gfc_actual_arglist *args = NULL);
+ 
+ tree gfc_type_for_size (unsigned, int);
+ tree gfc_type_for_mode (machine_mode, int);
 Index: gcc/fortran/resolve.c
 ===================================================================
 --- a/src/gcc/fortran/resolve.c	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/fortran/resolve.c	(.../branches/gcc-8-branch)
-@@ -11011,6 +11011,9 @@
+@@ -4881,6 +4881,7 @@
+   gfc_ref *char_ref;
+   gfc_expr *start, *end;
+   gfc_typespec *ts = NULL;
++  mpz_t diff;
+ 
+   for (char_ref = e->ref; char_ref; char_ref = char_ref->next)
+     {
+@@ -4932,12 +4933,26 @@
+       return;
+     }
+ 
+-  /* Length = (end - start + 1).  */
+-  e->ts.u.cl->length = gfc_subtract (end, start);
+-  e->ts.u.cl->length = gfc_add (e->ts.u.cl->length,
+-				gfc_get_int_expr (gfc_charlen_int_kind,
+-						  NULL, 1));
++  /* Length = (end - start + 1).
++     Check first whether it has a constant length.  */
++  if (gfc_dep_difference (end, start, &diff))
++    {
++      gfc_expr *len = gfc_get_constant_expr (BT_INTEGER, gfc_charlen_int_kind,
++					     &e->where);
+ 
++      mpz_add_ui (len->value.integer, diff, 1);
++      mpz_clear (diff);
++      e->ts.u.cl->length = len;
++      /* The check for length < 0 is handled below */
++    }
++  else
++    {
++      e->ts.u.cl->length = gfc_subtract (end, start);
++      e->ts.u.cl->length = gfc_add (e->ts.u.cl->length,
++				    gfc_get_int_expr (gfc_charlen_int_kind,
++						      NULL, 1));
++    }
++
+   /* F2008, 6.4.1:  Both the starting point and the ending point shall
+      be within the range 1, 2, ..., n unless the starting point exceeds
+      the ending point, in which case the substring has length zero.  */
+@@ -11011,6 +11026,9 @@
    if (!gfc_check_dependency ((*code)->expr1, (*code)->expr2, 1))
      return false;
  
@@ -362,6 +1626,24 @@ Index: gcc/fortran/trans-decl.c
 ===================================================================
 --- a/src/gcc/fortran/trans-decl.c	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/fortran/trans-decl.c	(.../branches/gcc-8-branch)
+@@ -1977,7 +1977,7 @@
+ /* Get a basic decl for an external function.  */
+ 
+ tree
+-gfc_get_extern_function_decl (gfc_symbol * sym)
++gfc_get_extern_function_decl (gfc_symbol * sym, gfc_actual_arglist *actual_args)
+ {
+   tree type;
+   tree fndecl;
+@@ -2150,7 +2150,7 @@
+       mangled_name = gfc_sym_mangled_function_id (sym);
+     }
+ 
+-  type = gfc_get_function_type (sym);
++  type = gfc_get_function_type (sym, actual_args);
+   fndecl = build_decl (input_location,
+ 		       FUNCTION_DECL, name, type);
+ 
 @@ -5384,6 +5384,33 @@
    /* Handle "static" initializer.  */
    if (sym->value)
@@ -396,6 +1678,241 @@ Index: gcc/fortran/trans-decl.c
        sym->attr.pointer = 1;
        tmp = gfc_trans_assignment (gfc_lval_expr_from_sym (sym), sym->value,
  				  true, false);
+Index: gcc/fortran/target-memory.c
+===================================================================
+--- a/src/gcc/fortran/target-memory.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/fortran/target-memory.c	(.../branches/gcc-8-branch)
+@@ -73,10 +73,10 @@
+ 
+ 
+ /* Return the size of a single element of the given expression.
+-   Identical to gfc_target_expr_size for scalars.  */
++   Equivalent to gfc_target_expr_size for scalars.  */
+ 
+-size_t
+-gfc_element_size (gfc_expr *e)
++bool
++gfc_element_size (gfc_expr *e, size_t *siz)
+ {
+   tree type;
+ 
+@@ -83,16 +83,20 @@
+   switch (e->ts.type)
+     {
+     case BT_INTEGER:
+-      return size_integer (e->ts.kind);
++      *siz = size_integer (e->ts.kind);
++      return true;
+     case BT_REAL:
+-      return size_float (e->ts.kind);
++      *siz = size_float (e->ts.kind);
++      return true;
+     case BT_COMPLEX:
+-      return size_complex (e->ts.kind);
++      *siz = size_complex (e->ts.kind);
++      return true;
+     case BT_LOGICAL:
+-      return size_logical (e->ts.kind);
++      *siz = size_logical (e->ts.kind);
++      return true;
+     case BT_CHARACTER:
+       if (e->expr_type == EXPR_CONSTANT)
+-	return size_character (e->value.character.length, e->ts.kind);
++	*siz = size_character (e->value.character.length, e->ts.kind);
+       else if (e->ts.u.cl != NULL && e->ts.u.cl->length != NULL
+ 	       && e->ts.u.cl->length->expr_type == EXPR_CONSTANT
+ 	       && e->ts.u.cl->length->ts.type == BT_INTEGER)
+@@ -100,13 +104,18 @@
+ 	  HOST_WIDE_INT length;
+ 
+ 	  gfc_extract_hwi (e->ts.u.cl->length, &length);
+-	  return size_character (length, e->ts.kind);
++	  *siz = size_character (length, e->ts.kind);
+ 	}
+       else
+-	return 0;
++	{
++	  *siz = 0;
++	  return false;
++	}
++      return true;
+ 
+     case BT_HOLLERITH:
+-      return e->representation.length;
++      *siz = e->representation.length;
++      return true;
+     case BT_DERIVED:
+     case BT_CLASS:
+     case BT_VOID:
+@@ -120,36 +129,43 @@
+ 	type = gfc_typenode_for_spec (&ts);
+ 	size = int_size_in_bytes (type);
+ 	gcc_assert (size >= 0);
+-	return size;
++	*siz = size;
+       }
++      return true;
+     default:
+       gfc_internal_error ("Invalid expression in gfc_element_size.");
+-      return 0;
++      *siz = 0;
++      return false;
+     }
++  return true;
+ }
+ 
+ 
+ /* Return the size of an expression in its target representation.  */
+ 
+-size_t
+-gfc_target_expr_size (gfc_expr *e)
++bool
++gfc_target_expr_size (gfc_expr *e, size_t *size)
+ {
+   mpz_t tmp;
+-  size_t asz;
++  size_t asz, el_size;
+ 
+   gcc_assert (e != NULL);
+ 
++  *size = 0;
+   if (e->rank)
+     {
+       if (gfc_array_size (e, &tmp))
+ 	asz = mpz_get_ui (tmp);
+       else
+-	asz = 0;
++	return false;
+     }
+   else
+     asz = 1;
+ 
+-  return asz * gfc_element_size (e);
++  if (!gfc_element_size (e, &el_size))
++    return false;
++  *size = asz * el_size;
++  return true;
+ }
+ 
+ 
+@@ -675,7 +691,7 @@
+ 
+   /* Otherwise, use the target-memory machinery to write a bitwise image, appropriate
+      to the target, in a buffer and check off the initialized part of the buffer.  */
+-  len = gfc_target_expr_size (e);
++  gfc_target_expr_size (e, &len);
+   buffer = (unsigned char*)alloca (len);
+   len = gfc_target_encode_expr (e, buffer, len);
+ 
+@@ -722,8 +738,10 @@
+       for (c = gfc_constructor_first (e->value.constructor);
+ 	   c; c = gfc_constructor_next (c))
+ 	{
+-	  size_t elt_size = gfc_target_expr_size (c->expr);
++	  size_t elt_size;
+ 
++	  gfc_target_expr_size (c->expr, &elt_size);
++
+ 	  if (mpz_cmp_si (c->offset, 0) != 0)
+ 	    len = elt_size * (size_t)mpz_get_si (c->offset);
+ 
+Index: gcc/fortran/trans-io.c
+===================================================================
+--- a/src/gcc/fortran/trans-io.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/fortran/trans-io.c	(.../branches/gcc-8-branch)
+@@ -2408,8 +2408,6 @@
+ 
+     case_bt_struct:
+     case BT_CLASS:
+-      if (ts->u.derived->components == NULL)
+-	return;
+       if (gfc_bt_struct (ts->type) || ts->type == BT_CLASS)
+ 	{
+ 	  gfc_symbol *derived;
+Index: gcc/fortran/target-memory.h
+===================================================================
+--- a/src/gcc/fortran/target-memory.h	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/fortran/target-memory.h	(.../branches/gcc-8-branch)
+@@ -24,8 +24,8 @@
+ /* Convert a BOZ to REAL or COMPLEX.  */
+ bool gfc_convert_boz (gfc_expr *, gfc_typespec *);
+ 
+-size_t gfc_element_size (gfc_expr *);
+-size_t gfc_target_expr_size (gfc_expr *);
++bool gfc_element_size (gfc_expr *, size_t *);
++bool gfc_target_expr_size (gfc_expr *, size_t *);
+ 
+ /* Write a constant expression in binary form to a target buffer.  */
+ size_t gfc_encode_character (int, size_t, const gfc_char_t *, unsigned char *,
+Index: gcc/fortran/arith.c
+===================================================================
+--- a/src/gcc/fortran/arith.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/fortran/arith.c	(.../branches/gcc-8-branch)
+@@ -2548,10 +2548,10 @@
+ static void
+ hollerith2representation (gfc_expr *result, gfc_expr *src)
+ {
+-  int src_len, result_len;
++  size_t src_len, result_len;
+ 
+   src_len = src->representation.length - src->ts.u.pad;
+-  result_len = gfc_target_expr_size (result);
++  gfc_target_expr_size (result, &result_len);
+ 
+   if (src_len > result_len)
+     {
+Index: gcc/fortran/check.c
+===================================================================
+--- a/src/gcc/fortran/check.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/fortran/check.c	(.../branches/gcc-8-branch)
+@@ -5413,17 +5413,42 @@
+     return false;
+ 
+   /* Calculate the size of the source.  */
+-  *source_size = gfc_target_expr_size (source);
+-  if (*source_size == 0)
++  if (!gfc_target_expr_size (source, source_size))
+     return false;
+ 
+   /* Determine the size of the element.  */
+-  result_elt_size = gfc_element_size (mold);
+-  if (result_elt_size == 0)
++  if (!gfc_element_size (mold, &result_elt_size))
+     return false;
+ 
+-  if (mold->expr_type == EXPR_ARRAY || mold->rank || size)
++  /* If the storage size of SOURCE is greater than zero and MOLD is an array,
++   * a scalar with the type and type parameters of MOLD shall not have a
++   * storage size equal to zero.
++   * If MOLD is a scalar and SIZE is absent, the result is a scalar.
++   * If MOLD is an array and SIZE is absent, the result is an array and of
++   * rank one. Its size is as small as possible such that its physical
++   * representation is not shorter than that of SOURCE.
++   * If SIZE is present, the result is an array of rank one and size SIZE.
++   */
++  if (result_elt_size == 0 && *source_size > 0 && !size
++      && mold->expr_type == EXPR_ARRAY)
+     {
++      gfc_error ("%<MOLD%> argument of %<TRANSFER%> intrinsic at %L is an "
++		 "array and shall not have storage size 0 when %<SOURCE%> "
++		 "argument has size greater than 0", &mold->where);
++      return false;
++    }
++
++  if (result_elt_size == 0 && *source_size == 0 && !size)
++    {
++      *result_size = 0;
++      if (result_length_p)
++	*result_length_p = 0;
++      return true;
++    }
++
++  if ((result_elt_size > 0 && (mold->expr_type == EXPR_ARRAY || mold->rank))
++      || size)
++    {
+       int result_length;
+ 
+       if (size)
 Index: gcc/fortran/simplify.c
 ===================================================================
 --- a/src/gcc/fortran/simplify.c	(.../tags/gcc_8_3_0_release)
@@ -409,6 +1926,262 @@ Index: gcc/fortran/simplify.c
    else
      return NULL;
  }
+@@ -6921,6 +6921,7 @@
+ {
+   gfc_expr *result = NULL;
+   mpz_t array_size;
++  size_t res_size;
+ 
+   if (x->ts.type == BT_CLASS || x->ts.deferred)
+     return NULL;
+@@ -6936,7 +6937,8 @@
+ 
+   result = gfc_get_constant_expr (BT_INTEGER, gfc_index_integer_kind,
+ 				  &x->where);
+-  mpz_set_si (result->value.integer, gfc_target_expr_size (x));
++  gfc_target_expr_size (x, &res_size);
++  mpz_set_si (result->value.integer, res_size);
+ 
+   return result;
+ }
+@@ -6950,6 +6952,7 @@
+ {
+   gfc_expr *result = NULL;
+   int k;
++  size_t siz;
+ 
+   if (x->ts.type == BT_CLASS || x->ts.deferred)
+     return NULL;
+@@ -6965,7 +6968,8 @@
+ 
+   result = gfc_get_constant_expr (BT_INTEGER, k, &x->where);
+ 
+-  mpz_set_si (result->value.integer, gfc_element_size (x));
++  gfc_element_size (x, &siz);
++  mpz_set_si (result->value.integer, siz);
+   mpz_mul_ui (result->value.integer, result->value.integer, BITS_PER_UNIT);
+ 
+   return range_check (result, "STORAGE_SIZE");
+Index: gcc/tree-ssa-structalias.c
+===================================================================
+--- a/src/gcc/tree-ssa-structalias.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/tree-ssa-structalias.c	(.../branches/gcc-8-branch)
+@@ -7552,7 +7552,10 @@
+ 	    }
+ 	  if (used)
+ 	    {
+-	      bitmap_set_bit (rvars, restrict_var->id);
++	      /* Add all subvars to the set of restrict pointed-to set. */
++	      for (unsigned sv = restrict_var->head; sv != 0;
++		   sv = get_varinfo (sv)->next)
++		bitmap_set_bit (rvars, sv);
+ 	      varinfo_t escaped = get_varinfo (find (escaped_id));
+ 	      if (bitmap_bit_p (escaped->solution, restrict_var->id))
+ 		escaped_p = true;
+Index: gcc/config/s390/s390.c
+===================================================================
+--- a/src/gcc/config/s390/s390.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/s390/s390.c	(.../branches/gcc-8-branch)
+@@ -16039,6 +16039,7 @@
+ 
+   return ret;
+ }
++#endif
+ 
+ /* Set VAL to correct enum value according to the indirect-branch or
+    function-return attribute in ATTR.  */
+@@ -16112,6 +16113,7 @@
+     s390_indirect_branch_attrvalue (attr, &cfun->machine->function_return_mem);
+ }
+ 
++#if S390_USE_TARGET_ATTRIBUTE
+ /* Restore targets globals from NEW_TREE and invalidate s390_previous_fndecl
+    cache.  */
+ 
+@@ -16127,6 +16129,7 @@
+     TREE_TARGET_GLOBALS (new_tree) = save_target_globals_default_opts ();
+   s390_previous_fndecl = NULL_TREE;
+ }
++#endif
+ 
+ /* Establish appropriate back-end context for processing the function
+    FNDECL.  The argument might be NULL to indicate processing at top
+@@ -16134,6 +16137,7 @@
+ static void
+ s390_set_current_function (tree fndecl)
+ {
++#if S390_USE_TARGET_ATTRIBUTE
+   /* Only change the context if the function changes.  This hook is called
+      several times in the course of compiling a function, and we don't want to
+      slow things down too much or call target_reinit when it isn't safe.  */
+@@ -16165,10 +16169,9 @@
+   if (old_tree != new_tree)
+     s390_activate_target_options (new_tree);
+   s390_previous_fndecl = fndecl;
+-
++#endif
+   s390_indirect_branch_settings (fndecl);
+ }
+-#endif
+ 
+ /* Implement TARGET_USE_BY_PIECES_INFRASTRUCTURE_P.  */
+ 
+@@ -16907,10 +16910,10 @@
+ #undef TARGET_ASM_FILE_END
+ #define TARGET_ASM_FILE_END s390_asm_file_end
+ 
+-#if S390_USE_TARGET_ATTRIBUTE
+ #undef TARGET_SET_CURRENT_FUNCTION
+ #define TARGET_SET_CURRENT_FUNCTION s390_set_current_function
+ 
++#if S390_USE_TARGET_ATTRIBUTE
+ #undef TARGET_OPTION_VALID_ATTRIBUTE_P
+ #define TARGET_OPTION_VALID_ATTRIBUTE_P s390_valid_target_attribute_p
+ 
+Index: gcc/config/i386/sse.md
+===================================================================
+--- a/src/gcc/config/i386/sse.md	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/i386/sse.md	(.../branches/gcc-8-branch)
+@@ -1908,7 +1908,7 @@
+   [(set (match_operand:VF1_128_256 0 "register_operand")
+ 	(unspec:VF1_128_256
+ 	  [(match_operand:VF1_128_256 1 "vector_operand")] UNSPEC_RSQRT))]
+-  "TARGET_SSE_MATH"
++  "TARGET_SSE && TARGET_SSE_MATH"
+ {
+   ix86_emit_swsqrtsf (operands[0], operands[1], <MODE>mode, true);
+   DONE;
+Index: gcc/config/i386/i386.c
+===================================================================
+--- a/src/gcc/config/i386/i386.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/i386/i386.c	(.../branches/gcc-8-branch)
+@@ -39641,7 +39641,7 @@
+ static bool
+ use_rsqrt_p ()
+ {
+-  return (TARGET_SSE_MATH
++  return (TARGET_SSE && TARGET_SSE_MATH
+ 	  && flag_finite_math_only
+ 	  && !flag_trapping_math
+ 	  && flag_unsafe_math_optimizations);
+@@ -50999,7 +50999,7 @@
+      there is no adddf3 pattern (since x87 floating point only has
+      XFmode operations) so the default hook implementation gets this
+      wrong.  */
+-  return TARGET_80387 || TARGET_SSE_MATH;
++  return TARGET_80387 || (TARGET_SSE && TARGET_SSE_MATH);
+ }
+ 
+ /* Implement TARGET_ATOMIC_ASSIGN_EXPAND_FENV.  */
+@@ -51007,7 +51007,7 @@
+ static void
+ ix86_atomic_assign_expand_fenv (tree *hold, tree *clear, tree *update)
+ {
+-  if (!TARGET_80387 && !TARGET_SSE_MATH)
++  if (!TARGET_80387 && !(TARGET_SSE && TARGET_SSE_MATH))
+     return;
+   tree exceptions_var = create_tmp_var_raw (integer_type_node);
+   if (TARGET_80387)
+@@ -51042,7 +51042,7 @@
+       tree update_fldenv = build_call_expr (fldenv, 1, fenv_addr);
+       *update = build2 (COMPOUND_EXPR, void_type_node, *update, update_fldenv);
+     }
+-  if (TARGET_SSE_MATH)
++  if (TARGET_SSE && TARGET_SSE_MATH)
+     {
+       tree mxcsr_orig_var = create_tmp_var_raw (unsigned_type_node);
+       tree mxcsr_mod_var = create_tmp_var_raw (unsigned_type_node);
+@@ -51399,7 +51399,7 @@
+ 	  return FLT_EVAL_METHOD_PROMOTE_TO_FLOAT;
+ 	else if (!TARGET_MIX_SSE_I387)
+ 	  {
+-	    if (!TARGET_SSE_MATH)
++	    if (!(TARGET_SSE && TARGET_SSE_MATH))
+ 	      return FLT_EVAL_METHOD_PROMOTE_TO_LONG_DOUBLE;
+ 	    else if (TARGET_SSE2)
+ 	      return FLT_EVAL_METHOD_PROMOTE_TO_FLOAT;
+Index: gcc/config/aarch64/aarch64-option-extensions.def
+===================================================================
+--- a/src/gcc/config/aarch64/aarch64-option-extensions.def	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/aarch64/aarch64-option-extensions.def	(.../branches/gcc-8-branch)
+@@ -38,26 +38,27 @@
+    should contain a space (" ") separated list of the strings in 'Features'
+    that are required.  Their order is not important.  */
+ 
++/* NOTE: This file is being parsed by config.gcc and so the
++   AARCH64_OPT_EXTENSION must adhere to a strict format:
++   1) No space between the AARCH64_OPT_EXTENSION and the opening (.
++   2) No space between the opening ( and the extension name.
++   3) No space after the extension name before the ,.
++   4) Spaces are only allowed after a , and around |.
++   5) Everything must be on one line.  */
++
+ /* Enabling "fp" just enables "fp".
+    Disabling "fp" also disables "simd", "crypto", "fp16", "aes", "sha2",
+    "sha3", sm3/sm4 and "sve".  */
+-AARCH64_OPT_EXTENSION("fp", AARCH64_FL_FP, 0, AARCH64_FL_SIMD | AARCH64_FL_CRYPTO |\
+-		      AARCH64_FL_F16 | AARCH64_FL_AES | AARCH64_FL_SHA2 |\
+-		      AARCH64_FL_SHA3 | AARCH64_FL_SM4 | AARCH64_FL_SVE, "fp")
++AARCH64_OPT_EXTENSION("fp", AARCH64_FL_FP, 0, AARCH64_FL_SIMD | AARCH64_FL_CRYPTO | AARCH64_FL_F16 | AARCH64_FL_AES | AARCH64_FL_SHA2 | AARCH64_FL_SHA3 | AARCH64_FL_SM4 | AARCH64_FL_SVE, "fp")
+ 
+ /* Enabling "simd" also enables "fp".
+    Disabling "simd" also disables "crypto", "dotprod", "aes", "sha2", "sha3",
+    "sm3/sm4" and "sve".  */
+-AARCH64_OPT_EXTENSION("simd", AARCH64_FL_SIMD, AARCH64_FL_FP, AARCH64_FL_CRYPTO |\
+-		      AARCH64_FL_DOTPROD | AARCH64_FL_AES | AARCH64_FL_SHA2 |\
+-		      AARCH64_FL_SHA3 | AARCH64_FL_SM4 | AARCH64_FL_SVE,
+-		      "asimd")
++AARCH64_OPT_EXTENSION("simd", AARCH64_FL_SIMD, AARCH64_FL_FP, AARCH64_FL_CRYPTO | AARCH64_FL_DOTPROD | AARCH64_FL_AES | AARCH64_FL_SHA2 | AARCH64_FL_SHA3 | AARCH64_FL_SM4 | AARCH64_FL_SVE, "asimd")
+ 
+ /* Enabling "crypto" also enables "fp" and "simd".
+    Disabling "crypto" disables "crypto", "aes", "sha2", "sha3" and "sm3/sm4".  */
+-AARCH64_OPT_EXTENSION("crypto", AARCH64_FL_CRYPTO, AARCH64_FL_FP | AARCH64_FL_SIMD,\
+-		      AARCH64_FL_AES | AARCH64_FL_SHA2 |AARCH64_FL_SHA3 | AARCH64_FL_SM4,\
+-		      "aes pmull sha1 sha2")
++AARCH64_OPT_EXTENSION("crypto", AARCH64_FL_CRYPTO, AARCH64_FL_FP | AARCH64_FL_SIMD, AARCH64_FL_AES | AARCH64_FL_SHA2 |AARCH64_FL_SHA3 | AARCH64_FL_SM4, "aes pmull sha1 sha2")
+ 
+ /* Enabling or disabling "crc" only changes "crc".  */
+ AARCH64_OPT_EXTENSION("crc", AARCH64_FL_CRC, 0, 0, "crc32")
+@@ -67,8 +68,7 @@
+ 
+ /* Enabling "fp16" also enables "fp".
+    Disabling "fp16" disables "fp16", "fp16fml" and "sve".  */
+-AARCH64_OPT_EXTENSION("fp16", AARCH64_FL_F16, AARCH64_FL_FP,
+-		      AARCH64_FL_F16FML | AARCH64_FL_SVE, "fphp asimdhp")
++AARCH64_OPT_EXTENSION("fp16", AARCH64_FL_F16, AARCH64_FL_FP, AARCH64_FL_F16FML | AARCH64_FL_SVE, "fphp asimdhp")
+ 
+ /* Enabling or disabling "rcpc" only changes "rcpc".  */
+ AARCH64_OPT_EXTENSION("rcpc", AARCH64_FL_RCPC, 0, 0, "lrcpc")
+Index: gcc/config/rs6000/rs6000.c
+===================================================================
+--- a/src/gcc/config/rs6000/rs6000.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/rs6000/rs6000.c	(.../branches/gcc-8-branch)
+@@ -16765,15 +16765,6 @@
+     case ALTIVEC_BUILTIN_VSPLTISH:
+     case ALTIVEC_BUILTIN_VSPLTISW:
+       {
+-	 int size;
+-
+-         if (fn_code == ALTIVEC_BUILTIN_VSPLTISB)
+-           size = 8;
+-         else if (fn_code == ALTIVEC_BUILTIN_VSPLTISH)
+-           size = 16;
+-         else
+-           size = 32;
+-
+ 	 arg0 = gimple_call_arg (stmt, 0);
+ 	 lhs = gimple_call_lhs (stmt);
+ 
+@@ -16780,8 +16771,7 @@
+ 	 /* Only fold the vec_splat_*() if the lower bits of arg 0 is a
+ 	    5-bit signed constant in range -16 to +15.  */
+ 	 if (TREE_CODE (arg0) != INTEGER_CST
+-	     || !IN_RANGE (sext_hwi(TREE_INT_CST_LOW (arg0), size),
+-			   -16, 15))
++	     || !IN_RANGE (TREE_INT_CST_LOW (arg0), -16, 15))
+ 	   return false;
+ 	 gimple_seq stmts = NULL;
+ 	 location_t loc = gimple_location (stmt);
 Index: gcc/config/rs6000/rs6000.md
 ===================================================================
 --- a/src/gcc/config/rs6000/rs6000.md	(.../tags/gcc_8_3_0_release)
@@ -440,3 +2213,44 @@ Index: gcc/config/rs6000/rs6000.md
       emit_insn (gen_add<mode>3 (ctrout, ctr, constm1_rtx));
    else
      {
+Index: libgfortran/ChangeLog
+===================================================================
+--- a/src/libgfortran/ChangeLog	(.../tags/gcc_8_3_0_release)
++++ b/src/libgfortran/ChangeLog	(.../branches/gcc-8-branch)
+@@ -1,3 +1,9 @@
++2019-03-02  Jerry DeLisle  <jvdelisle@gcc.gnu.org>
++
++	PR libfortran/89020
++	* io/close.c (st_close): Generate error if calls to 'remove' return
++	an error.
++
+ 2019-02-22  Release Manager
+ 
+ 	* GCC 8.3.0 released.
+Index: libgfortran/io/close.c
+===================================================================
+--- a/src/libgfortran/io/close.c	(.../tags/gcc_8_3_0_release)
++++ b/src/libgfortran/io/close.c	(.../branches/gcc-8-branch)
+@@ -90,7 +90,10 @@
+ 	      else
+ 		{
+ #if HAVE_UNLINK_OPEN_FILE
+-		  remove (u->filename);
++
++		  if (remove (u->filename))
++		    generate_error (&clp->common, LIBERROR_OS,
++				    "File cannot be deleted");
+ #else
+ 		  path = strdup (u->filename);
+ #endif
+@@ -103,7 +106,9 @@
+ #if !HAVE_UNLINK_OPEN_FILE
+       if (path != NULL)
+ 	{
+-	  remove (path);
++	  if (remove (path))
++	    generate_error (&clp->common, LIBERROR_OS,
++			    "File cannot be deleted");
+ 	  free (path);
+ 	}
+ #endif
