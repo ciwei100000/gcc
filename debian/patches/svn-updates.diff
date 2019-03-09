@@ -1,10 +1,10 @@
-# DP: updates from the 7 branch upto 20190225 (r269187).
+# DP: updates from the 7 branch upto 20190308 (r269489).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Mon Feb 25 13:36:42 CET 2019
-Mon Feb 25 12:36:42 UTC 2019 (revision 269187)
+Fri Mar  8 12:32:39 CET 2019
+Fri Mar  8 11:32:39 UTC 2019 (revision 269489)
 EOF
 }
 
@@ -576,7 +576,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-7-branch)
 @@ -1 +1 @@
 -20181206
-+20190225
++20190308
 Index: gcc/lra.c
 ===================================================================
 --- a/src/gcc/lra.c	(.../tags/gcc_7_4_0_release)
@@ -639,7 +639,37 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,436 @@
+@@ -1,3 +1,466 @@
++2019-03-07  Xiong Hu Luo  <luoxhu@linux.ibm.com>
++
++	Backport of r268834 from mainline to gcc-7-branch.
++	2019-02-13  Xiong Hu Luo  <luoxhu@linux.vnet.ibm.com>
++
++	* config/rs6000/altivec.h (vec_sbox_be, vec_cipher_be,
++	vec_cipherlast_be, vec_ncipher_be, vec_ncipherlast_be): New #defines.
++	* config/rs6000/crypto.md (CR_vqdi): New define_mode_iterator.
++	(crypto_vsbox_<mode>, crypto_<CR_insn>_<mode>): New define_insns.
++	* config/rs6000/rs6000-builtin.def (VSBOX_BE): New BU_CRYPTO_1.
++	(VCIPHER_BE, VCIPHERLAST_BE, VNCIPHER_BE, VNCIPHERLAST_BE):
++	New BU_CRYPTO_2.
++	* config/rs6000/rs6000.c (builtin_function_type)
++	<CRYPTO_BUILTIN_VSBOX_BE, CRYPTO_BUILTIN_VCIPHER_BE,
++	CRYPTO_BUILTIN_VCIPHERLAST_BE, CRYPTO_BUILTIN_VNCIPHER_BE,
++	CRYPTO_BUILTIN_VNCIPHERLAST_BE>: New switch options.
++	* doc/extend.texi (vec_sbox_be, vec_cipher_be, vec_cipherlast_be,
++	vec_ncipher_be, vec_ncipherlast_be): New builtin functions.
++
++2019-02-27  Uroš Bizjak  <ubizjak@gmail.com>
++
++	PR target/89397
++	* config/i386/i386.c (ix86_atomic_assign_expand_fenv): Check
++	TARGET_SSE in addition to TARGET_SSE_MATH.
++
++	(ix86_excess_precision): Ditto.
++	(ix86_float_exceptions_rounding_supported_p): Ditto.
++	(use_rsqrt_p): Ditto.
++	* config/i386/sse.md (rsqrt<mode>2): Ditto.
++
 +2019-02-15  Martin Liska  <mliska@suse.cz>
 +
 +	Backport from mainline
@@ -1076,7 +1106,7 @@ Index: gcc/ChangeLog
  2018-12-06  Release Manager
  
  	* GCC 7.4.0 released.
-@@ -19,13 +456,13 @@
+@@ -19,13 +486,13 @@
  	* gcc/dwarf2out.c (FUNC_SECOND_SECT_LABEL): New.
  	(dwarf2out_switch_text_section): Generate a local label for the second
  	function sub-section and apply it as the second FDE start label.
@@ -1311,6 +1341,97 @@ Index: gcc/testsuite/gcc.target/powerpc/altivec_vld_vst_addr-1.c
 +  __builtin_vec_st (v, 0, address);
 +}
 +
+Index: gcc/testsuite/gcc.target/powerpc/crypto-builtin-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/crypto-builtin-1.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/crypto-builtin-1.c	(.../branches/gcc-7-branch)
+@@ -4,6 +4,7 @@
+ /* { dg-skip-if "do not override -mcpu" { powerpc*-*-* } { "-mcpu=*" } { "-mcpu=power8" } } */
+ /* { dg-options "-mcpu=power8 -O2 -ftree-vectorize -fvect-cost-model=dynamic -fno-unroll-loops -fno-unroll-all-loops" } */
+ 
++#include <altivec.h>
+ typedef vector unsigned long long	crypto_t;
+ typedef vector unsigned long long	v2di_t;
+ typedef vector unsigned int		v4si_t;
+@@ -10,31 +11,56 @@
+ typedef vector unsigned short		v8hi_t;
+ typedef vector unsigned char		v16qi_t;
+ 
+-crypto_t crpyto1 (crypto_t a)
++crypto_t crypto1 (crypto_t a)
+ {
+   return __builtin_crypto_vsbox (a);
+ }
+ 
++v16qi_t crypto1_be (v16qi_t a)
++{
++  return vec_sbox_be (a);
++}
++
+ crypto_t crypto2 (crypto_t a, crypto_t b)
+ {
+   return __builtin_crypto_vcipher (a, b);
+ }
+ 
++v16qi_t crypto2_be (v16qi_t a, v16qi_t b)
++{
++  return vec_cipher_be (a, b);
++}
++
+ crypto_t crypto3 (crypto_t a, crypto_t b)
+ {
+   return __builtin_crypto_vcipherlast (a, b);
+ }
+ 
++v16qi_t crypto3_be (v16qi_t a, v16qi_t b)
++{
++  return vec_cipherlast_be (a, b);
++}
++
+ crypto_t crypto4 (crypto_t a, crypto_t b)
+ {
+   return __builtin_crypto_vncipher (a, b);
+ }
+ 
++v16qi_t crypto4_be (v16qi_t a, v16qi_t b)
++{
++  return vec_ncipher_be (a, b);
++}
++
+ crypto_t crypto5 (crypto_t a, crypto_t b)
+ {
+   return __builtin_crypto_vncipherlast (a, b);
+ }
+ 
++v16qi_t crypto5_be (v16qi_t a, v16qi_t b)
++{
++  return vec_ncipherlast_be (a, b);
++}
++
+ v16qi_t crypto6a (v16qi_t a, v16qi_t b, v16qi_t c)
+ {
+   return __builtin_crypto_vpermxor (a, b, c);
+@@ -117,15 +143,15 @@
+ 
+ /* Note space is used after the instruction so that vcipherlast does not match
+    vcipher.  */
+-/* { dg-final { scan-assembler-times "vcipher "      1 } } */
+-/* { dg-final { scan-assembler-times "vcipherlast "  1 } } */
+-/* { dg-final { scan-assembler-times "vncipher "     1 } } */
+-/* { dg-final { scan-assembler-times "vncipherlast " 1 } } */
++/* { dg-final { scan-assembler-times "vcipher "      2 } } */
++/* { dg-final { scan-assembler-times "vcipherlast "  2 } } */
++/* { dg-final { scan-assembler-times "vncipher "     2 } } */
++/* { dg-final { scan-assembler-times "vncipherlast " 2 } } */
+ /* { dg-final { scan-assembler-times "vpermxor "     4 } } */
+ /* { dg-final { scan-assembler-times "vpmsumb "      2 } } */
+ /* { dg-final { scan-assembler-times "vpmsumd "      2 } } */
+ /* { dg-final { scan-assembler-times "vpmsumh "      2 } } */
+ /* { dg-final { scan-assembler-times "vpmsumw "      2 } } */
+-/* { dg-final { scan-assembler-times "vsbox "        1 } } */
++/* { dg-final { scan-assembler-times "vsbox "        2 } } */
+ /* { dg-final { scan-assembler-times "vshasigmad "   2 } } */
+ /* { dg-final { scan-assembler-times "vshasigmaw "   2 } } */
 Index: gcc/testsuite/gcc.target/powerpc/vec-extract-uint128-1.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/powerpc/vec-extract-uint128-1.c	(.../tags/gcc_7_4_0_release)
@@ -2553,6 +2674,26 @@ Index: gcc/testsuite/gfortran.dg/pr88169_1.f90
 +   close(fd)
 +end program
 +! { dg-final { cleanup-modules "foo_nml" } }
+Index: gcc/testsuite/gfortran.dg/coarray_allocate_11.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/coarray_allocate_11.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/coarray_allocate_11.f90	(.../branches/gcc-7-branch)
+@@ -0,0 +1,15 @@
++! { dg-do compile }
++! { dg-additional-options -fcoarray=single }
++program p
++   integer, allocatable :: z[:,:]
++   integer :: i
++   allocate (z[1:,*]) ! { dg-error "Bad array specification in ALLOCATE statement" }
++   allocate (z[:2,*]) ! { dg-error "Bad array specification in ALLOCATE statement" }
++   allocate (z[2:1,*]) ! { dg-error "Upper cobound is less than lower cobound" }
++   allocate (z[:0,*]) ! { dg-error "Bad array specification in ALLOCATE statement" }
++   allocate (z[0,*]) ! { dg-error "Upper cobound is less than lower cobound" }
++   allocate (z[1,*]) ! This is OK
++   allocate (z[1:1,*]) ! This is OK
++   allocate (z[i:i,*]) ! This is OK
++   allocate (z[i:i-1,*]) ! { dg-error "Upper cobound is less than lower cobound" }
++end
 Index: gcc/testsuite/gfortran.dg/pr51434.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr51434.f90	(.../tags/gcc_7_4_0_release)
@@ -2713,6 +2854,18 @@ Index: gcc/testsuite/gfortran.dg/pr70870_1.f90
  ! PR fortran/70870
  ! Contributed by Vittorio Zecca <zeccav at gmail dot com >
        type t
+Index: gcc/testsuite/gfortran.dg/altreturn_9_1.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/altreturn_9_1.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/altreturn_9_1.f90	(.../branches/gcc-7-branch)
+@@ -0,0 +1,7 @@
++! { dg-do compile }
++! { dg-options "-std=gnu" }
++! See altreturn_9_0.f90
++subroutine sub(i, *, j)
++  if (i == 10 .and. j == 20) return 1
++  return
++end subroutine sub
 Index: gcc/testsuite/gfortran.dg/power_7.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/power_7.f90	(.../tags/gcc_7_4_0_release)
@@ -2960,6 +3113,62 @@ Index: gcc/testsuite/gfortran.dg/coarray/event_3.f08
    
    call exchange
    contains
+Index: gcc/testsuite/gfortran.dg/lto/20091028-1_0.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/lto/20091028-1_0.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/lto/20091028-1_0.f90	(.../branches/gcc-7-branch)
+@@ -1,5 +1,5 @@
+ ! { dg-lto-do link }
+-! { dg-extra-ld-options "-r -nostdlib -finline-functions" }
++! { dg-extra-ld-options "-r -nostdlib -finline-functions -Wno-lto-type-mismatch" }
+ 
+ SUBROUTINE int_gen_ti_header_char( hdrbuf, hdrbufsize, itypesize, &
+                               DataHandle, Element, VarName, Data, code )
+Index: gcc/testsuite/gfortran.dg/lto/20091028-2_0.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/lto/20091028-2_0.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/lto/20091028-2_0.f90	(.../branches/gcc-7-branch)
+@@ -1,5 +1,5 @@
+ ! { dg-lto-do link }
+-! { dg-extra-ld-options "-r -nostdlib -finline-functions" }
++! { dg-extra-ld-options "-r -nostdlib -finline-functions -Wno-lto-type-mismatch" }
+ 
+ SUBROUTINE int_gen_ti_header_char( hdrbuf, hdrbufsize, itypesize, &
+                               DataHandle, Element, VarName, Data, code )
+Index: gcc/testsuite/gfortran.dg/lto/pr87689_0.f
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/lto/pr87689_0.f	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/lto/pr87689_0.f	(.../branches/gcc-7-branch)
+@@ -0,0 +1,13 @@
++! { dg-lto-run }
++! PR 87689 - this used to fail for POWER, plus it used to
++! give warnings about mismatches with LTO.
++! Original test case by Judicaël Grasset.
++      program main
++        implicit none
++        character :: c
++        character(len=20) :: res, doesntwork_p8
++        external doesntwork_p8
++        c = 'o'
++        res = doesntwork_p8(c,1,2,3,4,5,6)
++        if (res /= 'foo') stop 3
++      end program main
+Index: gcc/testsuite/gfortran.dg/lto/pr87689_1.f
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/lto/pr87689_1.f	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/lto/pr87689_1.f	(.../branches/gcc-7-branch)
+@@ -0,0 +1,11 @@
++      function doesntwork_p8(c,a1,a2,a3,a4,a5,a6)
++        implicit none
++        character(len=20) :: doesntwork_p8
++        character :: c
++        integer :: a1,a2,a3,a4,a5,a6
++        if (a1 /= 1 .or. a2 /= 2 .or. a3 /= 3 .or. a4 /= 4 .or. a5 /= 5
++     &       .or. a6 /= 6) stop 1
++       if (c /= 'o ') stop 2
++       doesntwork_p8 = 'foo'
++       return
++       end
 Index: gcc/testsuite/gfortran.dg/pr88169_3.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr88169_3.f90	(.../tags/gcc_7_4_0_release)
@@ -3009,6 +3218,21 @@ Index: gcc/testsuite/gfortran.dg/pr68318_1.f90
  ! PR fortran/68318
  ! Original code submitted by Gerhard Steinmetz
  ! <gerhard dot steinmetz dot fortran at t-online dot de>
+Index: gcc/testsuite/gfortran.dg/pr77583.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr77583.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr77583.f90	(.../branches/gcc-7-branch)
+@@ -0,0 +1,10 @@
++! { dg-do compile }
++!
++! PR fortran/77583 - ICE in pp_quoted_string, at pretty-print.c:966
++! Contributed by Gerhard Steinmetz <gerhard.steinmetz.fortran@t-online.de>
++
++pure subroutine sub(s)
++contains
++   pure subroutine s  ! { dg-error "conflicts with DUMMY argument" }
++   end
++end
 Index: gcc/testsuite/gfortran.dg/pr88249.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr88249.f90	(.../tags/gcc_7_4_0_release)
@@ -3021,6 +3245,21 @@ Index: gcc/testsuite/gfortran.dg/pr88249.f90
 +   flush (err=1)     ! { dg-error "UNIT number missing" }
 +   rewind (err=1)    ! { dg-error "UNIT number missing" }
 +end
+Index: gcc/testsuite/gfortran.dg/altreturn_9_0.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/altreturn_9_0.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/altreturn_9_0.f90	(.../branches/gcc-7-branch)
+@@ -0,0 +1,10 @@
++! { dg-do  run }
++! { dg-options -std=gnu }
++! { dg-additional-sources altreturn_9_1.f90 }
++! PR 89496 - wrong type for alternate return was generated
++
++program main
++  call sub(10, *10, 20)
++  stop 1
++10 continue
++end program main
 Index: gcc/testsuite/gfortran.dg/submodule_30.f08
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/submodule_30.f08	(.../tags/gcc_7_4_0_release)
@@ -3646,7 +3885,40 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,441 @@
+@@ -1,3 +1,474 @@
++2019-03-07  Xiong Hu Luo  <luoxhu@linux.ibm.com>
++
++	Backport of r268834 from mainline to gcc-7-branch.
++	2019-01-23  Xiong Hu Luo  <luoxhu@linux.vnet.ibm.com>
++
++	* gcc.target/powerpc/crypto-builtin-1.c
++	(crypto1_be, crypto2_be, crypto3_be, crypto4_be, crypto5_be):
++	New testcases.
++
++2019-03-06  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/72714
++	Backport from trunk
++	* gfortran.dg/coarray_allocate_11.f90: New test.
++
++2019-03-03  Harald Anlauf  <anlauf@gmx.de>
++
++	Backport from trunk
++	PR fortran/77583
++	* gfortran.dg/pr77583.f90: New test.
++
++2019-03-03  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/87689
++	Backport from trunk
++	* gfortran.dg/lto/20091028-1_0.f90: Add -Wno-lto-type-mismatch to
++	options.
++	* gfortran.dg/lto/20091028-2_0.f90: Likewise.
++	* gfortran.dg/lto/pr87689_0.f: New file.
++	* gfortran.dg/lto/pr87689_1.f: New file.
++	* gfortran.dg/altreturn_9_0.f90: New file.
++	* gfortran.dg/altreturn_9_1.f90: New file.
++
 +2019-02-23  Paul Thomas  <pault@gcc.gnu.org>
 +
 +	Backport from trunk
@@ -4684,11 +4956,55 @@ Index: gcc/opts.c
    /* At -Ofast, allow store motion to introduce potential race conditions.  */
    maybe_set_param_value
      (PARAM_ALLOW_STORE_DATA_RACES,
+Index: gcc/ada/exp_ch6.adb
+===================================================================
+--- a/src/gcc/ada/exp_ch6.adb	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/ada/exp_ch6.adb	(.../branches/gcc-7-branch)
+@@ -3937,6 +3937,23 @@
+               Unchecked_Convert_To
+                 (RTE (RE_Address), Relocate_Node (First_Actual (Call_Node))));
+             return;
++
++         --  A call to a null procedure is replaced by a null statement, but we
++         --  are not allowed to ignore possible side effects of the call, so we
++         --  make sure that actuals are evaluated.
++         --  We also suppress this optimization for GNATCoverage.
++
++         elsif Is_Null_Procedure (Subp)
++           and then not Opt.Suppress_Control_Flow_Optimizations
++         then
++            Actual := First_Actual (Call_Node);
++            while Present (Actual) loop
++               Remove_Side_Effects (Actual);
++               Next_Actual (Actual);
++            end loop;
++
++            Rewrite (Call_Node, Make_Null_Statement (Loc));
++            return;
+          end if;
+ 
+          --  Handle inlining. No action needed if the subprogram is not inlined
 Index: gcc/ada/ChangeLog
 ===================================================================
 --- a/src/gcc/ada/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/ada/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,64 @@
+@@ -1,3 +1,80 @@
++2019-02-26  Eric Botcazou  <ebotcazou@adacore.com>
++
++	PR ada/81956
++	Backport from mainline
++	2017-09-06  Ed Schonberg  <schonberg@adacore.com>
++
++	* exp_ch6.adb (Expand_Call_Helper): Do not optimize calls to
++	null procedures when GNAT coverage is used, so that their (empty)
++	bodies are properly covered.
++
++	2017-09-06  Ed Schonberg  <schonberg@adacore.com>
++
++	* exp_ch6.adb (Expand_Call_Helper): Replace call to null
++	procedure by a single null statement, after evaluating the
++	actuals that require it.
++
 +2019-02-23  Eric Botcazou  <ebotcazou@adacore.com>
 +
 +	PR ada/89349
@@ -5370,7 +5686,26 @@ Index: gcc/fortran/trans-expr.c
    gfc_int4_type_node = gfc_get_int_type (4);
  
    /* In case of integer operands with kinds 1 or 2, we call the integer kind 4
-@@ -5635,6 +5712,16 @@
+@@ -3722,7 +3799,8 @@
+ 
+ 
+ static void
+-conv_function_val (gfc_se * se, gfc_symbol * sym, gfc_expr * expr)
++conv_function_val (gfc_se * se, gfc_symbol * sym, gfc_expr * expr,
++		   gfc_actual_arglist *actual_args)
+ {
+   tree tmp;
+ 
+@@ -3740,7 +3818,7 @@
+   else
+     {
+       if (!sym->backend_decl)
+-	sym->backend_decl = gfc_get_extern_function_decl (sym);
++	sym->backend_decl = gfc_get_extern_function_decl (sym, actual_args);
+ 
+       TREE_USED (sym->backend_decl) = 1;
+ 
+@@ -5635,6 +5713,16 @@
  	      break;
  	    }
  
@@ -5387,7 +5722,7 @@ Index: gcc/fortran/trans-expr.c
  	  if (e->expr_type == EXPR_OP
  		&& e->value.op.op == INTRINSIC_PARENTHESES
  		&& e->value.op.op1->expr_type == EXPR_VARIABLE)
-@@ -5646,16 +5733,6 @@
+@@ -5646,16 +5734,6 @@
  	      gfc_add_expr_to_block (&se->post, local_tmp);
  	    }
  
@@ -5404,6 +5739,15 @@ Index: gcc/fortran/trans-expr.c
  	  tmp = gfc_deallocate_alloc_comp (e->ts.u.derived, tmp, parm_rank);
  
  	  gfc_prepend_expr_to_block (&post, tmp);
+@@ -6161,7 +6239,7 @@
+ 
+   /* Generate the actual call.  */
+   if (base_object == NULL_TREE)
+-    conv_function_val (se, sym, expr);
++    conv_function_val (se, sym, expr, args);
+   else
+     conv_base_obj_fcn_val (se, base_object, expr);
+ 
 Index: gcc/fortran/trans-array.c
 ===================================================================
 --- a/src/gcc/fortran/trans-array.c	(.../tags/gcc_7_4_0_release)
@@ -5457,6 +5801,19 @@ Index: gcc/fortran/trans-array.c
        gfc_add_expr_to_block (&se->pre,
  		 fold_build3_loc (input_location, COND_EXPR, void_type_node,
  				  cond,
+Index: gcc/fortran/symbol.c
+===================================================================
+--- a/src/gcc/fortran/symbol.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/fortran/symbol.c	(.../branches/gcc-7-branch)
+@@ -477,7 +477,7 @@
+   /* The copying of procedure dummy arguments for module procedures in
+      a submodule occur whilst the current state is COMP_CONTAINS. It
+      is necessary, therefore, to let this through.  */
+-  if (attr->dummy
++  if (name && attr->dummy
+       && (attr->function || attr->subroutine)
+       && gfc_current_state () == COMP_CONTAINS
+       && !(gfc_new_block && gfc_new_block->abr_modproc_decl))
 Index: gcc/fortran/decl.c
 ===================================================================
 --- a/src/gcc/fortran/decl.c	(.../tags/gcc_7_4_0_release)
@@ -5598,7 +5955,36 @@ Index: gcc/fortran/ChangeLog
 ===================================================================
 --- a/src/gcc/fortran/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/fortran/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,178 @@
+@@ -1,3 +1,207 @@
++2019-03-06  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/72714
++	Backport from trunk
++	* resolve.c (resolve_allocate_expr): Add some tests for coarrays.
++
++2019-03-03  Harald Anlauf  <anlauf@gmx.de>
++	    Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/77583
++	* symbol.c (check_conflict): Check for valid procedure name
++	passed to error reporting routine.
++
++2019-03-03  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/87689
++	Backport from trunk
++	* trans-decl.c (gfc_get_extern_function_decl): Add argument
++	actual_args and pass it through to gfc_get_function_type.
++	* trans-expr.c (conv_function_val): Add argument actual_args
++	and pass it on to gfc_get_extern_function_decl.
++	(conv_procedure_call): Pass actual arguments to conv_function_val.
++	* trans-types.c (get_formal_from_actual_arglist): New function.
++	(gfc_get_function_type): Add argument actual_args.  Generate
++	formal args from actual args if necessary.
++	* trans-types.h (gfc_get_function_type): Add optional argument.
++	* trans.h (gfc_get_extern_function_decl): Add optional argument.
++
 +2019-02-23  Paul Thomas  <pault@gcc.gnu.org>
 +
 +	Backport from trunk
@@ -5870,6 +6256,107 @@ Index: gcc/fortran/module.c
        m = NULL;
        while (peek_atom () != ATOM_RPAREN)
  	{
+Index: gcc/fortran/trans-types.c
+===================================================================
+--- a/src/gcc/fortran/trans-types.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/fortran/trans-types.c	(.../branches/gcc-7-branch)
+@@ -2897,9 +2897,57 @@
+   return build_type_attribute_variant (fntype, tmp);
+ }
+ 
++/* Helper function - if we do not find an interface for a procedure,
++   construct it from the actual arglist.  Luckily, this can only
++   happen for call by reference, so the information we actually need
++   to provide (and which would be impossible to guess from the call
++   itself) is not actually needed.  */
+ 
++static void
++get_formal_from_actual_arglist (gfc_symbol *sym, gfc_actual_arglist *actual_args)
++{
++  gfc_actual_arglist *a;
++  gfc_formal_arglist **f;
++  gfc_symbol *s;
++  char name[GFC_MAX_SYMBOL_LEN + 1];
++  static int var_num;
++
++  f = &sym->formal;
++  for (a = actual_args; a != NULL; a = a->next)
++    {
++      (*f) = gfc_get_formal_arglist ();
++      if (a->expr)
++	{
++	  snprintf (name, GFC_MAX_SYMBOL_LEN, "_formal_%d", var_num ++);
++	  gfc_get_symbol (name, NULL, &s);
++	  if (a->expr->ts.type == BT_PROCEDURE)
++	    {
++	      s->attr.flavor = FL_PROCEDURE;
++	    }
++	  else
++	    {
++	      s->ts = a->expr->ts;
++	      s->attr.flavor = FL_VARIABLE;
++	      if (a->expr->rank > 0)
++		{
++		  s->attr.dimension = 1;
++		  s->as = gfc_get_array_spec ();
++		  s->as->type = AS_ASSUMED_SIZE;
++		}
++	    }
++	  s->attr.dummy = 1;
++	  s->attr.intent = INTENT_UNKNOWN;
++	  (*f)->sym = s;
++	}
++      else  /* If a->expr is NULL, this is an alternate rerturn.  */
++	(*f)->sym = NULL;
++
++      f = &((*f)->next);
++    }
++}
++
+ tree
+-gfc_get_function_type (gfc_symbol * sym)
++gfc_get_function_type (gfc_symbol * sym, gfc_actual_arglist *actual_args)
+ {
+   tree type;
+   vec<tree, va_gc> *typelist = NULL;
+@@ -2957,6 +3005,10 @@
+ 	    vec_safe_push (typelist, build_pointer_type(gfc_charlen_type_node));
+ 	}
+     }
++  if (sym->backend_decl == error_mark_node && actual_args != NULL
++      && sym->formal == NULL && (sym->attr.proc == PROC_EXTERNAL
++				 || sym->attr.proc == PROC_UNKNOWN))
++    get_formal_from_actual_arglist (sym, actual_args);
+ 
+   /* Build the argument types for the function.  */
+   for (f = gfc_sym_get_dummy_args (sym); f; f = f->next)
+Index: gcc/fortran/trans.h
+===================================================================
+--- a/src/gcc/fortran/trans.h	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/fortran/trans.h	(.../branches/gcc-7-branch)
+@@ -578,7 +578,8 @@
+ tree gfc_get_label_decl (gfc_st_label *);
+ 
+ /* Return the decl for an external function.  */
+-tree gfc_get_extern_function_decl (gfc_symbol *);
++tree gfc_get_extern_function_decl (gfc_symbol *,
++				   gfc_actual_arglist *args = NULL);
+ 
+ /* Return the decl for a function.  */
+ tree gfc_get_function_decl (gfc_symbol *);
+Index: gcc/fortran/trans-types.h
+===================================================================
+--- a/src/gcc/fortran/trans-types.h	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/fortran/trans-types.h	(.../branches/gcc-7-branch)
+@@ -87,7 +87,7 @@
+ tree gfc_typenode_for_spec (gfc_typespec *, int c = 0);
+ int gfc_copy_dt_decls_ifequal (gfc_symbol *, gfc_symbol *, bool);
+ 
+-tree gfc_get_function_type (gfc_symbol *);
++tree gfc_get_function_type (gfc_symbol *, gfc_actual_arglist *args = NULL);
+ 
+ tree gfc_type_for_size (unsigned, int);
+ tree gfc_type_for_mode (machine_mode, int);
 Index: gcc/fortran/io.c
 ===================================================================
 --- a/src/gcc/fortran/io.c	(.../tags/gcc_7_4_0_release)
@@ -6150,7 +6637,68 @@ Index: gcc/fortran/resolve.c
      }
  
    if (sym->ts.type == BT_DERIVED && sym->ts.u.derived->attr.generic)
-@@ -10264,6 +10281,11 @@
+@@ -7414,13 +7431,54 @@
+ 
+   if (codimension)
+     for (i = ar->dimen; i < ar->dimen + ar->codimen; i++)
+-      if (ar->dimen_type[i] == DIMEN_THIS_IMAGE)
+-	{
+-	  gfc_error ("Coarray specification required in ALLOCATE statement "
+-		     "at %L", &e->where);
+-	  goto failure;
+-	}
++      {
++	switch (ar->dimen_type[i])
++	  {
++	  case DIMEN_THIS_IMAGE:
++	    gfc_error ("Coarray specification required in ALLOCATE statement "
++		       "at %L", &e->where);
++	    goto failure;
+ 
++	  case  DIMEN_RANGE:
++	    if (ar->start[i] == 0 || ar->end[i] == 0)
++	      {
++		/* If ar->stride[i] is NULL, we issued a previous error.  */
++		if (ar->stride[i] == NULL)
++		  gfc_error ("Bad array specification in ALLOCATE statement "
++			     "at %L", &e->where);
++		goto failure;
++	      }
++	    else if (gfc_dep_compare_expr (ar->start[i], ar->end[i]) == 1)
++	      {
++		gfc_error ("Upper cobound is less than lower cobound at %L",
++			   &ar->start[i]->where);
++		goto failure;
++	      }
++	    break;
++
++	  case DIMEN_ELEMENT:
++	    if (ar->start[i]->expr_type == EXPR_CONSTANT)
++	      {
++		gcc_assert (ar->start[i]->ts.type == BT_INTEGER);
++		if (mpz_cmp_si (ar->start[i]->value.integer, 1) < 0)
++		  {
++		    gfc_error ("Upper cobound is less than lower cobound "
++			       " of 1 at %L", &ar->start[i]->where);
++		    goto failure;
++		  }
++	      }
++	    break;
++
++	  case DIMEN_STAR:
++	    break;
++
++	  default:
++	    gfc_error ("Bad array specification in ALLOCATE statement at %L",
++		       &e->where);
++	    goto failure;
++
++	  }
++      }
+   for (i = 0; i < ar->dimen; i++)
+     {
+       if (ar->type == AR_ELEMENT || ar->type == AR_FULL)
+@@ -10264,6 +10322,11 @@
    gfc_get_sym_tree (name, ns, &tmp, false);
    gfc_add_type (tmp->n.sym, &e->ts, NULL);
  
@@ -6162,7 +6710,7 @@ Index: gcc/fortran/resolve.c
    as = NULL;
    ref = NULL;
    aref = NULL;
-@@ -10754,6 +10776,9 @@
+@@ -10754,6 +10817,9 @@
    if (!gfc_check_dependency ((*code)->expr1, (*code)->expr2, 1))
      return false;
  
@@ -6172,7 +6720,7 @@ Index: gcc/fortran/resolve.c
    tmp_expr = get_temp_from_expr ((*code)->expr1, ns);
    tmp_expr->where = (*code)->loc;
  
-@@ -11163,7 +11188,7 @@
+@@ -11163,7 +11229,7 @@
  	case EXEC_ENDFILE:
  	case EXEC_REWIND:
  	case EXEC_FLUSH:
@@ -6181,7 +6729,7 @@ Index: gcc/fortran/resolve.c
  	    break;
  
  	  resolve_branch (code->ext.filepos->err, code);
-@@ -14854,7 +14879,7 @@
+@@ -14854,7 +14920,7 @@
    /* Set the formal_arg_flag so that check_conflict will not throw
       an error for host associated variables in the specification
       expression for an array_valued function.  */
@@ -6205,6 +6753,24 @@ Index: gcc/fortran/trans-decl.c
  	  || sym->attr.if_source != IFSRC_DECL)
  	{
  	  decl = gfc_get_extern_function_decl (sym);
+@@ -1934,7 +1936,7 @@
+ /* Get a basic decl for an external function.  */
+ 
+ tree
+-gfc_get_extern_function_decl (gfc_symbol * sym)
++gfc_get_extern_function_decl (gfc_symbol * sym, gfc_actual_arglist *actual_args)
+ {
+   tree type;
+   tree fndecl;
+@@ -2107,7 +2109,7 @@
+       mangled_name = gfc_sym_mangled_function_id (sym);
+     }
+ 
+-  type = gfc_get_function_type (sym);
++  type = gfc_get_function_type (sym, actual_args);
+   fndecl = build_decl (input_location,
+ 		       FUNCTION_DECL, name, type);
+ 
 @@ -5220,6 +5222,33 @@
    /* Handle "static" initializer.  */
    if (sym->value)
@@ -7617,6 +8183,15 @@ Index: gcc/config/i386/sse.md
 ===================================================================
 --- a/src/gcc/config/i386/sse.md	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/config/i386/sse.md	(.../branches/gcc-7-branch)
+@@ -1777,7 +1777,7 @@
+   [(set (match_operand:VF1_128_256 0 "register_operand")
+ 	(unspec:VF1_128_256
+ 	  [(match_operand:VF1_128_256 1 "vector_operand")] UNSPEC_RSQRT))]
+-  "TARGET_SSE_MATH"
++  "TARGET_SSE && TARGET_SSE_MATH"
+ {
+   ix86_emit_swsqrtsf (operands[0], operands[1], <MODE>mode, true);
+   DONE;
 @@ -4601,37 +4601,49 @@
  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
  
@@ -7799,6 +8374,51 @@ Index: gcc/config/i386/i386.c
            pat = GEN_FCN (icode) (target, op0, op1, op2);
            if (pat)
              emit_insn (pat);
+@@ -40478,7 +40500,7 @@
+ static bool
+ use_rsqrt_p ()
+ {
+-  return (TARGET_SSE_MATH
++  return (TARGET_SSE && TARGET_SSE_MATH
+ 	  && flag_finite_math_only
+ 	  && !flag_trapping_math
+ 	  && flag_unsafe_math_optimizations);
+@@ -51933,7 +51955,7 @@
+      there is no adddf3 pattern (since x87 floating point only has
+      XFmode operations) so the default hook implementation gets this
+      wrong.  */
+-  return TARGET_80387 || TARGET_SSE_MATH;
++  return TARGET_80387 || (TARGET_SSE && TARGET_SSE_MATH);
+ }
+ 
+ /* Implement TARGET_ATOMIC_ASSIGN_EXPAND_FENV.  */
+@@ -51941,7 +51963,7 @@
+ static void
+ ix86_atomic_assign_expand_fenv (tree *hold, tree *clear, tree *update)
+ {
+-  if (!TARGET_80387 && !TARGET_SSE_MATH)
++  if (!TARGET_80387 && !(TARGET_SSE && TARGET_SSE_MATH))
+     return;
+   tree exceptions_var = create_tmp_var_raw (integer_type_node);
+   if (TARGET_80387)
+@@ -51976,7 +51998,7 @@
+       tree update_fldenv = build_call_expr (fldenv, 1, fenv_addr);
+       *update = build2 (COMPOUND_EXPR, void_type_node, *update, update_fldenv);
+     }
+-  if (TARGET_SSE_MATH)
++  if (TARGET_SSE && TARGET_SSE_MATH)
+     {
+       tree mxcsr_orig_var = create_tmp_var_raw (unsigned_type_node);
+       tree mxcsr_mod_var = create_tmp_var_raw (unsigned_type_node);
+@@ -52335,7 +52357,7 @@
+ 	  return FLT_EVAL_METHOD_PROMOTE_TO_FLOAT;
+ 	else if (!TARGET_MIX_SSE_I387)
+ 	  {
+-	    if (!TARGET_SSE_MATH)
++	    if (!(TARGET_SSE && TARGET_SSE_MATH))
+ 	      return FLT_EVAL_METHOD_PROMOTE_TO_LONG_DOUBLE;
+ 	    else if (TARGET_SSE2)
+ 	      return FLT_EVAL_METHOD_PROMOTE_TO_FLOAT;
 Index: gcc/config/rs6000/darwin7.h
 ===================================================================
 --- a/src/gcc/config/rs6000/darwin7.h	(.../tags/gcc_7_4_0_release)
@@ -7814,6 +8434,38 @@ Index: gcc/config/rs6000/darwin7.h
 +
  #undef DEF_MIN_OSX_VERSION
  #define DEF_MIN_OSX_VERSION "10.3.9"
+Index: gcc/config/rs6000/rs6000-builtin.def
+===================================================================
+--- a/src/gcc/config/rs6000/rs6000-builtin.def	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/config/rs6000/rs6000-builtin.def	(.../branches/gcc-7-branch)
+@@ -2233,13 +2233,22 @@
+ BU_FLOAT128_2 (COPYSIGNQ,	"copysignq",   CONST, copysignkf3)
+ 
+ /* 1 argument crypto functions.  */
+-BU_CRYPTO_1 (VSBOX,		"vsbox",	  CONST, crypto_vsbox)
++BU_CRYPTO_1 (VSBOX,		"vsbox",	  CONST, crypto_vsbox_v2di)
++BU_CRYPTO_1 (VSBOX_BE,		"vsbox_be",	  CONST, crypto_vsbox_v16qi)
+ 
+ /* 2 argument crypto functions.  */
+-BU_CRYPTO_2 (VCIPHER,		"vcipher",	  CONST, crypto_vcipher)
+-BU_CRYPTO_2 (VCIPHERLAST,	"vcipherlast",	  CONST, crypto_vcipherlast)
+-BU_CRYPTO_2 (VNCIPHER,		"vncipher",	  CONST, crypto_vncipher)
+-BU_CRYPTO_2 (VNCIPHERLAST,	"vncipherlast",	  CONST, crypto_vncipherlast)
++BU_CRYPTO_2 (VCIPHER,		"vcipher",	  CONST, crypto_vcipher_v2di)
++BU_CRYPTO_2 (VCIPHER_BE,	"vcipher_be",	  CONST, crypto_vcipher_v16qi)
++BU_CRYPTO_2 (VCIPHERLAST,	"vcipherlast",
++	     CONST, crypto_vcipherlast_v2di)
++BU_CRYPTO_2 (VCIPHERLAST_BE,	"vcipherlast_be",
++	     CONST, crypto_vcipherlast_v16qi)
++BU_CRYPTO_2 (VNCIPHER,		"vncipher",	  CONST, crypto_vncipher_v2di)
++BU_CRYPTO_2 (VNCIPHER_BE,	"vncipher_be",	  CONST, crypto_vncipher_v16qi)
++BU_CRYPTO_2 (VNCIPHERLAST,	"vncipherlast",
++	     CONST, crypto_vncipherlast_v2di)
++BU_CRYPTO_2 (VNCIPHERLAST_BE,	"vncipherlast_be",
++	     CONST, crypto_vncipherlast_v16qi)
+ BU_CRYPTO_2A (VPMSUMB,		"vpmsumb",	  CONST, crypto_vpmsumb)
+ BU_CRYPTO_2A (VPMSUMH,		"vpmsumh",	  CONST, crypto_vpmsumh)
+ BU_CRYPTO_2A (VPMSUMW,		"vpmsumw",	  CONST, crypto_vpmsumw)
 Index: gcc/config/rs6000/rs6000-c.c
 ===================================================================
 --- a/src/gcc/config/rs6000/rs6000-c.c	(.../tags/gcc_7_4_0_release)
@@ -7911,7 +8563,29 @@ Index: gcc/config/rs6000/rs6000.c
    /* Enable the default support for IEEE 128-bit floating point on Linux VSX
       sytems, but don't enable the __float128 keyword.  */
    if (TARGET_VSX && TARGET_LONG_DOUBLE_128
-@@ -26714,27 +26726,35 @@
+@@ -18806,6 +18818,7 @@
+     {
+       /* unsigned 1 argument functions.  */
+     case CRYPTO_BUILTIN_VSBOX:
++    case CRYPTO_BUILTIN_VSBOX_BE:
+     case P8V_BUILTIN_VGBBD:
+     case MISC_BUILTIN_CDTBCD:
+     case MISC_BUILTIN_CBCDTD:
+@@ -18819,9 +18832,13 @@
+     case ALTIVEC_BUILTIN_VMULOUB:
+     case ALTIVEC_BUILTIN_VMULOUH:
+     case CRYPTO_BUILTIN_VCIPHER:
++    case CRYPTO_BUILTIN_VCIPHER_BE:
+     case CRYPTO_BUILTIN_VCIPHERLAST:
++    case CRYPTO_BUILTIN_VCIPHERLAST_BE:
+     case CRYPTO_BUILTIN_VNCIPHER:
++    case CRYPTO_BUILTIN_VNCIPHER_BE:
+     case CRYPTO_BUILTIN_VNCIPHERLAST:
++    case CRYPTO_BUILTIN_VNCIPHERLAST_BE:
+     case CRYPTO_BUILTIN_VPMSUMB:
+     case CRYPTO_BUILTIN_VPMSUMH:
+     case CRYPTO_BUILTIN_VPMSUMW:
+@@ -26714,27 +26731,35 @@
  static bool
  rs6000_reg_live_or_pic_offset_p (int reg)
  {
@@ -7991,6 +8665,48 @@ Index: gcc/config/rs6000/vsx.md
    "#"
    ""
    [(const_int 0)]
+Index: gcc/config/rs6000/crypto.md
+===================================================================
+--- a/src/gcc/config/rs6000/crypto.md	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/config/rs6000/crypto.md	(.../branches/gcc-7-branch)
+@@ -48,6 +48,9 @@
+ ;; Iterator for VSHASIGMAD/VSHASIGMAW
+ (define_mode_iterator CR_hash [V4SI V2DI])
+ 
++;; Iterator for VSBOX/VCIPHER/VNCIPHER/VCIPHERLAST/VNCIPHERLAST
++(define_mode_iterator CR_vqdi [V16QI V2DI])
++
+ ;; Iterator for the other crypto functions
+ (define_int_iterator CR_code   [UNSPEC_VCIPHER
+ 				UNSPEC_VNCIPHER
+@@ -60,10 +63,10 @@
+ 			  (UNSPEC_VNCIPHERLAST "vncipherlast")])
+ 
+ ;; 2 operand crypto instructions
+-(define_insn "crypto_<CR_insn>"
+-  [(set (match_operand:V2DI 0 "register_operand" "=v")
+-	(unspec:V2DI [(match_operand:V2DI 1 "register_operand" "v")
+-		      (match_operand:V2DI 2 "register_operand" "v")]
++(define_insn "crypto_<CR_insn>_<mode>"
++  [(set (match_operand:CR_vqdi 0 "register_operand" "=v")
++	(unspec:CR_vqdi [(match_operand:CR_vqdi 1 "register_operand" "v")
++		      (match_operand:CR_vqdi 2 "register_operand" "v")]
+ 		     CR_code))]
+   "TARGET_CRYPTO"
+   "<CR_insn> %0,%1,%2"
+@@ -90,9 +93,9 @@
+   [(set_attr "type" "vecperm")])
+ 
+ ;; 1 operand crypto instruction
+-(define_insn "crypto_vsbox"
+-  [(set (match_operand:V2DI 0 "register_operand" "=v")
+-	(unspec:V2DI [(match_operand:V2DI 1 "register_operand" "v")]
++(define_insn "crypto_vsbox_<mode>"
++  [(set (match_operand:CR_vqdi 0 "register_operand" "=v")
++	(unspec:CR_vqdi [(match_operand:CR_vqdi 1 "register_operand" "v")]
+ 		     UNSPEC_VSBOX))]
+   "TARGET_CRYPTO"
+   "vsbox %0,%1"
 Index: gcc/config/rs6000/rs6000.md
 ===================================================================
 --- a/src/gcc/config/rs6000/rs6000.md	(.../tags/gcc_7_4_0_release)
@@ -8042,6 +8758,22 @@ Index: gcc/config/rs6000/rs6000.md
  
    "TARGET_POWERPC64
     && (gpc_reg_operand (operands[0], DImode)
+Index: gcc/config/rs6000/altivec.h
+===================================================================
+--- a/src/gcc/config/rs6000/altivec.h	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/config/rs6000/altivec.h	(.../branches/gcc-7-branch)
+@@ -388,6 +388,11 @@
+ #define vec_vsubuqm __builtin_vec_vsubuqm
+ #define vec_vupkhsw __builtin_vec_vupkhsw
+ #define vec_vupklsw __builtin_vec_vupklsw
++#define vec_sbox_be __builtin_crypto_vsbox_be
++#define vec_cipher_be __builtin_crypto_vcipher_be
++#define vec_cipherlast_be __builtin_crypto_vcipherlast_be
++#define vec_ncipher_be __builtin_crypto_vncipher_be
++#define vec_ncipherlast_be __builtin_crypto_vncipherlast_be
+ #endif
+ 
+ #ifdef __POWER9_VECTOR__
 Index: gcc/config/darwin.h
 ===================================================================
 --- a/src/gcc/config/darwin.h	(.../tags/gcc_7_4_0_release)
