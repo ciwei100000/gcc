@@ -1,10 +1,10 @@
-# DP: updates from the 8 branch upto 20190306 (r269421).
+# DP: updates from the 8 branch upto 20190310 (r269554).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Wed Mar  6 13:25:23 CET 2019
-Wed Mar  6 12:25:23 UTC 2019 (revision 269421)
+Sun Mar 10 14:59:46 CET 2019
+Sun Mar 10 13:59:46 UTC 2019 (revision 269554)
 EOF
 }
 
@@ -74,13 +74,88 @@ Index: libstdc++-v3/testsuite/21_strings/basic_string_view/operators/char/89446.
 +  std::string_view s1, s2;
 +  return s1 != s2;
 +}
+Index: gcc/cgraph.c
+===================================================================
+--- a/src/gcc/cgraph.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/cgraph.c	(.../branches/gcc-8-branch)
+@@ -3007,8 +3007,10 @@
+   return redirect_callers;
+ }
+ 
+-/* Return TRUE if NODE2 a clone of NODE or is equivalent to it.  */
+ 
++/* Return TRUE if NODE2 a clone of NODE or is equivalent to it.  Return
++   optimistically true if this cannot be determined.  */
++
+ static bool
+ clone_of_p (cgraph_node *node, cgraph_node *node2)
+ {
+@@ -3019,12 +3021,17 @@
+   /* There are no virtual clones of thunks so check former_clone_of or if we
+      might have skipped thunks because this adjustments are no longer
+      necessary.  */
+-  while (node->thunk.thunk_p)
++  while (node->thunk.thunk_p || node->former_thunk_p ())
+     {
+       if (node2->former_clone_of == node->decl)
+ 	return true;
+       if (!node->thunk.this_adjusting)
+ 	return false;
++      /* In case of instrumented expanded thunks, which can have multiple calls
++	 in them, we do not know how to continue and just have to be
++	 optimistic.  */
++      if (node->callees->next_callee)
++	return true;
+       node = node->callees->callee->ultimate_alias_target ();
+       skipped_thunk = true;
+     }
+@@ -3040,7 +3047,7 @@
+ 	return false;
+     }
+ 
+-  while (node != node2 && node2)
++  while (node2 && node->decl != node2->decl)
+     node2 = node2->clone_of;
+   return node2 != NULL;
+ }
+Index: gcc/cgraph.h
+===================================================================
+--- a/src/gcc/cgraph.h	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/cgraph.h	(.../branches/gcc-8-branch)
+@@ -1258,6 +1258,9 @@
+      Note that at WPA stage, the function body may not be present in memory.  */
+   inline bool has_gimple_body_p (void);
+ 
++  /* Return true if this node represents a former, i.e. an expanded, thunk.  */
++  inline bool former_thunk_p (void);
++
+   /* Return true if function should be optimized for size.  */
+   bool optimize_for_size_p (void);
+ 
+@@ -2858,6 +2861,16 @@
+   return definition && !thunk.thunk_p && !alias;
+ }
+ 
++/* Return true if this node represents a former, i.e. an expanded, thunk.  */
++
++inline bool
++cgraph_node::former_thunk_p (void)
++{
++  return (!thunk.thunk_p
++	  && (thunk.fixed_offset
++	      || thunk.virtual_offset_p));
++}
++
+ /* Walk all functions with body defined.  */
+ #define FOR_EACH_FUNCTION_WITH_GIMPLE_BODY(node) \
+    for ((node) = symtab->first_function_with_gimple_body (); (node); \
 Index: gcc/DATESTAMP
 ===================================================================
 --- a/src/gcc/DATESTAMP	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-8-branch)
 @@ -1 +1 @@
 -20190222
-+20190306
++20190310
 Index: gcc/rtlanal.c
 ===================================================================
 --- a/src/gcc/rtlanal.c	(.../tags/gcc_8_3_0_release)
@@ -104,7 +179,19 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,165 @@
+@@ -1,3 +1,177 @@
++2019-03-08  Martin Jambor  <mjambor@suse.cz>
++
++	Backport from mainline
++	2019-03-07  Martin Jambor  <mjambor@suse.cz>
++
++	PR ipa/88235
++	* cgraph.h (cgraph_node): New inline method former_thunk_p.
++	* cgraph.c (cgraph_node::dump): Dump a note if node is a former thunk.
++	(clone_of_p): Treat expanded thunks like thunks, be optimistic if they
++	have multiple callees.  At the end check if declarations match as
++	opposed to cgraph_nodes.
++
 +2019-03-06  Tamar Christina  <tamar.christina@arm.com>
 +
 +	Backport from trunk.
@@ -610,6 +697,26 @@ Index: gcc/testsuite/gfortran.dg/transfer_simplify_12.f90
 +  if (x /= "fedcba") stop 8
 +  if (y /= x) stop 9
 +end program test
+Index: gcc/testsuite/gfortran.dg/substr_8.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/substr_8.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/substr_8.f90	(.../branches/gcc-8-branch)
+@@ -0,0 +1,15 @@
++! { dg-do run }
++! PR fortran/71203 - used to ICE on zero-length arrays or substrings
++! Derived from original test cases by Gerhard Steinmetz
++
++program p
++  implicit none
++  character(3), parameter :: a(4) = ' '
++  character(*), parameter :: b(4) = 'abc'
++  character(*), parameter :: x(*) = a(2:2)(3:1)
++  character(*), parameter :: y(*) = a(2:1)(3:1)
++  character(*), parameter :: z(*) = b(2:1)(2:3)
++  if (size (x) /= 1 .or. len(x) /= 0) stop 1
++  if (size (y) /= 0 .or. len(y) /= 0) stop 2
++  if (size (z) /= 0 .or. len(z) /= 2) stop 3
++end
 Index: gcc/testsuite/gfortran.dg/allocate_with_mold_3.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/allocate_with_mold_3.f90	(.../tags/gcc_8_3_0_release)
@@ -636,6 +743,70 @@ Index: gcc/testsuite/gfortran.dg/allocate_with_mold_3.f90
 +type(array_data) :: foo
 +call foo%push(42)
 +end
+Index: gcc/testsuite/gfortran.dg/c_ptr_tests_19.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/c_ptr_tests_19.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/c_ptr_tests_19.f90	(.../branches/gcc-8-branch)
+@@ -0,0 +1,36 @@
++! { dg-do run }
++
++! PR 71544 - this failed with some optimization options due to a
++! pointer not being marked as escaping.
++
++module store_cptr
++    use, intrinsic :: iso_c_binding
++    implicit none
++    public
++    type(c_ptr), save :: cptr
++end module store_cptr
++
++subroutine init()
++    use, intrinsic :: iso_c_binding
++    implicit none
++    integer(c_int), pointer :: a
++    allocate(a)
++    call save_cptr(c_loc(a))
++    a = 100
++end subroutine init
++
++subroutine save_cptr(cptr_in)
++    use store_cptr
++    implicit none
++    type(c_ptr), intent(in) :: cptr_in
++    cptr = cptr_in
++end subroutine save_cptr
++
++program init_fails
++    use store_cptr
++    implicit none
++    integer(c_int), pointer :: val
++    call init()
++    call c_f_pointer(cptr,val)
++    if (val /= 100) stop 1
++end program init_fails
+Index: gcc/testsuite/gfortran.dg/public_private_module_10.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/public_private_module_10.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/public_private_module_10.f90	(.../branches/gcc-8-branch)
+@@ -0,0 +1,18 @@
++! { dg-do compile }
++! PR 87734 - this used to issue spurious errors.
++
++module m_vstring
++  implicit none
++
++  public :: vstring_length
++
++contains
++
++  subroutine vstring_cast()
++    character ( len = vstring_length() ) :: char_string
++  end subroutine
++
++  pure integer function vstring_length ()
++  end function
++
++end module
 Index: gcc/testsuite/gfortran.dg/dtio_34.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/dtio_34.f90	(.../tags/gcc_8_3_0_release)
@@ -740,6 +911,26 @@ Index: gcc/testsuite/gfortran.dg/pr89492.f90
 +  print *, size(transfer([1],[bug4()]))         ! { dg-error "shall not have storage size 0" }
 +  print *, transfer(transfer([1],[bug4()]),[1]) ! { dg-error "shall not have storage size 0" }
 +end program bug4a
+Index: gcc/testsuite/gfortran.dg/coarray_allocate_11.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/coarray_allocate_11.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/coarray_allocate_11.f90	(.../branches/gcc-8-branch)
+@@ -0,0 +1,15 @@
++! { dg-do compile }
++! { dg-additional-options -fcoarray=single }
++program p
++   integer, allocatable :: z[:,:]
++   integer :: i
++   allocate (z[1:,*]) ! { dg-error "Bad array specification in ALLOCATE statement" }
++   allocate (z[:2,*]) ! { dg-error "Bad array specification in ALLOCATE statement" }
++   allocate (z[2:1,*]) ! { dg-error "Upper cobound is less than lower cobound" }
++   allocate (z[:0,*]) ! { dg-error "Bad array specification in ALLOCATE statement" }
++   allocate (z[0,*]) ! { dg-error "Upper cobound is less than lower cobound" }
++   allocate (z[1,*]) ! This is OK
++   allocate (z[1:1,*]) ! This is OK
++   allocate (z[i:i,*]) ! This is OK
++   allocate (z[i:i-1,*]) ! { dg-error "Upper cobound is less than lower cobound" }
++end
 Index: gcc/testsuite/gfortran.dg/deferred_character_32.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/deferred_character_32.f90	(.../tags/gcc_8_3_0_release)
@@ -1064,7 +1255,43 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,140 @@
+@@ -1,3 +1,176 @@
++2019-03-10  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/71544
++	Backport from trunk
++	* gfortran.dg/c_ptr_tests_19.f90: New test.
++
++2019-03-10  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/87734
++	Backport from trunk
++	* gfortran.dg/public_private_module_10.f90: New test.
++
++2019-03-08  Martin Jambor  <mjambor@suse.cz>
++
++	Backport from mainline
++	2019-03-07  Martin Jambor  <mjambor@suse.cz>
++
++	* g++.dg/ipa/pr88235.C: New test.
++
++2019-03-07  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/89585
++	* g++.dg/asm-qual-3.C: Adjust expected diagnostics.
++
++2019-03-06  Harald Anlauf  <anlauf@gmx.de>
++
++	Backport from trunk
++	PR fortran/71203
++	* gfortran.dg/substr_8.f90: New test.
++
++2019-03-06  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/72714
++	Backport from trunk
++	* gfortran.dg/coarray_allocate_11.f90: New test.
++
 +2019-03-06  Tamar Christina  <tamar.christina@arm.com>
 +
 +	Backport from trunk.
@@ -1205,6 +1432,83 @@ Index: gcc/testsuite/ChangeLog
  2019-02-22  Release Manager
  
  	* GCC 8.3.0 released.
+Index: gcc/testsuite/g++.dg/asm-qual-3.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/asm-qual-3.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/asm-qual-3.C	(.../branches/gcc-8-branch)
+@@ -2,11 +2,11 @@
+ // { dg-do compile }
+ // { dg-options "-std=gnu++98" }
+ 
+-asm const ("");    // { dg-error {expected '\(' before 'const'} }
+-asm volatile (""); // { dg-error {expected '\(' before 'volatile'} }
++asm const ("");    // { dg-error {'const' is not an asm qualifier} }
++asm volatile ("");
+ asm restrict (""); // { dg-error {expected '\(' before 'restrict'} }
+-asm inline ("");   // { dg-error {expected '\(' before 'inline'} }
+-asm goto ("");     // { dg-error {expected '\(' before 'goto'} }
++asm inline ("");   // { dg-error {asm qualifier outside of function body} }
++asm goto ("");     // { dg-error {asm qualifier outside of function body} }
+ 
+ // There are many other things wrong with this code, so:
+ // { dg-excess-errors "" }
+Index: gcc/testsuite/g++.dg/cpp0x/lambda/lambda-defarg9.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp0x/lambda/lambda-defarg9.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp0x/lambda/lambda-defarg9.C	(.../branches/gcc-8-branch)
+@@ -0,0 +1,10 @@
++// PR c++/89422
++// { dg-do compile { target c++11 } }
++// { dg-additional-options -g }
++
++template <int> struct S
++{
++  friend void foo (int a = []{ return 0; }()) {}
++  int b;
++};
++S<0> t;
+Index: gcc/testsuite/g++.dg/cpp0x/implicit16.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp0x/implicit16.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp0x/implicit16.C	(.../branches/gcc-8-branch)
+@@ -0,0 +1,37 @@
++// PR c++/89381
++// { dg-do compile { target c++11 } }
++
++template<typename T>
++struct base
++{
++  base() { }
++  base(const base&) { }
++  base(base&&) { }
++  base& operator=(const base&) { return *this; }
++  base& operator=(base&&) { return *this; }
++};
++
++struct foo : base<int>
++{
++    using base<int>::base;
++    using base<int>::operator=;
++};
++
++//using workaround = decltype(foo{*static_cast<foo const*>(0)});
++
++struct bar
++{
++    bar& operator=(foo ve)
++    {
++        value = ve;
++        return *this;
++    }
++
++    foo value;
++};
++
++int main()
++{
++    foo a;
++    foo b{a};
++}
 Index: gcc/testsuite/g++.dg/cpp0x/nullptr41.C
 ===================================================================
 --- a/src/gcc/testsuite/g++.dg/cpp0x/nullptr41.C	(.../tags/gcc_8_3_0_release)
@@ -1229,6 +1533,20 @@ Index: gcc/testsuite/g++.dg/cpp0x/nullptr41.C
 +    void bar();
 +    p<void, void, A, A, &A::bar> j;
 +};
+Index: gcc/testsuite/g++.dg/cpp0x/decltype-tid1.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp0x/decltype-tid1.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp0x/decltype-tid1.C	(.../branches/gcc-8-branch)
+@@ -0,0 +1,9 @@
++// PR c++/87513
++// { dg-do compile { target c++11 } }
++
++struct A { template <long> void foo (); };
++template <long t> auto bar () -> decltype (&A::foo<t>);
++void foo ()
++{
++  bar<0> ();
++}
 Index: gcc/testsuite/g++.dg/cpp0x/nullptr40.C
 ===================================================================
 --- a/src/gcc/testsuite/g++.dg/cpp0x/nullptr40.C	(.../tags/gcc_8_3_0_release)
@@ -1253,11 +1571,290 @@ Index: gcc/testsuite/g++.dg/cpp0x/nullptr40.C
 +    void bar();
 +    p<A, &A::bar> j;
 +};
+Index: gcc/testsuite/g++.dg/ipa/pr88235.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/ipa/pr88235.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/ipa/pr88235.C	(.../branches/gcc-8-branch)
+@@ -0,0 +1,55 @@
++// { dg-do compile }
++// { dg-options "-O1 -fdevirtualize -finline-small-functions -fipa-cp -fipa-cp-clone --param ipa-cp-eval-threshold=125 --param max-inline-insns-single=4" }
++
++extern "C" int printf (const char *, ...);
++enum E { vf_request, vf_event } want;
++
++int errs = 0;
++
++class ivResource {
++public:
++  virtual ~ivResource () { }
++};
++
++class ivHandler   : public ivResource   {
++public:
++  virtual void event() { }
++};
++
++class ivGlyph   : public ivResource   {
++public:
++  virtual ~ivGlyph  () { }
++  virtual void request () {
++    if (want!=vf_request)
++      ++errs;
++  }
++};
++
++class ItemView : public ivGlyph, public ivHandler {
++public:
++  virtual void event () {
++    if (want!=vf_event)
++      ++errs;
++  }
++} a;
++
++ivGlyph *bar() {
++  return &a;
++}
++
++ivHandler *bar2() {
++  return &a;
++}
++
++int main() {
++  want=vf_request;
++  bar()->request();
++  want=vf_event;
++  bar2()->event();
++  if (errs) {
++    printf("FAIL\n");
++    return 1;
++  }
++  printf("PASS\n");
++  return 0;
++}
+Index: gcc/testsuite/g++.dg/cpp1z/constexpr-if28.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp1z/constexpr-if28.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp1z/constexpr-if28.C	(.../branches/gcc-8-branch)
+@@ -0,0 +1,11 @@
++// PR c++/89576
++// { dg-do compile { target c++17 } }
++
++template <class T>
++void foo()
++{
++    constexpr int x = 0;
++    [&] {
++        if constexpr (x) {}
++    };
++}
+Index: gcc/testsuite/g++.dg/cpp1z/aggr-base7.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp1z/aggr-base7.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp1z/aggr-base7.C	(.../branches/gcc-8-branch)
+@@ -0,0 +1,8 @@
++// PR c++/88690
++// { dg-do compile { target c++11 } }
++
++struct A { int a = 1; };
++struct B { int b = 0; };
++struct C { C() = default; C (const C&) = delete; };
++struct D : public B, public C {};
++struct E : A { D f; } g{};
+Index: gcc/testsuite/g++.dg/cpp1z/inline-var5.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp1z/inline-var5.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp1z/inline-var5.C	(.../branches/gcc-8-branch)
+@@ -0,0 +1,16 @@
++// PR c++/87921
++// { dg-do compile { target c++17 } }
++
++template <class H>
++struct X
++{
++  static inline long x[] = { 1L };
++  long foo () { return x[0]; }
++};
++
++void
++bar ()
++{
++  class L {};
++  X<L> v {};
++}
+Index: gcc/testsuite/g++.dg/cpp1z/class-deduction62.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp1z/class-deduction62.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp1z/class-deduction62.C	(.../branches/gcc-8-branch)
+@@ -0,0 +1,22 @@
++// PR c++/88419
++// { dg-do compile { target c++17 } }
++
++template<class> struct ref_view {
++  template<class T> ref_view(T&&);
++};
++
++template<class R> ref_view(R&) -> ref_view<R>;
++
++struct ref_fn {
++  template<class R> auto operator()(R r) const
++    noexcept(noexcept(ref_view{r}));
++};
++
++template<class R> struct indirect_view {
++  indirect_view(R);
++};
++
++struct indirect_fn {
++  template<class R> auto operator()(R r) const
++    noexcept(noexcept(indirect_view{r}));
++};
+Index: gcc/testsuite/g++.dg/cpp1z/class-deduction63.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp1z/class-deduction63.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp1z/class-deduction63.C	(.../branches/gcc-8-branch)
+@@ -0,0 +1,11 @@
++// PR c++/88869
++// { dg-do compile { target c++17 } }
++
++template <typename> struct B;
++template <> struct B<int> {
++  template <typename T> struct C {
++    T e;
++    C (T f) : e(f) {}
++  };
++  void foo () { C c (42); }
++};
+Index: gcc/testsuite/g++.dg/cpp1z/class-deduction64.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp1z/class-deduction64.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp1z/class-deduction64.C	(.../branches/gcc-8-branch)
+@@ -0,0 +1,9 @@
++// PR c++/88820
++// { dg-do compile { target c++17 } }
++
++template <int> struct S;
++
++template <S> struct W {
++  template <typename> static int foo();
++  bool b = foo<int>();
++};
+Index: gcc/testsuite/g++.dg/cpp1z/fold-lambda3.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp1z/fold-lambda3.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp1z/fold-lambda3.C	(.../branches/gcc-8-branch)
+@@ -0,0 +1,19 @@
++// PR c++/88183
++// { dg-do compile { target c++17 } }
++
++struct A { int i; };
++
++template <class T> T& g(T);
++
++template <class U, class... Vs>
++void f(U u, Vs... vs)
++{ 
++  [vs...](auto x) {
++    (g(x) .* ... .* vs) = 42;
++  }(u);
++}
++
++int main()
++{
++  f(A(), &A::i);
++}
+Index: gcc/cp/typeck.c
+===================================================================
+--- a/src/gcc/cp/typeck.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/cp/typeck.c	(.../branches/gcc-8-branch)
+@@ -5747,18 +5747,17 @@
+     return c_common_truthvalue_conversion (input_location, expr);
+ }
+ 
+-/* Just like cp_truthvalue_conversion, but we want a CLEANUP_POINT_EXPR.  */
++/* Just like cp_truthvalue_conversion, but we want a CLEANUP_POINT_EXPR.  This
++   is a low-level function; most callers should use maybe_convert_cond.  */
+ 
+ tree
+ condition_conversion (tree expr)
+ {
+   tree t;
+-  /* Anything that might happen in a template should go through
+-     maybe_convert_cond.  */
+-  gcc_assert (!processing_template_decl);
+   t = perform_implicit_conversion_flags (boolean_type_node, expr,
+ 					 tf_warning_or_error, LOOKUP_NORMAL);
+-  t = fold_build_cleanup_point_expr (boolean_type_node, t);
++  if (!processing_template_decl)
++    t = fold_build_cleanup_point_expr (boolean_type_node, t);
+   return t;
+ }
+ 
+Index: gcc/cp/class.c
+===================================================================
+--- a/src/gcc/cp/class.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/cp/class.c	(.../branches/gcc-8-branch)
+@@ -5171,7 +5171,9 @@
+     for (ovl_iterator iter (get_class_binding_direct
+ 			    (t, assign_op_identifier));
+ 	 iter; ++iter)
+-      if ((!user_p || !DECL_ARTIFICIAL (*iter)) && move_fn_p (*iter))
++      if ((!user_p || !DECL_ARTIFICIAL (*iter))
++	  && DECL_CONTEXT (*iter) == t
++	  && move_fn_p (*iter))
+ 	return true;
+   
+   return false;
 Index: gcc/cp/ChangeLog
 ===================================================================
 --- a/src/gcc/cp/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/cp/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,12 @@
+@@ -1,3 +1,58 @@
++2019-03-08  Jason Merrill  <jason@redhat.com>
++
++	PR c++/88820 - ICE with CTAD and member template used in DMI.
++	* pt.c (do_class_deduction): Handle parm used as its own arg.
++
++	PR c++/88869 - C++17 ICE with CTAD and explicit specialization.
++	* pt.c (do_class_deduction): Don't include explicit specialization
++	args in outer_args.
++
++	PR c++/88419 - C++17 ICE with class template arg deduction.
++	* pt.c (make_template_placeholder): Set TYPE_CANONICAL after
++	CLASS_PLACEHOLDER_TEMPLATE.
++
++	PR c++/88690 - C++17 ICE with empty base in aggregate.
++	* typeck2.c (process_init_constructor_record): Skip trivial
++	initialization of an empty base.
++
++	PR c++/87921 - wrong error with inline static data member.
++	* decl2.c (c_parse_final_cleanups): Don't force out uninstantiated
++	inline static data members.
++
++	PR c++/89381 - implicit copy and using-declaration.
++	* class.c (classtype_has_move_assign_or_move_ctor_p): Don't consider
++	op= brought in by a using-declaration.
++
++	PR c++/89576 - if constexpr of lambda capture.
++	* semantics.c (maybe_convert_cond): Do convert a non-dependent
++	condition in a template.
++	* typeck.c (condition_conversion): Handle being called in a
++	template.
++
++	PR c++/89422 - ICE with -g and lambda in default arg in template.
++	* pt.c (tsubst_function_decl): SET_DECL_FRIEND_CONTEXT sooner.
++
++	PR c++/87513 - 'sorry' mangling PMF template-id.
++	* mangle.c (write_expression): Handle SCOPE_REF to BASELINK.
++
++	PR c++/88183 - ICE with .* fold-expression.
++	* pt.c (fold_expression) [DOTSTAR_EXPR]: Remove special handling.
++
++2019-03-07  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/89585
++	* parser.c (cp_parser_asm_definition): Parse asm qualifiers even
++	at toplevel, but diagnose them.
++
 +2019-02-26  Marek Polacek  <polacek@redhat.com>
 +
 +	Backported from mainline
@@ -1270,11 +1867,62 @@ Index: gcc/cp/ChangeLog
  2019-02-22  Release Manager
  
  	* GCC 8.3.0 released.
+Index: gcc/cp/typeck2.c
+===================================================================
+--- a/src/gcc/cp/typeck2.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/cp/typeck2.c	(.../branches/gcc-8-branch)
+@@ -1538,6 +1538,13 @@
+ 	    }
+ 	}
+ 
++      if (DECL_SIZE (field) && integer_zerop (DECL_SIZE (field))
++	  && !TREE_SIDE_EFFECTS (next))
++	/* Don't add trivial initialization of an empty base/field to the
++	   constructor, as they might not be ordered the way the back-end
++	   expects.  */
++	continue;
++
+       /* If this is a bitfield, now convert to the lowered type.  */
+       if (type != TREE_TYPE (field))
+ 	next = cp_convert_and_check (TREE_TYPE (field), next, complain);
 Index: gcc/cp/pt.c
 ===================================================================
 --- a/src/gcc/cp/pt.c	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/cp/pt.c	(.../branches/gcc-8-branch)
-@@ -18797,6 +18797,12 @@
+@@ -11732,8 +11732,6 @@
+     {
+     case COMPOUND_EXPR:
+       return build_x_compound_expr (input_location, left, right, complain);
+-    case DOTSTAR_EXPR:
+-      return build_m_component_ref (left, right, complain);
+     default:
+       return build_x_binary_op (input_location, code,
+                                 left, TREE_CODE (left),
+@@ -13023,6 +13021,11 @@
+ 	set_constraints (r, ci);
+       }
+ 
++  if (DECL_FRIEND_P (t) && DECL_FRIEND_CONTEXT (t))
++    SET_DECL_FRIEND_CONTEXT (r,
++			     tsubst (DECL_FRIEND_CONTEXT (t),
++				     args, complain, in_decl));
++
+   /* Set up the DECL_TEMPLATE_INFO for R.  There's no need to do
+      this in the special friend case mentioned above where
+      GEN_TMPL is NULL.  */
+@@ -13084,11 +13087,6 @@
+ 	   && !grok_op_properties (r, /*complain=*/true))
+     return error_mark_node;
+ 
+-  if (DECL_FRIEND_P (t) && DECL_FRIEND_CONTEXT (t))
+-    SET_DECL_FRIEND_CONTEXT (r,
+-			     tsubst (DECL_FRIEND_CONTEXT (t),
+-				     args, complain, in_decl));
+-
+   /* Possibly limit visibility based on template args.  */
+   DECL_VISIBILITY (r) = VISIBILITY_DEFAULT;
+   if (DECL_VISIBILITY_SPECIFIED (t))
+@@ -18797,6 +18795,12 @@
  	   looked up by digest_init.  */
  	process_index_p = !(type && MAYBE_CLASS_TYPE_P (type));
  
@@ -1287,6 +1935,133 @@ Index: gcc/cp/pt.c
  	n = vec_safe_copy (CONSTRUCTOR_ELTS (t));
          newlen = vec_safe_length (n);
  	FOR_EACH_VEC_SAFE_ELT (n, idx, ce)
+@@ -25998,8 +26002,10 @@
+ tree
+ make_template_placeholder (tree tmpl)
+ {
+-  tree t = make_auto_1 (DECL_NAME (tmpl), true);
++  tree t = make_auto_1 (DECL_NAME (tmpl), false);
+   CLASS_PLACEHOLDER_TEMPLATE (t) = tmpl;
++  /* Our canonical type depends on the placeholder.  */
++  TYPE_CANONICAL (t) = canonical_type_parameter (t);
+   return t;
+ }
+ 
+@@ -26534,6 +26540,9 @@
+ 	error ("non-class template %qT used without template arguments", tmpl);
+       return error_mark_node;
+     }
++  if (init && TREE_TYPE (init) == ptype)
++    /* Using the template parm as its own argument.  */
++    return ptype;
+ 
+   tree type = TREE_TYPE (tmpl);
+ 
+@@ -26601,7 +26610,7 @@
+ 
+   tree outer_args = NULL_TREE;
+   if (DECL_CLASS_SCOPE_P (tmpl)
+-      && CLASSTYPE_TEMPLATE_INFO (DECL_CONTEXT (tmpl)))
++      && CLASSTYPE_TEMPLATE_INSTANTIATION (DECL_CONTEXT (tmpl)))
+     {
+       outer_args = CLASSTYPE_TI_ARGS (DECL_CONTEXT (tmpl));
+       type = TREE_TYPE (most_general_template (tmpl));
+Index: gcc/cp/semantics.c
+===================================================================
+--- a/src/gcc/cp/semantics.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/cp/semantics.c	(.../branches/gcc-8-branch)
+@@ -645,10 +645,13 @@
+     return NULL_TREE;
+ 
+   /* Wait until we instantiate templates before doing conversion.  */
+-  if (processing_template_decl)
++  if (processing_template_decl
++      && (type_dependent_expression_p (cond)
++	  /* For GCC 8 only convert non-dependent condition in a lambda.  */
++	  || !current_lambda_expr ()))
+     return cond;
+ 
+-  if (warn_sequence_point)
++  if (warn_sequence_point && !processing_template_decl)
+     verify_sequence_points (cond);
+ 
+   /* Do the conversion.  */
+Index: gcc/cp/decl2.c
+===================================================================
+--- a/src/gcc/cp/decl2.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/cp/decl2.c	(.../branches/gcc-8-branch)
+@@ -4905,7 +4905,10 @@
+ 	{
+ 	  if (var_finalized_p (decl) || DECL_REALLY_EXTERN (decl)
+ 	      /* Don't write it out if we haven't seen a definition.  */
+-	      || (DECL_IN_AGGR_P (decl) && !DECL_INLINE_VAR_P (decl)))
++	      || (DECL_IN_AGGR_P (decl) && !DECL_INLINE_VAR_P (decl))
++	      /* Or haven't instantiated it.  */
++	      || (DECL_TEMPLATE_INSTANTIATION (decl)
++		  && !DECL_TEMPLATE_INSTANTIATED (decl)))
+ 	    continue;
+ 	  import_export_decl (decl);
+ 	  /* If this static data member is needed, provide it to the
+Index: gcc/cp/parser.c
+===================================================================
+--- a/src/gcc/cp/parser.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/cp/parser.c	(.../branches/gcc-8-branch)
+@@ -19125,8 +19125,9 @@
+   location_t volatile_loc = UNKNOWN_LOCATION;
+   location_t inline_loc = UNKNOWN_LOCATION;
+   location_t goto_loc = UNKNOWN_LOCATION;
++  location_t first_loc = UNKNOWN_LOCATION;
+ 
+-  if (cp_parser_allow_gnu_extensions_p (parser) && parser->in_function_body)
++  if (cp_parser_allow_gnu_extensions_p (parser))
+     for (;;)
+       {
+ 	cp_token *token = cp_lexer_peek_token (parser->lexer);
+@@ -19152,6 +19153,8 @@
+ 	      }
+ 	    else
+ 	      inline_loc = loc;
++	    if (!first_loc)
++	      first_loc = loc;
+ 	    cp_lexer_consume_token (parser->lexer);
+ 	    continue;
+ 
+@@ -19163,6 +19166,8 @@
+ 	      }
+ 	    else
+ 	      goto_loc = loc;
++	    if (!first_loc)
++	      first_loc = loc;
+ 	    cp_lexer_consume_token (parser->lexer);
+ 	    continue;
+ 
+@@ -19182,6 +19187,12 @@
+   bool inline_p = (inline_loc != UNKNOWN_LOCATION);
+   bool goto_p = (goto_loc != UNKNOWN_LOCATION);
+ 
++  if (!parser->in_function_body && (inline_p || goto_p))
++    {
++      error_at (first_loc, "asm qualifier outside of function body");
++      inline_p = goto_p = false;
++    }
++
+   /* Look for the opening `('.  */
+   if (!cp_parser_require (parser, CPP_OPEN_PAREN, RT_OPEN_PAREN))
+     return;
+Index: gcc/cp/mangle.c
+===================================================================
+--- a/src/gcc/cp/mangle.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/cp/mangle.c	(.../branches/gcc-8-branch)
+@@ -3047,7 +3047,8 @@
+ 	{
+ 	  scope = TREE_OPERAND (expr, 0);
+ 	  member = TREE_OPERAND (expr, 1);
+-	  gcc_assert (!BASELINK_P (member));
++	  if (BASELINK_P (member))
++	    member = BASELINK_FUNCTIONS (member);
+ 	}
+       else
+ 	{
 Index: gcc/tree-ssa-dom.c
 ===================================================================
 --- a/src/gcc/tree-ssa-dom.c	(.../tags/gcc_8_3_0_release)
@@ -1865,6 +2640,16 @@ Index: gcc/fortran/symbol.c
        && (attr->function || attr->subroutine)
        && gfc_current_state () == COMP_CONTAINS
        && !(gfc_new_block && gfc_new_block->abr_modproc_decl))
+@@ -1801,7 +1801,8 @@
+   if (where == NULL)
+     where = &gfc_current_locus;
+ 
+-  if (attr->proc != PROC_UNKNOWN && !attr->module_procedure)
++  if (attr->proc != PROC_UNKNOWN && !attr->module_procedure
++      && attr->access == ACCESS_UNKNOWN)
+     {
+       if (attr->proc == PROC_ST_FUNCTION && t == PROC_INTERNAL
+ 	  && !gfc_notification_std (GFC_STD_F2008))
 Index: gcc/fortran/class.c
 ===================================================================
 --- a/src/gcc/fortran/class.c	(.../tags/gcc_8_3_0_release)
@@ -1954,7 +2739,36 @@ Index: gcc/fortran/ChangeLog
 ===================================================================
 --- a/src/gcc/fortran/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/fortran/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,102 @@
+@@ -1,3 +1,131 @@
++2019-03-10  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/71544
++	Backport from trunk
++	* trans-types.c (gfc_typenode_for_spec) Set ts->is_c_interop of
++	C_PTR and C_FUNPTR.
++	(create_fn_spec): Mark argument as escaping if ts->is_c_interop is set.
++
++2019-03-10  Thomas Koenig  <tkoenig@gcc.gnu.org>
++	Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/87734
++	Backort from trunk
++	* symbol.c (gfc_add_procedure): Only throw an error if the
++	procedure has not been declared either PUBLIC or PRIVATE.
++	* resolve.c (is_illegal_recursion): Remove an assert().
++
++2019-03-06  Harald Anlauf  <anlauf@gmx.de>
++
++	Backport from trunk
++	PR fortran/71203
++	* expr.c (simplify_const_ref): Avoid null pointer dereference.
++
++2019-03-06  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/72714
++	Backport from trunk
++	* resolve.c (resolve_allocate_expr): Add some tests for coarrays.
++
 +2019-03-03  Harald Anlauf  <anlauf@gmx.de>
 +
 +	Backport from trunk
@@ -2070,11 +2884,52 @@ Index: gcc/fortran/trans-stmt.c
  	  tmp = gfc_trans_class_init_assign (ini);
  	  gfc_free_statements (ini);
  	  gfc_add_expr_to_block (&block, tmp);
+Index: gcc/fortran/expr.c
+===================================================================
+--- a/src/gcc/fortran/expr.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/fortran/expr.c	(.../branches/gcc-8-branch)
+@@ -1784,8 +1784,14 @@
+ 			string_len = 0;
+ 
+ 		      if (!p->ts.u.cl)
+-			p->ts.u.cl = gfc_new_charlen (p->symtree->n.sym->ns,
+-						      NULL);
++			{
++			  if (p->symtree)
++			    p->ts.u.cl = gfc_new_charlen (p->symtree->n.sym->ns,
++							  NULL);
++			  else
++			    p->ts.u.cl = gfc_new_charlen (gfc_current_ns,
++							  NULL);
++			}
+ 		      else
+ 			gfc_free_expr (p->ts.u.cl->length);
+ 
 Index: gcc/fortran/trans-types.c
 ===================================================================
 --- a/src/gcc/fortran/trans-types.c	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/fortran/trans-types.c	(.../branches/gcc-8-branch)
-@@ -2991,9 +2991,57 @@
+@@ -1213,7 +1213,8 @@
+         {
+           spec->type = BT_INTEGER;
+           spec->kind = gfc_index_integer_kind;
+-          spec->f90_type = BT_VOID;
++	  spec->f90_type = BT_VOID;
++	  spec->is_c_interop = 1;  /* Mark as escaping later.  */
+         }
+       break;
+     case BT_VOID:
+@@ -2978,7 +2979,8 @@
+ 		    || f->sym->ts.u.derived->attr.pointer_comp))
+ 	    || (f->sym->ts.type == BT_CLASS
+ 		&& (CLASS_DATA (f->sym)->ts.u.derived->attr.proc_pointer_comp
+-		    || CLASS_DATA (f->sym)->ts.u.derived->attr.pointer_comp)))
++		    || CLASS_DATA (f->sym)->ts.u.derived->attr.pointer_comp))
++	    || (f->sym->ts.type == BT_INTEGER && f->sym->ts.is_c_interop))
+ 	  spec[spec_len++] = '.';
+ 	else if (f->sym->attr.intent == INTENT_IN)
+ 	  spec[spec_len++] = 'r';
+@@ -2991,9 +2993,57 @@
    return build_type_attribute_variant (fntype, tmp);
  }
  
@@ -2133,7 +2988,7 @@ Index: gcc/fortran/trans-types.c
  {
    tree type;
    vec<tree, va_gc> *typelist = NULL;
-@@ -3051,6 +3099,10 @@
+@@ -3051,6 +3101,10 @@
  	    vec_safe_push (typelist, build_pointer_type(gfc_charlen_type_node));
  	}
      }
@@ -2184,7 +3039,16 @@ Index: gcc/fortran/resolve.c
 ===================================================================
 --- a/src/gcc/fortran/resolve.c	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/fortran/resolve.c	(.../branches/gcc-8-branch)
-@@ -4881,6 +4881,7 @@
+@@ -1681,8 +1681,6 @@
+       || gfc_fl_struct (sym->attr.flavor))
+     return false;
+ 
+-  gcc_assert (sym->attr.flavor == FL_PROCEDURE);
+-
+   /* If we've got an ENTRY, find real procedure.  */
+   if (sym->attr.entry && sym->ns->entries)
+     proc_sym = sym->ns->entries->sym;
+@@ -4881,6 +4879,7 @@
    gfc_ref *char_ref;
    gfc_expr *start, *end;
    gfc_typespec *ts = NULL;
@@ -2192,7 +3056,7 @@ Index: gcc/fortran/resolve.c
  
    for (char_ref = e->ref; char_ref; char_ref = char_ref->next)
      {
-@@ -4932,12 +4933,26 @@
+@@ -4932,12 +4931,26 @@
        return;
      }
  
@@ -2224,7 +3088,68 @@ Index: gcc/fortran/resolve.c
    /* F2008, 6.4.1:  Both the starting point and the ending point shall
       be within the range 1, 2, ..., n unless the starting point exceeds
       the ending point, in which case the substring has length zero.  */
-@@ -11011,6 +11026,9 @@
+@@ -7640,13 +7653,54 @@
+ 
+   if (codimension)
+     for (i = ar->dimen; i < ar->dimen + ar->codimen; i++)
+-      if (ar->dimen_type[i] == DIMEN_THIS_IMAGE)
+-	{
+-	  gfc_error ("Coarray specification required in ALLOCATE statement "
+-		     "at %L", &e->where);
+-	  goto failure;
+-	}
++      {
++	switch (ar->dimen_type[i])
++	  {
++	  case DIMEN_THIS_IMAGE:
++	    gfc_error ("Coarray specification required in ALLOCATE statement "
++		       "at %L", &e->where);
++	    goto failure;
+ 
++	  case  DIMEN_RANGE:
++	    if (ar->start[i] == 0 || ar->end[i] == 0)
++	      {
++		/* If ar->stride[i] is NULL, we issued a previous error.  */
++		if (ar->stride[i] == NULL)
++		  gfc_error ("Bad array specification in ALLOCATE statement "
++			     "at %L", &e->where);
++		goto failure;
++	      }
++	    else if (gfc_dep_compare_expr (ar->start[i], ar->end[i]) == 1)
++	      {
++		gfc_error ("Upper cobound is less than lower cobound at %L",
++			   &ar->start[i]->where);
++		goto failure;
++	      }
++	    break;
++
++	  case DIMEN_ELEMENT:
++	    if (ar->start[i]->expr_type == EXPR_CONSTANT)
++	      {
++		gcc_assert (ar->start[i]->ts.type == BT_INTEGER);
++		if (mpz_cmp_si (ar->start[i]->value.integer, 1) < 0)
++		  {
++		    gfc_error ("Upper cobound is less than lower cobound "
++			       " of 1 at %L", &ar->start[i]->where);
++		    goto failure;
++		  }
++	      }
++	    break;
++
++	  case DIMEN_STAR:
++	    break;
++
++	  default:
++	    gfc_error ("Bad array specification in ALLOCATE statement at %L",
++		       &e->where);
++	    goto failure;
++
++	  }
++      }
+   for (i = 0; i < ar->dimen; i++)
+     {
+       if (ar->type == AR_ELEMENT || ar->type == AR_FULL)
+@@ -11011,6 +11065,9 @@
    if (!gfc_check_dependency ((*code)->expr1, (*code)->expr2, 1))
      return false;
  
@@ -2574,6 +3499,13 @@ Index: gcc/fortran/simplify.c
    mpz_mul_ui (result->value.integer, result->value.integer, BITS_PER_UNIT);
  
    return range_check (result, "STORAGE_SIZE");
+Index: gcc/BASE-VER
+===================================================================
+--- a/src/gcc/BASE-VER	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/BASE-VER	(.../branches/gcc-8-branch)
+@@ -1 +1 @@
+-8.3.0
++8.3.1
 Index: gcc/tree-ssa-structalias.c
 ===================================================================
 --- a/src/gcc/tree-ssa-structalias.c	(.../tags/gcc_8_3_0_release)
