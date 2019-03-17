@@ -1,10 +1,10 @@
-# DP: updates from the 8 branch upto 20190310 (r269554).
+# DP: updates from the 8 branch upto 20190314 (r269679).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Sun Mar 10 14:59:46 CET 2019
-Sun Mar 10 13:59:46 UTC 2019 (revision 269554)
+Sat Mar 16 11:40:56 CET 2019
+Sat Mar 16 10:40:56 UTC 2019 (revision 269720)
 EOF
 }
 
@@ -155,7 +155,91 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-8-branch)
 @@ -1 +1 @@
 -20190222
-+20190310
++20190316
+Index: gcc/tree-ssa-loop-ch.c
+===================================================================
+--- a/src/gcc/tree-ssa-loop-ch.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/tree-ssa-loop-ch.c	(.../branches/gcc-8-branch)
+@@ -376,11 +376,23 @@
+ 		{
+ 		  gimple *stmt = gsi_stmt (bsi);
+ 		  if (gimple_code (stmt) == GIMPLE_COND)
+-		    gimple_set_no_warning (stmt, true);
++		    {
++		      tree lhs = gimple_cond_lhs (stmt);
++		      if (gimple_cond_code (stmt) != EQ_EXPR
++			  && gimple_cond_code (stmt) != NE_EXPR
++			  && INTEGRAL_TYPE_P (TREE_TYPE (lhs))
++			  && TYPE_OVERFLOW_UNDEFINED (TREE_TYPE (lhs)))
++			gimple_set_no_warning (stmt, true);
++		    }
+ 		  else if (is_gimple_assign (stmt))
+ 		    {
+ 		      enum tree_code rhs_code = gimple_assign_rhs_code (stmt);
+-		      if (TREE_CODE_CLASS (rhs_code) == tcc_comparison)
++		      tree rhs1 = gimple_assign_rhs1 (stmt);
++		      if (TREE_CODE_CLASS (rhs_code) == tcc_comparison
++			  && rhs_code != EQ_EXPR
++			  && rhs_code != NE_EXPR
++			  && INTEGRAL_TYPE_P (TREE_TYPE (rhs1))
++			  && TYPE_OVERFLOW_UNDEFINED (TREE_TYPE (rhs1)))
+ 			gimple_set_no_warning (stmt, true);
+ 		    }
+ 		}
+Index: gcc/ipa-cp.c
+===================================================================
+--- a/src/gcc/ipa-cp.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/ipa-cp.c	(.../branches/gcc-8-branch)
+@@ -2852,12 +2852,19 @@
+   base_time -= time;
+   if (base_time > 65535)
+     base_time = 65535;
+-  time_benefit = base_time.to_int ()
+-    + devirtualization_time_bonus (node, known_csts, known_contexts,
+-				   known_aggs_ptrs)
+-    + hint_time_bonus (hints)
+-    + removable_params_cost + est_move_cost;
+ 
++  /* Extern inline functions have no cloning local time benefits because they
++     will be inlined anyway.  The only reason to clone them is if it enables
++     optimization in any of the functions they call.  */
++  if (DECL_EXTERNAL (node->decl) && DECL_DECLARED_INLINE_P (node->decl))
++    time_benefit = 0;
++  else
++    time_benefit = base_time.to_int ()
++      + devirtualization_time_bonus (node, known_csts, known_contexts,
++				     known_aggs_ptrs)
++      + hint_time_bonus (hints)
++      + removable_params_cost + est_move_cost;
++
+   gcc_checking_assert (size >=0);
+   /* The inliner-heuristics based estimates may think that in certain
+      contexts some functions do not have any size at all but we want
+Index: gcc/tree-scalar-evolution.c
+===================================================================
+--- a/src/gcc/tree-scalar-evolution.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/tree-scalar-evolution.c	(.../branches/gcc-8-branch)
+@@ -875,7 +875,7 @@
+       gimple *stmt;
+ 
+       stmt = last_stmt (exit_edge->src);
+-      if (gcond *cond_stmt = dyn_cast <gcond *> (stmt))
++      if (gcond *cond_stmt = safe_dyn_cast <gcond *> (stmt))
+ 	res = cond_stmt;
+     }
+ 
+@@ -1421,6 +1421,11 @@
+       return build_polynomial_chrec (loop->num, init_cond, right);
+     }
+ 
++  /* The affine code only deals with pointer and integer types.  */
++  if (!POINTER_TYPE_P (type)
++      && !INTEGRAL_TYPE_P (type))
++    return chrec_dont_know;
++
+   /* Try harder to check if they are equal.  */
+   tree_to_aff_combination_expand (left, type, &aff1, &peeled_chrec_map);
+   tree_to_aff_combination_expand (step_val, type, &aff2, &peeled_chrec_map);
 Index: gcc/rtlanal.c
 ===================================================================
 --- a/src/gcc/rtlanal.c	(.../tags/gcc_8_3_0_release)
@@ -175,11 +259,225 @@ Index: gcc/rtlanal.c
      {
        offset1 = crtl->outgoing_args_size + get_frame_size ();
  #if !STACK_GROWS_DOWNWARD
+Index: gcc/input.c
+===================================================================
+--- a/src/gcc/input.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/input.c	(.../branches/gcc-8-branch)
+@@ -3538,6 +3538,34 @@
+   ASSERT_EQ (num_cases_tested, 2 * 12);
+ }
+ 
++/* Verify that when presented with a consecutive pair of locations with
++   a very large line offset, we don't attempt to consolidate them into
++   a single ordinary linemap where the line offsets within the line map
++   would lead to overflow (PR lto/88147).  */
++
++static void
++test_line_offset_overflow ()
++{
++  line_table_test ltt (line_table_case (5, 0));
++
++  linemap_add (line_table, LC_ENTER, false, "foo.c", 0);
++  linemap_line_start (line_table, 1, 100);
++  location_t loc_a = linemap_line_start (line_table, 2578, 255);
++  assert_loceq ("foo.c", 2578, 0, loc_a);
++
++  const line_map_ordinary *ordmap_a = LINEMAPS_LAST_ORDINARY_MAP (line_table);
++  ASSERT_EQ (ordmap_a->m_column_and_range_bits, 13);
++  ASSERT_EQ (ordmap_a->m_range_bits, 5);
++
++  location_t loc_b = linemap_line_start (line_table, 404198, 512);
++  assert_loceq ("foo.c", 404198, 0, loc_b);
++
++  /* We should have started a new linemap, rather than attempting to store
++     a very large line offset.  */
++  const line_map_ordinary *ordmap_b = LINEMAPS_LAST_ORDINARY_MAP (line_table);
++  ASSERT_NE (ordmap_a, ordmap_b);
++}
++
+ /* Run all of the selftests within this file.  */
+ 
+ void
+@@ -3577,6 +3605,8 @@
+   for_each_line_table_case (test_lexer_char_constants);
+ 
+   test_reading_source_line ();
++
++  test_line_offset_overflow ();
+ }
+ 
+ } // namespace selftest
+Index: gcc/fold-const.c
+===================================================================
+--- a/src/gcc/fold-const.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/fold-const.c	(.../branches/gcc-8-branch)
+@@ -5515,12 +5515,15 @@
+   /* On machines where the branch cost is expensive, if this is a
+      short-circuited branch and the underlying object on both sides
+      is the same, make a non-short-circuit operation.  */
+-  else if (LOGICAL_OP_NON_SHORT_CIRCUIT
+-	   && !flag_sanitize_coverage
+-	   && lhs != 0 && rhs != 0
+-	   && (code == TRUTH_ANDIF_EXPR
+-	       || code == TRUTH_ORIF_EXPR)
+-	   && operand_equal_p (lhs, rhs, 0))
++  bool logical_op_non_short_circuit = LOGICAL_OP_NON_SHORT_CIRCUIT;
++  if (PARAM_VALUE (PARAM_LOGICAL_OP_NON_SHORT_CIRCUIT) != -1)
++    logical_op_non_short_circuit
++      = PARAM_VALUE (PARAM_LOGICAL_OP_NON_SHORT_CIRCUIT);
++  if (logical_op_non_short_circuit
++      && !flag_sanitize_coverage
++      && lhs != 0 && rhs != 0
++      && (code == TRUTH_ANDIF_EXPR || code == TRUTH_ORIF_EXPR)
++      && operand_equal_p (lhs, rhs, 0))
+     {
+       /* If simple enough, just rewrite.  Otherwise, make a SAVE_EXPR
+ 	 unless we are at top level or LHS contains a PLACEHOLDER_EXPR, in
+@@ -8165,7 +8168,11 @@
+   if ((tem = fold_truth_andor_1 (loc, code, type, arg0, arg1)) != 0)
+     return tem;
+ 
+-  if (LOGICAL_OP_NON_SHORT_CIRCUIT
++  bool logical_op_non_short_circuit = LOGICAL_OP_NON_SHORT_CIRCUIT;
++  if (PARAM_VALUE (PARAM_LOGICAL_OP_NON_SHORT_CIRCUIT) != -1)
++    logical_op_non_short_circuit
++      = PARAM_VALUE (PARAM_LOGICAL_OP_NON_SHORT_CIRCUIT);
++  if (logical_op_non_short_circuit
+       && !flag_sanitize_coverage
+       && (code == TRUTH_AND_EXPR
+           || code == TRUTH_ANDIF_EXPR
 Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,177 @@
+@@ -1,3 +1,304 @@
++2019-03-15  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2018-11-30  Jakub Jelinek  <jakub@redhat.com>
++
++	PR testsuite/85368
++	* params.def (PARAM_LOGICAL_OP_NON_SHORT_CIRCUIT): New param.
++	* tree-ssa-ifcombine.c (ifcombine_ifandif): If
++	--param logical-op-non-short-circuit is present, override
++	LOGICAL_OP_NON_SHORT_CIRCUIT value from the param.
++	* fold-const.c (fold_range_test, fold_truth_andor): Likewise.
++
++2019-03-15  Martin Liska  <mliska@suse.cz>
++
++	PR other/89712
++	* doc/invoke.texi: Remove -fdump-class-hierarchy option.
++
++2019-03-14  Martin Jambor  <mjambor@suse.cz>
++
++	Backport from mainline
++	2019-03-07  Martin Jambor  <mjambor@suse.cz>
++
++	PR lto/87525
++	* ipa-cp.c (perform_estimation_of_a_value): Account zero time benefit
++	for extern inline functions.
++
++2019-03-14  Richard Biener  <rguenther@suse.de>
++
++	PR middle-end/89572
++	* tree-scalar-evolution.c (get_loop_exit_condition): Use
++	safe_dyn_cast.
++	* tree-ssa-loop-ivcanon.c (canonicalize_loop_induction_variables):
++	Use gimple_location_safe.
++
++2019-03-13  Vladimir Makarov  <vmakarov@redhat.com>
++
++	PR target/85860
++	* lra-constraints.c (inherit_in_ebb): Update
++	potential_reload_hard_regs along with live_hard_regs.
++
++2019-03-14  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2019-03-13  Richard Biener  <rguenther@suse.de>
++
++	PR middle-end/89677
++	* tree-scalar-evolution.c (simplify_peeled_chrec): Do not
++	throw FP expressions at tree-affine.
++
++	2019-03-01  Richard Biener  <rguenther@suse.de>
++
++	PR middle-end/89497
++	* tree-cfgcleanup.h (cleanup_tree_cfg): Add SSA update flags
++	argument, defaulted to zero.
++	* passes.c (execute_function_todo): Pass down SSA update flags
++	to cleanup_tree_cfg.
++	* tree-cfgcleanup.c: Include tree-into-ssa.h and tree-cfgcleanup.h.
++	(cleanup_tree_cfg_1): After cleanup_control_flow_pre update SSA
++	form if requested.
++	(cleanup_tree_cfg_noloop): Pass down SSA update flags.
++	(cleanup_tree_cfg): Get and pass down SSA update flags.
++
++	2019-02-18  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/89296
++	* tree-ssa-loop-ch.c (ch_base::copy_headers): Restrict setting
++	of no-warning flag to cases that might emit the bogus warning.
++
++2019-03-13  Andreas Krebbel  <krebbel@linux.ibm.com>
++
++	Backport from mainline
++	2019-03-11  Andreas Krebbel  <krebbel@linux.ibm.com>
++
++	* config/s390/s390.c (s390_expand_builtin): Do the copy_to_reg not
++	only on the else branch.
++
++2019-03-13  Andreas Krebbel  <krebbel@linux.ibm.com>
++
++	Backport from mainline
++	2019-02-07  Andreas Krebbel  <krebbel@linux.ibm.com>
++
++	* config/s390/s390-builtin-types.def: Add new types.
++	* config/s390/s390-builtins.def: (s390_vec_xl, s390_vec_xld2)
++	(s390_vec_xlw4): Make the memory operand into a const pointer.
++	(s390_vec_xld2, s390_vec_xlw4): Add a variant for single precision
++	float.
++	* config/s390/s390-c.c (s390_expand_overloaded_builtin): Generate
++	a new vector type with the alignment of the scalar memory operand.
++
++2019-03-12  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/89664
++	* tree-ssa-math-opts.c (execute_cse_reciprocals_1): Properly
++	free the occurance tree after the early out.
++
++2019-03-12  Andre Vieira  <andre.simoesdiasvieira@arm.com>
++
++	Backport from mainline
++	2019-03-08  Andre Vieira  <andre.simoesdiasvieira@arm.com>
++
++	* config/arm/arm.h (TARGET_FP16_TO_DOUBLE): Add TARGET_VFP_DOUBLE
++	requirement.
++
++2019-03-11  Eric Botcazou  <ebotcazou@adacore.com>
++
++	PR rtl-optimization/89588
++	* loop-unroll.c (decide_unroll_constant_iterations): Make guard for
++	explicit unrolling factor more robust.
++
++2019-03-11  Martin Liska  <mliska@suse.cz>
++
++	Backport from mainline
++	2019-03-08  Martin Liska  <mliska@suse.cz>
++
++	PR target/86952
++	* config/i386/i386.c (ix86_option_override_internal): Disable
++	jump tables when retpolines are used.
++
++2019-03-11  Martin Liska  <mliska@suse.cz>
++
++	Backport from mainline
++	2019-02-11  David Malcolm  <dmalcolm@redhat.com>
++
++	PR lto/88147
++	* input.c (selftest::test_line_offset_overflow): New selftest.
++	(selftest::input_c_tests): Call it.
++
 +2019-03-08  Martin Jambor  <mjambor@suse.cz>
 +
 +	Backport from mainline
@@ -497,6 +795,145 @@ Index: gcc/testsuite/gcc.target/powerpc/pr88100.c
 +{
 +  return vec_splat_s32(0x10000000);/* { dg-error "argument 1 must be a 5-bit signed literal" } */
 +}
+Index: gcc/testsuite/gcc.target/arm/f16_f64_conv_no_dp.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/arm/f16_f64_conv_no_dp.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/arm/f16_f64_conv_no_dp.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,16 @@
++/* { dg-do compile } */
++/* { dg-require-effective-target arm_fp16_ok } */
++/* { dg-skip-if "do not override fpu" { *-*-* } { "-mfpu=*" } { "-mfpu=fpv5-sp-d16" } } */
++/* { dg-skip-if "do not disable fpu" { *-*-* } { "-mfloat-abi=soft" } { * } } */
++/* { dg-skip-if "do not override fp16-format" { *-*-* } { "-mfp16-format=*" } { "-mfp16-format=ieee" } } */
++/* { dg-options "-O1 -mfpu=fpv5-sp-d16 -mfloat-abi=hard -mfp16-format=ieee" } */
++
++__fp16 foo (double a)
++{
++  return a;
++}
++
++double bar (__fp16 a)
++{
++  return a;
++}
+Index: gcc/testsuite/gcc.target/s390/zvector/vec-addc-u128.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/s390/zvector/vec-addc-u128.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/s390/zvector/vec-addc-u128.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,10 @@
++/* { dg-do compile { target { s390*-*-* } } } */
++/* { dg-options "-O3 -mzarch -march=z13 -mzvector -fno-asynchronous-unwind-tables" } */
++
++#include <vecintrin.h>
++
++vector unsigned char test(void)
++{
++   vector unsigned char a = { 0 };
++   return __builtin_s390_vec_addc_u128 (a, a);
++}
+Index: gcc/testsuite/gcc.target/s390/zvector/xl-xst-align-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/s390/zvector/xl-xst-align-1.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/s390/zvector/xl-xst-align-1.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,45 @@
++/* { dg-do compile { target { s390*-*-* } } } */
++/* { dg-options "-O3 -mzarch -march=z14 -mzvector" } */
++
++#include <vecintrin.h>
++
++vector float
++foo (float *a)
++{
++  return vec_xl (0, a);
++}
++
++vector float
++bar (const float *a)
++{
++  return vec_xl (0, a);
++}
++
++void
++baz (float *f, vector float a)
++{
++  vec_xst (a, 0, f);
++}
++
++vector float
++foo2 (float *a)
++{
++  return vec_xlw4 (0, a);
++}
++
++vector float
++bar2 (const float *a)
++{
++  return vec_xlw4 (0, a);
++}
++
++void
++baz2 (float *f, vector float a)
++{
++  vec_xstw4 (a, 0, f);
++}
++
++/* Make sure no alignment hints are generated.  */
++
++/* { dg-final { scan-assembler-not "vl.*,3" } } */
++/* { dg-final { scan-assembler-not "vst.*,3" } } */
+Index: gcc/testsuite/gcc.target/s390/zvector/xl-xst-align-2.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/s390/zvector/xl-xst-align-2.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/s390/zvector/xl-xst-align-2.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,48 @@
++/* { dg-do compile { target { s390*-*-* } } } */
++/* { dg-options "-O3 -mzarch -march=z14 -mzvector" } */
++
++#include <vecintrin.h>
++
++typedef float __attribute__((aligned(8))) float_aligned;
++
++vector float
++foo (float_aligned *a)
++{
++  return vec_xl (0, a);
++}
++
++vector float
++bar (const float_aligned *a)
++{
++  return vec_xl (0, a);
++}
++
++void
++baz (float_aligned *f, vector float a)
++{
++  vec_xst (a, 0, f);
++}
++
++vector float
++foo2 (float_aligned *a)
++{
++  return vec_xlw4 (0, a);
++}
++
++vector float
++bar2 (const float_aligned *a)
++{
++  return vec_xlw4 (0, a);
++}
++
++void
++baz2 (float_aligned *f, vector float a)
++{
++  vec_xstw4 (a, 0, f);
++}
++
++/* Make sure alignment hints are generated if the source or target
++   operand is properly aligned.  */
++
++/* { dg-final { scan-assembler-times "vl\t%v\[0-9\]*,0\\(%r2\\),3" 4 } } */
++/* { dg-final { scan-assembler-times "vst\t%v\[0-9\]*,0\\(%r2\\),3" 2 } } */
 Index: gcc/testsuite/gcc.target/aarch64/options_set_9.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/aarch64/options_set_9.c	(.../tags/gcc_8_3_0_release)
@@ -665,6 +1102,67 @@ Index: gcc/testsuite/gcc.target/aarch64/options_set_8.c
 +
 +/* Checking if trying to turn off default features propagates the commandline
 +   option.  */
+Index: gcc/testsuite/gcc.target/i386/indirect-thunk-extern-7.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-extern-7.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/indirect-thunk-extern-7.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,5 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk-extern -fno-pic" } */
++/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk-extern -fno-pic -fjump-tables" } */
+ 
+ void func0 (void);
+ void func1 (void);
+Index: gcc/testsuite/gcc.target/i386/indirect-thunk-inline-7.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-inline-7.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/indirect-thunk-inline-7.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,5 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk-inline -fno-pic" } */
++/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk-inline -fno-pic -fjump-tables" } */
+ 
+ void func0 (void);
+ void func1 (void);
+Index: gcc/testsuite/gcc.target/i386/indirect-thunk-7.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-7.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/indirect-thunk-7.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,5 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk -fno-pic" } */
++/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk -fno-pic -fjump-tables" } */
+ 
+ void func0 (void);
+ void func1 (void);
+Index: gcc/testsuite/gcc.target/i386/pr85860.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr85860.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr85860.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,23 @@
++/* { dg-do compile { target lp64 } } */
++/* { dg-options "-O2 -fno-guess-branch-probability -flive-range-shrinkage -mbmi2" } */
++
++int a, b, c, d, e;
++
++extern int bar(void);
++
++__int128
++foo (unsigned g, int h, long i, __int128 j, short k, __int128 l)
++{
++  unsigned __int128 m = j;
++  do
++    {
++      j %= 5;
++      c = c >> (m & 31);
++      e = __builtin_sub_overflow (b, 0, &m);
++      d = bar ();
++      l *= __builtin_mul_overflow_p ((unsigned) d, ~(unsigned __int128) 1,
++				     (unsigned __int128) 0);
++    }
++  while (a);
++  return m + j + k + l;
++}
 Index: gcc/testsuite/gfortran.dg/transfer_simplify_12.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/transfer_simplify_12.f90	(.../tags/gcc_8_3_0_release)
@@ -931,6 +1429,25 @@ Index: gcc/testsuite/gfortran.dg/coarray_allocate_11.f90
 +   allocate (z[i:i,*]) ! This is OK
 +   allocate (z[i:i-1,*]) ! { dg-error "Upper cobound is less than lower cobound" }
 +end
+Index: gcc/testsuite/gfortran.dg/charlen_17.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/charlen_17.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/charlen_17.f90	(.../branches/gcc-8-branch)
+@@ -0,0 +1,14 @@
++! { dg-do compile }
++! PR 87673 - used to cause errors about non-pure functions.
++
++module x
++  implicit none
++contains
++  pure function foo() result(res)
++    character(len=:), allocatable :: res
++    allocate (character(bar()) :: res)
++  end function foo
++  pure integer function bar()
++    bar = 1
++  end function bar
++end module x
 Index: gcc/testsuite/gfortran.dg/deferred_character_32.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/deferred_character_32.f90	(.../tags/gcc_8_3_0_release)
@@ -1072,6 +1589,35 @@ Index: gcc/testsuite/gfortran.dg/lto/pr87689_1.f
 +       doesntwork_p8 = 'foo'
 +       return
 +       end
+Index: gcc/testsuite/gfortran.dg/pr89664.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr89664.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr89664.f90	(.../branches/gcc-8-branch)
+@@ -0,0 +1,24 @@
++! { dg-do compile }
++! { dg-options "-Ofast" }
++
++subroutine s (x)
++   real :: x
++   call sub (x)
++end
++subroutine sub (x)
++   real :: x, y
++   logical :: a, b
++   real :: f1, f2, f3, f4
++   y = f1()
++   a = .false.
++   if ( f2() > f3() ) a = .true.
++   b = .false.
++   if ( f2() > f4() ) b = .true.
++   if ( a ) then
++      x = 1.0
++   else if ( b ) then
++      x = 1.0/y**2
++   else
++      x = 1.0/y - y**2
++   end if
++end
 Index: gcc/testsuite/gfortran.dg/pr77583.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr77583.f90	(.../tags/gcc_8_3_0_release)
@@ -1224,6 +1770,59 @@ Index: gcc/testsuite/gnat.dg/opt77_pkg.ads
 +  procedure Proc (S : String; N : in out Natural; To_Add : out Boolean);
 +
 +end Opt77_Pkg;
+Index: gcc/testsuite/gcc.dg/torture/pr89572.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/torture/pr89572.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.dg/torture/pr89572.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,28 @@
++/* { dg-do compile } */
++/* { dg-additional-options "-finline-functions" } */
++
++int vh, it, k1;
++
++void
++vn (void)
++{
++  ++vh;
++  if (vh == 0 && it == 0)
++    k1 = -k1;
++}
++
++__attribute__ ((returns_twice)) void
++ef (int *uw)
++{
++  while (uw != (void *) 0)
++    {
++      vn ();
++      *uw = 0;
++    }
++}
++
++void
++gu (int *uw)
++{
++  ef (uw);
++}
+Index: gcc/testsuite/gcc.dg/torture/pr89677.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/torture/pr89677.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.dg/torture/pr89677.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,15 @@
++/* { dg-do compile } */
++/* { dg-require-effective-target int32plus } */
++
++int a, b, d;
++unsigned c;
++float e, f, g;
++void h() {
++    float *i = &g;
++    for (; c < 10; c += 3)
++      for (; d; d += 3) {
++	  a = *i;
++	  g = f + 0;
++	  f = b + *i + (b - e + 305219) + -b + 3;
++      }
++}
 Index: gcc/testsuite/gcc.dg/torture/pr89505.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.dg/torture/pr89505.c	(.../tags/gcc_8_3_0_release)
@@ -1251,11 +1850,212 @@ Index: gcc/testsuite/gcc.dg/torture/pr89505.c
 +    __builtin_abort ();
 +  return 0;
 +}
+Index: gcc/testsuite/gcc.dg/uninit-pr89296.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/uninit-pr89296.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.dg/uninit-pr89296.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,13 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -Wuninitialized" } */
++
++int get_a_value ();
++void printk(const char *);
++void test_func()
++{
++    int loop;
++    while (!loop) {             /* { dg-warning "is used uninitialized" } */
++	loop = get_a_value();
++	printk("...");
++    }
++}
+Index: gcc/testsuite/gcc.dg/ipa/ipcp-5.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/ipa/ipcp-5.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.dg/ipa/ipcp-5.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,45 @@
++/* Test that estimated local cloning time benefit of extern inline functions is
++   zero.  */
++
++/* { dg-do compile } */
++/* { dg-options "-O3 -fdump-ipa-cp -fno-early-inlining"  } */
++/* { dg-add-options bind_pic_locally } */
++
++extern int get_int (void);
++extern void use_stuff (int);
++
++int arr[10];
++
++inline void
++f (int a)
++{
++  arr[0] += a + 5;
++  arr[1] += a + 50;
++  arr[2] += a - 3;
++  arr[3] += a;
++  arr[4] += a + 21;
++  arr[5] += a + 900;
++  arr[6] += a + 2;
++  arr[7] += a + 3456;
++  arr[8] += a + 3;
++  arr[9] += a + 32;
++  use_stuff (a);
++}
++
++
++int
++entry (void)
++{
++  int i;
++  for (i = 0; i < 100; i++)
++    f (7);
++  for (i = 0; i < 100; i++)
++    f (get_int ());
++  return 0;
++}
++
++
++/* { dg-final { scan-ipa-dump "loc_time: 0" "cp" } } */
++/* { dg-final { scan-ipa-dump-not "replacing param.*with const" "cp"  } } */
++
++
+Index: gcc/testsuite/gcc.dg/uninit-pred-8_b.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/uninit-pred-8_b.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.dg/uninit-pred-8_b.c	(.../branches/gcc-8-branch)
+@@ -1,6 +1,7 @@
+-
+ /* { dg-do compile } */
+-/* { dg-options "-Wuninitialized -O2" } */
++/* ???  Jump threading makes a mess of the logical-op-non-short-circuit=0 case
++   so force it our way.  */
++/* { dg-options "-Wuninitialized -O2 --param logical-op-non-short-circuit=1" } */
+ 
+ int g;
+ void bar();
+Index: gcc/testsuite/gcc.dg/tree-ssa/reassoc-43.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/tree-ssa/reassoc-43.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.dg/tree-ssa/reassoc-43.c	(.../branches/gcc-8-branch)
+@@ -50,4 +50,4 @@
+ 	}
+     }
+ }
+-/* { dg-final { scan-tree-dump-not "0 != 0" "reassoc2"} } */
++/* { dg-final { scan-tree-dump-not "\[ (\]0 != 0" "reassoc2"} } */
 Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,176 @@
+@@ -1,3 +1,285 @@
++2019-03-15  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2019-03-06  Richard Biener  <rguenther@suse.de>
++
++	PR testsuite/89551
++	* gcc.dg/uninit-pred-8_b.c: Force logical-op-non-short-circuit
++	the way that makes the testcase PASS.
++
++2019-03-14  Martin Jambor  <mjambor@suse.cz>
++
++	Backport from mainline
++	2019-03-07  Martin Jambor  <mjambor@suse.cz>
++
++	PR lto/87525
++	* gcc.dg/ipa/ipcp-5.c: New test.
++
++2019-03-14  Richard Biener  <rguenther@suse.de>
++
++	PR middle-end/89572
++	* gcc.dg/torture/pr89572.c: New testcase.
++
++2019-03-13  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/87673
++	Backport from trunk
++	* gfortran.dg/charlen_17.f90: New test.
++
++2019-03-13  Vladimir Makarov  <vmakarov@redhat.com>
++
++	PR target/85860
++	* gcc.target/i386/pr85860.c: New.
++
++2019-03-14  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2019-03-13  Richard Biener  <rguenther@suse.de>
++
++	PR middle-end/89677
++	* gcc.dg/torture/pr89677.c: New testcase.
++
++	2019-03-01  Richard Biener  <rguenther@suse.de>
++
++	PR middle-end/89497
++	* gcc.dg/tree-ssa/reassoc-43.c: Avoid false match in regex.
++	* g++.dg/tree-prof/devirt.C: Scan tracer dump for foldings
++	that happen now earlier.
++
++	2019-02-18  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/89296
++	* tree-ssa-loop-ch.c (ch_base::copy_headers): Restrict setting
++	of no-warning flag to cases that might emit the bogus warning.
++
++2019-03-13  Andreas Krebbel  <krebbel@linux.ibm.com>
++
++	Backport from mainline
++	2019-03-11  Andreas Krebbel  <krebbel@linux.ibm.com>
++
++	* gcc.target/s390/zvector/vec-addc-u128.c: New test.
++
++2019-03-13  Andreas Krebbel  <krebbel@linux.ibm.com>
++
++	Backport from mainline
++	2019-02-07  Andreas Krebbel  <krebbel@linux.ibm.com>
++
++	* gcc.target/s390/zvector/xl-xst-align-1.c: New test.
++	* gcc.target/s390/zvector/xl-xst-align-2.c: New test.
++
++2019-03-12  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/89664
++	* gfortran.dg/pr89664.f90: New testcase.
++
++2019-03-12  Andre Vieira  <andre.simoesdiasvieira@arm.com>
++
++	Backport from mainline
++	2019-03-08  Andre Vieira  <andre.simoesdiasvieira@arm.com>
++
++	* gcc.target/arm/f16_f64_conv_no_dp.c: New test.
++
++	Backport from mainline
++	2019-03-11  Christophe Lyon  <christophe.lyon@linaro.org>
++
++	* gcc.target/arm/f16_f64_conv_no_dp.c: Add arm_fp16_ok effective
++	target.
++
++2019-03-11  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* c-c++-common/unroll-6.c: New test.
++
++2019-03-11  Martin Liska  <mliska@suse.cz>
++
++	Backport from mainline
++	2019-03-10  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
++
++	* gcc.target/i386/indirect-thunk-extern-7.c: Add -fjump-tables to
++	dg-options.
++
++2019-03-11  Martin Liska  <mliska@suse.cz>
++
++	Backport from mainline
++	2019-03-08  Martin Liska  <mliska@suse.cz>
++
++	PR target/86952
++	* gcc.target/i386/indirect-thunk-7.c: Use jump tables to match
++	scanned pattern.
++	* gcc.target/i386/indirect-thunk-inline-7.c: Likewise.
++
 +2019-03-10  Thomas Koenig  <tkoenig@gcc.gnu.org>
 +
 +	PR fortran/71544
@@ -1432,6 +2232,27 @@ Index: gcc/testsuite/ChangeLog
  2019-02-22  Release Manager
  
  	* GCC 8.3.0 released.
+Index: gcc/testsuite/g++.dg/tree-prof/devirt.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/tree-prof/devirt.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/tree-prof/devirt.C	(.../branches/gcc-8-branch)
+@@ -1,5 +1,5 @@
+ /* PR ipa/88561 */
+-/* { dg-options "-O3 -fdump-tree-dom3-details" } */
++/* { dg-options "-O3 -fdump-tree-tracer-details -fdump-tree-dom3-details" } */
+ 
+ struct nsISupports
+ {
+@@ -121,6 +121,6 @@
+     __builtin_abort ();
+ }
+ 
+-/* { dg-final-use-not-autofdo { scan-tree-dump-times "folding virtual function call to virtual unsigned int mozPersonalDictionary::_ZThn16" 1 "dom3" { target { lp64 || llp64 } } } } */
+-/* { dg-final-use-not-autofdo { scan-tree-dump-times "folding virtual function call to virtual unsigned int mozPersonalDictionary::_ZThn8" 1 "dom3" { target ilp32 } } } */
+-/* { dg-final-use-not-autofdo { scan-tree-dump-times "folding virtual function call to virtual unsigned int mozPersonalDictionary::AddRef" 1 "dom3" } } */
++/* { dg-final-use-not-autofdo { scan-tree-dump-times "folding virtual function call to virtual unsigned int mozPersonalDictionary::_ZThn16" 1 "tracer" { target { lp64 || llp64 } } } } */
++/* { dg-final-use-not-autofdo { scan-tree-dump-times "folding virtual function call to virtual unsigned int mozPersonalDictionary::_ZThn8" 1 "tracer" { target ilp32 } } } */
++/* { dg-final-use-not-autofdo { scan-tree-dump-times "folding virtual function call to virtual unsigned int mozPersonalDictionary::AddRef" 1 "tracer" } } */
 Index: gcc/testsuite/g++.dg/asm-qual-3.C
 ===================================================================
 --- a/src/gcc/testsuite/g++.dg/asm-qual-3.C	(.../tags/gcc_8_3_0_release)
@@ -1762,6 +2583,20 @@ Index: gcc/testsuite/g++.dg/cpp1z/fold-lambda3.C
 +{
 +  f(A(), &A::i);
 +}
+Index: gcc/testsuite/c-c++-common/unroll-6.c
+===================================================================
+--- a/src/gcc/testsuite/c-c++-common/unroll-6.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/c-c++-common/unroll-6.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,9 @@
++/* { dg-do compile } */
++/* { dg-options "-O -fno-tree-loop-optimize" } */
++
++void test (void)
++{
++  #pragma GCC unroll 2
++  for (int nv = 0; nv <= 2; nv += 2)
++    {}
++}
 Index: gcc/cp/typeck.c
 ===================================================================
 --- a/src/gcc/cp/typeck.c	(.../tags/gcc_8_3_0_release)
@@ -2062,6 +2897,27 @@ Index: gcc/cp/mangle.c
  	}
        else
  	{
+Index: gcc/tree-ssa-math-opts.c
+===================================================================
+--- a/src/gcc/tree-ssa-math-opts.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/tree-ssa-math-opts.c	(.../branches/gcc-8-branch)
+@@ -603,7 +603,7 @@
+ 
+   /* If it is more profitable to optimize 1 / x, don't optimize 1 / (x * x).  */
+   if (sqrt_recip_count > square_recip_count)
+-    return;
++    goto out;
+ 
+   /* Do the expensive part only if we can hope to optimize something.  */
+   if (count + square_recip_count >= threshold && count >= 1)
+@@ -646,6 +646,7 @@
+ 	}
+     }
+ 
++out:
+   for (occ = occ_head; occ; )
+     occ = free_bb (occ);
+ 
 Index: gcc/tree-ssa-dom.c
 ===================================================================
 --- a/src/gcc/tree-ssa-dom.c	(.../tags/gcc_8_3_0_release)
@@ -2228,6 +3084,28 @@ Index: gcc/dwarf2out.c
        *slot = ctnode;
      }
  
+Index: gcc/tree-ssa-loop-ivcanon.c
+===================================================================
+--- a/src/gcc/tree-ssa-loop-ivcanon.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/tree-ssa-loop-ivcanon.c	(.../branches/gcc-8-branch)
+@@ -1177,7 +1177,7 @@
+ 	= niter_desc.may_be_zero && !integer_zerop (niter_desc.may_be_zero);
+     }
+   if (TREE_CODE (niter) == INTEGER_CST)
+-    locus = gimple_location (last_stmt (exit->src));
++    locus = gimple_location_safe (last_stmt (exit->src));
+   else
+     {
+       /* For non-constant niter fold may_be_zero into niter again.  */
+@@ -1204,7 +1204,7 @@
+ 	niter = find_loop_niter_by_eval (loop, &exit);
+ 
+       if (exit)
+-        locus = gimple_location (last_stmt (exit->src));
++        locus = gimple_location_safe (last_stmt (exit->src));
+ 
+       if (TREE_CODE (niter) != INTEGER_CST)
+ 	exit = NULL;
 Index: gcc/ada/ChangeLog
 ===================================================================
 --- a/src/gcc/ada/ChangeLog	(.../tags/gcc_8_3_0_release)
@@ -2574,6 +3452,31 @@ Index: gcc/common/config/aarch64/aarch64-common.c
 +
  #undef AARCH64_CPU_NAME_LENGTH
  
+Index: gcc/tree-ssa-ifcombine.c
+===================================================================
+--- a/src/gcc/tree-ssa-ifcombine.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/tree-ssa-ifcombine.c	(.../branches/gcc-8-branch)
+@@ -40,6 +40,7 @@
+ #include "gimplify-me.h"
+ #include "tree-cfg.h"
+ #include "tree-ssa.h"
++#include "params.h"
+ 
+ #ifndef LOGICAL_OP_NON_SHORT_CIRCUIT
+ #define LOGICAL_OP_NON_SHORT_CIRCUIT \
+@@ -556,7 +557,11 @@
+ 	{
+ 	  tree t1, t2;
+ 	  gimple_stmt_iterator gsi;
+-	  if (!LOGICAL_OP_NON_SHORT_CIRCUIT || flag_sanitize_coverage)
++	  bool logical_op_non_short_circuit = LOGICAL_OP_NON_SHORT_CIRCUIT;
++	  if (PARAM_VALUE (PARAM_LOGICAL_OP_NON_SHORT_CIRCUIT) != -1)
++	    logical_op_non_short_circuit
++	      = PARAM_VALUE (PARAM_LOGICAL_OP_NON_SHORT_CIRCUIT);
++	  if (!logical_op_non_short_circuit || flag_sanitize_coverage)
+ 	    return false;
+ 	  /* Only do this optimization if the inner bb contains only the conditional. */
+ 	  if (!gsi_one_before_end_p (gsi_start_nondebug_after_labels_bb (inner_cond_bb)))
 Index: gcc/fortran/trans-expr.c
 ===================================================================
 --- a/src/gcc/fortran/trans-expr.c	(.../tags/gcc_8_3_0_release)
@@ -2739,7 +3642,14 @@ Index: gcc/fortran/ChangeLog
 ===================================================================
 --- a/src/gcc/fortran/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/fortran/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,131 @@
+@@ -1,3 +1,138 @@
++2019-03-13  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/87673
++	Backport from trunk
++	* match.c (gfc_match_type_spec): Remove call to
++	gfc_resolve_expr for character length.
++
 +2019-03-10  Thomas Koenig  <tkoenig@gcc.gnu.org>
 +
 +	PR fortran/71544
@@ -3353,6 +4263,19 @@ Index: gcc/fortran/target-memory.c
  	  if (mpz_cmp_si (c->offset, 0) != 0)
  	    len = elt_size * (size_t)mpz_get_si (c->offset);
  
+Index: gcc/fortran/match.c
+===================================================================
+--- a/src/gcc/fortran/match.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/fortran/match.c	(.../branches/gcc-8-branch)
+@@ -2105,8 +2105,6 @@
+       ts->type = BT_CHARACTER;
+ 
+       m = gfc_match_char_spec (ts);
+-      if (ts->u.cl && ts->u.cl->length)
+-	gfc_resolve_expr (ts->u.cl->length);
+ 
+       if (m == MATCH_NO)
+ 	m = MATCH_YES;
 Index: gcc/fortran/trans-io.c
 ===================================================================
 --- a/src/gcc/fortran/trans-io.c	(.../tags/gcc_8_3_0_release)
@@ -3499,13 +4422,105 @@ Index: gcc/fortran/simplify.c
    mpz_mul_ui (result->value.integer, result->value.integer, BITS_PER_UNIT);
  
    return range_check (result, "STORAGE_SIZE");
-Index: gcc/BASE-VER
+Index: gcc/loop-unroll.c
 ===================================================================
---- a/src/gcc/BASE-VER	(.../tags/gcc_8_3_0_release)
-+++ b/src/gcc/BASE-VER	(.../branches/gcc-8-branch)
-@@ -1 +1 @@
--8.3.0
-+8.3.1
+--- a/src/gcc/loop-unroll.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/loop-unroll.c	(.../branches/gcc-8-branch)
+@@ -399,7 +399,7 @@
+     {
+       /* However we cannot unroll completely at the RTL level a loop with
+ 	 constant number of iterations; it should have been peeled instead.  */
+-      if ((unsigned) loop->unroll - 1 > desc->niter - 2)
++      if ((unsigned) loop->unroll > desc->niter - 1)
+ 	{
+ 	  if (dump_file)
+ 	    fprintf (dump_file, ";; Loop should have been peeled\n");
+Index: gcc/lra-constraints.c
+===================================================================
+--- a/src/gcc/lra-constraints.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/lra-constraints.c	(.../branches/gcc-8-branch)
+@@ -6293,6 +6293,7 @@
+ 			add_to_hard_reg_set (&s, PSEUDO_REGNO_MODE (dst_regno),
+ 					     reg_renumber[dst_regno]);
+ 		      AND_COMPL_HARD_REG_SET (live_hard_regs, s);
++		      AND_COMPL_HARD_REG_SET (potential_reload_hard_regs, s);
+ 		    }
+ 		  /* We should invalidate potential inheritance or
+ 		     splitting for the current insn usages to the next
+Index: gcc/tree-cfgcleanup.c
+===================================================================
+--- a/src/gcc/tree-cfgcleanup.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/tree-cfgcleanup.c	(.../branches/gcc-8-branch)
+@@ -43,6 +43,8 @@
+ #include "gimple-match.h"
+ #include "gimple-fold.h"
+ #include "tree-ssa-loop-niter.h"
++#include "tree-into-ssa.h"
++#include "tree-cfgcleanup.h"
+ 
+ 
+ /* The set of blocks in that at least one of the following changes happened:
+@@ -761,7 +763,7 @@
+ /* Iterate the cfg cleanups, while anything changes.  */
+ 
+ static bool
+-cleanup_tree_cfg_1 (void)
++cleanup_tree_cfg_1 (unsigned ssa_update_flags)
+ {
+   bool retval = false;
+   basic_block bb;
+@@ -786,6 +788,8 @@
+ 
+   /* After doing the above SSA form should be valid (or an update SSA
+      should be required).  */
++  if (ssa_update_flags)
++    update_ssa (ssa_update_flags);
+ 
+   /* Continue by iterating over all basic blocks looking for BB merging
+      opportunities.  */
+@@ -828,7 +832,7 @@
+    Return true if the flowgraph was modified, false otherwise.  */
+ 
+ static bool
+-cleanup_tree_cfg_noloop (void)
++cleanup_tree_cfg_noloop (unsigned ssa_update_flags)
+ {
+   bool changed;
+ 
+@@ -908,7 +912,7 @@
+ 	  }
+     }
+ 
+-  changed |= cleanup_tree_cfg_1 ();
++  changed |= cleanup_tree_cfg_1 (ssa_update_flags);
+ 
+   gcc_assert (dom_info_available_p (CDI_DOMINATORS));
+ 
+@@ -966,9 +970,9 @@
+ /* Cleanup cfg and repair loop structures.  */
+ 
+ bool
+-cleanup_tree_cfg (void)
++cleanup_tree_cfg (unsigned ssa_update_flags)
+ {
+-  bool changed = cleanup_tree_cfg_noloop ();
++  bool changed = cleanup_tree_cfg_noloop (ssa_update_flags);
+ 
+   if (current_loops != NULL
+       && loops_state_satisfies_p (LOOPS_NEED_FIXUP))
+Index: gcc/tree-cfgcleanup.h
+===================================================================
+--- a/src/gcc/tree-cfgcleanup.h	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/tree-cfgcleanup.h	(.../branches/gcc-8-branch)
+@@ -22,7 +22,7 @@
+ 
+ /* In tree-cfgcleanup.c  */
+ extern bitmap cfgcleanup_altered_bbs;
+-extern bool cleanup_tree_cfg (void);
++extern bool cleanup_tree_cfg (unsigned = 0);
+ extern bool fixup_noreturn_call (gimple *stmt);
+ 
+ #endif /* GCC_TREE_CFGCLEANUP_H */
 Index: gcc/tree-ssa-structalias.c
 ===================================================================
 --- a/src/gcc/tree-ssa-structalias.c	(.../tags/gcc_8_3_0_release)
@@ -3522,11 +4537,196 @@ Index: gcc/tree-ssa-structalias.c
  	      varinfo_t escaped = get_varinfo (find (escaped_id));
  	      if (bitmap_bit_p (escaped->solution, restrict_var->id))
  		escaped_p = true;
+Index: gcc/passes.c
+===================================================================
+--- a/src/gcc/passes.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/passes.c	(.../branches/gcc-8-branch)
+@@ -1944,7 +1944,7 @@
+   /* Always cleanup the CFG before trying to update SSA.  */
+   if (flags & TODO_cleanup_cfg)
+     {
+-      cleanup_tree_cfg ();
++      cleanup_tree_cfg (flags & TODO_update_ssa_any);
+ 
+       /* When cleanup_tree_cfg merges consecutive blocks, it may
+ 	 perform some simplistic propagation when removing single
+Index: gcc/config/s390/s390-c.c
+===================================================================
+--- a/src/gcc/config/s390/s390-c.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/s390/s390-c.c	(.../branches/gcc-8-branch)
+@@ -477,16 +477,30 @@
+     case S390_OVERLOADED_BUILTIN_s390_vec_xl:
+     case S390_OVERLOADED_BUILTIN_s390_vec_xld2:
+     case S390_OVERLOADED_BUILTIN_s390_vec_xlw4:
+-      return build2 (MEM_REF, return_type,
+-		     fold_build_pointer_plus ((*arglist)[1], (*arglist)[0]),
+-		     build_int_cst (TREE_TYPE ((*arglist)[1]), 0));
++      {
++	/* Build a vector type with the alignment of the source
++	   location in order to enable correct alignment hints to be
++	   generated for vl.  */
++	tree mem_type = build_aligned_type (return_type,
++					    TYPE_ALIGN (TREE_TYPE (TREE_TYPE ((*arglist)[1]))));
++	return build2 (MEM_REF, mem_type,
++		       fold_build_pointer_plus ((*arglist)[1], (*arglist)[0]),
++		       build_int_cst (TREE_TYPE ((*arglist)[1]), 0));
++      }
+     case S390_OVERLOADED_BUILTIN_s390_vec_xst:
+     case S390_OVERLOADED_BUILTIN_s390_vec_xstd2:
+     case S390_OVERLOADED_BUILTIN_s390_vec_xstw4:
+-      return build2 (MODIFY_EXPR, TREE_TYPE((*arglist)[0]),
+-		     build1 (INDIRECT_REF, TREE_TYPE((*arglist)[0]),
+-			     fold_build_pointer_plus ((*arglist)[2], (*arglist)[1])),
+-		     (*arglist)[0]);
++      {
++	/* Build a vector type with the alignment of the target
++	   location in order to enable correct alignment hints to be
++	   generated for vst.  */
++	tree mem_type = build_aligned_type (TREE_TYPE((*arglist)[0]),
++					    TYPE_ALIGN (TREE_TYPE (TREE_TYPE ((*arglist)[2]))));
++	return build2 (MODIFY_EXPR, mem_type,
++		       build1 (INDIRECT_REF, mem_type,
++			       fold_build_pointer_plus ((*arglist)[2], (*arglist)[1])),
++		       (*arglist)[0]);
++      }
+     case S390_OVERLOADED_BUILTIN_s390_vec_load_pair:
+       return build_constructor_va (return_type, 2,
+ 				   NULL_TREE, (*arglist)[0],
+Index: gcc/config/s390/s390-builtin-types.def
+===================================================================
+--- a/src/gcc/config/s390/s390-builtin-types.def	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/s390/s390-builtin-types.def	(.../branches/gcc-8-branch)
+@@ -260,6 +260,7 @@
+ DEF_FN_TYPE_2 (BT_FN_V4SF_V4SF_UCHAR, BT_V4SF, BT_V4SF, BT_UCHAR)
+ DEF_FN_TYPE_2 (BT_FN_V4SF_V4SF_V4SF, BT_V4SF, BT_V4SF, BT_V4SF)
+ DEF_FN_TYPE_2 (BT_FN_V4SI_BV4SI_V4SI, BT_V4SI, BT_BV4SI, BT_V4SI)
++DEF_FN_TYPE_2 (BT_FN_V4SI_INT_VOIDCONSTPTR, BT_V4SI, BT_INT, BT_VOIDCONSTPTR)
+ DEF_FN_TYPE_2 (BT_FN_V4SI_INT_VOIDPTR, BT_V4SI, BT_INT, BT_VOIDPTR)
+ DEF_FN_TYPE_2 (BT_FN_V4SI_UV4SI_UV4SI, BT_V4SI, BT_UV4SI, BT_UV4SI)
+ DEF_FN_TYPE_2 (BT_FN_V4SI_V2DI_V2DI, BT_V4SI, BT_V2DI, BT_V2DI)
+@@ -492,6 +493,7 @@
+ DEF_OV_TYPE (BT_OV_UV16QI_BV16QI_BV16QI, BT_UV16QI, BT_BV16QI, BT_BV16QI)
+ DEF_OV_TYPE (BT_OV_UV16QI_BV16QI_BV16QI_INTPTR, BT_UV16QI, BT_BV16QI, BT_BV16QI, BT_INTPTR)
+ DEF_OV_TYPE (BT_OV_UV16QI_BV16QI_UV16QI, BT_UV16QI, BT_BV16QI, BT_UV16QI)
++DEF_OV_TYPE (BT_OV_UV16QI_LONG_UCHARCONSTPTR, BT_UV16QI, BT_LONG, BT_UCHARCONSTPTR)
+ DEF_OV_TYPE (BT_OV_UV16QI_LONG_UCHARPTR, BT_UV16QI, BT_LONG, BT_UCHARPTR)
+ DEF_OV_TYPE (BT_OV_UV16QI_UCHAR, BT_UV16QI, BT_UCHAR)
+ DEF_OV_TYPE (BT_OV_UV16QI_UCHARCONSTPTR, BT_UV16QI, BT_UCHARCONSTPTR)
+@@ -523,6 +525,7 @@
+ DEF_OV_TYPE (BT_OV_UV16QI_V16QI, BT_UV16QI, BT_V16QI)
+ DEF_OV_TYPE (BT_OV_UV16QI_V8HI_V8HI, BT_UV16QI, BT_V8HI, BT_V8HI)
+ DEF_OV_TYPE (BT_OV_UV2DI_BV2DI_UV2DI, BT_UV2DI, BT_BV2DI, BT_UV2DI)
++DEF_OV_TYPE (BT_OV_UV2DI_LONG_ULONGLONGCONSTPTR, BT_UV2DI, BT_LONG, BT_ULONGLONGCONSTPTR)
+ DEF_OV_TYPE (BT_OV_UV2DI_LONG_ULONGLONGPTR, BT_UV2DI, BT_LONG, BT_ULONGLONGPTR)
+ DEF_OV_TYPE (BT_OV_UV2DI_ULONGLONG, BT_UV2DI, BT_ULONGLONG)
+ DEF_OV_TYPE (BT_OV_UV2DI_ULONGLONGCONSTPTR, BT_UV2DI, BT_ULONGLONGCONSTPTR)
+@@ -556,6 +559,8 @@
+ DEF_OV_TYPE (BT_OV_UV4SI_BV4SI_BV4SI, BT_UV4SI, BT_BV4SI, BT_BV4SI)
+ DEF_OV_TYPE (BT_OV_UV4SI_BV4SI_BV4SI_INTPTR, BT_UV4SI, BT_BV4SI, BT_BV4SI, BT_INTPTR)
+ DEF_OV_TYPE (BT_OV_UV4SI_BV4SI_UV4SI, BT_UV4SI, BT_BV4SI, BT_UV4SI)
++DEF_OV_TYPE (BT_OV_UV4SI_LONG_FLTPTR, BT_UV4SI, BT_LONG, BT_FLTPTR)
++DEF_OV_TYPE (BT_OV_UV4SI_LONG_UINTCONSTPTR, BT_UV4SI, BT_LONG, BT_UINTCONSTPTR)
+ DEF_OV_TYPE (BT_OV_UV4SI_LONG_UINTPTR, BT_UV4SI, BT_LONG, BT_UINTPTR)
+ DEF_OV_TYPE (BT_OV_UV4SI_UINT, BT_UV4SI, BT_UINT)
+ DEF_OV_TYPE (BT_OV_UV4SI_UINTCONSTPTR, BT_UV4SI, BT_UINTCONSTPTR)
+@@ -593,6 +598,7 @@
+ DEF_OV_TYPE (BT_OV_UV8HI_BV8HI_BV8HI, BT_UV8HI, BT_BV8HI, BT_BV8HI)
+ DEF_OV_TYPE (BT_OV_UV8HI_BV8HI_BV8HI_INTPTR, BT_UV8HI, BT_BV8HI, BT_BV8HI, BT_INTPTR)
+ DEF_OV_TYPE (BT_OV_UV8HI_BV8HI_UV8HI, BT_UV8HI, BT_BV8HI, BT_UV8HI)
++DEF_OV_TYPE (BT_OV_UV8HI_LONG_USHORTCONSTPTR, BT_UV8HI, BT_LONG, BT_USHORTCONSTPTR)
+ DEF_OV_TYPE (BT_OV_UV8HI_LONG_USHORTPTR, BT_UV8HI, BT_LONG, BT_USHORTPTR)
+ DEF_OV_TYPE (BT_OV_UV8HI_USHORT, BT_UV8HI, BT_USHORT)
+ DEF_OV_TYPE (BT_OV_UV8HI_USHORTCONSTPTR, BT_UV8HI, BT_USHORTCONSTPTR)
+@@ -626,6 +632,7 @@
+ DEF_OV_TYPE (BT_OV_UV8HI_V4SI_V4SI, BT_UV8HI, BT_V4SI, BT_V4SI)
+ DEF_OV_TYPE (BT_OV_UV8HI_V8HI, BT_UV8HI, BT_V8HI)
+ DEF_OV_TYPE (BT_OV_V16QI_BV16QI_V16QI, BT_V16QI, BT_BV16QI, BT_V16QI)
++DEF_OV_TYPE (BT_OV_V16QI_LONG_SCHARCONSTPTR, BT_V16QI, BT_LONG, BT_SCHARCONSTPTR)
+ DEF_OV_TYPE (BT_OV_V16QI_LONG_SCHARPTR, BT_V16QI, BT_LONG, BT_SCHARPTR)
+ DEF_OV_TYPE (BT_OV_V16QI_SCHAR, BT_V16QI, BT_SCHAR)
+ DEF_OV_TYPE (BT_OV_V16QI_SCHARCONSTPTR, BT_V16QI, BT_SCHARCONSTPTR)
+@@ -660,6 +667,7 @@
+ DEF_OV_TYPE (BT_OV_V2DF_DBLCONSTPTR_USHORT, BT_V2DF, BT_DBLCONSTPTR, BT_USHORT)
+ DEF_OV_TYPE (BT_OV_V2DF_DBL_INT, BT_V2DF, BT_DBL, BT_INT)
+ DEF_OV_TYPE (BT_OV_V2DF_DBL_V2DF_INT, BT_V2DF, BT_DBL, BT_V2DF, BT_INT)
++DEF_OV_TYPE (BT_OV_V2DF_LONG_DBLCONSTPTR, BT_V2DF, BT_LONG, BT_DBLCONSTPTR)
+ DEF_OV_TYPE (BT_OV_V2DF_LONG_DBLPTR, BT_V2DF, BT_LONG, BT_DBLPTR)
+ DEF_OV_TYPE (BT_OV_V2DF_UV2DI, BT_V2DF, BT_UV2DI)
+ DEF_OV_TYPE (BT_OV_V2DF_UV2DI_INT, BT_V2DF, BT_UV2DI, BT_INT)
+@@ -687,6 +695,7 @@
+ DEF_OV_TYPE (BT_OV_V2DI_LONGLONG_INT, BT_V2DI, BT_LONGLONG, BT_INT)
+ DEF_OV_TYPE (BT_OV_V2DI_LONGLONG_LONGLONG, BT_V2DI, BT_LONGLONG, BT_LONGLONG)
+ DEF_OV_TYPE (BT_OV_V2DI_LONGLONG_V2DI_INT, BT_V2DI, BT_LONGLONG, BT_V2DI, BT_INT)
++DEF_OV_TYPE (BT_OV_V2DI_LONG_LONGLONGCONSTPTR, BT_V2DI, BT_LONG, BT_LONGLONGCONSTPTR)
+ DEF_OV_TYPE (BT_OV_V2DI_LONG_LONGLONGPTR, BT_V2DI, BT_LONG, BT_LONGLONGPTR)
+ DEF_OV_TYPE (BT_OV_V2DI_V16QI, BT_V2DI, BT_V16QI)
+ DEF_OV_TYPE (BT_OV_V2DI_V2DI, BT_V2DI, BT_V2DI)
+@@ -716,7 +725,7 @@
+ DEF_OV_TYPE (BT_OV_V4SF_FLTCONSTPTR_USHORT, BT_V4SF, BT_FLTCONSTPTR, BT_USHORT)
+ DEF_OV_TYPE (BT_OV_V4SF_FLT_INT, BT_V4SF, BT_FLT, BT_INT)
+ DEF_OV_TYPE (BT_OV_V4SF_FLT_V4SF_INT, BT_V4SF, BT_FLT, BT_V4SF, BT_INT)
+-DEF_OV_TYPE (BT_OV_V4SF_LONG_FLTPTR, BT_V4SF, BT_LONG, BT_FLTPTR)
++DEF_OV_TYPE (BT_OV_V4SF_LONG_FLTCONSTPTR, BT_V4SF, BT_LONG, BT_FLTCONSTPTR)
+ DEF_OV_TYPE (BT_OV_V4SF_V4SF, BT_V4SF, BT_V4SF)
+ DEF_OV_TYPE (BT_OV_V4SF_V4SF_BV4SI, BT_V4SF, BT_V4SF, BT_BV4SI)
+ DEF_OV_TYPE (BT_OV_V4SF_V4SF_UCHAR, BT_V4SF, BT_V4SF, BT_UCHAR)
+@@ -737,6 +746,7 @@
+ DEF_OV_TYPE (BT_OV_V4SI_INTCONSTPTR_USHORT, BT_V4SI, BT_INTCONSTPTR, BT_USHORT)
+ DEF_OV_TYPE (BT_OV_V4SI_INT_INT, BT_V4SI, BT_INT, BT_INT)
+ DEF_OV_TYPE (BT_OV_V4SI_INT_V4SI_INT, BT_V4SI, BT_INT, BT_V4SI, BT_INT)
++DEF_OV_TYPE (BT_OV_V4SI_LONG_INTCONSTPTR, BT_V4SI, BT_LONG, BT_INTCONSTPTR)
+ DEF_OV_TYPE (BT_OV_V4SI_LONG_INTPTR, BT_V4SI, BT_LONG, BT_INTPTR)
+ DEF_OV_TYPE (BT_OV_V4SI_UV4SI_V4SI_V4SI, BT_V4SI, BT_UV4SI, BT_V4SI, BT_V4SI)
+ DEF_OV_TYPE (BT_OV_V4SI_V2DI_V2DI, BT_V4SI, BT_V2DI, BT_V2DI)
+@@ -764,6 +774,7 @@
+ DEF_OV_TYPE (BT_OV_V4SI_V8HI_V8HI, BT_V4SI, BT_V8HI, BT_V8HI)
+ DEF_OV_TYPE (BT_OV_V4SI_V8HI_V8HI_V4SI, BT_V4SI, BT_V8HI, BT_V8HI, BT_V4SI)
+ DEF_OV_TYPE (BT_OV_V8HI_BV8HI_V8HI, BT_V8HI, BT_BV8HI, BT_V8HI)
++DEF_OV_TYPE (BT_OV_V8HI_LONG_SHORTCONSTPTR, BT_V8HI, BT_LONG, BT_SHORTCONSTPTR)
+ DEF_OV_TYPE (BT_OV_V8HI_LONG_SHORTPTR, BT_V8HI, BT_LONG, BT_SHORTPTR)
+ DEF_OV_TYPE (BT_OV_V8HI_SHORT, BT_V8HI, BT_SHORT)
+ DEF_OV_TYPE (BT_OV_V8HI_SHORTCONSTPTR, BT_V8HI, BT_SHORTCONSTPTR)
+@@ -802,6 +813,7 @@
+ DEF_OV_TYPE (BT_OV_VOID_UV2DI_LONG_ULONGLONGPTR, BT_VOID, BT_UV2DI, BT_LONG, BT_ULONGLONGPTR)
+ DEF_OV_TYPE (BT_OV_VOID_UV2DI_ULONGLONGPTR_UINT, BT_VOID, BT_UV2DI, BT_ULONGLONGPTR, BT_UINT)
+ DEF_OV_TYPE (BT_OV_VOID_UV2DI_UV2DI_ULONGLONGPTR_ULONGLONG, BT_VOID, BT_UV2DI, BT_UV2DI, BT_ULONGLONGPTR, BT_ULONGLONG)
++DEF_OV_TYPE (BT_OV_VOID_UV4SI_LONG_FLTPTR, BT_VOID, BT_UV4SI, BT_LONG, BT_FLTPTR)
+ DEF_OV_TYPE (BT_OV_VOID_UV4SI_LONG_UINTPTR, BT_VOID, BT_UV4SI, BT_LONG, BT_UINTPTR)
+ DEF_OV_TYPE (BT_OV_VOID_UV4SI_UINTPTR_UINT, BT_VOID, BT_UV4SI, BT_UINTPTR, BT_UINT)
+ DEF_OV_TYPE (BT_OV_VOID_UV4SI_UV4SI_UINTPTR_ULONGLONG, BT_VOID, BT_UV4SI, BT_UV4SI, BT_UINTPTR, BT_ULONGLONG)
 Index: gcc/config/s390/s390.c
 ===================================================================
 --- a/src/gcc/config/s390/s390.c	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/config/s390/s390.c	(.../branches/gcc-8-branch)
-@@ -16039,6 +16039,7 @@
+@@ -937,6 +937,8 @@
+ 	  continue;
+ 	}
+ 
++      /* A memory operand is rejected by the memory_operand predicate.
++	 Try making the address legal by copying it into a register.  */
+       if (MEM_P (op[arity])
+ 	  && insn_op->predicate == memory_operand
+ 	  && (GET_MODE (XEXP (op[arity], 0)) == Pmode
+@@ -960,10 +962,14 @@
+ 	{
+ 	  op[arity] = tmp_rtx;
+ 	}
+-      else if (GET_MODE (op[arity]) == insn_op->mode
+-	       || GET_MODE (op[arity]) == VOIDmode
+-	       || (insn_op->predicate == address_operand
+-		   && GET_MODE (op[arity]) == Pmode))
++
++      /* The predicate rejects the operand although the mode is fine.
++	 Copy the operand to register.  */
++      if (!insn_op->predicate (op[arity], insn_op->mode)
++	  && (GET_MODE (op[arity]) == insn_op->mode
++	      || GET_MODE (op[arity]) == VOIDmode
++	      || (insn_op->predicate == address_operand
++		  && GET_MODE (op[arity]) == Pmode)))
+ 	{
+ 	  /* An address_operand usually has VOIDmode in the expander
+ 	     so we cannot use this.  */
+@@ -16039,6 +16045,7 @@
  
    return ret;
  }
@@ -3534,7 +4734,7 @@ Index: gcc/config/s390/s390.c
  
  /* Set VAL to correct enum value according to the indirect-branch or
     function-return attribute in ATTR.  */
-@@ -16112,6 +16113,7 @@
+@@ -16112,6 +16119,7 @@
      s390_indirect_branch_attrvalue (attr, &cfun->machine->function_return_mem);
  }
  
@@ -3542,7 +4742,7 @@ Index: gcc/config/s390/s390.c
  /* Restore targets globals from NEW_TREE and invalidate s390_previous_fndecl
     cache.  */
  
-@@ -16127,6 +16129,7 @@
+@@ -16127,6 +16135,7 @@
      TREE_TARGET_GLOBALS (new_tree) = save_target_globals_default_opts ();
    s390_previous_fndecl = NULL_TREE;
  }
@@ -3550,7 +4750,7 @@ Index: gcc/config/s390/s390.c
  
  /* Establish appropriate back-end context for processing the function
     FNDECL.  The argument might be NULL to indicate processing at top
-@@ -16134,6 +16137,7 @@
+@@ -16134,6 +16143,7 @@
  static void
  s390_set_current_function (tree fndecl)
  {
@@ -3558,7 +4758,7 @@ Index: gcc/config/s390/s390.c
    /* Only change the context if the function changes.  This hook is called
       several times in the course of compiling a function, and we don't want to
       slow things down too much or call target_reinit when it isn't safe.  */
-@@ -16165,10 +16169,9 @@
+@@ -16165,10 +16175,9 @@
    if (old_tree != new_tree)
      s390_activate_target_options (new_tree);
    s390_previous_fndecl = fndecl;
@@ -3570,7 +4770,7 @@ Index: gcc/config/s390/s390.c
  
  /* Implement TARGET_USE_BY_PIECES_INFRASTRUCTURE_P.  */
  
-@@ -16907,10 +16910,10 @@
+@@ -16907,10 +16916,10 @@
  #undef TARGET_ASM_FILE_END
  #define TARGET_ASM_FILE_END s390_asm_file_end
  
@@ -3582,6 +4782,94 @@ Index: gcc/config/s390/s390.c
  #undef TARGET_OPTION_VALID_ATTRIBUTE_P
  #define TARGET_OPTION_VALID_ATTRIBUTE_P s390_valid_target_attribute_p
  
+Index: gcc/config/s390/s390-builtins.def
+===================================================================
+--- a/src/gcc/config/s390/s390-builtins.def	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/s390/s390-builtins.def	(.../branches/gcc-8-branch)
+@@ -328,36 +328,38 @@
+ B_DEF      (s390_vgmf,                  vec_genmaskv4si,    0,                  B_VX,               O1_U8 | O2_U8,      BT_FN_UV4SI_UCHAR_UCHAR)
+ B_DEF      (s390_vgmg,                  vec_genmaskv2di,    0,                  B_VX,               O1_U8 | O2_U8,      BT_FN_UV2DI_UCHAR_UCHAR)
+ 
+-OB_DEF     (s390_vec_xl,                s390_vec_xl_s8,     s390_vec_xl_dbl,    B_VX,               BT_FN_V4SI_INT_VOIDPTR)
+-OB_DEF_VAR (s390_vec_xl_s8,             MAX,                0,                  O1_LIT,             BT_OV_V16QI_LONG_SCHARPTR)               /* vl */
+-OB_DEF_VAR (s390_vec_xl_u8,             MAX,                0,                  O1_LIT,             BT_OV_UV16QI_LONG_UCHARPTR)              /* vl */
+-OB_DEF_VAR (s390_vec_xl_s16,            MAX,                0,                  O1_LIT,             BT_OV_V8HI_LONG_SHORTPTR)                /* vl */
+-OB_DEF_VAR (s390_vec_xl_u16,            MAX,                0,                  O1_LIT,             BT_OV_UV8HI_LONG_USHORTPTR)              /* vl */
+-OB_DEF_VAR (s390_vec_xl_s32,            MAX,                0,                  O1_LIT,             BT_OV_V4SI_LONG_INTPTR)                  /* vl */
+-OB_DEF_VAR (s390_vec_xl_u32,            MAX,                0,                  O1_LIT,             BT_OV_UV4SI_LONG_UINTPTR)                /* vl */
+-OB_DEF_VAR (s390_vec_xl_s64,            MAX,                0,                  O1_LIT,             BT_OV_V2DI_LONG_LONGLONGPTR)             /* vl */
+-OB_DEF_VAR (s390_vec_xl_u64,            MAX,                0,                  O1_LIT,             BT_OV_UV2DI_LONG_ULONGLONGPTR)           /* vl */
+-OB_DEF_VAR (s390_vec_xl_flt,            MAX,                0,                  O1_LIT,             BT_OV_V4SF_LONG_FLTPTR)                  /* vl */
+-OB_DEF_VAR (s390_vec_xl_dbl,            MAX,                0,                  O1_LIT,             BT_OV_V2DF_LONG_DBLPTR)                  /* vl */
++OB_DEF     (s390_vec_xl,                s390_vec_xl_s8,     s390_vec_xl_dbl,    B_VX,               BT_FN_V4SI_INT_VOIDCONSTPTR)
++OB_DEF_VAR (s390_vec_xl_s8,             MAX,                0,                  O1_LIT,             BT_OV_V16QI_LONG_SCHARCONSTPTR)          /* vl */
++OB_DEF_VAR (s390_vec_xl_u8,             MAX,                0,                  O1_LIT,             BT_OV_UV16QI_LONG_UCHARCONSTPTR)         /* vl */
++OB_DEF_VAR (s390_vec_xl_s16,            MAX,                0,                  O1_LIT,             BT_OV_V8HI_LONG_SHORTCONSTPTR)           /* vl */
++OB_DEF_VAR (s390_vec_xl_u16,            MAX,                0,                  O1_LIT,             BT_OV_UV8HI_LONG_USHORTCONSTPTR)         /* vl */
++OB_DEF_VAR (s390_vec_xl_s32,            MAX,                0,                  O1_LIT,             BT_OV_V4SI_LONG_INTCONSTPTR)             /* vl */
++OB_DEF_VAR (s390_vec_xl_u32,            MAX,                0,                  O1_LIT,             BT_OV_UV4SI_LONG_UINTCONSTPTR)           /* vl */
++OB_DEF_VAR (s390_vec_xl_s64,            MAX,                0,                  O1_LIT,             BT_OV_V2DI_LONG_LONGLONGCONSTPTR)        /* vl */
++OB_DEF_VAR (s390_vec_xl_u64,            MAX,                0,                  O1_LIT,             BT_OV_UV2DI_LONG_ULONGLONGCONSTPTR)      /* vl */
++OB_DEF_VAR (s390_vec_xl_flt,            MAX,                0,                  O1_LIT,             BT_OV_V4SF_LONG_FLTCONSTPTR)             /* vl */
++OB_DEF_VAR (s390_vec_xl_dbl,            MAX,                0,                  O1_LIT,             BT_OV_V2DF_LONG_DBLCONSTPTR)             /* vl */
+ 
+-OB_DEF     (s390_vec_xld2,              s390_vec_xld2_s8,   s390_vec_xld2_dbl,  B_DEP | B_VX,       BT_FN_V4SI_INT_VOIDPTR)
+-OB_DEF_VAR (s390_vec_xld2_s8,           MAX,                0,                  O1_LIT,             BT_OV_V16QI_LONG_SCHARPTR)               /* vl */
+-OB_DEF_VAR (s390_vec_xld2_u8,           MAX,                0,                  O1_LIT,             BT_OV_UV16QI_LONG_UCHARPTR)              /* vl */
+-OB_DEF_VAR (s390_vec_xld2_s16,          MAX,                0,                  O1_LIT,             BT_OV_V8HI_LONG_SHORTPTR)                /* vl */
+-OB_DEF_VAR (s390_vec_xld2_u16,          MAX,                0,                  O1_LIT,             BT_OV_UV8HI_LONG_USHORTPTR)              /* vl */
+-OB_DEF_VAR (s390_vec_xld2_s32,          MAX,                0,                  O1_LIT,             BT_OV_V4SI_LONG_INTPTR)                  /* vl */
+-OB_DEF_VAR (s390_vec_xld2_u32,          MAX,                0,                  O1_LIT,             BT_OV_UV4SI_LONG_UINTPTR)                /* vl */
+-OB_DEF_VAR (s390_vec_xld2_s64,          MAX,                0,                  O1_LIT,             BT_OV_V2DI_LONG_LONGLONGPTR)             /* vl */
+-OB_DEF_VAR (s390_vec_xld2_u64,          MAX,                0,                  O1_LIT,             BT_OV_UV2DI_LONG_ULONGLONGPTR)           /* vl */
+-OB_DEF_VAR (s390_vec_xld2_dbl,          MAX,                0,                  O1_LIT,             BT_OV_V2DF_LONG_DBLPTR)                  /* vl */
++OB_DEF     (s390_vec_xld2,              s390_vec_xld2_s8,   s390_vec_xld2_dbl,  B_DEP | B_VX,       BT_FN_V4SI_INT_VOIDCONSTPTR)
++OB_DEF_VAR (s390_vec_xld2_s8,           MAX,                0,                  O1_LIT,             BT_OV_V16QI_LONG_SCHARCONSTPTR)          /* vl */
++OB_DEF_VAR (s390_vec_xld2_u8,           MAX,                0,                  O1_LIT,             BT_OV_UV16QI_LONG_UCHARCONSTPTR)         /* vl */
++OB_DEF_VAR (s390_vec_xld2_s16,          MAX,                0,                  O1_LIT,             BT_OV_V8HI_LONG_SHORTCONSTPTR)           /* vl */
++OB_DEF_VAR (s390_vec_xld2_u16,          MAX,                0,                  O1_LIT,             BT_OV_UV8HI_LONG_USHORTCONSTPTR)         /* vl */
++OB_DEF_VAR (s390_vec_xld2_s32,          MAX,                0,                  O1_LIT,             BT_OV_V4SI_LONG_INTCONSTPTR)             /* vl */
++OB_DEF_VAR (s390_vec_xld2_u32,          MAX,                0,                  O1_LIT,             BT_OV_UV4SI_LONG_UINTCONSTPTR)           /* vl */
++OB_DEF_VAR (s390_vec_xld2_s64,          MAX,                0,                  O1_LIT,             BT_OV_V2DI_LONG_LONGLONGCONSTPTR)        /* vl */
++OB_DEF_VAR (s390_vec_xld2_u64,          MAX,                0,                  O1_LIT,             BT_OV_UV2DI_LONG_ULONGLONGCONSTPTR)      /* vl */
++OB_DEF_VAR (s390_vec_xld2_flt,          MAX,                B_VXE,              O1_LIT,             BT_OV_V4SF_LONG_FLTCONSTPTR)             /* vl */
++OB_DEF_VAR (s390_vec_xld2_dbl,          MAX,                0,                  O1_LIT,             BT_OV_V2DF_LONG_DBLCONSTPTR)             /* vl */
+ 
+-OB_DEF     (s390_vec_xlw4,              s390_vec_xlw4_s8,   s390_vec_xlw4_u32,  B_DEP | B_VX,       BT_FN_V4SI_INT_VOIDPTR)
+-OB_DEF_VAR (s390_vec_xlw4_s8,           MAX,                0,                  O1_LIT,             BT_OV_V16QI_LONG_SCHARPTR)               /* vl */
+-OB_DEF_VAR (s390_vec_xlw4_u8,           MAX,                0,                  O1_LIT,             BT_OV_UV16QI_LONG_UCHARPTR)              /* vl */
+-OB_DEF_VAR (s390_vec_xlw4_s16,          MAX,                0,                  O1_LIT,             BT_OV_V8HI_LONG_SHORTPTR)                /* vl */
+-OB_DEF_VAR (s390_vec_xlw4_u16,          MAX,                0,                  O1_LIT,             BT_OV_UV8HI_LONG_USHORTPTR)              /* vl */
+-OB_DEF_VAR (s390_vec_xlw4_s32,          MAX,                0,                  O1_LIT,             BT_OV_V4SI_LONG_INTPTR)                  /* vl */
+-OB_DEF_VAR (s390_vec_xlw4_u32,          MAX,                0,                  O1_LIT,             BT_OV_UV4SI_LONG_UINTPTR)                /* vl */
++OB_DEF     (s390_vec_xlw4,              s390_vec_xlw4_s8,   s390_vec_xlw4_flt,  B_DEP | B_VX,       BT_FN_V4SI_INT_VOIDCONSTPTR)
++OB_DEF_VAR (s390_vec_xlw4_s8,           MAX,                0,                  O1_LIT,             BT_OV_V16QI_LONG_SCHARCONSTPTR)          /* vl */
++OB_DEF_VAR (s390_vec_xlw4_u8,           MAX,                0,                  O1_LIT,             BT_OV_UV16QI_LONG_UCHARCONSTPTR)         /* vl */
++OB_DEF_VAR (s390_vec_xlw4_s16,          MAX,                0,                  O1_LIT,             BT_OV_V8HI_LONG_SHORTCONSTPTR)           /* vl */
++OB_DEF_VAR (s390_vec_xlw4_u16,          MAX,                0,                  O1_LIT,             BT_OV_UV8HI_LONG_USHORTCONSTPTR)         /* vl */
++OB_DEF_VAR (s390_vec_xlw4_s32,          MAX,                0,                  O1_LIT,             BT_OV_V4SI_LONG_INTCONSTPTR)             /* vl */
++OB_DEF_VAR (s390_vec_xlw4_u32,          MAX,                0,                  O1_LIT,             BT_OV_UV4SI_LONG_UINTCONSTPTR)           /* vl */
++OB_DEF_VAR (s390_vec_xlw4_flt,          MAX,                B_VXE,              O1_LIT,             BT_OV_V4SF_LONG_FLTCONSTPTR)             /* vl */
+ 
+ OB_DEF     (s390_vec_splats,            s390_vec_splats_s8, s390_vec_splats_dbl,B_VX,               BT_FN_OV4SI_INT)
+ OB_DEF_VAR (s390_vec_splats_s8,         s390_vlrepb,        0,                  0,                  BT_OV_V16QI_SCHAR)
+@@ -746,7 +748,7 @@
+ OB_DEF_VAR (s390_vec_xstd2_u64,         MAX,                0,                  O2_LIT,             BT_OV_VOID_UV2DI_LONG_ULONGLONGPTR)      /* vst */
+ OB_DEF_VAR (s390_vec_xstd2_dbl,         MAX,                0,                  O2_LIT,             BT_OV_VOID_V2DF_LONG_DBLPTR)             /* vst */
+ 
+-OB_DEF     (s390_vec_xstw4,             s390_vec_xstw4_s8,  s390_vec_xstw4_u32, B_DEP | B_VX,       BT_FN_VOID_OV4SI_INT_VOIDPTR)
++OB_DEF     (s390_vec_xstw4,             s390_vec_xstw4_s8,  s390_vec_xstw4_flt, B_DEP | B_VX,       BT_FN_VOID_OV4SI_INT_VOIDPTR)
+ OB_DEF_VAR (s390_vec_xstw4_s8,          MAX,                0,                  O2_LIT,             BT_OV_VOID_V16QI_LONG_SCHARPTR)          /* vst */
+ OB_DEF_VAR (s390_vec_xstw4_u8,          MAX,                0,                  O2_LIT,             BT_OV_VOID_UV16QI_LONG_UCHARPTR)         /* vst */
+ OB_DEF_VAR (s390_vec_xstw4_s16,         MAX,                0,                  O2_LIT,             BT_OV_VOID_V8HI_LONG_SHORTPTR)           /* vst */
+@@ -753,6 +755,7 @@
+ OB_DEF_VAR (s390_vec_xstw4_u16,         MAX,                0,                  O2_LIT,             BT_OV_VOID_UV8HI_LONG_USHORTPTR)         /* vst */
+ OB_DEF_VAR (s390_vec_xstw4_s32,         MAX,                0,                  O2_LIT,             BT_OV_VOID_V4SI_LONG_INTPTR)             /* vst */
+ OB_DEF_VAR (s390_vec_xstw4_u32,         MAX,                0,                  O2_LIT,             BT_OV_VOID_UV4SI_LONG_UINTPTR)           /* vst */
++OB_DEF_VAR (s390_vec_xstw4_flt,         MAX,                B_VXE,              O2_LIT,             BT_OV_VOID_V4SF_LONG_FLTPTR)             /* vst */
+ 
+ OB_DEF     (s390_vec_store_len,         s390_vec_store_len_s8,s390_vec_store_len_dbl,B_VX,          BT_FN_VOID_OV4SI_VOIDPTR_UINT)
+ OB_DEF_VAR (s390_vec_store_len_s8,      s390_vstl,          0,                  0,                  BT_OV_VOID_V16QI_SCHARPTR_UINT)
 Index: gcc/config/i386/sse.md
 ===================================================================
 --- a/src/gcc/config/i386/sse.md	(.../tags/gcc_8_3_0_release)
@@ -3599,7 +4887,20 @@ Index: gcc/config/i386/i386.c
 ===================================================================
 --- a/src/gcc/config/i386/i386.c	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/config/i386/i386.c	(.../branches/gcc-8-branch)
-@@ -39641,7 +39641,7 @@
+@@ -4958,6 +4958,12 @@
+ 			   opts->x_param_values,
+ 			   opts_set->x_param_values);
+ 
++  /* PR86952: jump table usage with retpolines is slow.
++     The PR provides some numbers about the slowness.  */
++  if (ix86_indirect_branch != indirect_branch_keep
++      && !opts_set->x_flag_jump_tables)
++    opts->x_flag_jump_tables = 0;
++
+   return true;
+ }
+ 
+@@ -39641,7 +39647,7 @@
  static bool
  use_rsqrt_p ()
  {
@@ -3608,7 +4909,7 @@ Index: gcc/config/i386/i386.c
  	  && flag_finite_math_only
  	  && !flag_trapping_math
  	  && flag_unsafe_math_optimizations);
-@@ -50999,7 +50999,7 @@
+@@ -50999,7 +51005,7 @@
       there is no adddf3 pattern (since x87 floating point only has
       XFmode operations) so the default hook implementation gets this
       wrong.  */
@@ -3617,7 +4918,7 @@ Index: gcc/config/i386/i386.c
  }
  
  /* Implement TARGET_ATOMIC_ASSIGN_EXPAND_FENV.  */
-@@ -51007,7 +51007,7 @@
+@@ -51007,7 +51013,7 @@
  static void
  ix86_atomic_assign_expand_fenv (tree *hold, tree *clear, tree *update)
  {
@@ -3626,7 +4927,7 @@ Index: gcc/config/i386/i386.c
      return;
    tree exceptions_var = create_tmp_var_raw (integer_type_node);
    if (TARGET_80387)
-@@ -51042,7 +51042,7 @@
+@@ -51042,7 +51048,7 @@
        tree update_fldenv = build_call_expr (fldenv, 1, fenv_addr);
        *update = build2 (COMPOUND_EXPR, void_type_node, *update, update_fldenv);
      }
@@ -3635,7 +4936,7 @@ Index: gcc/config/i386/i386.c
      {
        tree mxcsr_orig_var = create_tmp_var_raw (unsigned_type_node);
        tree mxcsr_mod_var = create_tmp_var_raw (unsigned_type_node);
-@@ -51399,7 +51399,7 @@
+@@ -51399,7 +51405,7 @@
  	  return FLT_EVAL_METHOD_PROMOTE_TO_FLOAT;
  	else if (!TARGET_MIX_SSE_I387)
  	  {
@@ -4034,6 +5335,35 @@ Index: gcc/config/rs6000/altivec.h
  #endif
  
  #ifdef __POWER9_VECTOR__
+Index: gcc/config/arm/arm.h
+===================================================================
+--- a/src/gcc/config/arm/arm.h	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/arm/arm.h	(.../branches/gcc-8-branch)
+@@ -191,7 +191,7 @@
+ /* FPU supports converting between HFmode and DFmode in a single hardware
+    step.  */
+ #define TARGET_FP16_TO_DOUBLE						\
+-  (TARGET_HARD_FLOAT && (TARGET_FP16 && TARGET_VFP5))
++  (TARGET_HARD_FLOAT && TARGET_FP16 && TARGET_VFP5 && TARGET_VFP_DOUBLE)
+ 
+ /* FPU supports fused-multiply-add operations.  */
+ #define TARGET_FMA (bitmap_bit_p (arm_active_target.isa, isa_bit_vfpv4))
+Index: gcc/params.def
+===================================================================
+--- a/src/gcc/params.def	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/params.def	(.../branches/gcc-8-branch)
+@@ -1331,6 +1331,11 @@
+ 	 "Maximum number of bits for which we avoid creating FMAs.",
+ 	 0, 0, 512)
+ 
++DEFPARAM(PARAM_LOGICAL_OP_NON_SHORT_CIRCUIT,
++	 "logical-op-non-short-circuit",
++	 "True if a non-short-circuit operation is optimal.",
++	 -1, -1, 1)
++
+ /*
+ 
+ Local variables:
 Index: libgfortran/ChangeLog
 ===================================================================
 --- a/src/libgfortran/ChangeLog	(.../tags/gcc_8_3_0_release)
@@ -4075,3 +5405,46 @@ Index: libgfortran/io/close.c
  	  free (path);
  	}
  #endif
+Index: libcpp/line-map.c
+===================================================================
+--- a/src/libcpp/line-map.c	(.../tags/gcc_8_3_0_release)
++++ b/src/libcpp/line-map.c	(.../branches/gcc-8-branch)
+@@ -755,6 +755,11 @@
+       if (line_delta < 0
+ 	  || last_line != ORDINARY_MAP_STARTING_LINE_NUMBER (map)
+ 	  || SOURCE_COLUMN (map, highest) >= (1U << (column_bits - range_bits))
++	  || ( /* We can't reuse the map if the line offset is sufficiently
++		  large to cause overflow when computing location_t values.  */
++	      (to_line - ORDINARY_MAP_STARTING_LINE_NUMBER (map))
++	      >= (((uint64_t) 1)
++		  << (CHAR_BIT * sizeof (linenum_type) - column_bits)))
+ 	  || range_bits < map->m_range_bits)
+ 	map = linemap_check_ordinary
+ 	        (const_cast <line_map *>
+Index: libcpp/ChangeLog
+===================================================================
+--- a/src/libcpp/ChangeLog	(.../tags/gcc_8_3_0_release)
++++ b/src/libcpp/ChangeLog	(.../branches/gcc-8-branch)
+@@ -1,3 +1,22 @@
++2019-03-11  Martin Liska  <mliska@suse.cz>
++
++	Backport from mainline
++	2019-02-18  Martin Liska  <mliska@suse.cz>
++
++	PR c++/89383
++	* line-map.c (linemap_line_start): Use 1UL in order
++	to not overflow.
++
++2019-03-11  Martin Liska  <mliska@suse.cz>
++
++	Backport from mainline
++	2019-02-11  Martin Liska  <mliska@suse.cz>
++
++	PR lto/88147
++	* line-map.c (linemap_line_start): Don't reuse the existing line
++	map if the line offset is sufficiently large to cause overflow
++	when computing location_t values.
++
+ 2019-02-22  Release Manager
+ 
+ 	* GCC 8.3.0 released.
