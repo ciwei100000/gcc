@@ -206,7 +206,7 @@ Pre-Depends: ${misc:Pre-Depends}
 Breaks: ${multiarch:breaks}
 ')`'dnl
 BUILT_USING`'dnl
-Description: GCC support library`'ifdef(`TARGET)',` (TARGET)', `')
+Description: GCC support library`'ifdef(`TARGET',` (TARGET)', `')
  Shared version of the support library, a library of internal subroutines
  that GCC uses to overcome shortcomings of particular machines, or
  special needs for some languages.
@@ -227,7 +227,7 @@ ifdef(`TARGET',`',`Provides: libgcc1-dbg-armel [armel], libgcc1-dbg-armhf [armhf
 ifdef(`MULTIARCH',`Multi-Arch: same
 ')dnl
 BUILT_USING`'dnl
-Description: GCC support library (debug symbols)`'ifdef(`TARGET)',` (TARGET)', `')
+Description: GCC support library (debug symbols)`'ifdef(`TARGET',` (TARGET)', `')
  Debug symbols for the GCC support library.
 ifdef(`TARGET', `dnl
  .
@@ -248,7 +248,7 @@ Pre-Depends: ${misc:Pre-Depends}
 Breaks: ${multiarch:breaks}
 ')`'dnl
 BUILT_USING`'dnl
-Description: GCC support library`'ifdef(`TARGET)',` (TARGET)', `')
+Description: GCC support library`'ifdef(`TARGET',` (TARGET)', `')
  Shared version of the support library, a library of internal subroutines
  that GCC uses to overcome shortcomings of particular machines, or
  special needs for some languages.
@@ -267,7 +267,7 @@ Depends: BASELDEP, libdep(gcc2,,=,${gcc:EpochVersion}), ${misc:Depends}
 ifdef(`MULTIARCH', `Multi-Arch: same
 ')`'dnl
 BUILT_USING`'dnl
-Description: GCC support library (debug symbols)`'ifdef(`TARGET)',` (TARGET)', `')
+Description: GCC support library (debug symbols)`'ifdef(`TARGET',` (TARGET)', `')
  Debug symbols for the GCC support library.
 ifdef(`TARGET', `dnl
  .
@@ -308,7 +308,7 @@ Section: ifdef(`TARGET',`devel',`libs')
 Priority: optional
 Depends: BASELDEP, ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
-Description: GCC support library`'ifdef(`TARGET)',` (TARGET)', `')
+Description: GCC support library`'ifdef(`TARGET',` (TARGET)', `')
  Shared version of the support library, a library of internal subroutines
  that GCC uses to overcome shortcomings of particular machines, or
  special needs for some languages.
@@ -327,7 +327,7 @@ Section: debug
 Priority: optional
 Depends: BASELDEP, libdep(gcc4,,=,${gcc:EpochVersion}), ${misc:Depends}
 BUILT_USING`'dnl
-Description: GCC support library (debug symbols)`'ifdef(`TARGET)',` (TARGET)', `')
+Description: GCC support library (debug symbols)`'ifdef(`TARGET',` (TARGET)', `')
  Debug symbols for the GCC support library.
 ifdef(`TARGET', `dnl
  .
@@ -346,7 +346,7 @@ ifdef(`TARGET',`Provides: lib64gcc1-TARGET-dcv1
 ',`')`'dnl
 Conflicts: libdep(gcc`'GCC_SO,,<=,1:3.3-0pre9)
 BUILT_USING`'dnl
-Description: GCC support library`'ifdef(`TARGET)',` (TARGET)', `') (64bit)
+Description: GCC support library`'ifdef(`TARGET',` (TARGET)', `') (64bit)
  Shared version of the support library, a library of internal subroutines
  that GCC uses to overcome shortcomings of particular machines, or
  special needs for some languages.
@@ -363,7 +363,7 @@ Section: debug
 Priority: optional
 Depends: BASELDEP, libdep(gcc1,64,=,${gcc:EpochVersion}), ${misc:Depends}
 BUILT_USING`'dnl
-Description: GCC support library (debug symbols)`'ifdef(`TARGET)',` (TARGET)', `')
+Description: GCC support library (debug symbols)`'ifdef(`TARGET',` (TARGET)', `')
  Debug symbols for the GCC support library.
 ifdef(`TARGET', `dnl
  .
@@ -420,7 +420,7 @@ Section: debug
 Priority: optional
 Depends: BASELDEP, libdep(gcc1,32,=,${gcc:EpochVersion}), ${misc:Depends}
 BUILT_USING`'dnl
-Description: GCC support library (debug symbols)`'ifdef(`TARGET)',` (TARGET)', `')
+Description: GCC support library (debug symbols)`'ifdef(`TARGET',` (TARGET)', `')
  Debug symbols for the GCC support library.
 ifdef(`TARGET', `dnl
  .
@@ -477,7 +477,7 @@ ifdef(`TARGET',`Provides: libhfgcc1-TARGET-dcv1
 ',`Conflicts: libgcc1-armhf [biarchhf_archs]
 ')`'dnl
 BUILT_USING`'dnl
-Description: GCC support library`'ifdef(`TARGET)',` (TARGET)', `') (hard float ABI)
+Description: GCC support library`'ifdef(`TARGET',` (TARGET)', `') (hard float ABI)
  Shared version of the support library, a library of internal subroutines
  that GCC uses to overcome shortcomings of particular machines, or
  special needs for some languages.
@@ -495,7 +495,7 @@ Priority: optional
 Depends: BASELDEP, libdep(gcc1,hf,=,${gcc:EpochVersion}), ${misc:Depends}
 ifdef(`TARGET',`dnl',`Conflicts: libgcc1-dbg-armhf [biarchhf_archs]')
 BUILT_USING`'dnl
-Description: GCC support library (debug symbols)`'ifdef(`TARGET)',` (TARGET)', `')
+Description: GCC support library (debug symbols)`'ifdef(`TARGET',` (TARGET)', `')
  Debug symbols for the GCC support library.
 ifdef(`TARGET', `dnl
  .
@@ -537,7 +537,7 @@ ifdef(`TARGET',`Provides: libsfgcc1-TARGET-dcv1
 ',`Conflicts: libgcc1-armel [biarchsf_archs]
 ')`'dnl
 BUILT_USING`'dnl
-Description: GCC support library`'ifdef(`TARGET)',` (TARGET)', `') (soft float ABI)
+Description: GCC support library`'ifdef(`TARGET',` (TARGET)', `') (soft float ABI)
  Shared version of the support library, a library of internal subroutines
  that GCC uses to overcome shortcomings of particular machines, or
  special needs for some languages.
@@ -555,7 +555,7 @@ Priority: optional
 Depends: BASELDEP, libdep(gcc1,sf,=,${gcc:EpochVersion}), ${misc:Depends}
 ifdef(`TARGET',`dnl',`Conflicts: libgcc1-dbg-armel [biarchsf_archs]')
 BUILT_USING`'dnl
-Description: GCC support library (debug symbols)`'ifdef(`TARGET)',` (TARGET)', `')
+Description: GCC support library (debug symbols)`'ifdef(`TARGET',` (TARGET)', `')
  Debug symbols for the GCC support library.
 ifdef(`TARGET', `dnl
  .
@@ -597,7 +597,7 @@ Conflicts: libdep(gcc`'GCC_SO,,<=,1:3.3-0pre9)
 ifdef(`TARGET',`Provides: libn32gcc1-TARGET-dcv1
 ',`')`'dnl
 BUILT_USING`'dnl
-Description: GCC support library`'ifdef(`TARGET)',` (TARGET)', `') (n32)
+Description: GCC support library`'ifdef(`TARGET',` (TARGET)', `') (n32)
  Shared version of the support library, a library of internal subroutines
  that GCC uses to overcome shortcomings of particular machines, or
  special needs for some languages.
@@ -614,7 +614,7 @@ Section: debug
 Priority: optional
 Depends: BASELDEP, libdep(gcc1,n32,=,${gcc:EpochVersion}), ${misc:Depends}
 BUILT_USING`'dnl
-Description: GCC support library (debug symbols)`'ifdef(`TARGET)',` (TARGET)', `')
+Description: GCC support library (debug symbols)`'ifdef(`TARGET',` (TARGET)', `')
  Debug symbols for the GCC support library.
 ifdef(`TARGET', `dnl
  .
@@ -653,7 +653,7 @@ Depends: BASELDEP, ${dep:libcbiarch}, ${misc:Depends}
 ifdef(`TARGET',`Provides: libx32gcc1-TARGET-dcv1
 ',`')`'dnl
 BUILT_USING`'dnl
-Description: GCC support library`'ifdef(`TARGET)',` (TARGET)', `') (x32)
+Description: GCC support library`'ifdef(`TARGET',` (TARGET)', `') (x32)
  Shared version of the support library, a library of internal subroutines
  that GCC uses to overcome shortcomings of particular machines, or
  special needs for some languages.
@@ -670,7 +670,7 @@ Section: debug
 Priority: optional
 Depends: BASELDEP, libdep(gcc1,x32,=,${gcc:EpochVersion}), ${misc:Depends}
 BUILT_USING`'dnl
-Description: GCC support library (debug symbols)`'ifdef(`TARGET)',` (TARGET)', `')
+Description: GCC support library (debug symbols)`'ifdef(`TARGET',` (TARGET)', `')
  Debug symbols for the GCC support library.
 ifdef(`TARGET', `dnl
  .
@@ -734,7 +734,7 @@ Provides: c-compiler`'TS
 ifdef(`TARGET',`Conflicts: gcc-multilib
 ')`'dnl
 BUILT_USING`'dnl
-Description: GNU C compiler`'ifdef(`TARGET)',` (cross compiler for TARGET architecture)', `')
+Description: GNU C compiler`'ifdef(`TARGET',` (cross compiler for TARGET architecture)', `')
  This is the GNU C compiler, a fairly portable optimizing compiler for C.
 ifdef(`TARGET', `dnl
  .
@@ -750,7 +750,7 @@ Section: devel
 Priority: optional
 Depends: BASEDEP, gcc`'PV`'TS (= ${gcc:Version}), ${dep:libcbiarchdev}, ${dep:libgccbiarchdev}, ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
-Description: GNU C compiler (multilib support)`'ifdef(`TARGET)',` (cross compiler for TARGET architecture)', `')
+Description: GNU C compiler (multilib support)`'ifdef(`TARGET',` (cross compiler for TARGET architecture)', `')
  This is the GNU C compiler, a fairly portable optimizing compiler for C.
  .
  This is a dependency package, depending on development packages
@@ -861,10 +861,10 @@ ifdef(`TARGET',`Multi-Arch: foreign
 Section: devel
 Priority: optional
 Depends: BASEDEP, gcc`'PV`'TS (= ${gcc:Version}), libidevdep(stdc++`'PV-dev,,=), ${shlibs:Depends}, ${misc:Depends}
-Provides: c++-compiler`'TS`'ifdef(`TARGET)',`',`, c++abi2-dev')
+Provides: c++-compiler`'TS`'ifdef(`TARGET',`',`, c++abi2-dev')
 Suggests: ${gxx:multilib}, gcc`'PV-doc (>= ${gcc:SoftVersion}), libdbgdep(stdc++CXX_SO`'PV-dbg,)
 BUILT_USING`'dnl
-Description: GNU C++ compiler`'ifdef(`TARGET)',` (cross compiler for TARGET architecture)', `')
+Description: GNU C++ compiler`'ifdef(`TARGET',` (cross compiler for TARGET architecture)', `')
  This is the GNU C++ compiler, a fairly portable optimizing compiler for C++.
 ifdef(`TARGET', `dnl
  .
@@ -881,7 +881,7 @@ Priority: optional
 Depends: BASEDEP, g++`'PV`'TS (= ${gcc:Version}), gcc`'PV-multilib`'TS (= ${gcc:Version}), ${dep:libcxxbiarchdev}, ${shlibs:Depends}, ${misc:Depends}
 Suggests: ${dep:libcxxbiarchdbg}
 BUILT_USING`'dnl
-Description: GNU C++ compiler (multilib support)`'ifdef(`TARGET)',` (cross compiler for TARGET architecture)', `')
+Description: GNU C++ compiler (multilib support)`'ifdef(`TARGET',` (cross compiler for TARGET architecture)', `')
  This is the GNU C++ compiler, a fairly portable optimizing compiler for C++.
  .
  This is a dependency package, depending on development packages
@@ -3278,7 +3278,7 @@ Section: devel
 Priority: optional
 Depends: BASEDEP, gobjc`'PV`'TS (= ${gcc:Version}), gcc`'PV-multilib`'TS (= ${gcc:Version}), ${dep:libobjcbiarchdev}, ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
-Description: GNU Objective-C compiler (multilib support)`'ifdef(`TARGET)',` (cross compiler for TARGET architecture)', `')
+Description: GNU Objective-C compiler (multilib support)`'ifdef(`TARGET',` (cross compiler for TARGET architecture)', `')
  This is the GNU Objective-C compiler, which compiles Objective-C on platforms
  supported by the gcc compiler.
  .
@@ -3585,7 +3585,7 @@ Section: devel
 Priority: optional
 Depends: BASEDEP, gfortran`'PV`'TS (= ${gcc:Version}), gcc`'PV-multilib`'TS (= ${gcc:Version}), ${dep:libgfortranbiarchdev}, ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
-Description: GNU Fortran compiler (multilib support)`'ifdef(`TARGET)',` (cross compiler for TARGET architecture)', `')
+Description: GNU Fortran compiler (multilib support)`'ifdef(`TARGET',` (cross compiler for TARGET architecture)', `')
  This is the GNU Fortran compiler, which compiles Fortran on platforms
  supported by the gcc compiler.
  .
@@ -3930,7 +3930,7 @@ Replaces: lib32go12`'LS (<< 8-20171209-2),
   libx32go12`'LS (<< 8-20171209-2),
   lib64go12`'LS (<< 8-20171209-2)
 BUILT_USING`'dnl
-Description: GNU Go compiler (multilib support)`'ifdef(`TARGET)',` (cross compiler for TARGET architecture)', `')
+Description: GNU Go compiler (multilib support)`'ifdef(`TARGET',` (cross compiler for TARGET architecture)', `')
  This is the GNU Go compiler, which compiles Go on platforms supported
  by the gcc compiler.
  .
@@ -3948,7 +3948,7 @@ BUILT_USING`'dnl
 Description: Documentation for the GNU Go compiler (gccgo)
  Documentation for the GNU Go compiler in info `format'.
 ')`'dnl gfdldoc
-')`'dnl fdev
+')`'dnl godev
 
 ifenabled(`libggo',`
 Package: libgo`'GO_SO`'LS
@@ -4107,7 +4107,7 @@ Breaks: ${multiarch:breaks}, PR66145BREAKS
 Conflicts: scim (<< 1.4.2-1)
 Replaces: libstdc++CXX_SO`'PV-dbg`'LS (<< 4.9.0-3)
 BUILT_USING`'dnl
-Description: GNU Standard C++ Library v3`'ifdef(`TARGET)',` (TARGET)', `')
+Description: GNU Standard C++ Library v3`'ifdef(`TARGET',` (TARGET)', `')
  This package contains an additional runtime library for C++ programs
  built with the GNU compiler.
  .
@@ -4152,7 +4152,7 @@ Depends: BASELDEP, libdep(gcc1,64), ${shlibs:Depends}, ${misc:Depends}
 ifdef(`TARGET',`Provides: lib64stdc++CXX_SO-TARGET-dcv1
 ',`')`'dnl
 BUILT_USING`'dnl
-Description: GNU Standard C++ Library v3`'ifdef(`TARGET)',` (TARGET)', `') (64bit)
+Description: GNU Standard C++ Library v3`'ifdef(`TARGET',` (TARGET)', `') (64bit)
  This package contains an additional runtime library for C++ programs
  built with the GNU compiler.
  .
@@ -4176,7 +4176,7 @@ Depends: BASELDEP, libdep(gcc1,n32), ${shlibs:Depends}, ${misc:Depends}
 ifdef(`TARGET',`Provides: libn32stdc++CXX_SO-TARGET-dcv1
 ',`')`'dnl
 BUILT_USING`'dnl
-Description: GNU Standard C++ Library v3`'ifdef(`TARGET)',` (TARGET)', `') (n32)
+Description: GNU Standard C++ Library v3`'ifdef(`TARGET',` (TARGET)', `') (n32)
  This package contains an additional runtime library for C++ programs
  built with the GNU compiler.
  .
@@ -4200,7 +4200,7 @@ Depends: BASELDEP, libdep(gcc1,x32), ${shlibs:Depends}, ${misc:Depends}
 ifdef(`TARGET',`Provides: libx32stdc++CXX_SO-TARGET-dcv1
 ',`')`'dnl
 BUILT_USING`'dnl
-Description: GNU Standard C++ Library v3`'ifdef(`TARGET)',` (TARGET)', `') (x32)
+Description: GNU Standard C++ Library v3`'ifdef(`TARGET',` (TARGET)', `') (x32)
  This package contains an additional runtime library for C++ programs
  built with the GNU compiler.
  .
@@ -4225,7 +4225,7 @@ ifdef(`TARGET',`Provides: libhfstdc++CXX_SO-TARGET-dcv1
 ',`')`'dnl
 ifdef(`TARGET',`dnl',`Conflicts: libstdc++'CXX_SO`-armhf [biarchhf_archs]')
 BUILT_USING`'dnl
-Description: GNU Standard C++ Library v3`'ifdef(`TARGET)',` (TARGET)', `') (hard float ABI)
+Description: GNU Standard C++ Library v3`'ifdef(`TARGET',` (TARGET)', `') (hard float ABI)
  This package contains an additional runtime library for C++ programs
  built with the GNU compiler.
  .
@@ -4250,7 +4250,7 @@ ifdef(`TARGET',`Provides: libsfstdc++CXX_SO-TARGET-dcv1
 ',`')`'dnl
 ifdef(`TARGET',`dnl',`Conflicts: libstdc++'CXX_SO`-armel [biarchsf_archs]')
 BUILT_USING`'dnl
-Description: GNU Standard C++ Library v3`'ifdef(`TARGET)',` (TARGET)', `') (soft float ABI)
+Description: GNU Standard C++ Library v3`'ifdef(`TARGET',` (TARGET)', `') (soft float ABI)
  This package contains an additional runtime library for C++ programs
  built with the GNU compiler.
  .
@@ -4298,7 +4298,7 @@ Suggests: libstdc++`'PV-doc
 ')`'dnl native
 Provides: libstdc++-dev`'LS`'ifdef(`TARGET',`, libstdc++-dev-TARGET-dcv1')
 BUILT_USING`'dnl
-Description: GNU Standard C++ Library v3 (development files)`'ifdef(`TARGET)',` (TARGET)', `')
+Description: GNU Standard C++ Library v3 (development files)`'ifdef(`TARGET',` (TARGET)', `')
  This package contains the headers and static library files necessary for
  building C++ programs which use libstdc++.
  .
@@ -4323,7 +4323,7 @@ Depends: BASELDEP, libdep(stdc++CXX_SO,),
 ifdef(`TARGET',`Provides: libstdc++-pic-TARGET-dcv1
 ',`')`'dnl
 BUILT_USING`'dnl
-Description: GNU Standard C++ Library v3 (shared library subset kit)`'ifdef(`TARGET)',` (TARGET)', `')
+Description: GNU Standard C++ Library v3 (shared library subset kit)`'ifdef(`TARGET',` (TARGET)', `')
  This is used to develop subsets of the libstdc++ shared libraries for
  use on custom installation floppies and in embedded systems.
  .
@@ -4352,7 +4352,7 @@ Conflicts: libstdc++5-dbg`'LS, libstdc++5-3.3-dbg`'LS, libstdc++6-dbg`'LS,
  libstdc++6-4.9-dbg`'LS, libstdc++6-5-dbg`'LS, libstdc++6-6-dbg`'LS,
  libstdc++6-7-dbg`'LS
 BUILT_USING`'dnl
-Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET)',` (TARGET)', `')
+Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET',` (TARGET)', `')
  This package contains the shared library of libstdc++ compiled with
  debugging symbols.
 ifdef(`TARGET', `dnl
@@ -4398,7 +4398,7 @@ Conflicts: lib32stdc++6-dbg`'LS, lib32stdc++6-4.0-dbg`'LS,
  lib32stdc++6-4.7-dbg`'LS, lib32stdc++6-4.8-dbg`'LS, lib32stdc++6-4.9-dbg`'LS,
  lib32stdc++6-5-dbg`'LS, lib32stdc++6-6-dbg`'LS, lib32stdc++6-7-dbg`'LS
 BUILT_USING`'dnl
-Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET)',` (TARGET)', `')
+Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET',` (TARGET)', `')
  This package contains the shared library of libstdc++ compiled with
  debugging symbols.
 ifdef(`TARGET', `dnl
@@ -4444,7 +4444,7 @@ Conflicts: lib64stdc++6-dbg`'LS, lib64stdc++6-4.0-dbg`'LS,
  lib64stdc++6-4.7-dbg`'LS, lib64stdc++6-4.8-dbg`'LS, lib64stdc++6-4.9-dbg`'LS,
  lib64stdc++6-5-dbg`'LS, lib64stdc++6-6-dbg`'LS, lib64stdc++6-7-dbg`'LS,
 BUILT_USING`'dnl
-Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET)',` (TARGET)', `')
+Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET',` (TARGET)', `')
  This package contains the shared library of libstdc++ compiled with
  debugging symbols.
 ifdef(`TARGET', `dnl
@@ -4490,7 +4490,7 @@ Conflicts: libn32stdc++6-dbg`'LS, libn32stdc++6-4.0-dbg`'LS,
  libn32stdc++6-4.7-dbg`'LS, libn32stdc++6-4.8-dbg`'LS, libn32stdc++6-4.9-dbg`'LS,
  libn32stdc++6-5-dbg`'LS, libn32stdc++6-6-dbg`'LS, libn32stdc++6-7-dbg`'LS,
 BUILT_USING`'dnl
-Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET)',` (TARGET)', `')
+Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET',` (TARGET)', `')
  This package contains the shared library of libstdc++ compiled with
  debugging symbols.
 ifdef(`TARGET', `dnl
@@ -4537,7 +4537,7 @@ Conflicts: libx32stdc++6-dbg`'LS, libx32stdc++6-4.6-dbg`'LS,
  libx32stdc++6-4.7-dbg`'LS, libx32stdc++6-4.8-dbg`'LS, libx32stdc++6-4.9-dbg`'LS,
  libx32stdc++6-5-dbg`'LS, libx32stdc++6-6-dbg`'LS, libx32stdc++6-7-dbg`'LS,
 BUILT_USING`'dnl
-Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET)',` (TARGET)', `')
+Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET',` (TARGET)', `')
  This package contains the shared library of libstdc++ compiled with
  debugging symbols.
 ifdef(`TARGET', `dnl
@@ -4581,7 +4581,7 @@ ifdef(`TARGET',`Provides: libhfstdc++CXX_SO-dbg-TARGET-dcv1
 ',`')`'dnl
 ifdef(`TARGET',`dnl',`Conflicts: libhfstdc++6-dbg`'LS, libhfstdc++6-4.3-dbg`'LS, libhfstdc++6-4.4-dbg`'LS, libhfstdc++6-4.5-dbg`'LS, libhfstdc++6-4.6-dbg`'LS, libhfstdc++6-4.7-dbg`'LS, libhfstdc++6-4.8-dbg`'LS, libhfstdc++6-4.9-dbg`'LS, libhfstdc++6-5-dbg`'LS, libhfstdc++6-6-dbg`'LS, libhfstdc++6-7-dbg`'LS, libstdc++'CXX_SO`-armhf [biarchhf_archs]')
 BUILT_USING`'dnl
-Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET)',` (TARGET)', `')
+Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET',` (TARGET)', `')
  This package contains the shared library of libstdc++ compiled with
  debugging symbols.
 ifdef(`TARGET', `dnl
@@ -4625,7 +4625,7 @@ ifdef(`TARGET',`Provides: libsfstdc++CXX_SO-dbg-TARGET-dcv1
 ',`')`'dnl
 ifdef(`TARGET',`dnl',`Conflicts: libsfstdc++6-dbg`'LS, libsfstdc++6-4.3-dbg`'LS, libsfstdc++6-4.4-dbg`'LS, libsfstdc++6-4.5-dbg`'LS, libsfstdc++6-4.6-dbg`'LS, libsfstdc++6-4.7-dbg`'LS, libsfstdc++6-4.8-dbg`'LS, libsfstdc++6-4.9-dbg`'LS, libsfstdc++6-5-dbg`'LS, libhfstdc++6-6-dbg`'LS, libhfstdc++6-7-dbg`'LS, libstdc++'CXX_SO`-armel [biarchsf_archs]')
 BUILT_USING`'dnl
-Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET)',` (TARGET)', `')
+Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET',` (TARGET)', `')
  This package contains the shared library of libstdc++ compiled with
  debugging symbols.
 ifdef(`TARGET', `dnl
@@ -4864,7 +4864,7 @@ ifdef(`TARGET',`',`Provides: gdc, d-compiler, d-v2-compiler
 ')dnl
 Replaces: gdc (<< 4.4.6-5)
 BUILT_USING`'dnl
-Description: GNU D compiler (version 2)`'ifdef(`TARGET)',` (cross compiler for TARGET architecture)', `')
+Description: GNU D compiler (version 2)`'ifdef(`TARGET',` (cross compiler for TARGET architecture)', `')
  This is the GNU D compiler, which compiles D on platforms supported by gcc.
  It uses the gcc backend to generate optimised code.
  .
@@ -4878,7 +4878,7 @@ ifdef(`TARGET',`Multi-Arch: foreign
 Priority: optional
 Depends: SOFTBASEDEP, gdc`'PV`'TS (= ${gcc:Version}), gcc`'PV-multilib`'TS (= ${gcc:Version}), ${dep:libphobosbiarchdev}${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
-Description: GNU D compiler (version 2, multilib support)`'ifdef(`TARGET)',` (cross compiler for TARGET architecture)', `')
+Description: GNU D compiler (version 2, multilib support)`'ifdef(`TARGET',` (cross compiler for TARGET architecture)', `')
  This is the GNU D compiler, which compiles D on platforms supported by gcc.
  It uses the gcc backend to generate optimised code.
  .
@@ -5210,7 +5210,7 @@ Depends: BASEDEP, gccbrig`'PV`'TS (= ${gcc:Version}),
   gcc`'PV-multilib`'TS (= ${gcc:Version}), ${dep:libhsailrtbiarchdev},
   ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
-Description: GNU BRIG (HSA IL) frontend (multilib support)`'ifdef(`TARGET)',` (cross compiler for TARGET architecture)', `')
+Description: GNU BRIG (HSA IL) frontend (multilib support)`'ifdef(`TARGET',` (cross compiler for TARGET architecture)', `')
  This is the GNU BRIG (HSA IL) frontend.
  The consumed format is a binary representation. The textual HSAIL
  can be compiled to it with a separate assembler.
