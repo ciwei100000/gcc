@@ -1,17 +1,32 @@
 ifeq ($(with_libgo),yes)
   $(lib_binaries) += libgo
 endif
+ifeq ($(with_godev),yes)
+  $(lib_binaries) += libgo-dev
+endif
 ifeq ($(with_lib64go),yes)
   $(lib_binaries) += lib64go
+endif
+ifeq ($(with_lib64godev),yes)
+  $(lib_binaries)	+= lib64go-dev
 endif
 ifeq ($(with_lib32go),yes)
   $(lib_binaries) += lib32go
 endif
+ifeq ($(with_lib32godev),yes)
+  $(lib_binaries)	+= lib32go-dev
+endif
 ifeq ($(with_libn32go),yes)
   $(lib_binaries) += libn32go
 endif
+ifeq ($(with_libn32godev),yes)
+  $(lib_binaries)	+= libn32go-dev
+endif
 ifeq ($(with_libx32go),yes)
   $(lib_binaries) += libx32go
+endif
+ifeq ($(with_libx32godev),yes)
+  $(lib_binaries)	+= libx32go-dev
 endif
 
 ifneq ($(DEB_STAGE),rtlibs)
@@ -167,7 +182,7 @@ define __do_gccgo_libgcc
 	)
 endef
 
-define do_go_dev
+define do_libgo_dev
 	dh_installdirs -p$(2) $(gcc_lib_dir$(1)) $(usr_lib$(1))
 	$(dh_compat2) dh_movefiles -p$(2) \
 		$(gcc_lib_dir$(1))/{libgobegin,libgolibbegin}.a \
@@ -192,6 +207,21 @@ $(binary_stamp)-libn32go: $(install_stamp)
 
 $(binary_stamp)-libx32go: $(install_stamp)
 	$(call do_gccgo,x32)
+
+$(binary_stamp)-libgo-dev: $(install_stamp)
+	$(call do_libgo_dev,)
+
+$(binary_stamp)-lib64go-dev: $(install_stamp)
+	$(call do_libgo_dev,64)
+
+$(binary_stamp)-lib32go-dev: $(install_stamp)
+	$(call do_libgo_dev,32)
+
+$(binary_stamp)-libx32go-dev: $(install_stamp)
+	$(call do_libgo_dev,x32)
+
+$(binary_stamp)-libn32go-dev: $(install_stamp)
+	$(call do_libgo_dev,n32)
 
 # ----------------------------------------------------------------------
 $(binary_stamp)-gccgo: $(install_stamp)
@@ -220,8 +250,6 @@ $(binary_stamp)-gccgo: $(install_stamp)
 	    mv $(d)/$(usr_libx32)/{libgobegin,libgolibbegin}.a \
 		$(d)/$(gcc_lib_dir)/x32/; \
 	fi
-
-	$(call do_go_dev,,$(p_go))
 
 	$(dh_compat2) dh_movefiles -p$(p_go) $(files_go)
 
@@ -305,9 +333,6 @@ $(binary_stamp)-gccgo-multi: $(install_stamp)
 
 	rm -rf $(d_go_m)
 	dh_installdirs -p$(p_go_m) $(docdir)
-
-	$(foreach flavour,$(flavours), \
-		$(call do_go_dev,$(flavour),$(p_go_m)))
 
 	mkdir -p $(d_go_m)/usr/share/lintian/overrides
 	echo '$(p_go_m) binary: non-multi-arch-lib-dir' \
