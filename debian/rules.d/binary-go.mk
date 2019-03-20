@@ -118,7 +118,7 @@ ifeq ($(with_standalone_go),yes)
 endif
 
 # ----------------------------------------------------------------------
-define __do_gccgo
+define __do_libgo
 	dh_testdir
 	dh_testroot
 	mv $(install_stamp) $(install_stamp)-tmp
@@ -151,8 +151,6 @@ define __do_gccgo
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 endef
 
-do_gccgo = $(call __do_gccgo,lib$(1)go$(GO_SONAME),$(1))
-
 define install_gccgo_lib
 	mv $(d)/$(usr_lib$(3))/$(1).a debian/$(4)/$(gcc_lib_dir$(3))/
 	if [ -f $(d)/$(usr_lib$(3))/$(1)libbegin.a ]; then \
@@ -182,31 +180,50 @@ define __do_gccgo_libgcc
 	)
 endef
 
-define do_libgo_dev
-	dh_installdirs -p$(2) $(gcc_lib_dir$(1)) $(usr_lib$(1))
-	$(dh_compat2) dh_movefiles -p$(2) \
-		$(gcc_lib_dir$(1))/{libgobegin,libgolibbegin}.a \
-		$(usr_lib$(1))/go
+define __do_libgo_dev
+	dh_testdir
+	dh_testroot
+	mv $(install_stamp) $(install_stamp)-tmp
+
+	rm -rf $(d_l)
+	dh_installdirs -p$(p_l) \
+		$(gcc_lib_dir$(2)) \
+		$(usr_lib$(2))
+	mv $(d)/$(usr_lib$(2))/{libgobegin,libgolibbegin}.a \
+		$(d)/$(gcc_lib_dir$(2))/
+	$(dh_compat2) dh_movefiles -p$(p_l) \
+		$(gcc_lib_dir$(2))/{libgobegin,libgolibbegin}.a \
+		$(usr_lib$(2))/go
+	$(call install_gccgo_lib,libgo,$(GO_SONAME),$(2),$(p_l))
+
 	$(if $(filter yes, $(with_standalone_go)), \
-	  $(call install_gccgo_lib,libgomp,$(GOMP_SONAME),$(1),$(2)))
-	$(call install_gccgo_lib,libgo,$(GO_SONAME),$(1),$(2))
-	$(call __do_gccgo_libgcc,$(1),$(2),$(gcc_lib_dir$(1)),$(d)/$(usr_lib$(1)))
+	  $(call install_gccgo_lib,libgomp,$(GOMP_SONAME),$(2),$(p_l)))
+	$(call __do_gccgo_libgcc,$(2),$(p_l),$(gcc_lib_dir$(2)),$(d)/$(usr_lib$(2)))
+
+	debian/dh_doclink -p$(p_l) $(p_lbase)
+	echo $(p_l) >> debian/$(lib_binaries)
+
+	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 endef
+
+do_libgo = $(call __do_libgo,lib$(1)go$(GO_SONAME),$(1))
+do_libgo_dev = $(call __do_libgo_dev,lib$(1)go-$(BASE_VERSION)-dev,$(1))
+
 # ----------------------------------------------------------------------
 $(binary_stamp)-libgo: $(install_stamp)
-	$(call do_gccgo,)
+	$(call do_libgo,)
 
 $(binary_stamp)-lib64go: $(install_stamp)
-	$(call do_gccgo,64)
+	$(call do_libgo,64)
 
 $(binary_stamp)-lib32go: $(install_stamp)
-	$(call do_gccgo,32)
+	$(call do_libgo,32)
 
 $(binary_stamp)-libn32go: $(install_stamp)
-	$(call do_gccgo,n32)
+	$(call do_libgo,n32)
 
 $(binary_stamp)-libx32go: $(install_stamp)
-	$(call do_gccgo,x32)
+	$(call do_libgo,x32)
 
 $(binary_stamp)-libgo-dev: $(install_stamp)
 	$(call do_libgo_dev,)
@@ -231,25 +248,6 @@ $(binary_stamp)-gccgo: $(install_stamp)
 
 	rm -rf $(d_go)
 	dh_installdirs -p$(p_go) $(dirs_go)
-
-	mv $(d)/$(usr_lib)/{libgobegin,libgolibbegin}.a \
-		$(d)/$(gcc_lib_dir)/
-	if [ -f $(d)/$(usr_lib64)/libgobegin.a ]; then \
-	    mv $(d)/$(usr_lib64)/{libgobegin,libgolibbegin}.a \
-		$(d)/$(gcc_lib_dir)/64/; \
-	fi
-	if [ -f $(d)/$(usr_lib32)/libgobegin.a ]; then \
-	    mv $(d)/$(usr_lib32)/{libgobegin,libgolibbegin}.a \
-		$(d)/$(gcc_lib_dir)/32/; \
-	fi
-	if [ -f $(d)/$(usr_libn32)/libgobegin.a ]; then \
-	    mv $(d)/$(usr_libn32)/{libgobegin,libgolibbegin}.a \
-		$(d)/$(gcc_lib_dir)/n32/; \
-	fi
-	if [ -f $(d)/$(usr_libx32)/libgobegin.a ]; then \
-	    mv $(d)/$(usr_libx32)/{libgobegin,libgolibbegin}.a \
-		$(d)/$(gcc_lib_dir)/x32/; \
-	fi
 
 	$(dh_compat2) dh_movefiles -p$(p_go) $(files_go)
 
