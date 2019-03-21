@@ -1,10 +1,10 @@
-# DP: updates from the 7 branch upto 20190308 (r269489).
+# DP: updates from the 7 branch upto 20190321 (r269833).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Fri Mar  8 12:32:39 CET 2019
-Fri Mar  8 11:32:39 UTC 2019 (revision 269489)
+Thu Mar 21 13:02:38 CET 2019
+Thu Mar 21 12:02:38 UTC 2019 (revision 269833)
 EOF
 }
 
@@ -576,7 +576,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-7-branch)
 @@ -1 +1 @@
 -20181206
-+20190308
++20190321
 Index: gcc/lra.c
 ===================================================================
 --- a/src/gcc/lra.c	(.../tags/gcc_7_4_0_release)
@@ -622,6 +622,79 @@ Index: gcc/ipa-cp.c
  }
  
  /* Free information about strongly connected components and the arrays in
+@@ -2819,12 +2819,19 @@
+   estimate_ipcp_clone_size_and_time (node, known_csts, known_contexts,
+ 				     known_aggs_ptrs, &size, &time,
+ 				     &hints);
+-  time_benefit = base_time - time
+-    + devirtualization_time_bonus (node, known_csts, known_contexts,
+-				   known_aggs_ptrs)
+-    + hint_time_bonus (hints)
+-    + removable_params_cost + est_move_cost;
+ 
++  /* Extern inline functions have no cloning local time benefits because they
++     will be inlined anyway.  The only reason to clone them is if it enables
++     optimization in any of the functions they call.  */
++  if (DECL_EXTERNAL (node->decl) && DECL_DECLARED_INLINE_P (node->decl))
++    time_benefit = 0;
++  else
++    time_benefit = base_time - time
++      + devirtualization_time_bonus (node, known_csts, known_contexts,
++				     known_aggs_ptrs)
++      + hint_time_bonus (hints)
++      + removable_params_cost + est_move_cost;
++
+   gcc_checking_assert (size >=0);
+   /* The inliner-heuristics based estimates may think that in certain
+      contexts some functions do not have any size at all but we want
+Index: gcc/input.c
+===================================================================
+--- a/src/gcc/input.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/input.c	(.../branches/gcc-7-branch)
+@@ -3480,6 +3480,34 @@
+   ASSERT_EQ (num_cases_tested, 2 * 12);
+ }
+ 
++/* Verify that when presented with a consecutive pair of locations with
++   a very large line offset, we don't attempt to consolidate them into
++   a single ordinary linemap where the line offsets within the line map
++   would lead to overflow (PR lto/88147).  */
++
++static void
++test_line_offset_overflow ()
++{
++  line_table_test ltt (line_table_case (5, 0));
++
++  linemap_add (line_table, LC_ENTER, false, "foo.c", 0);
++  linemap_line_start (line_table, 1, 100);
++  location_t loc_a = linemap_line_start (line_table, 2578, 255);
++  assert_loceq ("foo.c", 2578, 0, loc_a);
++
++  const line_map_ordinary *ordmap_a = LINEMAPS_LAST_ORDINARY_MAP (line_table);
++  ASSERT_EQ (ordmap_a->m_column_and_range_bits, 13);
++  ASSERT_EQ (ordmap_a->m_range_bits, 5);
++
++  location_t loc_b = linemap_line_start (line_table, 404198, 512);
++  assert_loceq ("foo.c", 404198, 0, loc_b);
++
++  /* We should have started a new linemap, rather than attempting to store
++     a very large line offset.  */
++  const line_map_ordinary *ordmap_b = LINEMAPS_LAST_ORDINARY_MAP (line_table);
++  ASSERT_NE (ordmap_a, ordmap_b);
++}
++
+ /* Run all of the selftests within this file.  */
+ 
+ void
+@@ -3518,6 +3546,8 @@
+   for_each_line_table_case (test_lexer_char_constants);
+ 
+   test_reading_source_line ();
++
++  test_line_offset_overflow ();
+ }
+ 
+ } // namespace selftest
 Index: gcc/ipa-reference.c
 ===================================================================
 --- a/src/gcc/ipa-reference.c	(.../tags/gcc_7_4_0_release)
@@ -639,7 +712,71 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,466 @@
+@@ -1,3 +1,530 @@
++2019-03-17  H.J. Lu  <hongjiu.lu@intel.com>
++
++	Backport from mainline
++	2019-03-14  H.J. Lu  <hongjiu.lu@intel.com>
++
++	PR target/89523
++	* config/i386/i386.c (ix86_print_operand): Handle 'M' to add
++	addr32 prefix to VSIB address for X32.
++	* config/i386/sse.md (*avx512pf_gatherpf<mode>sf_mask): Prepend
++	"%M2" to opcode.
++	(*avx512pf_gatherpf<mode>df_mask): Likewise.
++	(*avx512pf_scatterpf<mode>sf_mask): Likewise.
++	(*avx512pf_scatterpf<mode>df_mask): Likewise.
++	(*avx2_gathersi<mode>): Prepend "%M3" to opcode.
++	(*avx2_gathersi<mode>_2): Prepend "%M2" to opcode.
++	(*avx2_gatherdi<mode>): Prepend "%M3" to opcode.
++	(*avx2_gatherdi<mode>_2): Prepend "%M2" to opcode.
++	(*avx2_gatherdi<mode>_3): Prepend "%M3" to opcode.
++	(*avx2_gatherdi<mode>_4): Prepend "%M2" to opcode.`
++	(*avx512f_gathersi<mode>): Prepend "%M4" to opcode.
++	(*avx512f_gathersi<mode>_2): Prepend "%M3" to opcode.
++	(*avx512f_gatherdi<mode>): Prepend "%M4" to opcode.
++	(*avx512f_gatherdi<mode>_2): Prepend "%M3" to opcode.
++	(*avx512f_scattersi<mode>): Prepend "%M0" to opcode.
++	(*avx512f_scatterdi<mode>): Likewise.
++
++2019-03-14  Martin Jambor  <mjambor@suse.cz>
++
++	Backport from mainline
++	2019-03-07  Martin Jambor  <mjambor@suse.cz>
++
++	PR lto/87525
++	* ipa-cp.c (perform_estimation_of_a_value): Account zero time benefit
++	for extern inline functions.
++
++2019-03-14  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2018-02-16  Jakub Jelinek  <jakub@redhat.com>
++ 
++	PR target/84272
++	* config/aarch64/cortex-a57-fma-steering.c (fma_forest::merge_forest):
++	Use ++iter rather than iter++ for std::list iterators.
++	(func_fma_steering::dfs): Likewise.  Don't delete nodes right away,
++	defer deleting them until all nodes in the forest are processed.  Do
++	free even leaf nodes.  Change to_process into auto_vec.
++
++2019-03-13  Andre Vieira  <andre.simoesdiasvieira@arm.com>
++
++	Backport from mainline
++	2019-03-08  Andre Vieira  <andre.simoesdiasvieira@arm.com>
++
++	* config/arm/arm.h (TARGET_FP16_TO_DOUBLE): Add TARGET_VFP_DOUBLE
++	requirement.
++
++2019-03-11  Martin Liska  <mliska@suse.cz>
++
++	Backport from mainline
++	2019-02-11  David Malcolm  <dmalcolm@redhat.com>
++
++	PR lto/88147
++	* input.c (selftest::test_line_offset_overflow): New selftest.
++	(selftest::input_c_tests): Call it.
++
 +2019-03-07  Xiong Hu Luo  <luoxhu@linux.ibm.com>
 +
 +	Backport of r268834 from mainline to gcc-7-branch.
@@ -1106,7 +1243,7 @@ Index: gcc/ChangeLog
  2018-12-06  Release Manager
  
  	* GCC 7.4.0 released.
-@@ -19,13 +486,13 @@
+@@ -19,13 +550,13 @@
  	* gcc/dwarf2out.c (FUNC_SECOND_SECT_LABEL): New.
  	(dwarf2out_switch_text_section): Generate a local label for the second
  	function sub-section and apply it as the second FDE start label.
@@ -1896,6 +2033,27 @@ Index: gcc/testsuite/gcc.target/arm/pr88648-asm-syntax-unified.c
 +/* { dg-final { scan-assembler-times {\.syntax\sunified} 3 } } */
 +/* { dg-final { scan-assembler-not {\.syntax\sdivided} } } */
 +
+Index: gcc/testsuite/gcc.target/arm/f16_f64_conv_no_dp.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/arm/f16_f64_conv_no_dp.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/arm/f16_f64_conv_no_dp.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,16 @@
++/* { dg-do compile } */
++/* { dg-require-effective-target arm_fp16_ok } */
++/* { dg-skip-if "do not override fpu" { *-*-* } { "-mfpu=*" } { "-mfpu=fpv5-sp-d16" } } */
++/* { dg-skip-if "do not disable fpu" { *-*-* } { "-mfloat-abi=soft" } { * } } */
++/* { dg-skip-if "do not override fp16-format" { *-*-* } { "-mfp16-format=*" } { "-mfp16-format=ieee" } } */
++/* { dg-options "-O1 -mfpu=fpv5-sp-d16 -mfloat-abi=hard -mfp16-format=ieee" } */
++
++__fp16 foo (double a)
++{
++  return a;
++}
++
++double bar (__fp16 a)
++{
++  return a;
++}
 Index: gcc/testsuite/gcc.target/avr/pr88253.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/avr/pr88253.c	(.../tags/gcc_7_4_0_release)
@@ -2239,6 +2397,134 @@ Index: gcc/testsuite/gcc.target/sparc/struct-ret-check-1.c
  /* { dg-require-effective-target ilp32 } */
  #include <stdio.h>
  #include <stdlib.h>
+Index: gcc/testsuite/gcc.target/i386/pr89523-4.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr89523-4.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr89523-4.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,36 @@
++/* { dg-do compile { target { ! ia32 } } } */
++/* { dg-require-effective-target maybe_x32 } */
++/* { dg-options "-mx32 -O2 -march=haswell" } */
++/* { dg-final { scan-assembler-not "\tvgather" } } */
++/* { dg-final { scan-assembler "addr32 vgather" } } */
++
++typedef double __v2df __attribute__ ((__vector_size__ (16)));
++typedef int __v4si __attribute__ ((__vector_size__ (16)));
++typedef long long __v2di __attribute__ ((__vector_size__ (16)));
++
++typedef long long __m128i __attribute__ ((__vector_size__ (16), __may_alias__));
++typedef double __m128d __attribute__ ((__vector_size__ (16), __may_alias__));
++
++extern __inline __m128d
++__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
++_mm_i32gather_pd (double const *__base, __m128i __index, const int __scale)
++{
++  __v2df __zero = { 0.0, 0.0 };
++  __v2df __mask = __builtin_ia32_cmpeqpd (__zero, __zero);
++  __v2df x = x;
++
++  return (__m128d) __builtin_ia32_gathersiv2df (x,
++						__base,
++						(__v4si)__index,
++						__mask,
++						__scale);
++}
++
++__m128d x;
++__m128i idx;
++
++void extern
++avx2_test (void)
++{
++  x = _mm_i32gather_pd ((void *) 0, idx, 1);
++}
+Index: gcc/testsuite/gcc.target/i386/pr89523-5.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr89523-5.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr89523-5.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,39 @@
++/* { dg-do compile { target { ! ia32 } } } */
++/* { dg-require-effective-target maybe_x32 } */
++/* { dg-options "-mx32 -O2 -mavx512pf" } */
++/* { dg-final { scan-assembler "\tvgather" } } */
++/* { dg-final { scan-assembler-not "addr32 vgather" } } */
++
++typedef int __v8si __attribute__ ((__vector_size__ (32)));
++typedef long long __m256i __attribute__ ((__vector_size__ (32),
++					  __may_alias__));
++typedef unsigned char  __mmask8;
++
++extern __inline void
++__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
++_mm512_prefetch_i32gather_pd (__m256i __index, void const *__addr,
++			      int __scale, int __hint)
++{
++  __builtin_ia32_gatherpfdpd ((__mmask8) 0xFF, (__v8si) __index, __addr,
++			      __scale, __hint);
++}
++
++extern __inline void
++__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
++_mm512_mask_prefetch_i32gather_pd (__m256i __index, __mmask8 __mask,
++				   void const *__addr, int __scale, int __hint)
++{
++  __builtin_ia32_gatherpfdpd (__mask, (__v8si) __index, __addr, __scale,
++			      __hint);
++}
++
++volatile __m256i idx;
++volatile __mmask8 m8;
++void *base;
++
++void extern
++avx512pf_test (void)
++{
++  _mm512_prefetch_i32gather_pd (idx, base, 8, 3);
++  _mm512_mask_prefetch_i32gather_pd (idx, m8, base, 8, 3);
++}
+Index: gcc/testsuite/gcc.target/i386/pr89523-6.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr89523-6.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr89523-6.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,38 @@
++/* { dg-do compile { target { ! ia32 } } } */
++/* { dg-require-effective-target maybe_x32 } */
++/* { dg-options "-mx32 -O2 -mavx512pf" } */
++/* { dg-final { scan-assembler-not "\tvgather" } } */
++/* { dg-final { scan-assembler "addr32 vgather" } } */
++
++typedef int __v8si __attribute__ ((__vector_size__ (32)));
++typedef long long __m256i __attribute__ ((__vector_size__ (32),
++					  __may_alias__));
++typedef unsigned char  __mmask8;
++
++extern __inline void
++__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
++_mm512_prefetch_i32gather_pd (__m256i __index, void const *__addr,
++			      int __scale, int __hint)
++{
++  __builtin_ia32_gatherpfdpd ((__mmask8) 0xFF, (__v8si) __index, __addr,
++			      __scale, __hint);
++}
++
++extern __inline void
++__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
++_mm512_mask_prefetch_i32gather_pd (__m256i __index, __mmask8 __mask,
++				   void const *__addr, int __scale, int __hint)
++{
++  __builtin_ia32_gatherpfdpd (__mask, (__v8si) __index, __addr, __scale,
++			      __hint);
++}
++
++volatile __m256i idx;
++volatile __mmask8 m8;
++
++void extern
++avx512pf_test (void)
++{
++  _mm512_prefetch_i32gather_pd (idx, (void *) 0, 8, 3);
++  _mm512_mask_prefetch_i32gather_pd (idx, m8, (void *) 0, 8, 3);
++}
 Index: gcc/testsuite/gcc.target/i386/pr88938.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/pr88938.c	(.../tags/gcc_7_4_0_release)
@@ -2249,6 +2535,175 @@ Index: gcc/testsuite/gcc.target/i386/pr88938.c
 +/* { dg-options "-Og -fno-tree-ccp -fno-tree-fre -mtbm" } */
 +
 +#include "tbm-bextri-1.c"
+Index: gcc/testsuite/gcc.target/i386/pr89523-7.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr89523-7.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr89523-7.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,42 @@
++/* { dg-do compile { target { ! ia32 } } } */
++/* { dg-require-effective-target maybe_x32 } */
++/* { dg-options "-mx32 -O2 -mavx512f" } */
++/* { dg-final { scan-assembler "\tvscatter" } } */
++/* { dg-final { scan-assembler-not "addr32 vscatter" } } */
++
++typedef int __v8si __attribute__ ((__vector_size__ (32)));
++typedef double __v8df __attribute__ ((__vector_size__ (64)));
++typedef long long __m256i __attribute__ ((__vector_size__ (32),
++					  __may_alias__));
++typedef double __m512d __attribute__ ((__vector_size__ (64), __may_alias__));
++typedef unsigned char  __mmask8;
++
++extern __inline void
++__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
++_mm512_i32scatter_pd (void *__addr, __m256i __index, __m512d __v1,
++		      int __scale)
++{
++  __builtin_ia32_scattersiv8df (__addr, (__mmask8) 0xFF,
++				(__v8si) __index, (__v8df) __v1, __scale);
++}
++
++extern __inline void
++__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
++_mm512_mask_i32scatter_pd (void *__addr, __mmask8 __mask,
++			   __m256i __index, __m512d __v1, int __scale)
++{
++  __builtin_ia32_scattersiv8df (__addr, __mask, (__v8si) __index,
++				(__v8df) __v1, __scale);
++}
++
++volatile __m512d src;
++volatile __m256i idx;
++volatile __mmask8 m8;
++double *addr;
++
++void extern
++avx512f_test (void)
++{
++  _mm512_i32scatter_pd (addr, idx, src, 8);
++  _mm512_mask_i32scatter_pd (addr, m8, idx, src, 8);
++}
+Index: gcc/testsuite/gcc.target/i386/pr89523-8.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr89523-8.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr89523-8.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,41 @@
++/* { dg-do compile { target { ! ia32 } } } */
++/* { dg-require-effective-target maybe_x32 } */
++/* { dg-options "-mx32 -O2 -mavx512f" } */
++/* { dg-final { scan-assembler "\tvscatter" } } */
++/* { dg-final { scan-assembler-not "addr32 vscatter" } } */
++
++typedef long long __v8di __attribute__ ((__vector_size__ (64)));
++typedef double __v8df __attribute__ ((__vector_size__ (64)));
++typedef long long __m512i __attribute__ ((__vector_size__ (64), __may_alias__));
++typedef double __m512d __attribute__ ((__vector_size__ (64), __may_alias__));
++typedef unsigned char  __mmask8;
++
++extern __inline void
++__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
++_mm512_i64scatter_pd (void *__addr, __m512i __index, __m512d __v1,
++		      int __scale)
++{
++  __builtin_ia32_scatterdiv8df (__addr, (__mmask8) 0xFF,
++				(__v8di) __index, (__v8df) __v1, __scale);
++}
++
++extern __inline void
++__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
++_mm512_mask_i64scatter_pd (void *__addr, __mmask8 __mask,
++			   __m512i __index, __m512d __v1, int __scale)
++{
++  __builtin_ia32_scatterdiv8df (__addr, __mask, (__v8di) __index,
++				(__v8df) __v1, __scale);
++}
++
++volatile __m512d src;
++volatile __m512i idx;
++volatile __mmask8 m8;
++double *addr;
++
++void extern
++avx512f_test (void)
++{
++  _mm512_i64scatter_pd (addr, idx, src, 8);
++  _mm512_mask_i64scatter_pd (addr, m8, idx, src, 8);
++}
+Index: gcc/testsuite/gcc.target/i386/pr89523-1a.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr89523-1a.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr89523-1a.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,24 @@
++/* { dg-do compile { target { ! ia32 } } } */
++/* { dg-require-effective-target maybe_x32 } */
++/* { dg-options "-maddress-mode=short -mx32 -Ofast -funroll-loops -march=haswell" } */
++/* { dg-final { scan-assembler-not "\tvgather" } } */
++/* { dg-final { scan-assembler "addr32 vgather" } } */
++
++void foo (void);
++
++extern float *ncost;
++
++float
++bar (int type, int num)
++{
++  int i;
++  float cost;
++
++  cost = 0;
++  for (i = 0; i < num; i++)
++    if (type)
++      cost += ncost[i];
++    else
++      foo ();
++  return (cost);
++}
+Index: gcc/testsuite/gcc.target/i386/pr89523-9.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr89523-9.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr89523-9.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,30 @@
++/* { dg-do compile { target { ! ia32 } } } */
++/* { dg-require-effective-target maybe_x32 } */
++/* { dg-options "-mx32 -O2 -mavx512f" } */
++/* { dg-final { scan-assembler-not "\tvscatter" } } */
++/* { dg-final { scan-assembler "addr32 vscatter" } } */
++
++typedef int __v8si __attribute__ ((__vector_size__ (32)));
++typedef double __v8df __attribute__ ((__vector_size__ (64)));
++typedef long long __m256i __attribute__ ((__vector_size__ (32),
++					  __may_alias__));
++typedef double __m512d __attribute__ ((__vector_size__ (64), __may_alias__));
++typedef unsigned char  __mmask8;
++
++extern __inline void
++__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
++_mm512_i32scatter_pd (void *__addr, __m256i __index, __m512d __v1,
++		      int __scale)
++{
++  __builtin_ia32_scattersiv8df (__addr, (__mmask8) 0xFF,
++				(__v8si) __index, (__v8df) __v1, __scale);
++}
++
++volatile __m512d src;
++volatile __m256i idx;
++
++void extern
++avx512f_test (void)
++{
++  _mm512_i32scatter_pd ((void *) 0, idx, src, 8);
++}
+Index: gcc/testsuite/gcc.target/i386/pr89523-1b.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr89523-1b.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr89523-1b.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,7 @@
++/* { dg-do compile { target { ! ia32 } } } */
++/* { dg-require-effective-target maybe_x32 } */
++/* { dg-options "-maddress-mode=long -mx32 -Ofast -funroll-loops -march=haswell" } */
++/* { dg-final { scan-assembler-not "\tvgather" } } */
++/* { dg-final { scan-assembler "addr32 vgather" } } */
++
++#include "pr89523-1a.c"
 Index: gcc/testsuite/gcc.target/i386/pr88948.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/pr88948.c	(.../tags/gcc_7_4_0_release)
@@ -2278,6 +2733,89 @@ Index: gcc/testsuite/gcc.target/i386/pr88418.c
 +qg (union df *jz, union df *pl)
 +{
 +  jz->se[0] = jz->se[0] == pl->se[0];
++}
+Index: gcc/testsuite/gcc.target/i386/pr89523-2.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr89523-2.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr89523-2.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,37 @@
++/* { dg-do compile { target { ! ia32 } } } */
++/* { dg-require-effective-target maybe_x32 } */
++/* { dg-options "-mx32 -O2 -march=haswell" } */
++/* { dg-final { scan-assembler "\tvgather" } } */
++/* { dg-final { scan-assembler-not "addr32 vgather" } } */
++
++typedef double __v2df __attribute__ ((__vector_size__ (16)));
++typedef int __v4si __attribute__ ((__vector_size__ (16)));
++typedef long long __v2di __attribute__ ((__vector_size__ (16)));
++
++typedef long long __m128i __attribute__ ((__vector_size__ (16), __may_alias__));
++typedef double __m128d __attribute__ ((__vector_size__ (16), __may_alias__));
++
++extern __inline __m128d
++__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
++_mm_i32gather_pd (double const *__base, __m128i __index, const int __scale)
++{
++  __v2df __zero = { 0.0, 0.0 };
++  __v2df __mask = __builtin_ia32_cmpeqpd (__zero, __zero);
++  __v2df x = x;
++
++  return (__m128d) __builtin_ia32_gathersiv2df (x,
++						__base,
++						(__v4si)__index,
++						__mask,
++						__scale);
++}
++
++__m128d x;
++double *base;
++__m128i idx;
++
++void extern
++avx2_test (void)
++{
++  x = _mm_i32gather_pd (base, idx, 1);
++}
+Index: gcc/testsuite/gcc.target/i386/pr89523-3.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr89523-3.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr89523-3.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,36 @@
++/* { dg-do compile { target { ! ia32 } } } */
++/* { dg-require-effective-target maybe_x32 } */
++/* { dg-options "-mx32 -O2 -march=haswell" } */
++/* { dg-final { scan-assembler "\tvgather" } } */
++/* { dg-final { scan-assembler-not "addr32 vgather" } } */
++
++typedef double __v2df __attribute__ ((__vector_size__ (16)));
++typedef int __v4si __attribute__ ((__vector_size__ (16)));
++typedef long long __v2di __attribute__ ((__vector_size__ (16)));
++
++typedef long long __m128i __attribute__ ((__vector_size__ (16), __may_alias__));
++typedef double __m128d __attribute__ ((__vector_size__ (16), __may_alias__));
++
++extern __inline __m128d
++__attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
++_mm_i64gather_pd (double const *__base, __m128i __index, const int __scale)
++{
++  __v2df __zero = { 0.0, 0.0 };
++  __v2df __mask = __builtin_ia32_cmpeqpd (__zero, __zero);
++
++  return (__m128d) __builtin_ia32_gatherdiv2df (__zero,
++						__base,
++						(__v2di)__index,
++						__mask,
++						__scale);
++}
++
++__m128d x;
++double *base;
++__m128i idx;
++
++void extern
++avx2_test (void)
++{
++  x = _mm_i64gather_pd (base, idx, 1);
 +}
 Index: gcc/testsuite/gcc.target/x86_64/abi/avx/asm-support-darwin.s
 ===================================================================
@@ -2554,6 +3092,100 @@ Index: gcc/testsuite/gfortran.dg/c_funptr_1.f90
 +
 +program main
 +end 
+Index: gcc/testsuite/gfortran.dg/c_ptr_tests_19.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/c_ptr_tests_19.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/c_ptr_tests_19.f90	(.../branches/gcc-7-branch)
+@@ -0,0 +1,36 @@
++! { dg-do run }
++
++! PR 71544 - this failed with some optimization options due to a
++! pointer not being marked as escaping.
++
++module store_cptr
++    use, intrinsic :: iso_c_binding
++    implicit none
++    public
++    type(c_ptr), save :: cptr
++end module store_cptr
++
++subroutine init()
++    use, intrinsic :: iso_c_binding
++    implicit none
++    integer(c_int), pointer :: a
++    allocate(a)
++    call save_cptr(c_loc(a))
++    a = 100
++end subroutine init
++
++subroutine save_cptr(cptr_in)
++    use store_cptr
++    implicit none
++    type(c_ptr), intent(in) :: cptr_in
++    cptr = cptr_in
++end subroutine save_cptr
++
++program init_fails
++    use store_cptr
++    implicit none
++    integer(c_int), pointer :: val
++    call init()
++    call c_f_pointer(cptr,val)
++    if (val /= 100) stop 1
++end program init_fails
+Index: gcc/testsuite/gfortran.dg/public_private_module_10.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/public_private_module_10.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/public_private_module_10.f90	(.../branches/gcc-7-branch)
+@@ -0,0 +1,18 @@
++! { dg-do compile }
++! PR 87734 - this used to issue spurious errors.
++
++module m_vstring
++  implicit none
++
++  public :: vstring_length
++
++contains
++
++  subroutine vstring_cast()
++    character ( len = vstring_length() ) :: char_string
++  end subroutine
++
++  pure integer function vstring_length ()
++  end function
++
++end module
+Index: gcc/testsuite/gfortran.dg/dependency_53.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/dependency_53.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/dependency_53.f90	(.../branches/gcc-7-branch)
+@@ -0,0 +1,25 @@
++! { dg-do run }
++! PR fortran/66089 - used to ICE and, after that ICE was fixed,
++! gave wrong results.
++  type :: t
++    integer :: c
++  end type t
++
++  class(t), dimension(:), allocatable :: b,c
++
++  allocate (b(5), source=t(7))
++  allocate(c(5), source=t(13))
++  c = plus(c(1), b)
++  if (any(c%c /= 20)) stop 1
++  c = t(13)
++  c = plus(b, c(1))
++  if (any(c%c /= 20)) stop 2
++contains
++
++  elemental function plus(lhs, rhs)
++    class(t), intent(in) :: lhs, rhs
++    type(t)             :: plus
++    plus%c = lhs%c + rhs%c
++  end function plus
++
++end
 Index: gcc/testsuite/gfortran.dg/debug/pr35154-stabs.f
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/debug/pr35154-stabs.f	(.../tags/gcc_7_4_0_release)
@@ -2567,6 +3199,18 @@ Index: gcc/testsuite/gfortran.dg/debug/pr35154-stabs.f
        common i,j
        common /label/l,m
        i = 1
+Index: gcc/testsuite/gfortran.dg/binding_label_tests_30.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/binding_label_tests_30.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/binding_label_tests_30.f90	(.../branches/gcc-7-branch)
+@@ -0,0 +1,7 @@
++! { dg-do compile }
++! Make sure this error is flagged.
++subroutine foo() ! { dg-error "is already being used as a SUBROUTINE" }
++end subroutine foo
++
++subroutine bar() bind(C,name="foo") ! { dg-error "is already being used as a SUBROUTINE" }
++end subroutine bar
 Index: gcc/testsuite/gfortran.dg/pr88155.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr88155.f90	(.../tags/gcc_7_4_0_release)
@@ -2730,6 +3374,69 @@ Index: gcc/testsuite/gfortran.dg/null_10.f90
 +   class(*), pointer :: z
 +   z => null(z)
 +end
+Index: gcc/testsuite/gfortran.dg/binding_label_tests_33.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/binding_label_tests_33.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/binding_label_tests_33.f90	(.../branches/gcc-7-branch)
+@@ -0,0 +1,39 @@
++! { dg-do run }
++! PR 79485 - used to crash because the wrong routine was called.
++module fmod1
++
++  contains
++
++  subroutine foo(i)
++    implicit none
++
++    integer, intent(inout) :: i
++
++    i=i+1
++
++  end subroutine foo
++
++end module fmod1
++
++module fmod2
++  use iso_c_binding
++  use fmod1, only : foo_first => foo
++
++  contains
++
++  subroutine foo(i) bind(c)
++    implicit none
++
++    integer, intent(inout) :: i
++
++    i=i+2
++    call foo_first(i)
++
++  end subroutine foo
++
++end module fmod2
++
++  use fmod2
++  
++  call foo(i)
++end
+Index: gcc/testsuite/gfortran.dg/charlen_17.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/charlen_17.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/charlen_17.f90	(.../branches/gcc-7-branch)
+@@ -0,0 +1,14 @@
++! { dg-do compile }
++! PR 87673 - used to cause errors about non-pure functions.
++
++module x
++  implicit none
++contains
++  pure function foo() result(res)
++    character(len=:), allocatable :: res
++    allocate (character(bar()) :: res)
++  end function foo
++  pure integer function bar()
++    bar = 1
++  end function bar
++end module x
 Index: gcc/testsuite/gfortran.dg/coarray_lock_7.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/coarray_lock_7.f90	(.../tags/gcc_7_4_0_release)
@@ -2898,6 +3605,46 @@ Index: gcc/testsuite/gfortran.dg/power_7.f90
 +   end do
 + end program p
 +! { dg-final { scan-tree-dump-not "_gfortran_pow" "original" } }
+Index: gcc/testsuite/gfortran.dg/binding_label_tests_32.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/binding_label_tests_32.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/binding_label_tests_32.f90	(.../branches/gcc-7-branch)
+@@ -0,0 +1,35 @@
++! { dg-do run }
++! PR 77746 - this used to crash during execution.
++! Original test case by Vladimir Fuka.
++module first
++  private
++  public execute
++  
++  interface execute
++    module procedure random_name
++  end interface
++  
++contains
++
++  subroutine random_name()
++  end subroutine
++end module
++
++module test
++  use first
++
++  implicit none
++
++contains
++
++  subroutine p_execute(i)  bind(C, name="random_name")
++    integer :: i
++
++    call execute()
++  end subroutine
++  
++end module
++
++  use test
++  call p_execute(1)
++end
 Index: gcc/testsuite/gfortran.dg/array_function_5.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/array_function_5.f90	(.../tags/gcc_7_4_0_release)
@@ -3189,6 +3936,26 @@ Index: gcc/testsuite/gfortran.dg/pr88169_3.f90
 +   namelist /bar/a  ! { dg-error "already is USE associated" }
 +end program
 +! { dg-final { cleanup-modules "foo_nml" } }
+Index: gcc/testsuite/gfortran.dg/no_arg_check_2.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/no_arg_check_2.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/no_arg_check_2.f90	(.../branches/gcc-7-branch)
+@@ -139,7 +139,7 @@
+ ! { dg-final { scan-tree-dump-times "sub_scalar .\\(struct t1 .\\) array_class_t1_alloc._data.data" 1 "original" } }
+ ! { dg-final { scan-tree-dump-times "sub_scalar .\\(struct t1 .\\) \\(array_class_t1_ptr._data.dat" 1 "original" } }
+ 
+-! { dg-final { scan-tree-dump-times "sub_array_assumed \\(D" 3 "original" } }
++! { dg-final { scan-tree-dump-times "sub_array_assumed \\(D" 4 "original" } }
+ ! { dg-final { scan-tree-dump-times " = _gfortran_internal_pack \\(&parm" 1 "original" } }
+ ! { dg-final { scan-tree-dump-times "sub_array_assumed \\(&array_int\\)" 1 "original" } }
+ ! { dg-final { scan-tree-dump-times "sub_array_assumed \\(\\(real\\(kind=4\\).0:. . restrict\\) array_real_alloc.data" 1 "original" } }
+@@ -148,5 +148,5 @@
+ ! { dg-final { scan-tree-dump-times "sub_array_assumed \\(\\(struct t1.0:. .\\) parm" 1 "original" } }
+ ! { dg-final { scan-tree-dump-times "sub_array_assumed \\(\\(struct t2.0:. . restrict\\) array_t2_alloc.data\\);" 1 "original" } }
+ ! { dg-final { scan-tree-dump-times "sub_array_assumed \\(\\(struct t1.0:. . restrict\\) array_class_t1_alloc._data.data\\);" 1 "original" } }
+-! { dg-final { scan-tree-dump-times "sub_array_assumed \\(\\(struct t1.0:. .\\) array_class_t1_ptr._data.data\\);" 1 "original" } }
++! { dg-final { scan-tree-dump-times "sub_array_assumed \\(\\(struct t1.0:. .\\) array_class_t1_ptr._data.data\\);" 0 "original" } }
+ 
 Index: gcc/testsuite/gfortran.dg/pointer_init_9.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pointer_init_9.f90	(.../tags/gcc_7_4_0_release)
@@ -3245,6 +4012,44 @@ Index: gcc/testsuite/gfortran.dg/pr88249.f90
 +   flush (err=1)     ! { dg-error "UNIT number missing" }
 +   rewind (err=1)    ! { dg-error "UNIT number missing" }
 +end
+Index: gcc/testsuite/gfortran.dg/blockdata_11.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/blockdata_11.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/blockdata_11.f90	(.../branches/gcc-7-branch)
+@@ -0,0 +1,33 @@
++! { dg-do run }
++! PR 84394 - this used to complain about private procedures in
++! BLOCK data.
++module mod1
++   implicit none
++   type :: type1
++      integer :: i1
++   end type type1
++end module
++
++module mod2
++   implicit none
++   contains
++      subroutine sub1
++         integer vals
++         common /block1/ vals(5)
++         if (any(vals /= [1, 2, 3, 4, 5])) stop 1
++      end subroutine
++end module
++
++block data blkdat
++  use mod1
++  integer vals
++  common /block1/ vals(5)
++  data vals/1, 2, 3, 4, 5/
++end block data blkdat
++
++program main
++  use mod2, only: sub1
++  implicit none
++  call sub1
++end program
++
 Index: gcc/testsuite/gfortran.dg/altreturn_9_0.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/altreturn_9_0.f90	(.../tags/gcc_7_4_0_release)
@@ -3307,6 +4112,30 @@ Index: gcc/testsuite/gfortran.dg/submodule_30.f08
 +  end if
 +end program p_18_pos
 +
+Index: gcc/testsuite/gfortran.dg/binding_label_tests_31.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/binding_label_tests_31.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/binding_label_tests_31.f90	(.../branches/gcc-7-branch)
+@@ -0,0 +1,19 @@
++! { dg-do compile }
++! PR fortran/66695 - this used to ICE.
++! Original test case by Vladimir Fuka.
++module mod
++  implicit none
++contains
++    integer function F()
++    end function
++end module
++    
++module mod_C
++  use mod
++  implicit none
++contains
++  subroutine s()  bind(C, name="f")
++    integer :: x
++      x = F()
++  end subroutine
++end module
 Index: gcc/testsuite/gfortran.dg/pr88138.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr88138.f90	(.../tags/gcc_7_4_0_release)
@@ -3348,6 +4177,28 @@ Index: gcc/testsuite/gfortran.dg/select_type_45.f90
 +      class(bar) y(:)
 +    end subroutine
 +end
+Index: gcc/testsuite/gfortran.dg/assumed_type_2.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/assumed_type_2.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/assumed_type_2.f90	(.../branches/gcc-7-branch)
+@@ -157,7 +157,7 @@
+ ! { dg-final { scan-tree-dump-times "sub_scalar .\\(struct t1 .\\) array_class_t1_alloc._data.data" 1 "original" } }
+ ! { dg-final { scan-tree-dump-times "sub_scalar .\\(struct t1 .\\) \\(array_class_t1_ptr._data.dat" 1 "original" } }
+ 
+-! { dg-final { scan-tree-dump-times "sub_array_assumed \\(D" 3 "original" } }
++! { dg-final { scan-tree-dump-times "sub_array_assumed \\(D" 4 "original" } }
+ ! { dg-final { scan-tree-dump-times " = _gfortran_internal_pack \\(&parm" 1 "original" } }
+ ! { dg-final { scan-tree-dump-times "sub_array_assumed \\(&array_int\\)" 1 "original" } }
+ ! { dg-final { scan-tree-dump-times "sub_array_assumed \\(\\(real\\(kind=4\\).0:. . restrict\\) array_real_alloc.data" 1 "original" } }
+@@ -166,7 +166,7 @@
+ ! { dg-final { scan-tree-dump-times "sub_array_assumed \\(\\(struct t1.0:. .\\) parm" 1 "original" } }
+ ! { dg-final { scan-tree-dump-times "sub_array_assumed \\(\\(struct t2.0:. . restrict\\) array_t2_alloc.data\\);" 1 "original" } }
+ ! { dg-final { scan-tree-dump-times "sub_array_assumed \\(\\(struct t1.0:. . restrict\\) array_class_t1_alloc._data.data\\);" 1 "original" } }
+-! { dg-final { scan-tree-dump-times "sub_array_assumed \\(\\(struct t1.0:. .\\) array_class_t1_ptr._data.data\\);" 1 "original" } }
++! { dg-final { scan-tree-dump-times "sub_array_assumed \\(\\(struct t1.0:. .\\) array_class_t1_ptr._data.data\\);" 0 "original" } }
+ 
+ ! { dg-final { scan-tree-dump-times "sub_array_shape \\(&array_real_alloc," 1 "original" } }
+ ! { dg-final { scan-tree-dump-times "sub_array_shape \\(&array_char_ptr," 1 "original" } }
 Index: gcc/testsuite/gnat.dg/opt75.adb
 ===================================================================
 --- a/src/gcc/testsuite/gnat.dg/opt75.adb	(.../tags/gcc_7_4_0_release)
@@ -3866,6 +4717,56 @@ Index: gcc/testsuite/gcc.dg/tree-prof/section-attr-3.c
  
  /* { dg-final-use { scan-assembler "\.section\[\t \]*\.text\.unlikely\[\\n\\r\]+\[\t \]*\.size\[\t \]*foo\.cold\.0" { target *-*-linux* *-*-gnu* } } } */
 +/* { dg-final-use { scan-assembler "\.section\[\t \]*__TEXT,__text_cold\.\*\[\\n\\r\]+_foo\.cold\.0:" { target *-*-darwin* } } } */
+Index: gcc/testsuite/gcc.dg/ipa/ipcp-5.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/ipa/ipcp-5.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.dg/ipa/ipcp-5.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,45 @@
++/* Test that estimated local cloning time benefit of extern inline functions is
++   zero.  */
++
++/* { dg-do compile } */
++/* { dg-options "-O3 -fdump-ipa-cp -fno-early-inlining"  } */
++/* { dg-add-options bind_pic_locally } */
++
++extern int get_int (void);
++extern void use_stuff (int);
++
++int arr[10];
++
++inline void
++f (int a)
++{
++  arr[0] += a + 5;
++  arr[1] += a + 50;
++  arr[2] += a - 3;
++  arr[3] += a;
++  arr[4] += a + 21;
++  arr[5] += a + 900;
++  arr[6] += a + 2;
++  arr[7] += a + 3456;
++  arr[8] += a + 3;
++  arr[9] += a + 32;
++  use_stuff (a);
++}
++
++
++int
++entry (void)
++{
++  int i;
++  for (i = 0; i < 100; i++)
++    f (7);
++  for (i = 0; i < 100; i++)
++    f (get_int ());
++  return 0;
++}
++
++
++/* { dg-final { scan-ipa-dump "loc_time: 0" "cp" } } */
++/* { dg-final { scan-ipa-dump-not "replacing param.*with const" "cp"  } } */
++
++
 Index: gcc/testsuite/gcc.dg/ipa/pr88214.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.dg/ipa/pr88214.c	(.../tags/gcc_7_4_0_release)
@@ -3885,7 +4786,104 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,474 @@
+@@ -1,3 +1,571 @@
++2019-03-17  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/84394
++	Backport from trunk
++	* gfortran.dg/blockdata_11.f90: New test.
++
++2019-03-17  H.J. Lu  <hongjiu.lu@intel.com>
++
++	Backport from mainline
++	2019-03-14  H.J. Lu  <hongjiu.lu@intel.com>
++
++	PR target/89523
++	* gcc.target/i386/pr89523-1a.c: New test.
++	* gcc.target/i386/pr89523-1b.c: Likewise.
++	* gcc.target/i386/pr89523-2.c: Likewise.
++	* gcc.target/i386/pr89523-3.c: Likewise.
++	* gcc.target/i386/pr89523-4.c: Likewise.
++	* gcc.target/i386/pr89523-5.c: Likewise.
++	* gcc.target/i386/pr89523-6.c: Likewise.
++	* gcc.target/i386/pr89523-7.c: Likewise.
++	* gcc.target/i386/pr89523-8.c: Likewise.
++	* gcc.target/i386/pr89523-9.c: Likewise.
++
++2019-03-16  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/66089
++	Backport from trunk
++	* gfortran.dg/dependency_53.f90: New test.
++	* gfortran.dg/assumed_type_2.f90: Adapted tree dumps.
++	* gfortran.dg/no_arg_check_2.f90: Likewise.
++
++2019-03-16 Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/66695
++	PR fortran/77746
++	PR fortran/79485
++	Backport from trunk
++	* gfortran.dg/binding_label_tests_30.f90: New test.
++	* gfortran.dg/binding_label_tests_31.f90: New test.
++	* gfortran.dg/binding_label_tests_32.f90: New test.
++	* gfortran.dg/binding_label_tests_33.f90: New test.
++
++2019-03-14  Martin Jambor  <mjambor@suse.cz>
++
++	Backport from mainline
++	2019-03-07  Martin Jambor  <mjambor@suse.cz>
++
++	PR lto/87525
++	* gcc.dg/ipa/ipcp-5.c: New test.
++
++2019-03-14  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2018-02-16  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/84272
++	* g++.dg/opt/pr84272.C: New test.
++
++2019-03-13  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/87673
++	Backport from trunk
++	* gfortran.dg/charlen_17.f90: New test.
++
++2019-03-13  Andre Vieira  <andre.simoesdiasvieira@arm.com>
++
++	Backport from mainline
++	2019-03-08  Andre Vieira  <andre.simoesdiasvieira@arm.com>
++
++	* gcc.target/arm/f16_f64_conv_no_dp.c: New test.
++
++	Backport from mainline
++	2019-03-11  Christophe Lyon  <christophe.lyon@linaro.org>
++
++	* gcc.target/arm/f16_f64_conv_no_dp.c: Add arm_fp16_ok effective
++	target.
++
++2019-03-10  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/71544
++	Backport from trunk
++	* gfortran.dg/c_ptr_tests_19.f90: New test.
++
++2019-03-10  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/87734
++	Backport from trunk
++	* gfortran.dg/public_private_module_10.f90: New test.
++
++2019-04-10  Matthias Klose  <doko@ubuntu.com>
++
++	Backport from the gcc-8 branch
++	2019-03-07  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/89585
++	* g++.dg/asm-qual-3.C: Adjust expected diagnostics.
++
 +2019-03-07  Xiong Hu Luo  <luoxhu@linux.ibm.com>
 +
 +	Backport of r268834 from mainline to gcc-7-branch.
@@ -4411,6 +5409,34 @@ Index: gcc/testsuite/g++.dg/asm-qual-2.C
 +lab:
 +  ;
 +}
+Index: gcc/testsuite/g++.dg/opt/pr84272.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/opt/pr84272.C	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/g++.dg/opt/pr84272.C	(.../branches/gcc-7-branch)
+@@ -0,0 +1,23 @@
++// PR target/84272
++// { dg-do compile }
++// { dg-options "-O2" }
++// { dg-additional-options "-march=armv8-a -mtune=cortex-a57" { target aarch64-*-* } }
++
++struct A
++{
++  float b, c;
++  A ();
++  A (float, float, float);
++  float operator * (A)
++  {
++    float d = b * b + c * c;
++    return d;
++  }
++};
++
++void
++foo ()
++{
++  A g[1];
++  A h (0, 0, h * g[2]);
++}
 Index: gcc/testsuite/g++.dg/asm-qual-3.C
 ===================================================================
 --- a/src/gcc/testsuite/g++.dg/asm-qual-3.C	(.../tags/gcc_7_4_0_release)
@@ -4420,11 +5446,11 @@ Index: gcc/testsuite/g++.dg/asm-qual-3.C
 +// { dg-do compile }
 +// { dg-options "-std=gnu++98" }
 +
-+asm const ("");    // { dg-error {expected '\(' before 'const'} }
-+asm volatile (""); // { dg-error {expected '\(' before 'volatile'} }
++asm const ("");    // { dg-error {'const' is not an asm qualifier} }
++asm volatile ("");
 +asm restrict (""); // { dg-error {expected '\(' before 'restrict'} }
-+asm inline ("");   // { dg-error {expected '\(' before 'inline'} }
-+asm goto ("");     // { dg-error {expected '\(' before 'goto'} }
++asm inline ("");   // { dg-error {asm qualifier outside of function body} }
++asm goto ("");     // { dg-error {asm qualifier outside of function body} }
 +
 +// There are many other things wrong with this code, so:
 +// { dg-excess-errors "" }
@@ -4566,7 +5592,16 @@ Index: gcc/cp/ChangeLog
 ===================================================================
 --- a/src/gcc/cp/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/cp/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,49 @@
+@@ -1,3 +1,58 @@
++2019-04-10  Matthias Klose  <doko@ubuntu.com>
++
++	Backport from the gcc-8 branch
++	2019-03-07  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/89585
++	* parser.c (cp_parser_asm_definition): Parse asm qualifiers even
++	at toplevel, but diagnose them.
++
 +2018-01-02  Segher Boessenkool  <segher@kernel.crashing.org>
 +
 +	Backport from trunk
@@ -4718,34 +5753,20 @@ Index: gcc/cp/parser.c
    required_token missing = RT_NONE;
  
    /* Look for the `asm' keyword.  */
-@@ -18832,24 +18843,67 @@
+@@ -18832,24 +18843,78 @@
        cp_function_chain->invalid_constexpr = true;
      }
  
 -  /* See if the next token is `volatile'.  */
 -  if (cp_parser_allow_gnu_extensions_p (parser)
 -      && cp_lexer_next_token_is_keyword (parser->lexer, RID_VOLATILE))
--    {
--      /* Remember that we saw the `volatile' keyword.  */
--      volatile_p = true;
--      /* Consume the token.  */
--      cp_lexer_consume_token (parser->lexer);
--    }
--  if (cp_parser_allow_gnu_extensions_p (parser)
--      && parser->in_function_body
--      && cp_lexer_next_token_is_keyword (parser->lexer, RID_GOTO))
--    {
--      /* Remember that we saw the `goto' keyword.  */
--      goto_p = true;
--      /* Consume the token.  */
--      cp_lexer_consume_token (parser->lexer);
--    }
 +  /* Handle the asm-qualifier-list.  */
 +  location_t volatile_loc = UNKNOWN_LOCATION;
 +  location_t inline_loc = UNKNOWN_LOCATION;
 +  location_t goto_loc = UNKNOWN_LOCATION;
++  location_t first_loc = UNKNOWN_LOCATION;
 +
-+  if (cp_parser_allow_gnu_extensions_p (parser) && parser->in_function_body)
++  if (cp_parser_allow_gnu_extensions_p (parser))
 +    for (;;)
 +      {
 +	cp_token *token = cp_lexer_peek_token (parser->lexer);
@@ -4771,6 +5792,8 @@ Index: gcc/cp/parser.c
 +	      }
 +	    else
 +	      inline_loc = loc;
++	    if (!first_loc)
++	      first_loc = loc;
 +	    cp_lexer_consume_token (parser->lexer);
 +	    continue;
 +
@@ -4782,6 +5805,8 @@ Index: gcc/cp/parser.c
 +	      }
 +	    else
 +	      goto_loc = loc;
++	    if (!first_loc)
++	      first_loc = loc;
 +	    cp_lexer_consume_token (parser->lexer);
 +	    continue;
 +
@@ -4801,10 +5826,29 @@ Index: gcc/cp/parser.c
 +  bool inline_p = (inline_loc != UNKNOWN_LOCATION);
 +  bool goto_p = (goto_loc != UNKNOWN_LOCATION);
 +
++  if (!parser->in_function_body && (inline_p || goto_p))
+     {
+-      /* Remember that we saw the `volatile' keyword.  */
+-      volatile_p = true;
+-      /* Consume the token.  */
+-      cp_lexer_consume_token (parser->lexer);
++      error_at (first_loc, "asm qualifier outside of function body");
++      inline_p = goto_p = false;
+     }
+-  if (cp_parser_allow_gnu_extensions_p (parser)
+-      && parser->in_function_body
+-      && cp_lexer_next_token_is_keyword (parser->lexer, RID_GOTO))
+-    {
+-      /* Remember that we saw the `goto' keyword.  */
+-      goto_p = true;
+-      /* Consume the token.  */
+-      cp_lexer_consume_token (parser->lexer);
+-    }
++
    /* Look for the opening `('.  */
    if (!cp_parser_require (parser, CPP_OPEN_PAREN, RT_OPEN_PAREN))
      return;
-@@ -18941,8 +18995,7 @@
+@@ -18941,8 +19006,7 @@
  					     CPP_CLOSE_PAREN))
  	    clobbers = cp_parser_asm_clobber_list (parser);
  	}
@@ -4814,7 +5858,7 @@ Index: gcc/cp/parser.c
  	/* The labels are coming next.  */
  	labels_p = true;
  
-@@ -18976,7 +19029,7 @@
+@@ -18976,7 +19040,7 @@
        if (parser->in_function_body)
  	{
  	  asm_stmt = finish_asm_stmt (volatile_p, string, outputs,
@@ -5752,7 +6796,17 @@ Index: gcc/fortran/trans-array.c
 ===================================================================
 --- a/src/gcc/fortran/trans-array.c	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/fortran/trans-array.c	(.../branches/gcc-7-branch)
-@@ -5482,6 +5482,7 @@
+@@ -2498,6 +2498,9 @@
+   if (ss_info->type != GFC_SS_REFERENCE)
+     return false;
+ 
++  if (ss_info->data.scalar.needs_temporary)
++    return false;
++
+   /* If the actual argument can be absent (in other words, it can
+      be a NULL reference), don't try to evaluate it; pass instead
+      the reference directly.  */
+@@ -5482,6 +5485,7 @@
    tree var_overflow = NULL_TREE;
    tree cond;
    tree set_descriptor;
@@ -5760,7 +6814,7 @@ Index: gcc/fortran/trans-array.c
    stmtblock_t set_descriptor_block;
    stmtblock_t elseblock;
    gfc_expr **lower;
-@@ -5619,8 +5620,6 @@
+@@ -5619,8 +5623,6 @@
  	}
      }
  
@@ -5769,7 +6823,7 @@ Index: gcc/fortran/trans-array.c
    /* Allocate memory to store the data.  */
    if (POINTER_TYPE_P (TREE_TYPE (se->expr)))
      se->expr = build_fold_indirect_ref_loc (input_location, se->expr);
-@@ -5636,6 +5635,19 @@
+@@ -5636,6 +5638,19 @@
      pointer = gfc_conv_descriptor_data_get (se->expr);
    STRIP_NOPS (pointer);
  
@@ -5789,7 +6843,7 @@ Index: gcc/fortran/trans-array.c
    /* The allocatable variant takes the old pointer as first argument.  */
    if (allocatable)
      gfc_allocate_allocatable (&elseblock, pointer, size, token,
-@@ -5672,6 +5684,11 @@
+@@ -5672,6 +5687,11 @@
        cond = fold_build2_loc (input_location, EQ_EXPR,
  			  logical_type_node, status,
  			  build_int_cst (TREE_TYPE (status), 0));
@@ -5801,6 +6855,15 @@ Index: gcc/fortran/trans-array.c
        gfc_add_expr_to_block (&se->pre,
  		 fold_build3_loc (input_location, COND_EXPR, void_type_node,
  				  cond,
+@@ -9755,6 +9775,8 @@
+ {
+   gfc_ref *ref;
+ 
++  gfc_fix_class_refs (expr);
++
+   for (ref = expr->ref; ref; ref = ref->next)
+     if (ref->type == REF_ARRAY && ref->u.ar.type != AR_ELEMENT)
+       break;
 Index: gcc/fortran/symbol.c
 ===================================================================
 --- a/src/gcc/fortran/symbol.c	(.../tags/gcc_7_4_0_release)
@@ -5814,6 +6877,50 @@ Index: gcc/fortran/symbol.c
        && (attr->function || attr->subroutine)
        && gfc_current_state () == COMP_CONTAINS
        && !(gfc_new_block && gfc_new_block->abr_modproc_decl))
+@@ -1595,7 +1595,15 @@
+     return false;
+ 
+   attr->subroutine = 1;
+-  return check_conflict (attr, name, where);
++
++  /* If we are looking at a BLOCK DATA statement and we encounter a
++     name with a leading underscore (which must be
++     compiler-generated), do not check. See PR 84394.  */
++
++  if (name && *name != '_' && gfc_current_state () != COMP_BLOCK_DATA)
++    return check_conflict (attr, name, where);
++  else
++    return true;
+ }
+ 
+ 
+@@ -1711,7 +1719,8 @@
+   if (where == NULL)
+     where = &gfc_current_locus;
+ 
+-  if (attr->proc != PROC_UNKNOWN && !attr->module_procedure)
++  if (attr->proc != PROC_UNKNOWN && !attr->module_procedure
++      && attr->access == ACCESS_UNKNOWN)
+     {
+       if (attr->proc == PROC_ST_FUNCTION && t == PROC_INTERNAL
+ 	  && !gfc_notification_std (GFC_STD_F2008))
+@@ -4173,7 +4182,7 @@
+ /* Get a global symbol, creating it if it doesn't exist.  */
+ 
+ gfc_gsymbol *
+-gfc_get_gsymbol (const char *name)
++gfc_get_gsymbol (const char *name, bool bind_c)
+ {
+   gfc_gsymbol *s;
+ 
+@@ -4184,6 +4193,7 @@
+   s = XCNEW (gfc_gsymbol);
+   s->type = GSYM_UNKNOWN;
+   s->name = gfc_get_string ("%s", name);
++  s->bind_c = bind_c;
+ 
+   gfc_insert_bbt (&gfc_gsym_root, s, gsym_compare);
+ 
 Index: gcc/fortran/decl.c
 ===================================================================
 --- a/src/gcc/fortran/decl.c	(.../tags/gcc_7_4_0_release)
@@ -5889,6 +6996,24 @@ Index: gcc/fortran/decl.c
    /* Add the initializer.  Note that it is fine if initializer is
       NULL here, because we sometimes also need to check if a
       declaration *must* have an initialization expression.  */
+@@ -6239,7 +6280,7 @@
+      name is a global identifier.  */
+   if (!binding_label || gfc_notification_std (GFC_STD_F2008))
+     {
+-      s = gfc_get_gsymbol (name);
++      s = gfc_get_gsymbol (name, false);
+ 
+       if (s->defined || (s->type != GSYM_UNKNOWN && s->type != type))
+ 	{
+@@ -6261,7 +6302,7 @@
+       && (!gfc_notification_std (GFC_STD_F2008)
+ 	  || strcmp (name, binding_label) != 0))
+     {
+-      s = gfc_get_gsymbol (binding_label);
++      s = gfc_get_gsymbol (binding_label, true);
+ 
+       if (s->defined || (s->type != GSYM_UNKNOWN && s->type != type))
+ 	{
 @@ -6438,9 +6479,11 @@
  	      gfc_error ("Missing required parentheses before BIND(C) at %C");
  	      return MATCH_ERROR;
@@ -5923,7 +7048,15 @@ Index: gcc/fortran/gfortran.h
 ===================================================================
 --- a/src/gcc/fortran/gfortran.h	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/fortran/gfortran.h	(.../branches/gcc-7-branch)
-@@ -2106,6 +2106,9 @@
+@@ -1854,6 +1854,7 @@
+   enum gfc_symbol_type type;
+ 
+   int defined, used;
++  bool bind_c;
+   locus where;
+   gfc_namespace *ns;
+ }
+@@ -2106,6 +2107,9 @@
    /* Will require finalization after use.  */
    unsigned int must_finalize : 1;
  
@@ -5933,7 +7066,16 @@ Index: gcc/fortran/gfortran.h
    /* If an expression comes from a Hollerith constant or compile-time
       evaluation of a transfer statement, it may have a prescribed target-
       memory representation, and these cannot always be backformed from
-@@ -3124,7 +3127,7 @@
+@@ -2988,7 +2992,7 @@
+ void gfc_free_dt_list (void);
+ 
+ 
+-gfc_gsymbol *gfc_get_gsymbol (const char *);
++gfc_gsymbol *gfc_get_gsymbol (const char *, bool bind_c);
+ gfc_gsymbol *gfc_find_gsymbol (gfc_gsymbol *, const char *);
+ 
+ gfc_typebound_proc* gfc_get_typebound_proc (gfc_typebound_proc*);
+@@ -3124,7 +3128,7 @@
  
  bool gfc_check_conformance (gfc_expr *, gfc_expr *, const char *, ...) ATTRIBUTE_PRINTF_3;
  bool gfc_check_assign (gfc_expr *, gfc_expr *, int, bool c = true);
@@ -5942,7 +7084,7 @@ Index: gcc/fortran/gfortran.h
  bool gfc_check_assign_symbol (gfc_symbol *, gfc_component *, gfc_expr *);
  
  gfc_expr *gfc_build_default_init_expr (gfc_typespec *, locus *);
-@@ -3269,7 +3272,7 @@
+@@ -3269,7 +3273,7 @@
  void gfc_free_close (gfc_close *);
  bool gfc_resolve_close (gfc_close *);
  void gfc_free_filepos (gfc_filepos *);
@@ -5955,7 +7097,72 @@ Index: gcc/fortran/ChangeLog
 ===================================================================
 --- a/src/gcc/fortran/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/fortran/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,207 @@
+@@ -1,3 +1,272 @@
++2019-03-17  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/84394
++	Backport from trunk
++	* symbol.c (gfc_add_subroutine): If we are encountering a
++	subrtoutine within a BLOCK DATA and the name starts with an
++	underscore, do not check.
++
++2019-03-16  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/66089
++	Backport from trunk
++	* trans-array.c (gfc_scalar_elemental_arg_saved_as_reference):
++	Return false if a scalar tempoary is needed.
++	(gfc_walk_variable_expr): Fix up class refs.
++
++2019-03-16  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/66695
++	PR fortran/77746
++	PR fortran/79485
++	Backport from trunk
++	* gfortran.h (gfc_symbol): Add bind_c component.
++	(gfc_get_gsymbol): Add argument bind_c.
++	* decl.c (add_global_entry): Add bind_c argument to
++	gfc_get_symbol.
++	* parse.c (parse_block_data): Likewise.
++	(parse_module): Likewise.
++	(add_global_procedure): Likewise.
++	(add_global_program): Likewise.
++	* resolve.c (resolve_common_blocks): Likewise.
++	(resolve_global_procedure): Likewise.
++	(gfc_verify_binding_labels): Likewise.
++	* symbol.c (gfc_get_gsymbol): Add argument bind_c. Set bind_c
++	in gsym.
++	* trans-decl.c (gfc_get_module_backend_decl): Add bind_c argument
++	to gfc_get_symbol.
++	(gfc_get_extern_function_decl): If the sym has a binding label
++	and it cannot be found in the global symbol tabel, it is the wrong
++	one and vice versa.
++
++2019-03-13  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/87673
++	Backport from trunk
++	* match.c (gfc_match_type_spec): Remove call to
++	gfc_resolve_expr for character length.
++
++2019-03-10  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/71544
++	Backport from trunk
++	* trans-types.c (gfc_typenode_for_spec) Set ts->is_c_interop of
++	C_PTR and C_FUNPTR.
++	(create_fn_spec): Mark argument as escaping if ts->is_c_interop is set.
++
++2019-03-10  Thomas Koenig  <tkoenig@gcc.gnu.org>
++	Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/87734
++	Backort from trunk
++	* symbol.c (gfc_add_procedure): Only throw an error if the
++	procedure has not been declared either PUBLIC or PRIVATE.
++	* resolve.c (is_illegal_recursion): Remove an assert().
++
 +2019-03-06  Thomas Koenig  <tkoenig@gcc.gnu.org>
 +
 +	PR fortran/72714
@@ -6260,7 +7467,27 @@ Index: gcc/fortran/trans-types.c
 ===================================================================
 --- a/src/gcc/fortran/trans-types.c	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/fortran/trans-types.c	(.../branches/gcc-7-branch)
-@@ -2897,9 +2897,57 @@
+@@ -1139,7 +1139,8 @@
+         {
+           spec->type = BT_INTEGER;
+           spec->kind = gfc_index_integer_kind;
+-          spec->f90_type = BT_VOID;
++	  spec->f90_type = BT_VOID;
++	  spec->is_c_interop = 1;  /* Mark as escaping later.  */
+         }
+       break;
+     case BT_VOID:
+@@ -2884,7 +2885,8 @@
+ 		    || f->sym->ts.u.derived->attr.pointer_comp))
+ 	    || (f->sym->ts.type == BT_CLASS
+ 		&& (CLASS_DATA (f->sym)->ts.u.derived->attr.proc_pointer_comp
+-		    || CLASS_DATA (f->sym)->ts.u.derived->attr.pointer_comp)))
++		    || CLASS_DATA (f->sym)->ts.u.derived->attr.pointer_comp))
++	    || (f->sym->ts.type == BT_INTEGER && f->sym->ts.is_c_interop))
+ 	  spec[spec_len++] = '.';
+ 	else if (f->sym->attr.intent == INTENT_IN)
+ 	  spec[spec_len++] = 'r';
+@@ -2897,9 +2899,57 @@
    return build_type_attribute_variant (fntype, tmp);
  }
  
@@ -6319,7 +7546,7 @@ Index: gcc/fortran/trans-types.c
  {
    tree type;
    vec<tree, va_gc> *typelist = NULL;
-@@ -2957,6 +3005,10 @@
+@@ -2957,6 +3007,10 @@
  	    vec_safe_push (typelist, build_pointer_type(gfc_charlen_type_node));
  	}
      }
@@ -6595,7 +7822,44 @@ Index: gcc/fortran/resolve.c
 ===================================================================
 --- a/src/gcc/fortran/resolve.c	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/fortran/resolve.c	(.../branches/gcc-7-branch)
-@@ -3737,7 +3737,7 @@
+@@ -1045,7 +1045,7 @@
+ 	}
+       if (!gsym)
+ 	{
+-	  gsym = gfc_get_gsymbol (common_root->n.common->name);
++	  gsym = gfc_get_gsymbol (common_root->n.common->name, false);
+ 	  gsym->type = GSYM_COMMON;
+ 	  gsym->where = common_root->n.common->where;
+ 	  gsym->defined = 1;
+@@ -1067,7 +1067,7 @@
+ 	}
+       if (!gsym)
+ 	{
+-	  gsym = gfc_get_gsymbol (common_root->n.common->binding_label);
++	  gsym = gfc_get_gsymbol (common_root->n.common->binding_label, true);
+ 	  gsym->type = GSYM_COMMON;
+ 	  gsym->where = common_root->n.common->where;
+ 	  gsym->defined = 1;
+@@ -1576,8 +1576,6 @@
+       || gfc_fl_struct (sym->attr.flavor))
+     return false;
+ 
+-  gcc_assert (sym->attr.flavor == FL_PROCEDURE);
+-
+   /* If we've got an ENTRY, find real procedure.  */
+   if (sym->attr.entry && sym->ns->entries)
+     proc_sym = sym->ns->entries->sym;
+@@ -2379,7 +2377,8 @@
+ 
+   type = sub ? GSYM_SUBROUTINE : GSYM_FUNCTION;
+ 
+-  gsym = gfc_get_gsymbol (sym->binding_label ? sym->binding_label : sym->name);
++  gsym = gfc_get_gsymbol (sym->binding_label ? sym->binding_label : sym->name,
++			  sym->binding_label != NULL);
+ 
+   if ((gsym->type != GSYM_UNKNOWN && gsym->type != type))
+     gfc_global_used (gsym, where);
+@@ -3737,7 +3736,7 @@
  	  if (op2->ts.type != e->ts.type || op2->ts.kind != e->ts.kind)
  	    gfc_convert_type (op2, &e->ts, 1);
  	  e = logical_to_bitwise (e);
@@ -6604,7 +7868,7 @@ Index: gcc/fortran/resolve.c
  	}
  
        sprintf (msg, _("Operands of logical operator %%<%s%%> at %%L are %s/%s"),
-@@ -3753,7 +3753,7 @@
+@@ -3753,7 +3752,7 @@
  	  e->ts.type = BT_INTEGER;
  	  e->ts.kind = op1->ts.kind;
  	  e = logical_to_bitwise (e);
@@ -6613,7 +7877,7 @@ Index: gcc/fortran/resolve.c
  	}
  
        if (op1->ts.type == BT_LOGICAL)
-@@ -5161,6 +5161,23 @@
+@@ -5161,6 +5160,23 @@
  	gfc_fix_class_refs (e);
        if (!sym->attr.dimension && e->ref && e->ref->type == REF_ARRAY)
  	return false;
@@ -6637,7 +7901,7 @@ Index: gcc/fortran/resolve.c
      }
  
    if (sym->ts.type == BT_DERIVED && sym->ts.u.derived->attr.generic)
-@@ -7414,13 +7431,54 @@
+@@ -7414,13 +7430,54 @@
  
    if (codimension)
      for (i = ar->dimen; i < ar->dimen + ar->codimen; i++)
@@ -6698,7 +7962,7 @@ Index: gcc/fortran/resolve.c
    for (i = 0; i < ar->dimen; i++)
      {
        if (ar->type == AR_ELEMENT || ar->type == AR_FULL)
-@@ -10264,6 +10322,11 @@
+@@ -10264,6 +10321,11 @@
    gfc_get_sym_tree (name, ns, &tmp, false);
    gfc_add_type (tmp->n.sym, &e->ts, NULL);
  
@@ -6710,7 +7974,7 @@ Index: gcc/fortran/resolve.c
    as = NULL;
    ref = NULL;
    aref = NULL;
-@@ -10754,6 +10817,9 @@
+@@ -10754,6 +10816,9 @@
    if (!gfc_check_dependency ((*code)->expr1, (*code)->expr2, 1))
      return false;
  
@@ -6720,7 +7984,7 @@ Index: gcc/fortran/resolve.c
    tmp_expr = get_temp_from_expr ((*code)->expr1, ns);
    tmp_expr->where = (*code)->loc;
  
-@@ -11163,7 +11229,7 @@
+@@ -11163,7 +11228,7 @@
  	case EXEC_ENDFILE:
  	case EXEC_REWIND:
  	case EXEC_FLUSH:
@@ -6729,7 +7993,16 @@ Index: gcc/fortran/resolve.c
  	    break;
  
  	  resolve_branch (code->ext.filepos->err, code);
-@@ -14854,7 +14920,7 @@
+@@ -11385,7 +11450,7 @@
+ 	  && (gsym->type == GSYM_FUNCTION || gsym->type == GSYM_SUBROUTINE)))
+     {
+       if (!gsym)
+-	gsym = gfc_get_gsymbol (sym->binding_label);
++	gsym = gfc_get_gsymbol (sym->binding_label, true);
+       gsym->where = sym->declared_at;
+       gsym->sym_name = sym->name;
+       gsym->binding_label = sym->binding_label;
+@@ -14854,7 +14919,7 @@
    /* Set the formal_arg_flag so that check_conflict will not throw
       an error for host associated variables in the specification
       expression for an array_valued function.  */
@@ -6742,6 +8015,15 @@ Index: gcc/fortran/trans-decl.c
 ===================================================================
 --- a/src/gcc/fortran/trans-decl.c	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/fortran/trans-decl.c	(.../branches/gcc-7-branch)
+@@ -831,7 +831,7 @@
+ 	{
+ 	  if (!gsym)
+ 	    {
+-	      gsym = gfc_get_gsymbol (sym->module);
++	      gsym = gfc_get_gsymbol (sym->module, false);
+ 	      gsym->type = GSYM_MODULE;
+ 	      gsym->ns = gfc_get_namespace (NULL, 0);
+ 	    }
 @@ -1655,7 +1655,9 @@
      {
        /* Catch functions. Only used for actual parameters,
@@ -6762,7 +8044,34 @@ Index: gcc/fortran/trans-decl.c
  {
    tree type;
    tree fndecl;
-@@ -2107,7 +2109,7 @@
+@@ -1959,10 +1961,23 @@
+     return get_proc_pointer_decl (sym);
+ 
+   /* See if this is an external procedure from the same file.  If so,
+-     return the backend_decl.  */
+-  gsym =  gfc_find_gsymbol (gfc_gsym_root, sym->binding_label
+-					   ? sym->binding_label : sym->name);
++     return the backend_decl.  If we are looking at a BIND(C)
++     procedure and the symbol is not BIND(C), or vice versa, we
++     haven't found the right procedure.  */
+ 
++  if (sym->binding_label)
++    {
++      gsym = gfc_find_gsymbol (gfc_gsym_root, sym->binding_label);
++      if (gsym && !gsym->bind_c)
++	gsym = NULL;
++    }
++  else
++    {
++      gsym = gfc_find_gsymbol (gfc_gsym_root, sym->name);
++      if (gsym && gsym->bind_c)
++	gsym = NULL;
++    }
++
+   if (gsym && !gsym->defined)
+     gsym = NULL;
+ 
+@@ -2107,7 +2122,7 @@
        mangled_name = gfc_sym_mangled_function_id (sym);
      }
  
@@ -6771,7 +8080,7 @@ Index: gcc/fortran/trans-decl.c
    fndecl = build_decl (input_location,
  		       FUNCTION_DECL, name, type);
  
-@@ -5220,6 +5222,33 @@
+@@ -5220,6 +5235,33 @@
    /* Handle "static" initializer.  */
    if (sym->value)
      {
@@ -6809,7 +8118,16 @@ Index: gcc/fortran/match.c
 ===================================================================
 --- a/src/gcc/fortran/match.c	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/fortran/match.c	(.../branches/gcc-7-branch)
-@@ -2153,6 +2153,9 @@
+@@ -2050,8 +2050,6 @@
+       ts->type = BT_CHARACTER;
+ 
+       m = gfc_match_char_spec (ts);
+-      if (ts->u.cl && ts->u.cl->length)
+-	gfc_resolve_expr (ts->u.cl->length);
+ 
+       if (m == MATCH_NO)
+ 	m = MATCH_YES;
+@@ -2153,6 +2151,9 @@
  	      return MATCH_NO;
  	    }
  
@@ -6819,7 +8137,7 @@ Index: gcc/fortran/match.c
  	  gfc_next_char (); /* Burn the ')'. */
  	  ts->kind = (int) mpz_get_si (e->value.integer);
  	  if (gfc_validate_kind (ts->type, ts->kind , true) == -1)
-@@ -2167,6 +2170,8 @@
+@@ -2167,6 +2168,8 @@
  	}
      }
  
@@ -6841,6 +8159,55 @@ Index: gcc/fortran/arith.c
  	gfc_warning_now (OPT_Wconversion, "Conversion from %qs to %qs at %L",
  			 gfc_typename (&src->ts), gfc_typename (&result->ts),
  			 &src->where);
+Index: gcc/fortran/parse.c
+===================================================================
+--- a/src/gcc/fortran/parse.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/fortran/parse.c	(.../branches/gcc-7-branch)
+@@ -5780,7 +5780,7 @@
+     }
+   else
+     {
+-      s = gfc_get_gsymbol (gfc_new_block->name);
++      s = gfc_get_gsymbol (gfc_new_block->name, false);
+       if (s->defined
+ 	  || (s->type != GSYM_UNKNOWN && s->type != GSYM_BLOCK_DATA))
+        gfc_global_used (s, &gfc_new_block->declared_at);
+@@ -5862,7 +5862,7 @@
+   gfc_gsymbol *s;
+   bool error;
+ 
+-  s = gfc_get_gsymbol (gfc_new_block->name);
++  s = gfc_get_gsymbol (gfc_new_block->name, false);
+   if (s->defined || (s->type != GSYM_UNKNOWN && s->type != GSYM_MODULE))
+     gfc_global_used (s, &gfc_new_block->declared_at);
+   else
+@@ -5926,7 +5926,7 @@
+      name is a global identifier.  */
+   if (!gfc_new_block->binding_label || gfc_notification_std (GFC_STD_F2008))
+     {
+-      s = gfc_get_gsymbol (gfc_new_block->name);
++      s = gfc_get_gsymbol (gfc_new_block->name, false);
+ 
+       if (s->defined
+ 	  || (s->type != GSYM_UNKNOWN
+@@ -5951,7 +5951,7 @@
+       && (!gfc_notification_std (GFC_STD_F2008)
+           || strcmp (gfc_new_block->name, gfc_new_block->binding_label) != 0))
+     {
+-      s = gfc_get_gsymbol (gfc_new_block->binding_label);
++      s = gfc_get_gsymbol (gfc_new_block->binding_label, true);
+ 
+       if (s->defined
+ 	  || (s->type != GSYM_UNKNOWN
+@@ -5983,7 +5983,7 @@
+ 
+   if (gfc_new_block == NULL)
+     return;
+-  s = gfc_get_gsymbol (gfc_new_block->name);
++  s = gfc_get_gsymbol (gfc_new_block->name, false);
+ 
+   if (s->defined || (s->type != GSYM_UNKNOWN && s->type != GSYM_PROGRAM))
+     gfc_global_used (s, &gfc_new_block->declared_at);
 Index: gcc/fortran/primary.c
 ===================================================================
 --- a/src/gcc/fortran/primary.c	(.../tags/gcc_7_4_0_release)
@@ -8259,6 +9626,174 @@ Index: gcc/config/i386/sse.md
     (set_attr "mode" "TI")])
  
  (define_insn "sse2_cvtsi2sd"
+@@ -16015,9 +16027,9 @@
+   switch (INTVAL (operands[4]))
+     {
+     case 3:
+-      return "vgatherpf0<ssemodesuffix>ps\t{%5%{%0%}|%5%{%0%}}";
++      return "%M2vgatherpf0<ssemodesuffix>ps\t{%5%{%0%}|%5%{%0%}}";
+     case 2:
+-      return "vgatherpf1<ssemodesuffix>ps\t{%5%{%0%}|%5%{%0%}}";
++      return "%M2vgatherpf1<ssemodesuffix>ps\t{%5%{%0%}|%5%{%0%}}";
+     default:
+       gcc_unreachable ();
+     }
+@@ -16060,9 +16072,9 @@
+   switch (INTVAL (operands[4]))
+     {
+     case 3:
+-      return "vgatherpf0<ssemodesuffix>pd\t{%5%{%0%}|%5%{%0%}}";
++      return "%M2vgatherpf0<ssemodesuffix>pd\t{%5%{%0%}|%5%{%0%}}";
+     case 2:
+-      return "vgatherpf1<ssemodesuffix>pd\t{%5%{%0%}|%5%{%0%}}";
++      return "%M2vgatherpf1<ssemodesuffix>pd\t{%5%{%0%}|%5%{%0%}}";
+     default:
+       gcc_unreachable ();
+     }
+@@ -16106,10 +16118,10 @@
+     {
+     case 3:
+     case 7:
+-      return "vscatterpf0<ssemodesuffix>ps\t{%5%{%0%}|%5%{%0%}}";
++      return "%M2vscatterpf0<ssemodesuffix>ps\t{%5%{%0%}|%5%{%0%}}";
+     case 2:
+     case 6:
+-      return "vscatterpf1<ssemodesuffix>ps\t{%5%{%0%}|%5%{%0%}}";
++      return "%M2vscatterpf1<ssemodesuffix>ps\t{%5%{%0%}|%5%{%0%}}";
+     default:
+       gcc_unreachable ();
+     }
+@@ -16153,10 +16165,10 @@
+     {
+     case 3:
+     case 7:
+-      return "vscatterpf0<ssemodesuffix>pd\t{%5%{%0%}|%5%{%0%}}";
++      return "%M2vscatterpf0<ssemodesuffix>pd\t{%5%{%0%}|%5%{%0%}}";
+     case 2:
+     case 6:
+-      return "vscatterpf1<ssemodesuffix>pd\t{%5%{%0%}|%5%{%0%}}";
++      return "%M2vscatterpf1<ssemodesuffix>pd\t{%5%{%0%}|%5%{%0%}}";
+     default:
+       gcc_unreachable ();
+     }
+@@ -19020,7 +19032,7 @@
+ 	  UNSPEC_GATHER))
+    (clobber (match_scratch:VEC_GATHER_MODE 1 "=&x"))]
+   "TARGET_AVX2"
+-  "v<sseintprefix>gatherd<ssemodesuffix>\t{%1, %7, %0|%0, %7, %1}"
++  "%M3v<sseintprefix>gatherd<ssemodesuffix>\t{%1, %7, %0|%0, %7, %1}"
+   [(set_attr "type" "ssemov")
+    (set_attr "prefix" "vex")
+    (set_attr "mode" "<sseinsnmode>")])
+@@ -19040,7 +19052,7 @@
+ 	  UNSPEC_GATHER))
+    (clobber (match_scratch:VEC_GATHER_MODE 1 "=&x"))]
+   "TARGET_AVX2"
+-  "v<sseintprefix>gatherd<ssemodesuffix>\t{%1, %6, %0|%0, %6, %1}"
++  "%M2v<sseintprefix>gatherd<ssemodesuffix>\t{%1, %6, %0|%0, %6, %1}"
+   [(set_attr "type" "ssemov")
+    (set_attr "prefix" "vex")
+    (set_attr "mode" "<sseinsnmode>")])
+@@ -19081,7 +19093,7 @@
+ 	  UNSPEC_GATHER))
+    (clobber (match_scratch:VEC_GATHER_MODE 1 "=&x"))]
+   "TARGET_AVX2"
+-  "v<sseintprefix>gatherq<ssemodesuffix>\t{%5, %7, %2|%2, %7, %5}"
++  "%M3v<sseintprefix>gatherq<ssemodesuffix>\t{%5, %7, %2|%2, %7, %5}"
+   [(set_attr "type" "ssemov")
+    (set_attr "prefix" "vex")
+    (set_attr "mode" "<sseinsnmode>")])
+@@ -19103,8 +19115,8 @@
+   "TARGET_AVX2"
+ {
+   if (<MODE>mode != <VEC_GATHER_SRCDI>mode)
+-    return "v<sseintprefix>gatherq<ssemodesuffix>\t{%4, %6, %x0|%x0, %6, %4}";
+-  return "v<sseintprefix>gatherq<ssemodesuffix>\t{%4, %6, %0|%0, %6, %4}";
++    return "%M2v<sseintprefix>gatherq<ssemodesuffix>\t{%4, %6, %x0|%x0, %6, %4}";
++  return "%M2v<sseintprefix>gatherq<ssemodesuffix>\t{%4, %6, %0|%0, %6, %4}";
+ }
+   [(set_attr "type" "ssemov")
+    (set_attr "prefix" "vex")
+@@ -19128,7 +19140,7 @@
+ 		     (const_int 2) (const_int 3)])))
+    (clobber (match_scratch:VI4F_256 1 "=&x"))]
+   "TARGET_AVX2"
+-  "v<sseintprefix>gatherq<ssemodesuffix>\t{%5, %7, %0|%0, %7, %5}"
++  "%M3v<sseintprefix>gatherq<ssemodesuffix>\t{%5, %7, %0|%0, %7, %5}"
+   [(set_attr "type" "ssemov")
+    (set_attr "prefix" "vex")
+    (set_attr "mode" "<sseinsnmode>")])
+@@ -19151,7 +19163,7 @@
+ 		     (const_int 2) (const_int 3)])))
+    (clobber (match_scratch:VI4F_256 1 "=&x"))]
+   "TARGET_AVX2"
+-  "v<sseintprefix>gatherq<ssemodesuffix>\t{%4, %6, %0|%0, %6, %4}"
++  "%M2v<sseintprefix>gatherq<ssemodesuffix>\t{%4, %6, %0|%0, %6, %4}"
+   [(set_attr "type" "ssemov")
+    (set_attr "prefix" "vex")
+    (set_attr "mode" "<sseinsnmode>")])
+@@ -19195,7 +19207,7 @@
+ 	  UNSPEC_GATHER))
+    (clobber (match_scratch:<avx512fmaskmode> 2 "=&Yk"))]
+   "TARGET_AVX512F"
+-  "v<sseintprefix>gatherd<ssemodesuffix>\t{%6, %0%{%2%}|%0%{%2%}, %<xtg_mode>6}"
++  "%M4v<sseintprefix>gatherd<ssemodesuffix>\t{%6, %0%{%2%}|%0%{%2%}, %<xtg_mode>6}"
+   [(set_attr "type" "ssemov")
+    (set_attr "prefix" "evex")
+    (set_attr "mode" "<sseinsnmode>")])
+@@ -19214,7 +19226,7 @@
+ 	  UNSPEC_GATHER))
+    (clobber (match_scratch:<avx512fmaskmode> 1 "=&Yk"))]
+   "TARGET_AVX512F"
+-  "v<sseintprefix>gatherd<ssemodesuffix>\t{%5, %0%{%1%}|%0%{%1%}, %<xtg_mode>5}"
++  "%M3v<sseintprefix>gatherd<ssemodesuffix>\t{%5, %0%{%1%}|%0%{%1%}, %<xtg_mode>5}"
+   [(set_attr "type" "ssemov")
+    (set_attr "prefix" "evex")
+    (set_attr "mode" "<sseinsnmode>")])
+@@ -19254,7 +19266,7 @@
+    (clobber (match_scratch:QI 2 "=&Yk"))]
+   "TARGET_AVX512F"
+ {
+-  return "v<sseintprefix>gatherq<ssemodesuffix>\t{%6, %1%{%2%}|%1%{%2%}, %<gatherq_mode>6}";
++  return "%M4v<sseintprefix>gatherq<ssemodesuffix>\t{%6, %1%{%2%}|%1%{%2%}, %<gatherq_mode>6}";
+ }
+   [(set_attr "type" "ssemov")
+    (set_attr "prefix" "evex")
+@@ -19278,11 +19290,11 @@
+   if (<MODE>mode != <VEC_GATHER_SRCDI>mode)
+     {
+       if (<MODE_SIZE> != 64)
+-	return "v<sseintprefix>gatherq<ssemodesuffix>\t{%5, %x0%{%1%}|%x0%{%1%}, %<gatherq_mode>5}";
++	return "%M3v<sseintprefix>gatherq<ssemodesuffix>\t{%5, %x0%{%1%}|%x0%{%1%}, %<gatherq_mode>5}";
+       else
+-	return "v<sseintprefix>gatherq<ssemodesuffix>\t{%5, %t0%{%1%}|%t0%{%1%}, %t5}";
++	return "%M3v<sseintprefix>gatherq<ssemodesuffix>\t{%5, %t0%{%1%}|%t0%{%1%}, %t5}";
+     }
+-  return "v<sseintprefix>gatherq<ssemodesuffix>\t{%5, %0%{%1%}|%0%{%1%}, %<gatherq_mode>5}";
++  return "%M3v<sseintprefix>gatherq<ssemodesuffix>\t{%5, %0%{%1%}|%0%{%1%}, %<gatherq_mode>5}";
+ }
+   [(set_attr "type" "ssemov")
+    (set_attr "prefix" "evex")
+@@ -19319,7 +19331,7 @@
+ 	  UNSPEC_SCATTER))
+    (clobber (match_scratch:<avx512fmaskmode> 1 "=&Yk"))]
+   "TARGET_AVX512F"
+-  "v<sseintprefix>scatterd<ssemodesuffix>\t{%3, %5%{%1%}|%5%{%1%}, %3}"
++  "%M0v<sseintprefix>scatterd<ssemodesuffix>\t{%3, %5%{%1%}|%5%{%1%}, %3}"
+   [(set_attr "type" "ssemov")
+    (set_attr "prefix" "evex")
+    (set_attr "mode" "<sseinsnmode>")])
+@@ -19357,8 +19369,8 @@
+   "TARGET_AVX512F"
+ {
+   if (GET_MODE_SIZE (GET_MODE_INNER (<MODE>mode)) == 8)
+-    return "v<sseintprefix>scatterq<ssemodesuffix>\t{%3, %5%{%1%}|%5%{%1%}, %3}";
+-  return "v<sseintprefix>scatterq<ssemodesuffix>\t{%3, %5%{%1%}|%t5%{%1%}, %3}";
++    return "%M0v<sseintprefix>scatterq<ssemodesuffix>\t{%3, %5%{%1%}|%5%{%1%}, %3}";
++  return "%M0v<sseintprefix>scatterq<ssemodesuffix>\t{%3, %5%{%1%}|%t5%{%1%}, %3}";
+ }
+   [(set_attr "type" "ssemov")
+    (set_attr "prefix" "evex")
 Index: gcc/config/i386/darwin.h
 ===================================================================
 --- a/src/gcc/config/i386/darwin.h	(.../tags/gcc_7_4_0_release)
@@ -8324,7 +9859,42 @@ Index: gcc/config/i386/i386.c
  	}
      }
    gcc_assert (m->fs.sp_offset == frame.stack_pointer_offset);
-@@ -24118,7 +24127,7 @@
+@@ -18164,6 +18173,7 @@
+    ~ -- print "i" if TARGET_AVX2, "f" otherwise.
+    @ -- print a segment register of thread base pointer load
+    ^ -- print addr32 prefix if TARGET_64BIT and Pmode != word_mode
++   M -- print addr32 prefix for TARGET_X32 with VSIB address.
+    ! -- print MPX prefix for jxx/call/ret instructions if required.
+  */
+ 
+@@ -18723,6 +18733,26 @@
+ 	  putc (TARGET_AVX2 ? 'i' : 'f', file);
+ 	  return;
+ 
++	case 'M':
++	  if (TARGET_X32)
++	    {
++	      /* NB: 32-bit indices in VSIB address are sign-extended
++		 to 64 bits. In x32, if 32-bit address 0xf7fa3010 is
++		 sign-extended to 0xfffffffff7fa3010 which is invalid
++		 address.  Add addr32 prefix if there is no base
++		 register nor symbol.  */
++	      bool ok;
++	      struct ix86_address parts;
++	      ok = ix86_decompose_address (x, &parts);
++	      gcc_assert (ok && parts.index == NULL_RTX);
++	      if (parts.base == NULL_RTX
++		  && (parts.disp == NULL_RTX
++		      || !symbolic_operand (parts.disp,
++					    GET_MODE (parts.disp))))
++		fputs ("addr32 ", file);
++	    }
++	  return;
++
+ 	case '^':
+ 	  if (TARGET_64BIT && Pmode != word_mode)
+ 	    fputs ("addr32 ", file);
+@@ -24118,7 +24148,7 @@
    return true;
  }
  
@@ -8333,7 +9903,7 @@ Index: gcc/config/i386/i386.c
  
  static rtx
  ix86_expand_sse_cmp (rtx dest, enum rtx_code code, rtx cmp_op0, rtx cmp_op1,
-@@ -24144,9 +24153,12 @@
+@@ -24144,9 +24174,12 @@
    else
      cmp_mode = cmp_ops_mode;
  
@@ -8348,7 +9918,7 @@ Index: gcc/config/i386/i386.c
      cmp_op1 = force_reg (cmp_ops_mode, cmp_op1);
  
    if (optimize
-@@ -24266,7 +24278,7 @@
+@@ -24266,7 +24299,7 @@
        rtx (*gen) (rtx, rtx, rtx, rtx) = NULL;
        rtx d = dest;
  
@@ -8357,7 +9927,7 @@ Index: gcc/config/i386/i386.c
  	op_true = force_reg (mode, op_true);
  
        op_false = force_reg (mode, op_false);
-@@ -38388,6 +38400,16 @@
+@@ -38388,6 +38421,16 @@
            unsigned char lsb_index = INTVAL (op1) & 0xFF;
            op1 = GEN_INT (length);
            op2 = GEN_INT (lsb_index);
@@ -8374,7 +9944,7 @@ Index: gcc/config/i386/i386.c
            pat = GEN_FCN (icode) (target, op0, op1, op2);
            if (pat)
              emit_insn (pat);
-@@ -40478,7 +40500,7 @@
+@@ -40478,7 +40521,7 @@
  static bool
  use_rsqrt_p ()
  {
@@ -8383,7 +9953,7 @@ Index: gcc/config/i386/i386.c
  	  && flag_finite_math_only
  	  && !flag_trapping_math
  	  && flag_unsafe_math_optimizations);
-@@ -51933,7 +51955,7 @@
+@@ -51933,7 +51976,7 @@
       there is no adddf3 pattern (since x87 floating point only has
       XFmode operations) so the default hook implementation gets this
       wrong.  */
@@ -8392,7 +9962,7 @@ Index: gcc/config/i386/i386.c
  }
  
  /* Implement TARGET_ATOMIC_ASSIGN_EXPAND_FENV.  */
-@@ -51941,7 +51963,7 @@
+@@ -51941,7 +51984,7 @@
  static void
  ix86_atomic_assign_expand_fenv (tree *hold, tree *clear, tree *update)
  {
@@ -8401,7 +9971,7 @@ Index: gcc/config/i386/i386.c
      return;
    tree exceptions_var = create_tmp_var_raw (integer_type_node);
    if (TARGET_80387)
-@@ -51976,7 +51998,7 @@
+@@ -51976,7 +52019,7 @@
        tree update_fldenv = build_call_expr (fldenv, 1, fenv_addr);
        *update = build2 (COMPOUND_EXPR, void_type_node, *update, update_fldenv);
      }
@@ -8410,7 +9980,7 @@ Index: gcc/config/i386/i386.c
      {
        tree mxcsr_orig_var = create_tmp_var_raw (unsigned_type_node);
        tree mxcsr_mod_var = create_tmp_var_raw (unsigned_type_node);
-@@ -52335,7 +52357,7 @@
+@@ -52335,7 +52378,7 @@
  	  return FLT_EVAL_METHOD_PROMOTE_TO_FLOAT;
  	else if (!TARGET_MIX_SSE_I387)
  	  {
@@ -8419,6 +9989,89 @@ Index: gcc/config/i386/i386.c
  	      return FLT_EVAL_METHOD_PROMOTE_TO_LONG_DOUBLE;
  	    else if (TARGET_SSE2)
  	      return FLT_EVAL_METHOD_PROMOTE_TO_FLOAT;
+Index: gcc/config/aarch64/cortex-a57-fma-steering.c
+===================================================================
+--- a/src/gcc/config/aarch64/cortex-a57-fma-steering.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/config/aarch64/cortex-a57-fma-steering.c	(.../branches/gcc-7-branch)
+@@ -404,7 +404,7 @@
+ 
+   /* Update root nodes' pointer to forest.  */
+   for (other_root_iter = other_roots->begin ();
+-       other_root_iter != other_roots->end (); other_root_iter++)
++       other_root_iter != other_roots->end (); ++other_root_iter)
+     (*other_root_iter)->set_forest (this);
+ 
+   /* Remove other_forest from the list of forests and move its tree roots in
+@@ -845,14 +845,13 @@
+ 			void (*process_node) (fma_forest *, fma_node *),
+ 			bool free)
+ {
+-  vec<fma_node *> to_process;
++  auto_vec<fma_node *> to_process;
++  auto_vec<fma_node *> to_free;
+   std::list<fma_forest *>::iterator forest_iter;
+ 
+-  to_process.create (0);
+-
+   /* For each forest.  */
+   for (forest_iter = this->m_fma_forests.begin ();
+-       forest_iter != this->m_fma_forests.end (); forest_iter++)
++       forest_iter != this->m_fma_forests.end (); ++forest_iter)
+     {
+       std::list<fma_root_node *>::iterator root_iter;
+ 
+@@ -861,7 +860,7 @@
+ 
+       /* For each tree root in this forest.  */
+       for (root_iter = (*forest_iter)->get_roots ()->begin ();
+-	   root_iter != (*forest_iter)->get_roots ()->end (); root_iter++)
++	   root_iter != (*forest_iter)->get_roots ()->end (); ++root_iter)
+ 	{
+ 	  if (process_root)
+ 	    process_root (*forest_iter, *root_iter);
+@@ -879,17 +878,23 @@
+ 	  if (process_node)
+ 	    process_node (*forest_iter, node);
+ 
+-	  /* Absence of children might indicate an alternate root of a *chain*.
+-	     It's ok to skip it here as the chain will be renamed when
+-	     processing the canonical root for that chain.  */
+-	  if (node->get_children ()->empty ())
+-	    continue;
+-
+ 	  for (child_iter = node->get_children ()->begin ();
+-	       child_iter != node->get_children ()->end (); child_iter++)
++	       child_iter != node->get_children ()->end (); ++child_iter)
+ 	    to_process.safe_push (*child_iter);
++
++	  /* Defer freeing so that the process_node callback can access the
++	     parent and children of the node being processed.  */
+ 	  if (free)
++	    to_free.safe_push (node);
++	}
++
++      if (free)
++	{
++	  delete *forest_iter;
++
++	  while (!to_free.is_empty ())
+ 	    {
++	      fma_node *node = to_free.pop ();
+ 	      if (node->root_p ())
+ 		delete static_cast<fma_root_node *> (node);
+ 	      else
+@@ -896,11 +901,7 @@
+ 		delete node;
+ 	    }
+ 	}
+-      if (free)
+-	delete *forest_iter;
+     }
+-
+-  to_process.release ();
+ }
+ 
+ /* Build the dependency trees of FMUL and FMADD/FMSUB instructions.  */
 Index: gcc/config/rs6000/darwin7.h
 ===================================================================
 --- a/src/gcc/config/rs6000/darwin7.h	(.../tags/gcc_7_4_0_release)
@@ -8847,6 +10500,19 @@ Index: gcc/config/arm/arm.c
  
  #ifdef SUBTARGET_OVERRIDE_INTERNAL_OPTIONS
    SUBTARGET_OVERRIDE_INTERNAL_OPTIONS;
+Index: gcc/config/arm/arm.h
+===================================================================
+--- a/src/gcc/config/arm/arm.h	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/config/arm/arm.h	(.../branches/gcc-7-branch)
+@@ -186,7 +186,7 @@
+ /* FPU supports converting between HFmode and DFmode in a single hardware
+    step.  */
+ #define TARGET_FP16_TO_DOUBLE						\
+-  (TARGET_HARD_FLOAT && (TARGET_FP16 && TARGET_VFP5))
++  (TARGET_HARD_FLOAT && TARGET_FP16 && TARGET_VFP5 && TARGET_VFP_DOUBLE)
+ 
+ /* FPU supports fused-multiply-add operations.  */
+ #define TARGET_FMA (bitmap_bit_p (arm_active_target.isa, isa_bit_VFPv4))
 Index: gcc/dce.c
 ===================================================================
 --- a/src/gcc/dce.c	(.../tags/gcc_7_4_0_release)
@@ -9087,3 +10753,46 @@ Index: libgfortran/io/list_read.c
  
        /* Reset the previous namelist pointer if we know we are not going
  	 to be doing multiple reads within a single namelist object.  */
+Index: libcpp/line-map.c
+===================================================================
+--- a/src/libcpp/line-map.c	(.../tags/gcc_7_4_0_release)
++++ b/src/libcpp/line-map.c	(.../branches/gcc-7-branch)
+@@ -753,6 +753,11 @@
+       if (line_delta < 0
+ 	  || last_line != ORDINARY_MAP_STARTING_LINE_NUMBER (map)
+ 	  || SOURCE_COLUMN (map, highest) >= (1U << (column_bits - range_bits))
++	  || ( /* We can't reuse the map if the line offset is sufficiently
++		  large to cause overflow when computing location_t values.  */
++	      (to_line - ORDINARY_MAP_STARTING_LINE_NUMBER (map))
++	      >= (((uint64_t) 1)
++		  << (CHAR_BIT * sizeof (linenum_type) - column_bits)))
+ 	  || range_bits < map->m_range_bits)
+ 	map = linemap_check_ordinary
+ 	        (const_cast <line_map *>
+Index: libcpp/ChangeLog
+===================================================================
+--- a/src/libcpp/ChangeLog	(.../tags/gcc_7_4_0_release)
++++ b/src/libcpp/ChangeLog	(.../branches/gcc-7-branch)
+@@ -1,3 +1,22 @@
++2019-03-11  Martin Liska  <mliska@suse.cz>
++
++	Backport from mainline
++	2019-02-18  Martin Liska  <mliska@suse.cz>
++
++	PR c++/89383
++	* line-map.c (linemap_line_start): Use 1UL in order
++	to not overflow.
++
++2019-03-11  Martin Liska  <mliska@suse.cz>
++
++	Backport from mainline
++	2019-02-11  Martin Liska  <mliska@suse.cz>
++
++	PR lto/88147
++	* line-map.c (linemap_line_start): Don't reuse the existing line
++	map if the line offset is sufficiently large to cause overflow
++	when computing location_t values.
++
+ 2018-12-06  Release Manager
+ 
+ 	* GCC 7.4.0 released.
