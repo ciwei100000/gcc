@@ -3166,7 +3166,7 @@ ifdef(`MULTIARCH', `Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
 ')`'dnl
 Priority: optional
-Depends: BASEDEP, ${shlibs:Depends}, ${misc:Depends}
+Depends: BASEDEP, libgcc`'PV-dev, binutils, ${shlibs:Depends}, ${misc:Depends}
 Breaks: python-gccjit (<< 0.4-4), python3-gccjit (<< 0.4-4)
 BUILT_USING`'dnl
 Description: GCC just-in-time compilation (shared library)
