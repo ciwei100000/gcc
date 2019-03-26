@@ -3,8 +3,8 @@
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Mon Mar 18 17:49:01 CET 2019
-Mon Mar 18 16:49:01 UTC 2019 (revision 269767)
+Tue Mar 26 11:57:12 CET 2019
+Tue Mar 26 10:57:12 UTC 2019 (revision 269936)
 EOF
 }
 
@@ -74,6 +74,104 @@ Index: libstdc++-v3/testsuite/21_strings/basic_string_view/operators/char/89446.
 +  std::string_view s1, s2;
 +  return s1 != s2;
 +}
+Index: libatomic/ChangeLog
+===================================================================
+--- a/src/libatomic/ChangeLog	(.../tags/gcc_8_3_0_release)
++++ b/src/libatomic/ChangeLog	(.../branches/gcc-8-branch)
+@@ -1,3 +1,18 @@
++2019-03-20  Florian Weimer  <fweimer@redhat.com>
++
++	PR libgcc/60790
++	x86: Do not assume ELF constructors run before IFUNC resolvers.
++	* config/x86/host-config.h (libat_feat1_ecx, libat_feat1_edx):
++	Remove declarations.
++	(__libat_feat1, __libat_feat1_init): Declare.
++	(FEAT1_REGISTER): Define.
++	(load_feat1): New function.
++	(IFUNC_COND_1): Adjust.
++	* config/x86/init.c (libat_feat1_ecx, libat_feat1_edx)
++	(init_cpuid): Remove definitions.
++	(__libat_feat1): New variable.
++	(__libat_feat1_init): New function.
++
+ 2019-02-22  Release Manager
+ 
+ 	* GCC 8.3.0 released.
+Index: libatomic/config/x86/init.c
+===================================================================
+--- a/src/libatomic/config/x86/init.c	(.../tags/gcc_8_3_0_release)
++++ b/src/libatomic/config/x86/init.c	(.../branches/gcc-8-branch)
+@@ -26,13 +26,17 @@
+ 
+ #if HAVE_IFUNC
+ 
+-unsigned int libat_feat1_ecx, libat_feat1_edx;
++unsigned int __libat_feat1;
+ 
+-static void __attribute__((constructor))
+-init_cpuid (void)
++unsigned int
++__libat_feat1_init (void)
+ {
+-  unsigned int eax, ebx;
+-  __get_cpuid (1, &eax, &ebx, &libat_feat1_ecx, &libat_feat1_edx);
++  unsigned int eax, ebx, ecx, edx;
++  FEAT1_REGISTER = 0;
++  __get_cpuid (1, &eax, &ebx, &ecx, &edx);
++  /* See the load in load_feat1.  */
++  __atomic_store_n (&__libat_feat1, FEAT1_REGISTER, __ATOMIC_RELAXED);
++  return FEAT1_REGISTER;
+ }
+ 
+ #endif /* HAVE_IFUNC */
+Index: libatomic/config/x86/host-config.h
+===================================================================
+--- a/src/libatomic/config/x86/host-config.h	(.../tags/gcc_8_3_0_release)
++++ b/src/libatomic/config/x86/host-config.h	(.../branches/gcc-8-branch)
+@@ -25,13 +25,39 @@
+ #if HAVE_IFUNC
+ #include <cpuid.h>
+ 
+-extern unsigned int libat_feat1_ecx HIDDEN;
+-extern unsigned int libat_feat1_edx HIDDEN;
++#ifdef __x86_64__
++# define FEAT1_REGISTER ecx
++#else
++# define FEAT1_REGISTER edx
++#endif
+ 
++/* Value of the CPUID feature register FEAT1_REGISTER for the cmpxchg
++   bit for IFUNC_COND1 below.  */
++extern unsigned int __libat_feat1 HIDDEN;
++
++/* Initialize libat_feat1 and return its value.  */
++unsigned int __libat_feat1_init (void) HIDDEN;
++
++/* Return the value of the relevant feature register for the relevant
++   cmpxchg bit, or 0 if there is no CPUID support.  */
++static inline unsigned int
++__attribute__ ((const))
++load_feat1 (void)
++{
++  /* See the store in __libat_feat1_init.  */
++  unsigned int feat1 = __atomic_load_n (&__libat_feat1, __ATOMIC_RELAXED);
++  if (feat1 == 0)
++    /* Assume that initialization has not happened yet.  This may get
++       called repeatedly if the CPU does not have any feature bits at
++       all.  */
++    feat1 = __libat_feat1_init ();
++  return feat1;
++}
++
+ #ifdef __x86_64__
+-# define IFUNC_COND_1	(libat_feat1_ecx & bit_CMPXCHG16B)
++# define IFUNC_COND_1	(load_feat1 () & bit_CMPXCHG16B)
+ #else
+-# define IFUNC_COND_1	(libat_feat1_edx & bit_CMPXCHG8B)
++# define IFUNC_COND_1	(load_feat1 () & bit_CMPXCHG8B)
+ #endif
+ 
+ #ifdef __x86_64__
 Index: gcc/cgraph.c
 ===================================================================
 --- a/src/gcc/cgraph.c	(.../tags/gcc_8_3_0_release)
@@ -155,7 +253,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-8-branch)
 @@ -1 +1 @@
 -20190222
-+20190318
++20190326
 Index: gcc/tree-ssa-loop-ch.c
 ===================================================================
 --- a/src/gcc/tree-ssa-loop-ch.c	(.../tags/gcc_8_3_0_release)
@@ -350,7 +448,50 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,339 @@
+@@ -1,3 +1,382 @@
++2019-03-25  Andreas Krebbel  <krebbel@linux.ibm.com>
++
++	Backport from mainline
++	2019-03-20  Andreas Krebbel  <krebbel@linux.ibm.com>
++
++	PR target/89775
++	* config/s390/s390.c (global_not_special_regno_p): Move to make it
++	available to ...
++	(s390_optimize_register_info): Use global_not_special_regno_p to
++	check for global regs.
++
++2019-03-22  Bill Schmidt  <wschmidt@linux.ibm.com>
++
++	Backport from mainline
++	2019-03-22  Bill Schmidt  <wschmidt@linux.ibm.com>
++
++	* config/rs6000/mmintrin.h (_mm_sub_pi32): Fix typo.
++
++2019-03-21  Bill Schmidt  <wschmidt@linux.ibm.com>
++
++        Backport from mainline
++        2019-03-08  Bill Schmidt  <wschmidt@linux.ibm.com>
++
++        * config/rs6000/rs6000-p8swap.c (rs6000_analyze_swaps): Rebuild
++        ud- and du-chains between phases.
++
++2019-03-19  Richard Biener  <rguenther@suse.de>
++
++	PR debug/88389
++	* opts.c (finish_options): Disable -gsplit-dwarf when doing LTO.
++
++2019-03-19  Eric Botcazou  <ebotcazou@adacore.com>
++
++	PR rtl-optimization/89753
++	* loop-unroll.c (decide_unroll_constant_iterations): Make guard for
++	explicit unrolling factor even more robust.
++
++2019-03-18  Martin Sebor  <msebor@redhat.com>
++
++	PR middle-end/88273
++	* gimple-ssa-warn-restrict.c (builtin_memref::extend_offset_range):
++	Handle anti-ranges the same as no range at all.
++
 +2019-03-18  Martin Jambor  <mjambor@suse.cz>
 +
 +	Backport from mainline
@@ -690,6 +831,19 @@ Index: gcc/ChangeLog
  2019-02-22  Release Manager
  
  	* GCC 8.3.0 released.
+Index: gcc/testsuite/gcc.target/powerpc/ppc-fortran/ppc-fortran.exp
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/ppc-fortran/ppc-fortran.exp	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/ppc-fortran/ppc-fortran.exp	(.../branches/gcc-8-branch)
+@@ -36,7 +36,7 @@
+     global gfortran_test_path
+     global gfortran_aux_module_flags
+     if { [llength $args] != 2 } {
+-	error "dg-set-target-env-var: needs one argument"
++	error "dg-compile-aux-modules: needs one argument"
+ 	return
+     }
+ 
 Index: gcc/testsuite/gcc.target/powerpc/crypto-builtin-1.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/powerpc/crypto-builtin-1.c	(.../tags/gcc_8_3_0_release)
@@ -781,6 +935,42 @@ Index: gcc/testsuite/gcc.target/powerpc/crypto-builtin-1.c
 +/* { dg-final { scan-assembler-times "vsbox "        2 } } */
  /* { dg-final { scan-assembler-times "vshasigmad "   2 } } */
  /* { dg-final { scan-assembler-times "vshasigmaw "   2 } } */
+Index: gcc/testsuite/gcc.target/powerpc/mmx-psubd-2.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/mmx-psubd-2.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/mmx-psubd-2.c	(.../branches/gcc-8-branch)
+@@ -23,20 +23,28 @@
+   return _mm_sub_pi32 (s1, s2);
+ }
+ 
++static __m64
++__attribute__((noinline, unused))
++test_alias (__m64 s1, __m64 s2)
++{
++  return _m_psubd (s1, s2);
++}
++
+ static void
+ TEST (void)
+ {
+   __m64_union u, s1, s2;
+-  __m64_union e;
++  __m64_union e, v;
+   int i;
+    
+   s1.as_m64 = _mm_setr_pi32 (30, 90);
+   s2.as_m64 = _mm_setr_pi32 (76, -100);
+   u.as_m64 = test (s1.as_m64, s2.as_m64);
+-   
++  v.as_m64 = test_alias (s1.as_m64, s2.as_m64);
++
+   for (i = 0; i < 2; i++)
+      e.as_int[i] = s1.as_int[i] - s2.as_int[i];
+ 
+-  if (u.as_m64 != e.as_m64)
++  if (u.as_m64 != e.as_m64 || u.as_m64 != v.as_m64)
+     abort ();
+ }
 Index: gcc/testsuite/gcc.target/powerpc/pr88100.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/powerpc/pr88100.c	(.../tags/gcc_8_3_0_release)
@@ -850,6 +1040,58 @@ Index: gcc/testsuite/gcc.target/arm/f16_f64_conv_no_dp.c
 +double bar (__fp16 a)
 +{
 +  return a;
++}
+Index: gcc/testsuite/gcc.target/s390/pr89775-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/s390/pr89775-1.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/s390/pr89775-1.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,17 @@
++/* PR target/89775 */
++/* { dg-do run } */
++/* { dg-options "-O0 -fomit-frame-pointer" } */
++/* { dg-additional-sources "pr89775-2.c" } */
++
++register void *sp __asm ("15");
++
++__attribute__((noipa)) int
++foo (const char *a, const char *b)
++{
++  while (1)
++    {
++      char c = *a++;
++      if (c != *b++) return 0;
++      if (c == '\0') return 1;
++    }
++}
+Index: gcc/testsuite/gcc.target/s390/pr89775-2.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/s390/pr89775-2.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/s390/pr89775-2.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,25 @@
++/* PR target/89775 */
++/* { dg-do compile } */
++
++extern int foo (const char *, const char *);
++
++__attribute__((noipa)) void
++bar (const char *p)
++{
++  static const char *x;
++  if (!x)
++    x = p;
++  else if (p != x)
++    __builtin_abort ();
++}
++
++int
++main ()
++{
++  char a[8] = "abcdefg";
++  bar (a);
++  if (foo (a, a) != 1)
++    __builtin_abort ();
++  bar (a);
++  return 0;
 +}
 Index: gcc/testsuite/gcc.target/s390/zvector/vec-addc-u128.c
 ===================================================================
@@ -1886,6 +2128,31 @@ Index: gcc/testsuite/gfortran.dg/coarray_allocate_11.f90
 +   allocate (z[i:i,*]) ! This is OK
 +   allocate (z[i:i-1,*]) ! { dg-error "Upper cobound is less than lower cobound" }
 +end
+Index: gcc/testsuite/gfortran.dg/ieee/ieee.exp
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/ieee/ieee.exp	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/ieee/ieee.exp	(.../branches/gcc-8-branch)
+@@ -22,15 +22,15 @@
+ load_lib gfortran-dg.exp
+ load_lib target-supports.exp
+ 
+-# Initialize `dg'.
+-dg-init
+-
+-# Flags specified in each test
++# If a testcase doesn't have special options, use these.
+ global DEFAULT_FFLAGS
+ if ![info exists DEFAULT_FFLAGS] then {
+-    set DEFAULT_FFLAGS ""
++    set DEFAULT_FFLAGS " -pedantic-errors"
+ }
+ 
++# Initialize `dg'.
++dg-init
++
+ # Flags for finding the IEEE modules
+ if [info exists TOOL_OPTIONS] {
+    set specpath [get_multilibs ${TOOL_OPTIONS}]
 Index: gcc/testsuite/gfortran.dg/binding_label_tests_33.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/binding_label_tests_33.f90	(.../tags/gcc_8_3_0_release)
@@ -1967,6 +2234,19 @@ Index: gcc/testsuite/gfortran.dg/deferred_character_32.f90
 +   if (any (z .ne. ['abcd', 'bcde'])) stop 1
 +   deallocate (z)
 +end
+Index: gcc/testsuite/gfortran.dg/dg.exp
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/dg.exp	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/dg.exp	(.../branches/gcc-8-branch)
+@@ -36,7 +36,7 @@
+     global gfortran_test_path
+     global gfortran_aux_module_flags
+     if { [llength $args] != 2 } {
+-	error "dg-set-target-env-var: needs one argument"
++	error "dg-compile-aux-modules: needs one argument"
+ 	return
+     }
+ 
 Index: gcc/testsuite/gfortran.dg/substr_simplify.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/substr_simplify.f90	(.../tags/gcc_8_3_0_release)
@@ -2044,6 +2324,43 @@ Index: gcc/testsuite/gfortran.dg/binding_label_tests_32.f90
 +  use test
 +  call p_execute(1)
 +end
+Index: gcc/testsuite/gfortran.dg/interface_abstract_5.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/interface_abstract_5.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/interface_abstract_5.f90	(.../branches/gcc-8-branch)
+@@ -0,0 +1,32 @@
++! { dg-do compile }
++!
++! PR 71861: [7/8/9 Regression] [F03] ICE in write_symbol(): bad module symbol
++!
++! Contributed by Gerhard Steinmetz <gerhard.steinmetz.fortran@t-online.de>
++
++module m1
++   intrinsic abs
++   abstract interface
++      function abs(x)    ! { dg-error "ABSTRACT attribute conflicts with INTRINSIC attribute" }
++         real :: abs, x
++      end
++   end interface
++end
++
++module m2
++   abstract interface
++      function abs(x)
++         real :: abs, x
++      end
++   end interface
++   intrinsic abs    ! { dg-error "ABSTRACT attribute conflicts with INTRINSIC attribute" }
++end
++
++module m3
++   abstract interface
++      function f(x)
++         real :: f, x
++      end
++   end interface
++   intrinsic f    ! { dg-error "ABSTRACT attribute conflicts with INTRINSIC attribute" }
++end
 Index: gcc/testsuite/gfortran.dg/pr89266.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr89266.f90	(.../tags/gcc_8_3_0_release)
@@ -2074,6 +2391,34 @@ Index: gcc/testsuite/gfortran.dg/pr89266.f90
 +  if (size (b) /= 0 .or. any (b /= 0)) stop 7
 +  if (size (c) /= 0 .or. any (c /= 0)) stop 8
 +end program test
+Index: gcc/testsuite/gfortran.dg/coarray/caf.exp
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/coarray/caf.exp	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/coarray/caf.exp	(.../branches/gcc-8-branch)
+@@ -51,11 +51,21 @@
+     global gfortran_test_path
+     global gfortran_aux_module_flags
+     if { [llength $args] != 2 } {
+-	error "dg-set-target-env-var: needs one argument"
++	error "dg-compile-aux-modules: needs one argument"
+ 	return
+     }
++
++    set level [info level]
++    if { [info procs dg-save-unknown] != [list] } {
++	rename dg-save-unknown dg-save-unknown-level-$level
++    }
++
+     dg-test $gfortran_test_path/[lindex $args 1] "" $gfortran_aux_module_flags
+-    # cleanup-modules isn't intentionally invoked here.
++    # cleanup-modules is intentionally not invoked here.
++
++    if { [info procs dg-save-unknown-level-$level] != [list] } {
++	rename dg-save-unknown-level-$level dg-save-unknown
++    }
+ }
+ 
+ # Add -latomic only where supported.  Assume built-in support elsewhere.
 Index: gcc/testsuite/gfortran.dg/lto/20091028-1_0.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/lto/20091028-1_0.f90	(.../tags/gcc_8_3_0_release)
@@ -2692,11 +3037,92 @@ Index: gcc/testsuite/gcc.dg/tree-ssa/pr89546.c
 +    __builtin_abort ();
 +  return 0;
 +}
+Index: gcc/testsuite/gcc.dg/Warray-bounds-38.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/Warray-bounds-38.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.dg/Warray-bounds-38.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,30 @@
++/* PR middle-end/88273 - bogus warning: 'memcpy' offset [-527, -529]
++   is out of the bounds [0, 16]
++   { dg-do compile }
++   { dg-options "-O2 -Wall" }  */
++
++typedef __SIZE_TYPE__ size_t;
++
++void *q;
++
++size_t x, y;
++
++inline void f (char *p, int i, size_t j)
++{
++  size_t n = y ? y : j;
++
++  p += x - i;
++
++  __builtin_memcpy (q, p, n);   /* { dg-bogus "bounds" } */
++
++  x = n;
++}
++
++void g (void)
++{
++  struct { char a[16]; } s;
++
++  f (q, 0, sizeof s);
++
++  f (s.a, 33 * sizeof s, 1);
++}
 Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,335 @@
+@@ -1,3 +1,381 @@
++2019-03-25  Andreas Krebbel  <krebbel@linux.ibm.com>
++
++	Backport from mainline
++	2019-03-20  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/89775
++	* gcc.target/s390/pr89775-1.c: New test.
++	* gcc.target/s390/pr89775-2.c: New test.
++
++2019-03-24  Janus Weil  <janus@gcc.gnu.org>
++
++	PR fortran/71861
++	Backport from trunk
++	* gfortran.dg/interface_abstract_5.f90: New test case.
++
++2019-03-22  Backport from mainline
++
++	2019-03-22  Bill Schmidt  <wschmidt@linux.ibm.com>
++
++	* gcc.target/powerpc/mmx-psubd-2.c: Test _m_psubd.
++
++2019-03-21  Thomas Schwinge  <thomas@codesourcery.com>
++
++	PR fortran/56408
++	* gcc.target/powerpc/ppc-fortran/ppc-fortran.exp
++	(dg-compile-aux-modules): Fix diagnostic.
++	* gfortran.dg/coarray/caf.exp (dg-compile-aux-modules): Likewise.
++	* gfortran.dg/dg.exp (dg-compile-aux-modules): Likewise.
++
++	PR fortran/56408
++	* gfortran.dg/coarray/caf.exp (dg-compile-aux-modules): Workaround
++	missing nexted dg-test call support in dejaGNU 1.4.4.
++
++	PR fortran/29383
++	* gfortran.dg/ieee/ieee.exp (DEFAULT_FFLAGS): Set the same as in
++	other '*.exp' files.
++
++2019-03-19  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* c-c++-common/unroll-7.c: New test.
++
++2019-03-18  Martin Sebor  <msebor@redhat.com>
++
++	PR middle-end/88273
++	* gcc.dg/Warray-bounds-38.c: New test.
++
 +2019-03-18  Martin Jambor  <mjambor@suse.cz>
 +
 +	Backport from mainline
@@ -3397,6 +3823,22 @@ Index: gcc/testsuite/c-c++-common/unroll-6.c
 +  for (int nv = 0; nv <= 2; nv += 2)
 +    {}
 +}
+Index: gcc/testsuite/c-c++-common/unroll-7.c
+===================================================================
+--- a/src/gcc/testsuite/c-c++-common/unroll-7.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/c-c++-common/unroll-7.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,11 @@
++/* { dg-do compile } */
++/* { dg-options "-O -fno-tree-dominator-opts" } */
++
++int nv;
++
++void test (void)
++{
++  #pragma GCC unroll 2
++  for (nv = 0; nv < 1; ++nv)
++    {}
++}
 Index: gcc/cp/typeck.c
 ===================================================================
 --- a/src/gcc/cp/typeck.c	(.../tags/gcc_8_3_0_release)
@@ -3783,6 +4225,25 @@ Index: gcc/tree-ssa-dom.c
  	    derive_equivalences (rhs, res, recursion_limit - 1);
  	    break;
  	  }
+Index: gcc/gimple-ssa-warn-restrict.c
+===================================================================
+--- a/src/gcc/gimple-ssa-warn-restrict.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/gimple-ssa-warn-restrict.c	(.../branches/gcc-8-branch)
+@@ -314,13 +314,9 @@
+ 	  offrange[0] += offset_int::from (min, SIGNED);
+ 	  offrange[1] += offset_int::from (max, SIGNED);
+ 	}
+-      else if (rng == VR_ANTI_RANGE)
+-	{
+-	  offrange[0] += offset_int::from (max + 1, SIGNED);
+-	  offrange[1] += offset_int::from (min - 1, SIGNED);
+-	}
+       else
+ 	{
++	  /* Handle an anti-range the same as no range at all.  */
+ 	  gimple *stmt = SSA_NAME_DEF_STMT (offset);
+ 	  tree type;
+ 	  if (is_gimple_assign (stmt)
 Index: gcc/dwarf2out.c
 ===================================================================
 --- a/src/gcc/dwarf2out.c	(.../tags/gcc_8_3_0_release)
@@ -3884,6 +4345,25 @@ Index: gcc/dwarf2out.c
        *slot = ctnode;
      }
  
+Index: gcc/opts.c
+===================================================================
+--- a/src/gcc/opts.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/opts.c	(.../branches/gcc-8-branch)
+@@ -922,6 +922,14 @@
+ 		      "linker plugin");
+ 	  opts->x_flag_fat_lto_objects = 1;
+ 	}
++
++      /* -gsplit-dwarf isn't compatible with LTO, see PR88389.  */
++      if (opts->x_dwarf_split_debug_info)
++	{
++	  inform (loc, "%<-gsplit-dwarf%> is not supported with LTO,"
++		  " disabling");
++	  opts->x_dwarf_split_debug_info = 0;
++	}
+     }
+ 
+   /* We initialize opts->x_flag_split_stack to -1 so that targets can set a
 Index: gcc/tree-ssa-loop-ivcanon.c
 ===================================================================
 --- a/src/gcc/tree-ssa-loop-ivcanon.c	(.../tags/gcc_8_3_0_release)
@@ -4366,7 +4846,15 @@ Index: gcc/fortran/symbol.c
        && (attr->function || attr->subroutine)
        && gfc_current_state () == COMP_CONTAINS
        && !(gfc_new_block && gfc_new_block->abr_modproc_decl))
-@@ -1685,7 +1685,15 @@
+@@ -554,6 +554,7 @@
+ 
+   conf (external, intrinsic);
+   conf (entry, intrinsic);
++  conf (abstract, intrinsic);
+ 
+   if ((attr->if_source == IFSRC_DECL && !attr->procedure) || attr->contained)
+     conf (external, subroutine);
+@@ -1685,7 +1686,15 @@
      return false;
  
    attr->subroutine = 1;
@@ -4383,7 +4871,7 @@ Index: gcc/fortran/symbol.c
  }
  
  
-@@ -1801,7 +1809,8 @@
+@@ -1801,7 +1810,8 @@
    if (where == NULL)
      where = &gfc_current_locus;
  
@@ -4393,7 +4881,7 @@ Index: gcc/fortran/symbol.c
      {
        if (attr->proc == PROC_ST_FUNCTION && t == PROC_INTERNAL
  	  && !gfc_notification_std (GFC_STD_F2008))
-@@ -4352,7 +4361,7 @@
+@@ -4352,7 +4362,7 @@
  /* Get a global symbol, creating it if it doesn't exist.  */
  
  gfc_gsymbol *
@@ -4402,7 +4890,7 @@ Index: gcc/fortran/symbol.c
  {
    gfc_gsymbol *s;
  
-@@ -4363,6 +4372,7 @@
+@@ -4363,6 +4373,7 @@
    s = XCNEW (gfc_gsymbol);
    s->type = GSYM_UNKNOWN;
    s->name = gfc_get_string ("%s", name);
@@ -4534,7 +5022,22 @@ Index: gcc/fortran/ChangeLog
 ===================================================================
 --- a/src/gcc/fortran/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/fortran/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,179 @@
+@@ -1,3 +1,194 @@
++2019-03-24  Janus Weil  <janus@gcc.gnu.org>
++
++	PR fortran/71861
++	Backport from trunk
++	* symbol.c (check_conflict): ABSTRACT attribute conflicts with
++	INTRINSIC attribute.
++
++2019-03-23  Thomas Koenig  <tkoeng@gcc.gnu.org>
++
++	PR fortran/68009
++	Backport from trunk
++	* iresolve.c: Include trans.h.
++	(gfc_resolve_fe_runtine_error): Set backend_decl on
++	resolved_sym.
++
 +2019-03-17  Thomas Koenig  <tkoenig@gcc.gnu.org>
 +
 +	PR fortran/84394
@@ -5039,6 +5542,29 @@ Index: gcc/fortran/resolve.c
        gsym->where = sym->declared_at;
        gsym->sym_name = sym->name;
        gsym->binding_label = sym->binding_label;
+Index: gcc/fortran/iresolve.c
+===================================================================
+--- a/src/gcc/fortran/iresolve.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/fortran/iresolve.c	(.../branches/gcc-8-branch)
+@@ -35,6 +35,7 @@
+ #include "intrinsic.h"
+ #include "constructor.h"
+ #include "arith.h"
++#include "trans.h"
+ 
+ /* Given printf-like arguments, return a stable version of the result string.
+ 
+@@ -2377,6 +2378,10 @@
+     a->name = "%VAL";
+ 
+   c->resolved_sym = gfc_get_intrinsic_sub_symbol (name);
++  /* We set the backend_decl here because runtime_error is a
++     variadic function and we would use the wrong calling
++     convention otherwise.  */
++  c->resolved_sym->backend_decl = gfor_fndecl_runtime_error;
+ }
+ 
+ void
 Index: gcc/fortran/trans-decl.c
 ===================================================================
 --- a/src/gcc/fortran/trans-decl.c	(.../tags/gcc_8_3_0_release)
@@ -5486,7 +6012,7 @@ Index: gcc/loop-unroll.c
        /* However we cannot unroll completely at the RTL level a loop with
  	 constant number of iterations; it should have been peeled instead.  */
 -      if ((unsigned) loop->unroll - 1 > desc->niter - 2)
-+      if ((unsigned) loop->unroll > desc->niter - 1)
++      if (desc->niter == 0 || (unsigned) loop->unroll > desc->niter - 1)
  	{
  	  if (dump_file)
  	    fprintf (dump_file, ";; Loop should have been peeled\n");
@@ -5800,7 +6326,63 @@ Index: gcc/config/s390/s390.c
  	{
  	  /* An address_operand usually has VOIDmode in the expander
  	     so we cannot use this.  */
-@@ -16039,6 +16045,7 @@
+@@ -10106,6 +10112,21 @@
+   s390_register_info_stdarg_gpr ();
+ }
+ 
++/* Return true if REGNO is a global register, but not one
++   of the special ones that need to be saved/restored in anyway.  */
++
++static inline bool
++global_not_special_regno_p (int regno)
++{
++  return (global_regs[regno]
++	  /* These registers are special and need to be
++	     restored in any case.  */
++	  && !(regno == STACK_POINTER_REGNUM
++	       || regno == RETURN_REGNUM
++	       || regno == BASE_REGNUM
++	       || (flag_pic && regno == (int)PIC_OFFSET_TABLE_REGNUM)));
++}
++
+ /* This function is called by s390_optimize_prologue in order to get
+    rid of unnecessary GPR save/restore instructions.  The register info
+    for the GPRs is re-computed and the ranges are re-calculated.  */
+@@ -10121,8 +10142,10 @@
+ 
+   s390_regs_ever_clobbered (clobbered_regs);
+ 
++  /* Global registers do not need to be saved and restored unless it
++     is one of our special regs.  (r12, r13, r14, or r15).  */
+   for (i = 0; i < 32; i++)
+-    clobbered_regs[i] = clobbered_regs[i] && !global_regs[i];
++    clobbered_regs[i] = clobbered_regs[i] && !global_not_special_regno_p (i);
+ 
+   /* There is still special treatment needed for cases invisible to
+      s390_regs_ever_clobbered.  */
+@@ -10876,21 +10899,6 @@
+   return emit_move_insn (gen_rtx_REG (DFmode, regnum), addr);
+ }
+ 
+-/* Return true if REGNO is a global register, but not one
+-   of the special ones that need to be saved/restored in anyway.  */
+-
+-static inline bool
+-global_not_special_regno_p (int regno)
+-{
+-  return (global_regs[regno]
+-	  /* These registers are special and need to be
+-	     restored in any case.  */
+-	  && !(regno == STACK_POINTER_REGNUM
+-	       || regno == RETURN_REGNUM
+-	       || regno == BASE_REGNUM
+-	       || (flag_pic && regno == (int)PIC_OFFSET_TABLE_REGNUM)));
+-}
+-
+ /* Generate insn to save registers FIRST to LAST into
+    the register save area located at offset OFFSET
+    relative to register BASE.  */
+@@ -16039,6 +16047,7 @@
  
    return ret;
  }
@@ -5808,7 +6390,7 @@ Index: gcc/config/s390/s390.c
  
  /* Set VAL to correct enum value according to the indirect-branch or
     function-return attribute in ATTR.  */
-@@ -16112,6 +16119,7 @@
+@@ -16112,6 +16121,7 @@
      s390_indirect_branch_attrvalue (attr, &cfun->machine->function_return_mem);
  }
  
@@ -5816,7 +6398,7 @@ Index: gcc/config/s390/s390.c
  /* Restore targets globals from NEW_TREE and invalidate s390_previous_fndecl
     cache.  */
  
-@@ -16127,6 +16135,7 @@
+@@ -16127,6 +16137,7 @@
      TREE_TARGET_GLOBALS (new_tree) = save_target_globals_default_opts ();
    s390_previous_fndecl = NULL_TREE;
  }
@@ -5824,7 +6406,7 @@ Index: gcc/config/s390/s390.c
  
  /* Establish appropriate back-end context for processing the function
     FNDECL.  The argument might be NULL to indicate processing at top
-@@ -16134,6 +16143,7 @@
+@@ -16134,6 +16145,7 @@
  static void
  s390_set_current_function (tree fndecl)
  {
@@ -5832,7 +6414,7 @@ Index: gcc/config/s390/s390.c
    /* Only change the context if the function changes.  This hook is called
       several times in the course of compiling a function, and we don't want to
       slow things down too much or call target_reinit when it isn't safe.  */
-@@ -16165,10 +16175,9 @@
+@@ -16165,10 +16177,9 @@
    if (old_tree != new_tree)
      s390_activate_target_options (new_tree);
    s390_previous_fndecl = fndecl;
@@ -5844,7 +6426,7 @@ Index: gcc/config/s390/s390.c
  
  /* Implement TARGET_USE_BY_PIECES_INFRASTRUCTURE_P.  */
  
-@@ -16907,10 +16916,10 @@
+@@ -16907,10 +16918,10 @@
  #undef TARGET_ASM_FILE_END
  #define TARGET_ASM_FILE_END s390_asm_file_end
  
@@ -6437,6 +7019,19 @@ Index: gcc/config/aarch64/aarch64-option-extensions.def
 +AARCH64_OPT_EXTENSION("sve", AARCH64_FL_SVE, AARCH64_FL_FP | AARCH64_FL_SIMD | AARCH64_FL_F16, 0, false, "sve")
  
  #undef AARCH64_OPT_EXTENSION
+Index: gcc/config/rs6000/mmintrin.h
+===================================================================
+--- a/src/gcc/config/rs6000/mmintrin.h	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/rs6000/mmintrin.h	(.../branches/gcc-8-branch)
+@@ -581,7 +581,7 @@
+ extern __inline __m64 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ _m_psubd (__m64 __m1, __m64 __m2)
+ {
+-  return _mm_add_pi32 (__m1, __m2);
++  return _mm_sub_pi32 (__m1, __m2);
+ }
+ 
+ extern __inline __m64 __attribute__((__gnu_inline__, __always_inline__, __artificial__))
 Index: gcc/config/rs6000/rs6000-builtin.def
 ===================================================================
 --- a/src/gcc/config/rs6000/rs6000-builtin.def	(.../tags/gcc_8_3_0_release)
@@ -6469,6 +7064,25 @@ Index: gcc/config/rs6000/rs6000-builtin.def
  BU_CRYPTO_2A (VPMSUMB,		"vpmsumb",	  CONST, crypto_vpmsumb)
  BU_CRYPTO_2A (VPMSUMH,		"vpmsumh",	  CONST, crypto_vpmsumh)
  BU_CRYPTO_2A (VPMSUMW,		"vpmsumw",	  CONST, crypto_vpmsumw)
+Index: gcc/config/rs6000/rs6000-p8swap.c
+===================================================================
+--- a/src/gcc/config/rs6000/rs6000-p8swap.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/rs6000/rs6000-p8swap.c	(.../branches/gcc-8-branch)
+@@ -2317,7 +2317,14 @@
+ 
+   /* Pre-pass to recombine lvx and stvx patterns so we don't lose info.  */
+   recombine_lvx_stvx_patterns (fun);
++
++  /* Rebuild ud- and du-chains.  */
++  df_remove_problem (df_chain);
+   df_process_deferred_rescans ();
++  df_set_flags (DF_RD_PRUNE_DEAD_DEFS);
++  df_chain_add_problem (DF_DU_CHAIN | DF_UD_CHAIN);
++  df_analyze ();
++  df_set_flags (DF_DEFER_INSN_RESCAN);
+ 
+   /* Allocate structure to represent webs of insns.  */
+   insn_entry = XCNEWVEC (swap_web_entry, get_max_uid ());
 Index: gcc/config/rs6000/rs6000.c
 ===================================================================
 --- a/src/gcc/config/rs6000/rs6000.c	(.../tags/gcc_8_3_0_release)
@@ -6723,3 +7337,13 @@ Index: libcpp/ChangeLog
  2019-02-22  Release Manager
  
  	* GCC 8.3.0 released.
+Index: .
+===================================================================
+--- a/src/.	(.../tags/gcc_8_3_0_release)
++++ b/src/.	(.../branches/gcc-8-branch)
+
+Property changes on: .
+___________________________________________________________________
+Modified: svn:mergeinfo
+## -0,0 +0,1 ##
+   Merged /trunk:r260603
