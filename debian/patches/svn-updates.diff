@@ -1,10 +1,10 @@
-# DP: updates from the 7 branch upto 20190321 (r269833).
+# DP: updates from the 7 branch upto 20190326 (r269936).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Thu Mar 21 13:02:38 CET 2019
-Thu Mar 21 12:02:38 UTC 2019 (revision 269833)
+Tue Mar 26 12:00:04 CET 2019
+Tue Mar 26 11:00:04 UTC 2019 (revision 269936)
 EOF
 }
 
@@ -576,7 +576,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-7-branch)
 @@ -1 +1 @@
 -20181206
-+20190321
++20190326
 Index: gcc/lra.c
 ===================================================================
 --- a/src/gcc/lra.c	(.../tags/gcc_7_4_0_release)
@@ -647,6 +647,30 @@ Index: gcc/ipa-cp.c
    gcc_checking_assert (size >=0);
    /* The inliner-heuristics based estimates may think that in certain
       contexts some functions do not have any size at all but we want
+Index: gcc/tree-scalar-evolution.c
+===================================================================
+--- a/src/gcc/tree-scalar-evolution.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/tree-scalar-evolution.c	(.../branches/gcc-7-branch)
+@@ -280,6 +280,7 @@
+ #include "params.h"
+ #include "tree-ssa-propagate.h"
+ #include "gimple-fold.h"
++#include "tree-into-ssa.h"
+ 
+ static tree analyze_scalar_evolution_1 (struct loop *, tree, tree);
+ static tree analyze_scalar_evolution_for_address_of (struct loop *loop,
+@@ -1532,7 +1533,10 @@
+ follow_copies_to_constant (tree var)
+ {
+   tree res = var;
+-  while (TREE_CODE (res) == SSA_NAME)
++  while (TREE_CODE (res) == SSA_NAME
++	 /* We face not updated SSA form in multiple places and this walk
++	    may end up in sibling loops so we have to guard it.  */
++	 && !name_registered_for_update_p (res))
+     {
+       gimple *def = SSA_NAME_DEF_STMT (res);
+       if (gphi *phi = dyn_cast <gphi *> (def))
 Index: gcc/input.c
 ===================================================================
 --- a/src/gcc/input.c	(.../tags/gcc_7_4_0_release)
@@ -708,11 +732,72 @@ Index: gcc/ipa-reference.c
    if (dump_file)
      ipa_print_order (dump_file, "reduced", order, order_pos);
  
+Index: gcc/tree-ssa-sccvn.c
+===================================================================
+--- a/src/gcc/tree-ssa-sccvn.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/tree-ssa-sccvn.c	(.../branches/gcc-7-branch)
+@@ -3572,7 +3572,17 @@
+ 		  ops[0] = vn_nary_op_lookup_pieces
+ 		      (2, gimple_assign_rhs_code (def), type, ops, NULL);
+ 		  /* We have wider operation available.  */
+-		  if (ops[0])
++		  if (ops[0]
++		      /* If the leader is a wrapping operation we can
++			 insert it for code hoisting w/o introducing
++			 undefined overflow.  If it is not it has to
++			 be available.  See PR86554.  */
++		      && (TYPE_OVERFLOW_WRAPS (TREE_TYPE (ops[0]))
++			  || TREE_CODE (ops[0]) != SSA_NAME
++			  || SSA_NAME_IS_DEFAULT_DEF (ops[0])
++			  || dominated_by_p_w_unex
++			       (gimple_bb (stmt),
++				gimple_bb (SSA_NAME_DEF_STMT (ops[0])))))
+ 		    {
+ 		      unsigned lhs_prec = TYPE_PRECISION (type);
+ 		      unsigned rhs_prec = TYPE_PRECISION (TREE_TYPE (rhs1));
 Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,530 @@
+@@ -1,3 +1,568 @@
++2019-03-26  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2019-01-08  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/86554
++	* tree-ssa-sccvn.c (visit_nary_op): When value-numbering to
++	expressions with different overflow behavior make sure there's an
++	available expression on the path.
++
++	2018-11-20  Richard Biener  <rguenther@suse.de>
++ 
++	PR tree-optimization/88105
++	* tree-ssa-dom.c (pass_dominator::execute): Do not walk
++	backedges.
++
++	2018-03-08  Richard Biener  <rguenther@suse.de>
++
++	PR middle-end/84552
++	* tree-scalar-evolution.c: Include tree-into-ssa.h.
++	(follow_copies_to_constant): Do not follow SSA names registered
++	for update.
++
++2019-03-21  Bill Schmidt  <wschmidt@linux.ibm.com>
++
++        * config/rs6000/rs6000.c (rs6000_analyze_swaps): Rebuild
++        ud- and du-chains between phases.
++
++2019-03-21  Matthias Klose  <doko@ubuntu.com>
++
++	Backport from mainline
++	2019-02-26  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/89505
++	* tree-ssa-structalias.c (compute_dependence_clique): Make sure
++	to handle restrict pointed-to vars with multiple subvars
++	correctly.
++
 +2019-03-17  H.J. Lu  <hongjiu.lu@intel.com>
 +
 +	Backport from mainline
@@ -1243,7 +1328,7 @@ Index: gcc/ChangeLog
  2018-12-06  Release Manager
  
  	* GCC 7.4.0 released.
-@@ -19,13 +550,13 @@
+@@ -19,13 +588,13 @@
  	* gcc/dwarf2out.c (FUNC_SECOND_SECT_LABEL): New.
  	(dwarf2out_switch_text_section): Generate a local label for the second
  	function sub-section and apply it as the second FDE start label.
@@ -2014,6 +2099,19 @@ Index: gcc/testsuite/gcc.target/powerpc/pr87496-1.c
 +
 +/* { dg-error "'-mabi=ieeelongdouble' requires full ISA 2.06 support" "PR87496" { target *-*-* } 0 } */
 +/* { dg-warning "using IEEE extended precision long double" "" { target *-*-* } 0 } */
+Index: gcc/testsuite/gcc.target/powerpc/ppc-fortran/ppc-fortran.exp
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/ppc-fortran/ppc-fortran.exp	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/ppc-fortran/ppc-fortran.exp	(.../branches/gcc-7-branch)
+@@ -36,7 +36,7 @@
+     global gfortran_test_path
+     global gfortran_aux_module_flags
+     if { [llength $args] != 2 } {
+-	error "dg-set-target-env-var: needs one argument"
++	error "dg-compile-aux-modules: needs one argument"
+ 	return
+     }
+ 
 Index: gcc/testsuite/gcc.target/arm/pr88648-asm-syntax-unified.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/arm/pr88648-asm-syntax-unified.c	(.../tags/gcc_7_4_0_release)
@@ -3362,6 +3460,31 @@ Index: gcc/testsuite/gfortran.dg/pr88269.f90
 +   write (end=1e1) ! { dg-error "tag not allowed" }
 +end
 +
+Index: gcc/testsuite/gfortran.dg/ieee/ieee.exp
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/ieee/ieee.exp	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/ieee/ieee.exp	(.../branches/gcc-7-branch)
+@@ -22,15 +22,15 @@
+ load_lib gfortran-dg.exp
+ load_lib target-supports.exp
+ 
+-# Initialize `dg'.
+-dg-init
+-
+-# Flags specified in each test
++# If a testcase doesn't have special options, use these.
+ global DEFAULT_FFLAGS
+ if ![info exists DEFAULT_FFLAGS] then {
+-    set DEFAULT_FFLAGS ""
++    set DEFAULT_FFLAGS " -pedantic-errors"
+ }
+ 
++# Initialize `dg'.
++dg-init
++
+ # Flags for finding the IEEE modules
+ if [info exists TOOL_OPTIONS] {
+    set specpath [get_multilibs ${TOOL_OPTIONS}]
 Index: gcc/testsuite/gfortran.dg/null_10.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/null_10.f90	(.../tags/gcc_7_4_0_release)
@@ -3515,6 +3638,19 @@ Index: gcc/testsuite/gfortran.dg/class_66.f90
  !
  ! Test the fix for PR78641 in which an ICE occured on assignment
  ! of a class array constructor to a derived type array.
+Index: gcc/testsuite/gfortran.dg/dg.exp
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/dg.exp	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/dg.exp	(.../branches/gcc-7-branch)
+@@ -36,7 +36,7 @@
+     global gfortran_test_path
+     global gfortran_aux_module_flags
+     if { [llength $args] != 2 } {
+-	error "dg-set-target-env-var: needs one argument"
++	error "dg-compile-aux-modules: needs one argument"
+ 	return
+     }
+ 
 Index: gcc/testsuite/gfortran.dg/pointer_init_6.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pointer_init_6.f90	(.../tags/gcc_7_4_0_release)
@@ -3823,6 +3959,43 @@ Index: gcc/testsuite/gfortran.dg/pr88205.f90
 +  logical, parameter :: status = .false.
 +  open (newunit=a, status=status)         ! { dg-error "STATUS requires" }
 +end
+Index: gcc/testsuite/gfortran.dg/interface_abstract_5.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/interface_abstract_5.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/interface_abstract_5.f90	(.../branches/gcc-7-branch)
+@@ -0,0 +1,32 @@
++! { dg-do compile }
++!
++! PR 71861: [7/8/9 Regression] [F03] ICE in write_symbol(): bad module symbol
++!
++! Contributed by Gerhard Steinmetz <gerhard.steinmetz.fortran@t-online.de>
++
++module m1
++   intrinsic abs
++   abstract interface
++      function abs(x)    ! { dg-error "ABSTRACT attribute conflicts with INTRINSIC attribute" }
++         real :: abs, x
++      end
++   end interface
++end
++
++module m2
++   abstract interface
++      function abs(x)
++         real :: abs, x
++      end
++   end interface
++   intrinsic abs    ! { dg-error "ABSTRACT attribute conflicts with INTRINSIC attribute" }
++end
++
++module m3
++   abstract interface
++      function f(x)
++         real :: f, x
++      end
++   end interface
++   intrinsic f    ! { dg-error "ABSTRACT attribute conflicts with INTRINSIC attribute" }
++end
 Index: gcc/testsuite/gfortran.dg/pr58968.f
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr58968.f	(.../tags/gcc_7_4_0_release)
@@ -3844,6 +4017,34 @@ Index: gcc/testsuite/gfortran.dg/extends_11.f03
  
 -! { dg-final { scan-tree-dump-times " +recruit\\.service\\.education\\.person\\.ss =" 8 "original"} }
 +! { dg-final { scan-tree-dump-times " +recruit\\.service\\.education\\.person\\.ss =" 8 "original" } }
+Index: gcc/testsuite/gfortran.dg/coarray/caf.exp
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/coarray/caf.exp	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/coarray/caf.exp	(.../branches/gcc-7-branch)
+@@ -51,11 +51,21 @@
+     global gfortran_test_path
+     global gfortran_aux_module_flags
+     if { [llength $args] != 2 } {
+-	error "dg-set-target-env-var: needs one argument"
++	error "dg-compile-aux-modules: needs one argument"
+ 	return
+     }
++
++    set level [info level]
++    if { [info procs dg-save-unknown] != [list] } {
++	rename dg-save-unknown dg-save-unknown-level-$level
++    }
++
+     dg-test $gfortran_test_path/[lindex $args 1] "" $gfortran_aux_module_flags
+-    # cleanup-modules isn't intentionally invoked here.
++    # cleanup-modules is intentionally not invoked here.
++
++    if { [info procs dg-save-unknown-level-$level] != [list] } {
++	rename dg-save-unknown-level-$level dg-save-unknown
++    }
+ }
+ 
+ # Add -latomic only where supported.  Assume built-in support elsewhere.
 Index: gcc/testsuite/gfortran.dg/coarray/event_3.f08
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/coarray/event_3.f08	(.../tags/gcc_7_4_0_release)
@@ -4351,6 +4552,41 @@ Index: gcc/testsuite/gcc.dg/asm-qual-1.c
 +
 +  asm restrict (""); /* { dg-warning {'restrict' is not an asm qualifier} } */
  }
+Index: gcc/testsuite/gcc.dg/gomp/pr88105.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/gomp/pr88105.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.dg/gomp/pr88105.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,30 @@
++/* { dg-do compile } */
++/* { dg-options "-fopenmp -O -fexceptions -fnon-call-exceptions -fno-tree-fre" } */
++
++int
++s0 (void)
++{
++  int g6, oh = 0;
++  int *a6 = &g6;
++
++  (void) a6;
++
++#pragma omp parallel for
++  for (g6 = 0; g6 < 1; ++g6)
++    {
++      int zk;
++
++      for (zk = 0; zk < 1; ++zk)
++        {
++          oh += zk / (zk + 1);
++
++          for (;;)
++            {
++            }
++        }
++
++      a6 = &zk;
++    }
++
++  return oh;
++}
 Index: gcc/testsuite/gcc.dg/asm-qual-2.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.dg/asm-qual-2.c	(.../tags/gcc_7_4_0_release)
@@ -4419,6 +4655,34 @@ Index: gcc/testsuite/gcc.dg/asan/pr81923.c
  int
  main ()
  {
+Index: gcc/testsuite/gcc.dg/graphite/pr84552.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/graphite/pr84552.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.dg/graphite/pr84552.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,23 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -floop-nest-optimize -fno-tree-copy-prop -fno-tree-fre -fno-tree-loop-ivcanon" } */
++
++int cx;
++
++int
++e6 (int pj, int xe)
++{
++  for (cx = 0; cx < 2; ++cx)
++    while (xe < 1)
++      {
++	for (cx = 0; cx < 2; ++cx)
++	  pj *= 2;
++
++	if (cx != 0)
++	  goto o3;
++
++	++xe;
++      }
++
++o3:
++  return pj;
++}
 Index: gcc/testsuite/gcc.dg/inline-40.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.dg/inline-40.c	(.../tags/gcc_7_4_0_release)
@@ -4507,6 +4771,46 @@ Index: gcc/testsuite/gcc.dg/lto/pr85248_0.c
    __attribute__ ((__noreturn__));
  
  extern inline __attribute__ ((__always_inline__, __gnu_inline__)) void
+Index: gcc/testsuite/gcc.dg/torture/pr86554-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/torture/pr86554-1.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.dg/torture/pr86554-1.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,35 @@
++/* { dg-do run } */
++
++struct foo
++{
++  unsigned x;
++};
++typedef struct foo foo;
++
++static inline int zot(foo *f)
++{
++  int ret;
++
++  if (f->x > 0x7FFFFFFF)
++    ret = (int)(f->x - 0x7FFFFFFF);
++  else
++    ret = (int)f->x - 0x7FFFFFFF;
++  return ret;
++}
++
++void __attribute__((noinline,noclone)) bar(foo *f)
++{
++  int ret = zot(f);
++  volatile int x = ret;
++  if (ret < 1)
++    __builtin_abort ();
++}
++
++int main()
++{
++  foo f;
++  f.x = 0x800003f8;
++
++  bar(&f);
++  return 0;
++}
 Index: gcc/testsuite/gcc.dg/torture/pr68037-1.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.dg/torture/pr68037-1.c	(.../tags/gcc_7_4_0_release)
@@ -4569,6 +4873,60 @@ Index: gcc/testsuite/gcc.dg/torture/pr68264.c
  /* { dg-add-options ieee } */
  /* { dg-require-effective-target fenv_exceptions } */
  
+Index: gcc/testsuite/gcc.dg/torture/pr86554-2.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/torture/pr86554-2.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.dg/torture/pr86554-2.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,49 @@
++/* { dg-do run } */
++/* { dg-require-effective-target int32plus } */
++
++struct s { __INT64_TYPE__ e; };
++
++static void f (struct s *ps)
++{
++  volatile __INT64_TYPE__ m = 9223372036854775807;
++  const char *str = "11E";
++  int r;
++  __INT64_TYPE__ sum;
++
++  ps->e = 0;
++
++  for (;;)
++    {
++      if (*str++ != '1')
++	break;
++      ps->e ++;
++    }
++
++  r = 1;
++  sum = m;
++
++  if (sum >= 0 && ps->e >= 0)
++    {
++      __UINT64_TYPE__ uc;
++      uc = (__UINT64_TYPE__) sum + (__UINT64_TYPE__) ps->e;
++      if (uc > 9223372036854775807)
++	r = 2;
++      else
++	sum = 17;
++    }
++  else
++    sum = sum + ps->e;
++
++  if (sum != 9223372036854775807)
++    __builtin_abort ();
++  if (r != 2)
++    __builtin_abort ();
++  ps->e = sum;
++}
++
++int main (void)
++{
++  struct s s;
++  f (&s);
++  return 0;
++}
 Index: gcc/testsuite/gcc.dg/torture/pr68037-2.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.dg/torture/pr68037-2.c	(.../tags/gcc_7_4_0_release)
@@ -4579,6 +4937,33 @@ Index: gcc/testsuite/gcc.dg/torture/pr68037-2.c
  /* { dg-options "-mgeneral-regs-only" } */
  
  extern void exit (int);
+Index: gcc/testsuite/gcc.dg/torture/pr89505.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/torture/pr89505.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.dg/torture/pr89505.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,22 @@
++/* { dg-do run } */
++
++struct S { int i; void *p; int j; };
++int a;
++int __attribute__((noinline))
++foo (struct S * __restrict p, int q)
++{
++  int *x = &p->j;
++  if (q)
++    x = &a;
++  p->j = 1;
++  *x = 2;
++  return p->j;
++}
++
++int main()
++{
++  struct S s;
++  if (foo (&s, 0) != 2)
++    __builtin_abort ();
++  return 0;
++}
 Index: gcc/testsuite/gcc.dg/memcmp-1.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.dg/memcmp-1.c	(.../tags/gcc_7_4_0_release)
@@ -4786,7 +5171,56 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,571 @@
+@@ -1,3 +1,620 @@
++2019-03-26  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2019-01-08  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/86554
++	* gcc.dg/torture/pr86554-1.c: New testcase.
++	* gcc.dg/torture/pr86554-2.c: Likewise.
++
++	2018-11-20  Richard Biener  <rguenther@suse.de>
++ 
++	PR tree-optimization/88105
++	* gcc.dg/gomp/pr88105.c: New testcase.
++
++	2018-03-08  Richard Biener  <rguenther@suse.de>
++
++	PR middle-end/84552
++	* gcc.dg/graphite/pr84552.c: New testcase.
++
++2019-03-25  Janus Weil  <janus@gcc.gnu.org>
++
++	PR fortran/71861
++	Backport from trunk
++	* gfortran.dg/interface_abstract_5.f90: New test case.
++
++2019-03-21  Thomas Schwinge  <thomas@codesourcery.com>
++
++	PR fortran/56408
++	* gcc.target/powerpc/ppc-fortran/ppc-fortran.exp
++	(dg-compile-aux-modules): Fix diagnostic.
++	* gfortran.dg/coarray/caf.exp (dg-compile-aux-modules): Likewise.
++	* gfortran.dg/dg.exp (dg-compile-aux-modules): Likewise.
++
++	PR fortran/56408
++	* gfortran.dg/coarray/caf.exp (dg-compile-aux-modules): Workaround
++	missing nexted dg-test call support in dejaGNU 1.4.4.
++
++	PR fortran/29383
++	* gfortran.dg/ieee/ieee.exp (DEFAULT_FFLAGS): Set the same as in
++	other '*.exp' files.
++
++2019-03-21  Matthias Klose  <doko@ubuntu.com>
++
++	Backport from mainline
++	2019-02-26  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/89505
++	* gcc.dg/torture/pr89505.c: New testcase.
++
 +2019-03-17  Thomas Koenig  <tkoenig@gcc.gnu.org>
 +
 +	PR fortran/84394
@@ -5902,6 +6336,20 @@ Index: gcc/ipa-pure-const.c
  				     ignore_edge_for_nothrow);
    if (dump_file)
      {
+Index: gcc/tree-ssa-dom.c
+===================================================================
+--- a/src/gcc/tree-ssa-dom.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/tree-ssa-dom.c	(.../branches/gcc-7-branch)
+@@ -531,7 +531,8 @@
+ 	  if (bb == NULL)
+ 	    continue;
+ 	  while (single_succ_p (bb)
+-		 && (single_succ_edge (bb)->flags & EDGE_EH) == 0)
++		 && (single_succ_edge (bb)->flags
++		     & (EDGE_EH|EDGE_DFS_BACK)) == 0)
+ 	    bb = single_succ (bb);
+ 	  if (bb == EXIT_BLOCK_PTR_FOR_FN (fun))
+ 	    continue;
 Index: gcc/ipa-utils.c
 ===================================================================
 --- a/src/gcc/ipa-utils.c	(.../tags/gcc_7_4_0_release)
@@ -6877,7 +7325,15 @@ Index: gcc/fortran/symbol.c
        && (attr->function || attr->subroutine)
        && gfc_current_state () == COMP_CONTAINS
        && !(gfc_new_block && gfc_new_block->abr_modproc_decl))
-@@ -1595,7 +1595,15 @@
+@@ -509,6 +509,7 @@
+ 
+   conf (external, intrinsic);
+   conf (entry, intrinsic);
++  conf (abstract, intrinsic);
+ 
+   if ((attr->if_source == IFSRC_DECL && !attr->procedure) || attr->contained)
+     conf (external, subroutine);
+@@ -1595,7 +1596,15 @@
      return false;
  
    attr->subroutine = 1;
@@ -6894,7 +7350,7 @@ Index: gcc/fortran/symbol.c
  }
  
  
-@@ -1711,7 +1719,8 @@
+@@ -1711,7 +1720,8 @@
    if (where == NULL)
      where = &gfc_current_locus;
  
@@ -6904,7 +7360,7 @@ Index: gcc/fortran/symbol.c
      {
        if (attr->proc == PROC_ST_FUNCTION && t == PROC_INTERNAL
  	  && !gfc_notification_std (GFC_STD_F2008))
-@@ -4173,7 +4182,7 @@
+@@ -4173,7 +4183,7 @@
  /* Get a global symbol, creating it if it doesn't exist.  */
  
  gfc_gsymbol *
@@ -6913,7 +7369,7 @@ Index: gcc/fortran/symbol.c
  {
    gfc_gsymbol *s;
  
-@@ -4184,6 +4193,7 @@
+@@ -4184,6 +4194,7 @@
    s = XCNEW (gfc_gsymbol);
    s->type = GSYM_UNKNOWN;
    s->name = gfc_get_string ("%s", name);
@@ -7097,7 +7553,22 @@ Index: gcc/fortran/ChangeLog
 ===================================================================
 --- a/src/gcc/fortran/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/fortran/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,272 @@
+@@ -1,3 +1,287 @@
++2019-03-25  Janus Weil  <janus@gcc.gnu.org>
++
++	PR fortran/71861
++	Backport from trunk
++	* symbol.c (check_conflict): ABSTRACT attribute conflicts with
++	INTRINSIC attribute.
++
++2019-03-23  Thomas Koenig  <tkoeng@gcc.gnu.org>
++
++	PR fortran/68009
++	Backport from trunk
++	* iresolve.c: Include trans.h.
++	(gfc_resolve_fe_runtine_error): Set backend_decl on
++	resolved_sym.
++
 +2019-03-17  Thomas Koenig  <tkoenig@gcc.gnu.org>
 +
 +	PR fortran/84394
@@ -8011,6 +8482,29 @@ Index: gcc/fortran/resolve.c
      formal_arg_flag = true;
  
    saved_specification_expr = specification_expr;
+Index: gcc/fortran/iresolve.c
+===================================================================
+--- a/src/gcc/fortran/iresolve.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/fortran/iresolve.c	(.../branches/gcc-7-branch)
+@@ -35,6 +35,7 @@
+ #include "intrinsic.h"
+ #include "constructor.h"
+ #include "arith.h"
++#include "trans.h"
+ 
+ /* Given printf-like arguments, return a stable version of the result string. 
+ 
+@@ -2286,6 +2287,10 @@
+     a->name = "%VAL";
+ 
+   c->resolved_sym = gfc_get_intrinsic_sub_symbol (name);
++  /* We set the backend_decl here because runtime_error is a
++     variadic function and we would use the wrong calling
++     convention otherwise.  */
++  c->resolved_sym->backend_decl = gfor_fndecl_runtime_error;
+ }
+ 
+ void
 Index: gcc/fortran/trans-decl.c
 ===================================================================
 --- a/src/gcc/fortran/trans-decl.c	(.../tags/gcc_7_4_0_release)
@@ -8379,6 +8873,22 @@ Index: gcc/combine.c
  	  return CONST0_RTX (mode);
        }
  
+Index: gcc/tree-ssa-structalias.c
+===================================================================
+--- a/src/gcc/tree-ssa-structalias.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/tree-ssa-structalias.c	(.../branches/gcc-7-branch)
+@@ -7456,7 +7456,10 @@
+ 	    }
+ 	  if (used)
+ 	    {
+-	      bitmap_set_bit (rvars, restrict_var->id);
++	      /* Add all subvars to the set of restrict pointed-to set. */
++	      for (unsigned sv = restrict_var->head; sv != 0;
++		   sv = get_varinfo (sv)->next)
++		bitmap_set_bit (rvars, sv);
+ 	      varinfo_t escaped = get_varinfo (find (escaped_id));
+ 	      if (bitmap_bit_p (escaped->solution, restrict_var->id))
+ 		escaped_p = true;
 Index: gcc/gimple.h
 ===================================================================
 --- a/src/gcc/gimple.h	(.../tags/gcc_7_4_0_release)
@@ -10287,6 +10797,21 @@ Index: gcc/config/rs6000/rs6000.c
  }
  
  /* Return the first fixed-point register that is required to be
+@@ -43013,6 +43038,14 @@
+   /* Pre-pass to recombine lvx and stvx patterns so we don't lose info.  */
+   recombine_lvx_stvx_patterns (fun);
+ 
++  /* Rebuild ud- and du-chains.  */                                            
++  df_remove_problem (df_chain);
++  df_process_deferred_rescans ();
++  df_set_flags (DF_RD_PRUNE_DEAD_DEFS);
++  df_chain_add_problem (DF_DU_CHAIN | DF_UD_CHAIN);
++  df_analyze ();
++  df_set_flags (DF_DEFER_INSN_RESCAN);
++
+   /* Allocate structure to represent webs of insns.  */
+   insn_entry = XCNEWVEC (swap_web_entry, get_max_uid ());
+ 
 Index: gcc/config/rs6000/vsx.md
 ===================================================================
 --- a/src/gcc/config/rs6000/vsx.md	(.../tags/gcc_7_4_0_release)
