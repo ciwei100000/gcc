@@ -5512,6 +5512,7 @@ ifenabled(`libnof',`
 
 ifenabled(`source',`
 Package: gcc`'PV-source
+Multi-Arch: foreign
 Architecture: all
 Priority: PRI(optional)
 Depends: make, autoconf2.64, quilt, patchutils, sharutils, gawk, lsb-release,
