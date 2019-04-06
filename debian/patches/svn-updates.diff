@@ -1,10 +1,10 @@
-# DP: updates from the 8 branch upto 20190403 (r270110).
+# DP: updates from the 8 branch upto 20190406 (r270182).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Wed Apr  3 02:56:33 CEST 2019
-Wed Apr  3 00:56:33 UTC 2019 (revision 270110)
+Sat Apr  6 16:50:33 CEST 2019
+Sat Apr  6 14:50:33 UTC 2019 (revision 270182)
 EOF
 }
 
@@ -253,7 +253,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-8-branch)
 @@ -1 +1 @@
 -20190222
-+20190403
++20190406
 Index: gcc/tree-ssa-loop-ch.c
 ===================================================================
 --- a/src/gcc/tree-ssa-loop-ch.c	(.../tags/gcc_8_3_0_release)
@@ -448,7 +448,19 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,427 @@
+@@ -1,3 +1,439 @@
++2019-04-04  Martin Sebor  <msebor@redhat.com>
++
++	PR middle-end/89934
++	* gimple-ssa-warn-restrict.c (builtin_access::builtin_access): Bail
++	out if the number of arguments is less than expected.
++
++2019-04-03  Richard Biener  <rguenther@suse.de>
++
++	PR lto/89896
++	* lto-wrapper.c (run_gcc): Avoid implicit rules making
++	the all target phony.
++
 +2019-04-02  Uroš Bizjak  <ubizjak@gmail.com>
 +
 +	PR target/89902
@@ -876,7 +888,7 @@ Index: gcc/ChangeLog
  2019-02-22  Release Manager
  
  	* GCC 8.3.0 released.
-@@ -568,7 +996,7 @@
+@@ -568,7 +1008,7 @@
  
  	Backport from mainline
  	2018-11-20  Richard Biener  <rguenther@suse.de>
@@ -3031,6 +3043,44 @@ Index: gcc/testsuite/gnat.dg/opt77_pkg.ads
 +  procedure Proc (S : String; N : in out Natural; To_Add : out Boolean);
 +
 +end Opt77_Pkg;
+Index: gcc/testsuite/gcc.dg/Wrestrict-19.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/Wrestrict-19.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.dg/Wrestrict-19.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,33 @@
++/* PR middle-end/89934 - ICE on a call with fewer arguments to strncpy
++   declared without prototype
++   { dg-do compile }
++   { dg-options "-O2 -Wall" } */
++
++typedef __SIZE_TYPE__ size_t;
++
++char *strncpy ();
++
++char* f0 (char *s)
++{
++  return strncpy ();
++}
++
++char* f1 (char *s)
++{
++  return strncpy (s);
++}
++
++char* f2 (char *s)
++{
++  return strncpy (s, s + 1);   /* ICE here.  */
++}
++
++void f3 (char *s, size_t n, const char *t)
++{
++  strncpy (s, n, t);
++  strncpy (n, s, t);
++}
++
++/* { dg-prune-output "\\\[-Wbuiltin-declaration-mismatch]" }
++   { dg-prune-output "\\\[-Wint-conversion]" } */
++
 Index: gcc/testsuite/gcc.dg/torture/pr89572.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.dg/torture/pr89572.c	(.../tags/gcc_8_3_0_release)
@@ -3193,6 +3243,40 @@ Index: gcc/testsuite/gcc.dg/uninit-pred-8_b.c
  
  int g;
  void bar();
+Index: gcc/testsuite/gcc.dg/Wrestrict-5.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/Wrestrict-5.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.dg/Wrestrict-5.c	(.../branches/gcc-8-branch)
+@@ -1,19 +1,11 @@
+-/* Test to verify that valid calls to common restrict-qualified built-in
++/* PR tree-optimization/83655 - ICE on an invalid call to memcpy declared
++   with no prototype
++   Test to verify that valid calls to common restrict-qualified built-in
+    functions declared with no prototype are checked for overlap, and that
+    invalid calls are ignored.
+   { dg-do compile }
+   { dg-options "-O2 -Wrestrict" }  */
+ 
+-typedef __SIZE_TYPE__ size_t;
+-
+-#if __cplusplus
+-extern "C" {
+-
+-#define NO_PROTO ...
+-#else
+-#define NO_PROTO /* empty */
+-#endif
+-
+ void* memcpy ();
+ char* strncpy ();
+ 
+@@ -41,3 +33,6 @@
+ {
+   strncpy (d + 1, d + 3, "");
+ }
++
++/* { dg-prune-output "\\\[-Wbuiltin-declaration-mismatch]" }
++   { dg-prune-output "\\\[-Wint-conversion]" } */
 Index: gcc/testsuite/gcc.dg/tree-ssa/reassoc-43.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.dg/tree-ssa/reassoc-43.c	(.../tags/gcc_8_3_0_release)
@@ -3347,7 +3431,13 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,419 @@
+@@ -1,3 +1,425 @@
++2019-04-04  Martin Sebor  <msebor@redhat.com>
++
++	PR middle-end/89934
++	* gcc.dg/Wrestrict-19.c: New test.
++	* gcc.dg/Wrestrict-5.c: Add comment.  Remove unused code.
++
 +2019-04-02  Uroš Bizjak  <ubizjak@gmail.com>
 +
 +	PR target/89902
@@ -4553,6 +4643,32 @@ Index: gcc/gimple-ssa-warn-restrict.c
  	  gimple *stmt = SSA_NAME_DEF_STMT (offset);
  	  tree type;
  	  if (is_gimple_assign (stmt)
+@@ -702,6 +698,10 @@
+   offset_int bounds[2] = { maxobjsize, maxobjsize };
+   if (dstref->strbounded_p)
+     {
++      unsigned nargs = gimple_call_num_args (call);
++      if (nargs <= sizeargno)
++	return;
++
+       tree size = gimple_call_arg (call, sizeargno);
+       tree range[2];
+       if (get_size_range (size, range, true))
+Index: gcc/lto-wrapper.c
+===================================================================
+--- a/src/gcc/lto-wrapper.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/lto-wrapper.c	(.../branches/gcc-8-branch)
+@@ -1669,7 +1669,9 @@
+ 	  struct pex_obj *pex;
+ 	  char jobs[32];
+ 
+-	  fprintf (mstream, "all:");
++	  fprintf (mstream,
++		   ".PHONY: all\n"
++		   "all:");
+ 	  for (i = 0; i < nr; ++i)
+ 	    {
+ 	      int j = ltrans_priorities[i*2 + 1];
 Index: gcc/dwarf2out.c
 ===================================================================
 --- a/src/gcc/dwarf2out.c	(.../tags/gcc_8_3_0_release)
