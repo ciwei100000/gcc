@@ -2,7 +2,17 @@
 
 --- a/src/gcc/cp/g++spec.c
 +++ b/src/gcc/cp/g++spec.c
-@@ -363,6 +363,22 @@
+@@ -262,7 +262,8 @@ lang_specific_driver (struct cl_decoded_
+ #endif
+ 
+   /* Add one for shared_libgcc or extra static library.  */
+-  num_args = argc + added + need_math + (library > 0) * 4 + 1;
++  /* Add four for libstdc++fs and linker options.  */
++  num_args = argc + added + need_math + (library > 0) * 4 + 1 + 4;
+   new_decoded_options = XNEWVEC (struct cl_decoded_option, num_args);
+ 
+   i = 0;
+@@ -363,6 +364,22 @@ lang_specific_driver (struct cl_decoded_
  	  j++;
  	}
  #endif
@@ -25,3 +35,113 @@
      }
    if (saw_math)
      new_decoded_options[j++] = *saw_math;
+--- a/src/Makefile.tpl
++++ b/src/Makefile.tpl
+@@ -240,11 +240,13 @@ POSTSTAGE1_CXX_EXPORT = \
+ 	CXX="$(STAGE_CC_WRAPPER) $$r/$(HOST_SUBDIR)/prev-gcc/xg++$(exeext) \
+ 	  -B$$r/$(HOST_SUBDIR)/prev-gcc/ -B$(build_tooldir)/bin/ -nostdinc++ \
+ 	  -B$$r/prev-$(TARGET_SUBDIR)/libstdc++-v3/src/.libs \
++	  -B$$r/prev-$(TARGET_SUBDIR)/libstdc++-v3/src/filesystem/.libs \
+ 	  -B$$r/prev-$(TARGET_SUBDIR)/libstdc++-v3/libsupc++/.libs \
+ 	  `if $(LEAN); then echo ' -isystem '; else echo ' -I'; fi`$$r/prev-$(TARGET_SUBDIR)/libstdc++-v3/include/$(TARGET_SUBDIR) \
+ 	  `if $(LEAN); then echo ' -isystem '; else echo ' -I'; fi`$$r/prev-$(TARGET_SUBDIR)/libstdc++-v3/include \
+ 	  `if $(LEAN); then echo ' -isystem '; else echo ' -I'; fi`$$s/libstdc++-v3/libsupc++ \
+ 	  -L$$r/prev-$(TARGET_SUBDIR)/libstdc++-v3/src/.libs \
++	  -L$$r/prev-$(TARGET_SUBDIR)/libstdc++-v3/src/filesystem/.libs \
+ 	  -L$$r/prev-$(TARGET_SUBDIR)/libstdc++-v3/libsupc++/.libs"; \
+ 	  export CXX; \
+ 	CXX_FOR_BUILD="$$CXX"; export CXX_FOR_BUILD;
+--- a/src/Makefile.in
++++ b/src/Makefile.in
+@@ -237,11 +237,13 @@ POSTSTAGE1_CXX_EXPORT = \
+ 	CXX="$(STAGE_CC_WRAPPER) $$r/$(HOST_SUBDIR)/prev-gcc/xg++$(exeext) \
+ 	  -B$$r/$(HOST_SUBDIR)/prev-gcc/ -B$(build_tooldir)/bin/ -nostdinc++ \
+ 	  -B$$r/prev-$(TARGET_SUBDIR)/libstdc++-v3/src/.libs \
++	  -B$$r/prev-$(TARGET_SUBDIR)/libstdc++-v3/src/filesystem/.libs \
+ 	  -B$$r/prev-$(TARGET_SUBDIR)/libstdc++-v3/libsupc++/.libs \
+ 	  `if $(LEAN); then echo ' -isystem '; else echo ' -I'; fi`$$r/prev-$(TARGET_SUBDIR)/libstdc++-v3/include/$(TARGET_SUBDIR) \
+ 	  `if $(LEAN); then echo ' -isystem '; else echo ' -I'; fi`$$r/prev-$(TARGET_SUBDIR)/libstdc++-v3/include \
+ 	  `if $(LEAN); then echo ' -isystem '; else echo ' -I'; fi`$$s/libstdc++-v3/libsupc++ \
+ 	  -L$$r/prev-$(TARGET_SUBDIR)/libstdc++-v3/src/.libs \
++	  -L$$r/prev-$(TARGET_SUBDIR)/libstdc++-v3/src/filesystem/.libs \
+ 	  -L$$r/prev-$(TARGET_SUBDIR)/libstdc++-v3/libsupc++/.libs"; \
+ 	  export CXX; \
+ 	CXX_FOR_BUILD="$$CXX"; export CXX_FOR_BUILD;
+--- a/src/configure.ac
++++ b/src/configure.ac
+@@ -3379,10 +3379,10 @@ GCC_TARGET_TOOL(as, AS_FOR_TARGET, AS, [
+ GCC_TARGET_TOOL(cc, CC_FOR_TARGET, CC, [gcc/xgcc -B$$r/$(HOST_SUBDIR)/gcc/])
+ dnl see comments for CXX_FOR_TARGET_FLAG_TO_PASS
+ GCC_TARGET_TOOL(c++, CXX_FOR_TARGET, CXX,
+-		[gcc/xg++ -B$$r/$(HOST_SUBDIR)/gcc/ -nostdinc++ `if test -f $$r/$(TARGET_SUBDIR)/libstdc++-v3/scripts/testsuite_flags; then $(SHELL) $$r/$(TARGET_SUBDIR)/libstdc++-v3/scripts/testsuite_flags --build-includes; else echo -funconfigured-libstdc++-v3 ; fi` -L$$r/$(TARGET_SUBDIR)/libstdc++-v3/src -L$$r/$(TARGET_SUBDIR)/libstdc++-v3/src/.libs -L$$r/$(TARGET_SUBDIR)/libstdc++-v3/libsupc++/.libs],
++		[gcc/xg++ -B$$r/$(HOST_SUBDIR)/gcc/ -nostdinc++ `if test -f $$r/$(TARGET_SUBDIR)/libstdc++-v3/scripts/testsuite_flags; then $(SHELL) $$r/$(TARGET_SUBDIR)/libstdc++-v3/scripts/testsuite_flags --build-includes; else echo -funconfigured-libstdc++-v3 ; fi` -L$$r/$(TARGET_SUBDIR)/libstdc++-v3/src -L$$r/$(TARGET_SUBDIR)/libstdc++-v3/src/.libs -L$$r/$(TARGET_SUBDIR)/libstdc++-v3/src/filesystem/.libs -L$$r/$(TARGET_SUBDIR)/libstdc++-v3/libsupc++/.libs],
+ 		c++)
+ GCC_TARGET_TOOL(c++ for libstdc++, RAW_CXX_FOR_TARGET, CXX,
+-		[gcc/xgcc -shared-libgcc -B$$r/$(HOST_SUBDIR)/gcc -nostdinc++ -L$$r/$(TARGET_SUBDIR)/libstdc++-v3/src -L$$r/$(TARGET_SUBDIR)/libstdc++-v3/src/.libs -L$$r/$(TARGET_SUBDIR)/libstdc++-v3/libsupc++/.libs],
++		[gcc/xgcc -shared-libgcc -B$$r/$(HOST_SUBDIR)/gcc -nostdinc++ -L$$r/$(TARGET_SUBDIR)/libstdc++-v3/src -L$$r/$(TARGET_SUBDIR)/libstdc++-v3/src/.libs -L$$r/$(TARGET_SUBDIR)/libstdc++-v3/src/filesystem/.libs -L$$r/$(TARGET_SUBDIR)/libstdc++-v3/libsupc++/.libs],
+ 		c++)
+ GCC_TARGET_TOOL(dlltool, DLLTOOL_FOR_TARGET, DLLTOOL, [binutils/dlltool])
+ GCC_TARGET_TOOL(gcc, GCC_FOR_TARGET, , [gcc/xgcc -B$$r/$(HOST_SUBDIR)/gcc/])
+--- a/src/gnattools/Makefile.in
++++ b/src/gnattools/Makefile.in
+@@ -71,8 +71,10 @@ ADA_INCLUDES_FOR_SUBDIR = -I. -I$(fsrcdi
+ 
+ CXX_LFLAGS = \
+  -B../../../$(target_noncanonical)/libstdc++-v3/src/.libs \
++ -B../../../$(target_noncanonical)/libstdc++-v3/src/filesystem/.libs \
+  -B../../../$(target_noncanonical)/libstdc++-v3/libsupc++/.libs \
+  -L../../../$(target_noncanonical)/libstdc++-v3/src/.libs \
++ -L../../../$(target_noncanonical)/libstdc++-v3/src/filesystem/.libs \
+  -L../../../$(target_noncanonical)/libstdc++-v3/libsupc++/.libs
+ 
+ # Variables for gnattools, native
+--- a/src/gotools/Makefile.am
++++ b/src/gotools/Makefile.am
+@@ -184,7 +184,7 @@ check-gccgo: Makefile
+ 	rm -f $@ $@.tmp
+ 	echo "#!/bin/sh" > $@.tmp
+ 	abs_libgodir=`cd $(libgodir) && $(PWD_COMMAND)`; \
+-	echo "$(GOCOMPILE)" '"$$@"' "-I $${abs_libgodir} -L $${abs_libgodir} -L $${abs_libgodir}/.libs -B$${abs_libgodir}/../libstdc++-v3/src/.libs -B$${abs_libgodir}/../libstdc++-v3/libsupc++/.libs" >> $@.tmp
++	echo "$(GOCOMPILE)" '"$$@"' "-I $${abs_libgodir} -L $${abs_libgodir} -L $${abs_libgodir}/.libs -B$${abs_libgodir}/../libstdc++-v3/src/.libs -B$${abs_libgodir}/../libstdc++-v3/src/filesystem/.libs -B$${abs_libgodir}/../libstdc++-v3/libsupc++/.libs" >> $@.tmp
+ 	chmod +x $@.tmp
+ 	mv -f $@.tmp $@
+ 
+@@ -194,7 +194,7 @@ check-gcc: Makefile
+ 	rm -f $@ $@.tmp
+ 	echo "#!/bin/sh" > $@.tmp
+ 	abs_libgodir=`cd $(libgodir) && $(PWD_COMMAND)`; \
+-	echo "$(GCC_FOR_TARGET)" '"$$@"' "-L $${abs_libgodir} -L $${abs_libgodir}/.libs -B$${abs_libgodir}/../libstdc++-v3/src/.libs -B$${abs_libgodir}/../libstdc++-v3/libsupc++/.libs" >> $@.tmp
++	echo "$(GCC_FOR_TARGET)" '"$$@"' "-L $${abs_libgodir} -L $${abs_libgodir}/.libs -B$${abs_libgodir}/../libstdc++-v3/src/.libs -B$${abs_libgodir}/../libstdc++-v3/src/filesystem/.libs -B$${abs_libgodir}/../libstdc++-v3/libsupc++/.libs" >> $@.tmp
+ 	chmod +x $@.tmp
+ 	mv -f $@.tmp $@
+ 
+--- a/src/gotools/Makefile.in
++++ b/src/gotools/Makefile.in
+@@ -791,7 +791,7 @@ mostlyclean-local:
+ @NATIVE_TRUE@	rm -f $@ $@.tmp
+ @NATIVE_TRUE@	echo "#!/bin/sh" > $@.tmp
+ @NATIVE_TRUE@	abs_libgodir=`cd $(libgodir) && $(PWD_COMMAND)`; \
+-@NATIVE_TRUE@	echo "$(GOCOMPILE)" '"$$@"' "-I $${abs_libgodir} -L $${abs_libgodir} -L $${abs_libgodir}/.libs -B$${abs_libgodir}/../libstdc++-v3/src/.libs -B$${abs_libgodir}/../libstdc++-v3/libsupc++/.libs" >> $@.tmp
++@NATIVE_TRUE@	echo "$(GOCOMPILE)" '"$$@"' "-I $${abs_libgodir} -L $${abs_libgodir} -L $${abs_libgodir}/.libs -B$${abs_libgodir}/../libstdc++-v3/src/.libs -B$${abs_libgodir}/../libstdc++-v3/src/filesystem/.libs -B$${abs_libgodir}/../libstdc++-v3/libsupc++/.libs" >> $@.tmp
+ @NATIVE_TRUE@	chmod +x $@.tmp
+ @NATIVE_TRUE@	mv -f $@.tmp $@
+ 
+@@ -801,7 +801,7 @@ mostlyclean-local:
+ @NATIVE_TRUE@	rm -f $@ $@.tmp
+ @NATIVE_TRUE@	echo "#!/bin/sh" > $@.tmp
+ @NATIVE_TRUE@	abs_libgodir=`cd $(libgodir) && $(PWD_COMMAND)`; \
+-@NATIVE_TRUE@	echo "$(GCC_FOR_TARGET)" '"$$@"' "-L $${abs_libgodir} -L $${abs_libgodir}/.libs -B$${abs_libgodir}/../libstdc++-v3/src/.libs -B$${abs_libgodir}/../libstdc++-v3/libsupc++/.libs" >> $@.tmp
++@NATIVE_TRUE@	echo "$(GCC_FOR_TARGET)" '"$$@"' "-L $${abs_libgodir} -L $${abs_libgodir}/.libs -B$${abs_libgodir}/../libstdc++-v3/src/.libs -B$${abs_libgodir}/../libstdc++-v3/src/filesystem/.libs -B$${abs_libgodir}/../libstdc++-v3/libsupc++/.libs" >> $@.tmp
+ @NATIVE_TRUE@	chmod +x $@.tmp
+ @NATIVE_TRUE@	mv -f $@.tmp $@
+ 
+--- a/src/libstdc++-v3/testsuite/lib/libstdc++.exp
++++ b/src/libstdc++-v3/testsuite/lib/libstdc++.exp
+@@ -587,6 +587,7 @@ proc v3_target_compile_as_c { source des
+     } else {
+ 	set libdir "-L${blddir}/libsupc++/.libs"
+ 	set libdir [concat $libdir "-L${blddir}/src/.libs"]
++	set libdir [concat $libdir "-L${blddir}/src/filesystem/.libs"]
+     }
+ 
+     set cc_final [concat $cc_final "$libdir"]
