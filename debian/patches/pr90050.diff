@@ -1,0 +1,27 @@
+# DP: Fix PR c++/90050, always link with libstdc++fs.a
+
+--- a/src/gcc/cp/g++spec.c
++++ b/src/gcc/cp/g++spec.c
+@@ -363,6 +363,22 @@
+ 	  j++;
+ 	}
+ #endif
++      if (library > 1)
++	{
++	  generate_option (OPT_Wl_, "--push-state", 1, CL_DRIVER,
++			   &new_decoded_options[j]);
++	  j++;
++	  generate_option (OPT_Wl_, "--no-whole-archive", 1, CL_DRIVER,
++			   &new_decoded_options[j]);
++	  j++;
++	  generate_option (OPT_l, LIBSTDCXX "fs", 1,
++			   CL_DRIVER, &new_decoded_options[j]);
++	  added_libraries++;
++	  j++;
++	  generate_option (OPT_Wl_, "--pop-state", 1, CL_DRIVER,
++			   &new_decoded_options[j]);
++	  j++;
++	}
+     }
+   if (saw_math)
+     new_decoded_options[j++] = *saw_math;
