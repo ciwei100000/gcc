@@ -33,6 +33,7 @@ debian_patches += \
 
 debian_patches += \
 	gcc-textdomain \
+	gcc-distro-specs \
 	gcc-driver-extra-langs$(if $(with_linaro_branch),-linaro)
 
 ifneq (,$(filter $(distrelease),etch lenny squeeze wheezy dapper hardy intrepid jaunty karmic lucid))
@@ -81,17 +82,10 @@ debian_patches += \
 #	libstdc++-nothumb-check \
 
 hardening_patches =
-ifeq ($(with_ssp)-$(with_ssp_default),yes-yes)
-  hardening_patches += gcc-default-ssp
-  hardening_patches += gcc-default-format-security
-  ifeq (,$(filter $(distrelease),dapper hardy lucid maverick natty oneiric precise quantal raring saucy trusty))
-    hardening_patches += gcc-default-ssp-strong
-  endif
-endif
-# FIXME: 20181025, fails to bootstrap with these ...
-ifneq (,$(filter $(derivative),UbuntuXXX))
+ifneq (,$(filter $(derivative),Ubuntu))
   ifneq (,$(findstring gcc-9, $(PKGSOURCE)))
     hardening_patches += \
+	gcc-distro-specs-doc \
 	gcc-default-fortify-source \
 	gcc-default-relro \
 	testsuite-hardening-format \
@@ -312,6 +306,35 @@ endif
 	  sed -n 's/^# *DP: */  /p' $(patchdir)/$$i.diff >> pxxx; \
 	done
 #	-$(srcdir)/move-if-change pxxx $@
+
+	: # generate the distro-defaults.h header
+	rm -f $(srcdir)/gcc/distro-defaults.h
+	echo '/* distro specific configuration injected by the distro build.  */' \
+	     >> $(srcdir)/gcc/distro-defaults.h
+ifeq ($(with_async_unwind),yes)
+	echo '#define DIST_DEFAULT_ASYNC_UNWIND 1' \
+	     >> $(srcdir)/gcc/distro-defaults.h
+endif
+ifeq ($(with_ssp)-$(with_ssp_default),yes-yes)
+	echo '#define DIST_DEFAULT_SSP 1' \
+	     >> $(srcdir)/gcc/distro-defaults.h
+  ifeq (,$(filter $(distrelease),dapper hardy lucid maverick natty oneiric precise quantal raring saucy trusty))
+	echo '#define DIST_DEFAULT_SSP_STRONG 1' \
+	     >> $(srcdir)/gcc/distro-defaults.h
+  endif
+	echo '#define DIST_DEFAULT_FORMAT_SECURITY 1' \
+	     >> $(srcdir)/gcc/distro-defaults.h
+endif
+ifneq (,$(filter $(derivative),Ubuntu))
+  ifneq (,$(findstring gcc-9, $(PKGSOURCE)))
+#	echo '#define DIST_DEFAULT_FORTIFY_SOURCE 1' \
+#	     >> $(srcdir)/gcc/distro-defaults.h
+  endif
+else ifneq (,$(filter $(derivative),Debian))
+  ifneq (,$(findstring gcc-9, $(PKGSOURCE)))
+  endif
+endif
+
 	mv pxxx $@
 
 unpatch:
