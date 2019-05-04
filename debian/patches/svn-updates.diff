@@ -1,14 +1,70 @@
-# DP: updates from the 9 branch upto 2019mmdd (r265339).
+# DP: updates from the 9 branch upto 20190504 (r270874).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Sat Oct 20 09:17:01 CEST 2018
-Sat Oct 20 07:17:01 UTC 2018 (revision 265339)
+Sat May  4 17:20:26 CEST 2019
+Sat May  4 15:20:26 UTC 2019 (revision 270874)
 EOF
 }
 
-LANG=C svn diff svn://gcc.gnu.org/svn/gcc/tags/gcc_9_1_0_release svn://gcc.gnu.org/svn/gcc/branches/gcc-8-branch \
+LANG=C svn diff svn://gcc.gnu.org/svn/gcc/tags/gcc_9_1_0_release svn://gcc.gnu.org/svn/gcc/branches/gcc-9-branch \
 	| sed -r 's,^--- (\S+)\t(\S+)(.*)$,--- a/src/\1\t\2,;s,^\+\+\+ (\S+)\t(\S+)(.*)$,+++ b/src/\1\t\2,' \
 	| awk '/^Index:.*\.(class|texi)/ {skip=1; next} /^Index:/ { skip=0 } skip==0'
 
+Index: gcc/DATESTAMP
+===================================================================
+--- a/src/gcc/DATESTAMP	(.../tags/gcc_9_1_0_release)
++++ b/src/gcc/DATESTAMP	(.../branches/gcc-9-branch)
+@@ -1 +1 @@
+-20190503
++20190504
+Index: gcc/ChangeLog
+===================================================================
+--- a/src/gcc/ChangeLog	(.../tags/gcc_9_1_0_release)
++++ b/src/gcc/ChangeLog	(.../branches/gcc-9-branch)
+@@ -1,3 +1,9 @@
++2019-05-03  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/90316
++	* tree-ssa-pre.c (pass_pre::execute): Re-compute DOM fast queries
++	before running VN.
++
+ 2019-05-03  Release Manager
+ 
+ 	* GCC 9.1.0 released.
+@@ -8,7 +18,7 @@
+ 	2019-04-30  Ramana Radhakrishnan  <ramana.radhakrishnan@arm.com>
+ 	PR target/86538
+ 	* config/aarch64/aarch64-c.c (aarch64_update_cpp_builtins):
+-	Define __ARM_FEATURE_ATOMICS
++	Define __ARM_FEATURE_ATOMICS.
+ 
+ 2019-04-30  Martin Liska  <mliska@suse.cz>
+ 
+Index: gcc/tree-ssa-pre.c
+===================================================================
+--- a/src/gcc/tree-ssa-pre.c	(.../tags/gcc_9_1_0_release)
++++ b/src/gcc/tree-ssa-pre.c	(.../branches/gcc-9-branch)
+@@ -4197,6 +4197,7 @@
+   loop_optimizer_init (LOOPS_NORMAL);
+   split_critical_edges ();
+   scev_initialize ();
++  calculate_dominance_info (CDI_DOMINATORS);
+ 
+   run_rpo_vn (VN_WALK);
+ 
+Index: libgo/go/os/user/user_test.go
+===================================================================
+--- a/src/libgo/go/os/user/user_test.go	(.../tags/gcc_9_1_0_release)
++++ b/src/libgo/go/os/user/user_test.go	(.../branches/gcc-9-branch)
+@@ -129,6 +129,9 @@
+ 
+ func TestGroupIds(t *testing.T) {
+ 	checkGroup(t)
++	if runtime.GOOS == "aix" {
++		t.Skip("skipping GroupIds, see golang.org/issue/30563")
++	}
+ 	if runtime.GOOS == "solaris" {
+ 		t.Skip("skipping GroupIds, see golang.org/issue/14709")
+ 	}
