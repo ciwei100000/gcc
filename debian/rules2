@@ -1338,7 +1338,9 @@ ifeq ($(versioned_packages),yes)
 endif
 
 # FIXME: must not be run in parrallel with jit and hppa64 builds ...
-$(configure_nvptx_stamp): $(build_stamp)
+$(configure_nvptx_stamp): $(build_stamp) \
+    $(if $(filter yes, $(with_jit)), $(build_jit_stamp)) \
+    $(if $(filter yes, $(with_hppa64)), $(build_hppa64_stamp))
 	dh_testdir
 	rm -f $(configure_nvptx_stamp) $(build_nvptx_stamp)
 	rm -rf $(builddir_nvptx)
@@ -1380,7 +1382,8 @@ ifeq ($(versioned_packages),yes)
   hppa64_configure_flags += --program-suffix=-$(BASE_VERSION)
 endif
 
-$(configure_hppa64_stamp): $(build_stamp)
+$(configure_hppa64_stamp): $(build_stamp) \
+    $(if $(filter yes, $(with_jit)), $(build_jit_stamp))
 	dh_testdir
 	rm -f $(configure_hppa64_stamp) $(build_hppa64_stamp)
 	rm -rf $(builddir_hppa64)
@@ -1415,7 +1418,8 @@ $(configure_hppa64_stamp): $(build_stamp)
 		--target=hppa64-linux-gnu
 	touch $(configure_hppa64_stamp)
 
-$(build_hppa64_stamp): $(configure_hppa64_stamp)
+$(build_hppa64_stamp): $(configure_hppa64_stamp) \
+    $(if $(filter yes, $(with_jit)), $(build_jit_stamp))
 	  $(SET_PATH) \
 	  $(SET_SHELL) \
 	  $(SET_LOCPATH) \
@@ -1425,7 +1429,8 @@ $(build_hppa64_stamp): $(configure_hppa64_stamp)
 		  CFLAGS_FOR_TARGET CXXFLAGS_FOR_TARGET LDFLAGS_FOR_TARGET)
 	touch $(build_hppa64_stamp)
 
-$(configure_neon_stamp): $(build_stamp)
+$(configure_neon_stamp): $(build_stamp) \
+    $(if $(filter yes, $(with_jit)), $(build_jit_stamp))
 	dh_testdir
 	rm -f $(configure_neon_stamp) $(build_neon_stamp)
 	rm -rf $(builddir_neon)
@@ -1451,7 +1456,8 @@ $(configure_neon_stamp): $(build_stamp)
 		--target=arm-linux-gnueabi
 	touch $(configure_neon_stamp)
 
-$(build_neon_stamp): $(configure_neon_stamp)
+$(build_neon_stamp): $(configure_neon_stamp) \
+    $(if $(filter yes, $(with_jit)), $(build_jit_stamp))
 	  $(SET_PATH) \
 	  $(SET_SHELL) \
 	  $(SET_LOCPATH) \
