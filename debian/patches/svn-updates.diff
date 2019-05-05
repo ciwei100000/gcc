@@ -1,10 +1,10 @@
-# DP: updates from the 8 branch upto 20190501 (r270777).
+# DP: updates from the 8 branch upto 20190505 (r270881).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Wed May  1 21:53:57 CEST 2019
-Wed May  1 19:53:57 UTC 2019 (revision 270777)
+Sun May  5 15:48:32 CEST 2019
+Sun May  5 13:48:32 UTC 2019 (revision 270881)
 EOF
 }
 
@@ -545,11 +545,20 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-8-branch)
 @@ -1 +1 @@
 -20190222
-+20190501
++20190505
 Index: gcc/tree-ssa-loop-ch.c
 ===================================================================
 --- a/src/gcc/tree-ssa-loop-ch.c	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/tree-ssa-loop-ch.c	(.../branches/gcc-8-branch)
+@@ -99,7 +99,7 @@
+     }
+ 
+   last = last_stmt (header);
+-  if (gimple_code (last) != GIMPLE_COND)
++  if (!last || gimple_code (last) != GIMPLE_COND)
+     {
+       if (dump_file && (dump_flags & TDF_DETAILS))
+ 	fprintf (dump_file,
 @@ -376,11 +376,23 @@
  		{
  		  gimple *stmt = gsi_stmt (bsi);
@@ -776,7 +785,28 @@ Index: gcc/fold-const.c
 ===================================================================
 --- a/src/gcc/fold-const.c	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/fold-const.c	(.../branches/gcc-8-branch)
-@@ -4239,7 +4239,7 @@
+@@ -3179,10 +3179,16 @@
+       switch (TREE_CODE (arg0))
+ 	{
+ 	case INDIRECT_REF:
+-	  if (!(flags & OEP_ADDRESS_OF)
+-	      && (TYPE_ALIGN (TREE_TYPE (arg0))
+-		  != TYPE_ALIGN (TREE_TYPE (arg1))))
+-	    return 0;
++	  if (!(flags & OEP_ADDRESS_OF))
++	    {
++	      if (TYPE_ALIGN (TREE_TYPE (arg0))
++		  != TYPE_ALIGN (TREE_TYPE (arg1)))
++		return 0;
++	      /* Verify that the access types are compatible.  */
++	      if (TYPE_MAIN_VARIANT (TREE_TYPE (arg0))
++		  != TYPE_MAIN_VARIANT (TREE_TYPE (arg1)))
++		return 0;
++	    }
+ 	  flags &= ~OEP_ADDRESS_OF;
+ 	  return OP_SAME (0);
+ 
+@@ -4239,7 +4245,7 @@
       There are problems with FP fields since the type_for_size call
       below can fail for, e.g., XFmode.  */
    if (! INTEGRAL_TYPE_P (TREE_TYPE (exp)))
@@ -785,7 +815,7 @@ Index: gcc/fold-const.c
  
    /* We are interested in the bare arrangement of bits, so strip everything
       that doesn't affect the machine mode.  However, record the type of the
-@@ -4255,7 +4255,7 @@
+@@ -4255,7 +4261,7 @@
        exp = TREE_OPERAND (exp, 0);
        STRIP_NOPS (exp); STRIP_NOPS (and_mask);
        if (TREE_CODE (and_mask) != INTEGER_CST)
@@ -794,7 +824,7 @@ Index: gcc/fold-const.c
      }
  
    poly_int64 poly_bitsize, poly_bitpos;
-@@ -4271,8 +4271,12 @@
+@@ -4271,8 +4277,12 @@
        || (! AGGREGATE_TYPE_P (TREE_TYPE (inner))
  	  && compare_tree_int (TYPE_SIZE (TREE_TYPE (inner)),
  			       *pbitpos + *pbitsize) < 0))
@@ -808,7 +838,7 @@ Index: gcc/fold-const.c
    *exp_ = exp;
  
    /* If the number of bits in the reference is the same as the bitsize of
-@@ -4282,7 +4286,6 @@
+@@ -4282,7 +4292,6 @@
      *punsignedp = TYPE_UNSIGNED (outer_type);
  
    /* Compute the mask to access the bitfield.  */
@@ -816,7 +846,7 @@ Index: gcc/fold-const.c
    precision = TYPE_PRECISION (unsigned_type);
  
    mask = build_int_cst_type (unsigned_type, -1);
-@@ -5515,12 +5518,15 @@
+@@ -5515,12 +5524,15 @@
    /* On machines where the branch cost is expensive, if this is a
       short-circuited branch and the underlying object on both sides
       is the same, make a non-short-circuit operation.  */
@@ -838,7 +868,7 @@ Index: gcc/fold-const.c
      {
        /* If simple enough, just rewrite.  Otherwise, make a SAVE_EXPR
  	 unless we are at top level or LHS contains a PLACEHOLDER_EXPR, in
-@@ -8165,7 +8171,11 @@
+@@ -8165,7 +8177,11 @@
    if ((tem = fold_truth_andor_1 (loc, code, type, arg0, arg1)) != 0)
      return tem;
  
@@ -964,7 +994,54 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,804 @@
+@@ -1,3 +1,851 @@
++2019-05-03  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2019-03-14  Richard Biener  <rguenther@suse.de>
++
++	PR middle-end/89698
++	* fold-const.c (operand_equal_p): For INDIRECT_REF check
++	that the access types are similar.
++
++	2019-03-07  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/89595
++	* tree-ssa-dom.c (dom_opt_dom_walker::optimize_stmt): Take
++	stmt iterator as reference, take boolean output parameter to
++	indicate whether the stmt was removed and thus the iterator
++	already advanced.
++	(dom_opt_dom_walker::before_dom_children): Re-iterate over
++	stmts created by folding.
++
++	2019-03-14  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/89710
++	* tree-ssa-loop-ch.c (should_duplicate_loop_header_p): Use
++	safe_dyn_cast.
++
++	2019-04-15  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/90071
++	* tree-ssa-reassoc.c (init_range_entry): Do not pick up
++	abnormal operands from def stmts.
++
++	2018-08-20  Bernd Edlinger  <bernd.edlinger@hotmail.de>
++
++	PR target/86984
++	* expr.c (expand_assignment): Assert that bitpos is positive.
++	(store_field): Likewise
++	(expand_expr_real_1): Make sure that bitpos is positive.
++	* config/alpha/alpha.h (CONSTANT_ADDRESS_P): Avoid signed
++	integer overflow.
++
++	2019-03-14  Richard Biener  <rguenther@suse.de>
++
++	PR target/89711
++	* config/i386/i386.c (make_resolver_func): Properly set
++	DECL_CONTEXT on the RESULT_DECL.
++	* config/rs6000/rs6000.c (make_resolver_func): Likewise.
++
 +2019-04-30  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from mainline
@@ -1769,7 +1846,7 @@ Index: gcc/ChangeLog
  2019-02-22  Release Manager
  
  	* GCC 8.3.0 released.
-@@ -568,7 +1373,7 @@
+@@ -568,7 +1420,7 @@
  
  	Backport from mainline
  	2018-11-20  Richard Biener  <rguenther@suse.de>
@@ -9530,7 +9607,35 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,765 @@
+@@ -1,3 +1,793 @@
++2019-05-03  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2019-03-14  Richard Biener  <rguenther@suse.de>
++
++	PR middle-end/89698
++	* g++.dg/torture/pr89698.C: New testcase.
++
++	2019-03-07  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/89595
++	* gcc.dg/torture/pr89595.c: New testcase.
++
++	2019-03-14  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/89710
++	* gcc.dg/torture/pr89710.c: New testcase.
++
++	2019-04-15  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/90071
++	* gcc.dg/torture/pr90071.c: New testcase.
++
++	2018-08-20  Bernd Edlinger  <bernd.edlinger@hotmail.de>
++
++	PR target/86984
++	* gcc.target/alpha/pr86984.c: New test.
++
 +2019-04-30  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from mainline
@@ -12470,6 +12575,136 @@ Index: gcc/tree-ssa-dom.c
  	    derive_equivalences (rhs, res, recursion_limit - 1);
  	    break;
  	  }
+@@ -598,7 +616,7 @@
+      various tables mantained by DOM.  Returns the taken edge if
+      the statement is a conditional with a statically determined
+      value.  */
+-  edge optimize_stmt (basic_block, gimple_stmt_iterator);
++  edge optimize_stmt (basic_block, gimple_stmt_iterator *, bool *);
+ };
+ 
+ /* Jump threading, redundancy elimination and const/copy propagation.
+@@ -1437,10 +1455,48 @@
+   m_avail_exprs_stack->pop_to_marker ();
+ 
+   edge taken_edge = NULL;
++  /* Initialize visited flag ahead of us, it has undefined state on
++     pass entry.  */
+   for (gsi = gsi_start_bb (bb); !gsi_end_p (gsi); gsi_next (&gsi))
++    gimple_set_visited (gsi_stmt (gsi), false);
++  for (gsi = gsi_start_bb (bb); !gsi_end_p (gsi);)
+     {
++      /* Do not optimize a stmt twice, substitution might end up with
++         _3 = _3 which is not valid.  */
++      if (gimple_visited_p (gsi_stmt (gsi)))
++	{
++	  gsi_next (&gsi);
++	  continue;
++	}
++
++      /* Compute range information and optimize the stmt.  */
+       evrp_range_analyzer.record_ranges_from_stmt (gsi_stmt (gsi), false);
+-      taken_edge = this->optimize_stmt (bb, gsi);
++      bool removed_p = false;
++      taken_edge = this->optimize_stmt (bb, &gsi, &removed_p);
++      if (!removed_p)
++	gimple_set_visited (gsi_stmt (gsi), true);
++
++      /* Go back and visit stmts inserted by folding after substituting
++	 into the stmt at gsi.  */
++      if (gsi_end_p (gsi))
++	{
++	  gcc_checking_assert (removed_p);
++	  gsi = gsi_last_bb (bb);
++	  while (!gsi_end_p (gsi) && !gimple_visited_p (gsi_stmt (gsi)))
++	    gsi_prev (&gsi);
++	}
++      else
++	{
++	  do
++	    {
++	      gsi_prev (&gsi);
++	    }
++	  while (!gsi_end_p (gsi) && !gimple_visited_p (gsi_stmt (gsi)));
++	}
++      if (gsi_end_p (gsi))
++	gsi = gsi_start_bb (bb);
++      else
++	gsi_next (&gsi);
+     }
+ 
+   /* Now prepare to process dominated blocks.  */
+@@ -1905,7 +1961,8 @@
+       condition to an equality condition.  */
+ 
+ edge
+-dom_opt_dom_walker::optimize_stmt (basic_block bb, gimple_stmt_iterator si)
++dom_opt_dom_walker::optimize_stmt (basic_block bb, gimple_stmt_iterator *si,
++				   bool *removed_p)
+ {
+   gimple *stmt, *old_stmt;
+   bool may_optimize_p;
+@@ -1913,7 +1970,7 @@
+   bool was_noreturn;
+   edge retval = NULL;
+ 
+-  old_stmt = stmt = gsi_stmt (si);
++  old_stmt = stmt = gsi_stmt (*si);
+   was_noreturn = is_gimple_call (stmt) && gimple_call_noreturn_p (stmt);
+ 
+   if (dump_file && (dump_flags & TDF_DETAILS))
+@@ -1936,9 +1993,9 @@
+ 
+       /* Try to fold the statement making sure that STMT is kept
+ 	 up to date.  */
+-      if (fold_stmt (&si))
++      if (fold_stmt (si))
+ 	{
+-	  stmt = gsi_stmt (si);
++	  stmt = gsi_stmt (*si);
+ 	  gimple_set_modified (stmt, true);
+ 
+ 	  if (dump_file && (dump_flags & TDF_DETAILS))
+@@ -1987,8 +2044,8 @@
+ 	      && DECL_BUILT_IN_CLASS (callee) == BUILT_IN_NORMAL
+ 	      && DECL_FUNCTION_CODE (callee) == BUILT_IN_CONSTANT_P)
+ 	    {
+-	      propagate_tree_value_into_stmt (&si, integer_zero_node);
+-	      stmt = gsi_stmt (si);
++	      propagate_tree_value_into_stmt (si, integer_zero_node);
++	      stmt = gsi_stmt (*si);
+ 	    }
+ 	}
+ 
+@@ -2044,9 +2101,9 @@
+ 	}
+ 
+       update_stmt_if_modified (stmt);
+-      eliminate_redundant_computations (&si, m_const_and_copies,
++      eliminate_redundant_computations (si, m_const_and_copies,
+ 					m_avail_exprs_stack);
+-      stmt = gsi_stmt (si);
++      stmt = gsi_stmt (*si);
+ 
+       /* Perform simple redundant store elimination.  */
+       if (gimple_assign_single_p (stmt)
+@@ -2073,7 +2130,7 @@
+ 	    {
+ 	      basic_block bb = gimple_bb (stmt);
+ 	      unlink_stmt_vdef (stmt);
+-	      if (gsi_remove (&si, true))
++	      if (gsi_remove (si, true))
+ 		{
+ 		  bitmap_set_bit (need_eh_cleanup, bb->index);
+ 		  if (dump_file && (dump_flags & TDF_DETAILS))
+@@ -2080,6 +2137,7 @@
+ 		    fprintf (dump_file, "  Flagged to clear EH edges.\n");
+ 		}
+ 	      release_defs (stmt);
++	      *removed_p = true;
+ 	      return retval;
+ 	    }
+ 	}
 Index: gcc/gimple-ssa-warn-restrict.c
 ===================================================================
 --- a/src/gcc/gimple-ssa-warn-restrict.c	(.../tags/gcc_8_3_0_release)
@@ -12679,6 +12914,45 @@ Index: gcc/expr.c
  		  if (from_rtx)
  		    {
  		      emit_move_insn (XEXP (to_rtx, 0),
+@@ -5258,6 +5262,7 @@
+ 		MEM_VOLATILE_P (to_rtx) = 1;
+ 	    }
+ 
++	  gcc_checking_assert (known_ge (bitpos, 0));
+ 	  if (optimize_bitfield_assignment_op (bitsize, bitpos,
+ 					       bitregion_start, bitregion_end,
+ 					       mode1, to_rtx, to, from,
+@@ -7115,6 +7120,7 @@
+ 	}
+ 
+       /* Store the value in the bitfield.  */
++      gcc_assert (known_ge (bitpos, 0));
+       store_bit_field (target, bitsize, bitpos,
+ 		       bitregion_start, bitregion_end,
+ 		       mode, temp, reverse);
+@@ -10658,6 +10664,14 @@
+ 	mode2
+ 	  = CONSTANT_P (op0) ? TYPE_MODE (TREE_TYPE (tem)) : GET_MODE (op0);
+ 
++	/* Make sure bitpos is not negative, it can wreak havoc later.  */
++	if (maybe_lt (bitpos, 0))
++	  {
++	    gcc_checking_assert (offset == NULL_TREE);
++	    offset = size_int (bits_to_bytes_round_down (bitpos));
++	    bitpos = num_trailing_bits (bitpos);
++	  }
++
+ 	/* If we have either an offset, a BLKmode result, or a reference
+ 	   outside the underlying object, we must force it to memory.
+ 	   Such a case can occur in Ada if we have unchecked conversion
+@@ -10906,6 +10920,7 @@
+ 		&& GET_MODE_CLASS (ext_mode) == MODE_INT)
+ 	      reversep = TYPE_REVERSE_STORAGE_ORDER (type);
+ 
++	    gcc_checking_assert (known_ge (bitpos, 0));
+ 	    op0 = extract_bit_field (op0, bitsize, bitpos, unsignedp,
+ 				     (modifier == EXPAND_STACK_PARM
+ 				      ? NULL_RTX : target),
 Index: gcc/opts.c
 ===================================================================
 --- a/src/gcc/opts.c	(.../tags/gcc_8_3_0_release)
@@ -15687,6 +15961,33 @@ Index: gcc/passes.c
  
        /* When cleanup_tree_cfg merges consecutive blocks, it may
  	 perform some simplistic propagation when removing single
+Index: gcc/tree-ssa-reassoc.c
+===================================================================
+--- a/src/gcc/tree-ssa-reassoc.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/tree-ssa-reassoc.c	(.../branches/gcc-8-branch)
+@@ -2143,7 +2143,8 @@
+ 	  exp_type = boolean_type_node;
+ 	}
+ 
+-      if (TREE_CODE (arg0) != SSA_NAME)
++      if (TREE_CODE (arg0) != SSA_NAME
++	  || SSA_NAME_OCCURS_IN_ABNORMAL_PHI (arg0))
+ 	break;
+       loc = gimple_location (stmt);
+       switch (code)
+Index: gcc/config/alpha/alpha.h
+===================================================================
+--- a/src/gcc/config/alpha/alpha.h	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/alpha/alpha.h	(.../branches/gcc-8-branch)
+@@ -678,7 +678,7 @@
+ 
+ #define CONSTANT_ADDRESS_P(X)   \
+   (CONST_INT_P (X)		\
+-   && (unsigned HOST_WIDE_INT) (INTVAL (X) + 0x8000) < 0x10000)
++   && (UINTVAL (X) + 0x8000) < 0x10000)
+ 
+ /* The macros REG_OK_FOR..._P assume that the arg is a REG rtx
+    and check its validity for a certain class.
 Index: gcc/config/s390/s390-c.c
 ===================================================================
 --- a/src/gcc/config/s390/s390-c.c	(.../tags/gcc_8_3_0_release)
@@ -16496,7 +16797,15 @@ Index: gcc/config/i386/i386.c
        tmp = gen_rtx_fmt_ee (code, mode, if_true, if_false);
      }
  
-@@ -39641,7 +39562,7 @@
+@@ -32923,6 +32844,7 @@
+     }
+   /* Build result decl and add to function_decl. */
+   t = build_decl (UNKNOWN_LOCATION, RESULT_DECL, NULL_TREE, ptr_type_node);
++  DECL_CONTEXT (t) = decl;
+   DECL_ARTIFICIAL (t) = 1;
+   DECL_IGNORED_P (t) = 1;
+   DECL_RESULT (decl) = t;
+@@ -39641,7 +39563,7 @@
  static bool
  use_rsqrt_p ()
  {
@@ -16505,7 +16814,7 @@ Index: gcc/config/i386/i386.c
  	  && flag_finite_math_only
  	  && !flag_trapping_math
  	  && flag_unsafe_math_optimizations);
-@@ -45705,8 +45626,10 @@
+@@ -45705,8 +45627,10 @@
            x2 -= 1;
       Compensate.  Ceil:
          if (x2 < x)
@@ -16518,7 +16827,7 @@ Index: gcc/config/i386/i386.c
     */
    machine_mode mode = GET_MODE (operand0);
    rtx xa, TWO52, tmp, one, res, mask;
-@@ -45732,17 +45655,16 @@
+@@ -45732,17 +45656,16 @@
    /* xa = copysign (xa, operand1) */
    ix86_sse_copysign_to_positive (xa, xa, res, mask);
  
@@ -16541,7 +16850,7 @@ Index: gcc/config/i386/i386.c
    emit_move_insn (res, tmp);
  
    emit_label (label);
-@@ -50999,7 +50921,7 @@
+@@ -50999,7 +50922,7 @@
       there is no adddf3 pattern (since x87 floating point only has
       XFmode operations) so the default hook implementation gets this
       wrong.  */
@@ -16550,7 +16859,7 @@ Index: gcc/config/i386/i386.c
  }
  
  /* Implement TARGET_ATOMIC_ASSIGN_EXPAND_FENV.  */
-@@ -51007,7 +50929,7 @@
+@@ -51007,7 +50930,7 @@
  static void
  ix86_atomic_assign_expand_fenv (tree *hold, tree *clear, tree *update)
  {
@@ -16559,7 +16868,7 @@ Index: gcc/config/i386/i386.c
      return;
    tree exceptions_var = create_tmp_var_raw (integer_type_node);
    if (TARGET_80387)
-@@ -51042,7 +50964,7 @@
+@@ -51042,7 +50965,7 @@
        tree update_fldenv = build_call_expr (fldenv, 1, fenv_addr);
        *update = build2 (COMPOUND_EXPR, void_type_node, *update, update_fldenv);
      }
@@ -16568,7 +16877,7 @@ Index: gcc/config/i386/i386.c
      {
        tree mxcsr_orig_var = create_tmp_var_raw (unsigned_type_node);
        tree mxcsr_mod_var = create_tmp_var_raw (unsigned_type_node);
-@@ -51399,7 +51321,7 @@
+@@ -51399,7 +51322,7 @@
  	  return FLT_EVAL_METHOD_PROMOTE_TO_FLOAT;
  	else if (!TARGET_MIX_SSE_I387)
  	  {
@@ -17221,6 +17530,14 @@ Index: gcc/config/rs6000/rs6000.c
      case CRYPTO_BUILTIN_VPMSUMB:
      case CRYPTO_BUILTIN_VPMSUMH:
      case CRYPTO_BUILTIN_VPMSUMW:
+@@ -37840,6 +37862,7 @@
+ 
+   /* Build result decl and add to function_decl.  */
+   tree t = build_decl (UNKNOWN_LOCATION, RESULT_DECL, NULL_TREE, ptr_type_node);
++  DECL_CONTEXT (t) = decl;
+   DECL_ARTIFICIAL (t) = 1;
+   DECL_IGNORED_P (t) = 1;
+   DECL_RESULT (decl) = t;
 Index: gcc/config/rs6000/vsx.md
 ===================================================================
 --- a/src/gcc/config/rs6000/vsx.md	(.../tags/gcc_8_3_0_release)
