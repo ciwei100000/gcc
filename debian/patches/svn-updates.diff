@@ -1,10 +1,10 @@
-# DP: updates from the 8 branch upto 20190505 (r270881).
+# DP: updates from the 8 branch upto 20190506 (r270919).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Sun May  5 15:48:32 CEST 2019
-Sun May  5 13:48:32 UTC 2019 (revision 270881)
+Mon May  6 19:12:25 CEST 2019
+Mon May  6 17:12:25 UTC 2019 (revision 270919)
 EOF
 }
 
@@ -545,7 +545,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-8-branch)
 @@ -1 +1 @@
 -20190222
-+20190505
++20190506
 Index: gcc/tree-ssa-loop-ch.c
 ===================================================================
 --- a/src/gcc/tree-ssa-loop-ch.c	(.../tags/gcc_8_3_0_release)
@@ -994,7 +994,19 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,851 @@
+@@ -1,3 +1,863 @@
++2019-05-06  Richard Biener  <rguenther@suse.de>
++
++	PR bootstrap/90359
++	Backport from mainline
++	2019-03-11  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/89655
++	PR bootstrap/89656
++	* vr-values.c (vr_values::update_value_range): If
++	old_vr->varying_p (), don't update it, make new_vr also VARYING
++	and return false.
++
 +2019-05-03  Richard Biener  <rguenther@suse.de>
 +
 +	Backport from mainline
@@ -1846,7 +1858,7 @@ Index: gcc/ChangeLog
  2019-02-22  Release Manager
  
  	* GCC 8.3.0 released.
-@@ -568,7 +1420,7 @@
+@@ -568,7 +1432,7 @@
  
  	Backport from mainline
  	2018-11-20  Richard Biener  <rguenther@suse.de>
@@ -6087,6 +6099,107 @@ Index: gcc/testsuite/gcc.target/arm/f16_f64_conv_no_dp.c
 +{
 +  return a;
 +}
+Index: gcc/testsuite/gcc.target/alpha/pr86984.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/alpha/pr86984.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/alpha/pr86984.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,96 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -Wall -Wwrite-strings -Werror -fmerge-all-constants -fno-stack-protector -mieee -fdump-rtl-expand" } */
++
++struct expression {
++  unsigned long int num;
++};
++union YYSTYPE {
++  unsigned long int num;
++  struct expression *exp;
++};
++
++typedef union YYSTYPE YYSTYPE;
++
++struct expression * new_exp_0 (int);
++
++union yyalloc {
++  short yyss_alloc;
++};
++
++static const signed char yypact[] = {
++  -9, -9, -10, -10, -9, 8, 36, -10, 13, -10, -9, -9, -9, -9, -9, -9, -9, -10, 26, 41, 45, 18, -2, 14, -10, -9, 36 };
++static const unsigned char yydefact[] = {
++  0, 0, 12, 11, 0, 0, 2, 10, 0, 1, 0, 0, 0, 0, 0, 0, 0, 13, 0, 4, 5, 6, 7, 8, 9, 0, 3 };
++
++static const signed char yypgoto[3] = "\366\366\377";
++static const signed char yydefgoto[3] = "\377\005\006";
++
++static const unsigned char yytable[] = {
++  7, 1, 2, 8, 3, 4, 15, 16, 9, 18, 19, 20, 21, 22, 23, 24, 10, 11, 12, 13, 14, 15, 16, 16, 26, 14, 15, 16, 17, 10, 11, 12, 13, 14, 15, 16, 0, 0, 25, 10, 11, 12, 13, 14, 15, 16, 12, 13, 14, 15, 16, 13, 14, 15, 16 };
++
++static const signed char yycheck[] = {
++  1, 10, 11, 4, 13, 14, 8, 9, 0, 10, 11, 12, 13, 14, 15, 16, 3, 4, 5, 6, 7, 8, 9, 9, 25, 7, 8, 9, 15, 3, 4, 5, 6, 7, 8, 9, -1, -1, 12, 3, 4, 5, 6, 7, 8, 9, 5, 6, 7, 8, 9, 6, 7, 8, 9 };
++
++static const unsigned char yyr1[] = {
++  0, 16, 17, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18 };
++
++static const unsigned char yyr2[] = {
++  0, 2, 1, 5, 3, 3, 3, 3, 3, 3, 2, 1, 1, 3 };
++
++int __gettextparse (void)
++{
++  int yystate = 0;
++  short yyssa[200];
++  short *yyss = yyss;
++  short *yyssp = yyssa;
++  YYSTYPE yyvsa[200];
++  YYSTYPE *yyvsp = yyvsa;
++  enum { yystacksize = 200 };
++  int yylen = 0;
++  goto yysetstate;
++ yynewstate: yyssp++;
++ yysetstate: *yyssp = yystate;
++
++  if (yyss + yystacksize - 1 <= yyssp)
++    {
++      long unsigned int yysize = yyssp - yyss + 1;
++      {
++	short *yyss1 = yyss;
++	union yyalloc *yyptr = (union yyalloc *) __builtin_malloc ((yystacksize * (sizeof (short) + sizeof (YYSTYPE)) + (sizeof (union yyalloc) - 1)));
++	if (!yyptr) return 0;
++	__builtin_memcpy (&yyptr->yyss_alloc, yyss, yysize * sizeof *(yyss));
++	yyss = &yyptr->yyss_alloc;
++	if (yyss1 != yyssa) __builtin_free (yyss1);
++      }
++      if (yyss + yystacksize - 1 <= yyssp)
++	return 0;
++    }
++
++  int yyn = yypact[yystate];
++  if (yyn == -10)
++    goto yydefault;
++
++  yyn = yytable[yyn];
++  if (yyn <= 0)
++    goto yyreduce;
++
++ yydefault: yyn = yydefact[yystate];
++ yyreduce: yylen = yyr2[yyn];
++
++  YYSTYPE yyval;
++  if (yyn == 12 && (yyval.exp = new_exp_0 (0)) != 0)
++    (yyval.exp)->num = (yyvsp[0].num);
++
++  (yyvsp -= yylen, yyssp -= yylen);
++  yyn = yyr1[yyn];
++  yystate = yypgoto[yyn - 16] + *yyssp;
++  if (0 <= yystate && yystate <= 54 && yycheck[yystate] == *yyssp)
++    yystate = yytable[yystate];
++  else
++    yystate = yydefgoto[yyn - 16];
++
++  goto yynewstate;
++}
++
++/* { dg-final { scan-rtl-dump-not "const_int 230584300921" "expand" } } */
++/* { dg-final { scan-assembler-not "yypgoto\\+230584300921" } } */
 Index: gcc/testsuite/gcc.target/s390/pr89775-1.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/s390/pr89775-1.c	(.../tags/gcc_8_3_0_release)
@@ -8433,6 +8546,26 @@ Index: gcc/testsuite/gcc.c-torture/compile/pr89703-1.c
 +  q[0] = strlen (c);
 +  q[1] = strnlen (c, 2);
 +}
+Index: gcc/testsuite/gcc.c-torture/compile/pr89655.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.c-torture/compile/pr89655.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.c-torture/compile/pr89655.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,15 @@
++/* PR middle-end/89655 */
++
++int a, b, d;
++char *c;
++
++void
++foo (void)
++{
++  int f = a;
++  for (;;)
++    {
++      for (f = 0; f < (a > 3 ? : a); f++)
++	b = c[f] ? c[(f + 2 > a - 1 ? a - 1 : 2) * d] : 0;
++    }
++}
 Index: gcc/testsuite/gcc.c-torture/compile/pr89998-1.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.c-torture/compile/pr89998-1.c	(.../tags/gcc_8_3_0_release)
@@ -8916,6 +9049,35 @@ Index: gcc/testsuite/gcc.dg/torture/pr89572.c
 +{
 +  ef (uw);
 +}
+Index: gcc/testsuite/gcc.dg/torture/pr90071.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/torture/pr90071.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.dg/torture/pr90071.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,24 @@
++/* { dg-do compile } */
++
++int a;
++static int b;
++
++void
++foo ()
++{
++  int d;
++  int e = (int) (__INTPTR_TYPE__) &&f;
++  void *g = &&h;
++h: ++e;
++   if (a)
++     i: goto *g;
++   for (;;)
++     {
++       e = 0;
++       if (b)
++	 goto i;
++     }
++f:
++   goto *({ d || e < 0 || e >= 2; });
++   &e;
++}
 Index: gcc/testsuite/gcc.dg/torture/pr89091.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.dg/torture/pr89091.c	(.../tags/gcc_8_3_0_release)
@@ -8930,6 +9092,50 @@ Index: gcc/testsuite/gcc.dg/torture/pr89091.c
 +foo (struct S *x, int y)
 +{
 +  return y && x->s;
++}
+Index: gcc/testsuite/gcc.dg/torture/pr89595.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/torture/pr89595.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.dg/torture/pr89595.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,39 @@
++/* { dg-do run } */
++/* { dg-additional-options "-fgimple" } */
++
++int __attribute__((noipa))
++__GIMPLE(startwith("dom")) bar(int cond, int val)
++{
++  int i;
++
++  if (0 != 0)
++    goto bb_6;
++  else
++    goto bb_2;
++
++bb_2:
++  if (cond_5(D) != 0)
++    goto bb_4;
++  else
++    goto bb_5;
++
++bb_4:
++  i_6 = val_2(D);
++  i_1 = val_2(D) > 0 ? i_6 : 0;
++
++bb_5:
++  i_3 = __PHI (bb_4: i_1, bb_2: 0);
++  return i_3;
++
++bb_6:
++  i_4 = 1;
++  i_9 = 2;
++  goto bb_2;
++}
++
++int main()
++{
++  if (bar (1, 1) != 1)
++    __builtin_abort ();
++  return 0;
 +}
 Index: gcc/testsuite/gcc.dg/torture/pr89677.c
 ===================================================================
@@ -8977,6 +9183,41 @@ Index: gcc/testsuite/gcc.dg/torture/pr89505.c
 +  if (foo (&s, 0) != 2)
 +    __builtin_abort ();
 +  return 0;
++}
+Index: gcc/testsuite/gcc.dg/torture/pr89710.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/torture/pr89710.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.dg/torture/pr89710.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,30 @@
++/* { dg-do compile } */
++
++void
++gm (int *);
++
++__attribute__ ((returns_twice)) void
++jg (void)
++{
++}
++
++void
++eb (void)
++{
++  int r6 = 0;
++
++  if (r6 != 0)
++    gm (&r6);
++}
++
++void
++gm (int *r6)
++{
++  jg ();
++
++  for (;;)
++    {
++      eb ();
++      *r6 = 0;
++    }
 +}
 Index: gcc/testsuite/gcc.dg/uninit-pr89296.c
 ===================================================================
@@ -9607,7 +9848,17 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,793 @@
+@@ -1,3 +1,803 @@
++2019-05-06  Richard Biener  <rguenther@suse.de>
++
++	PR bootstrap/90359
++	Backport from mainline
++	2019-03-11  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/89655
++	PR bootstrap/89656
++	* gcc.c-torture/compile/pr89655.c: New test.
++
 +2019-05-03  Richard Biener  <rguenther@suse.de>
 +
 +	Backport from mainline
@@ -10680,6 +10931,39 @@ Index: gcc/testsuite/g++.dg/cpp0x/nullptr40.C
 +    void bar();
 +    p<A, &A::bar> j;
 +};
+Index: gcc/testsuite/g++.dg/torture/pr89698.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/torture/pr89698.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/torture/pr89698.C	(.../branches/gcc-8-branch)
+@@ -0,0 +1,28 @@
++/* { dg-do run } */
++
++extern "C" void abort (void);
++
++class A {
++    virtual void f(){};
++public:
++    int x;
++    A(int in): x(in) {};
++};
++
++class B: public A {
++public:
++    int y;
++    B(int in):A(in-1), y(in) {};
++};
++
++int test(void)
++{
++  int res;
++  B b(2);
++  A* bp = &b;
++  void* vp = dynamic_cast<void*>(bp);
++  if (((A*)vp)->x == 1 && ((B*)vp)->y == 2)
++    return 1;
++  return 0;
++}
++int main() { if (test() != 1) abort (); return 0; }
 Index: gcc/testsuite/g++.dg/ipa/pr88235.C
 ===================================================================
 --- a/src/gcc/testsuite/g++.dg/ipa/pr88235.C	(.../tags/gcc_8_3_0_release)
@@ -15919,6 +16203,25 @@ Index: gcc/omp-simd-clone.c
        gsi = gsi_start_bb (bb);
        while (!gsi_end_p (gsi))
  	{
+Index: gcc/vr-values.c
+===================================================================
+--- a/src/gcc/vr-values.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/vr-values.c	(.../branches/gcc-8-branch)
+@@ -211,8 +211,13 @@
+ 	 the same.  We may not have is_new when transitioning to
+ 	 UNDEFINED.  If old_vr->type is VARYING, we shouldn't be
+ 	 called.  */
+-      if (new_vr->type == VR_UNDEFINED)
++      if (old_vr->type == VR_VARYING)
+ 	{
++	  set_value_range_to_varying (new_vr);
++	  is_new = false;
++	}
++      else if (new_vr->type == VR_UNDEFINED)
++	{
+ 	  BITMAP_FREE (new_vr->equiv);
+ 	  set_value_range_to_varying (old_vr);
+ 	  set_value_range_to_varying (new_vr);
 Index: gcc/tree-ssa-structalias.c
 ===================================================================
 --- a/src/gcc/tree-ssa-structalias.c	(.../tags/gcc_8_3_0_release)
