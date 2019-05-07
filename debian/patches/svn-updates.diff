@@ -1,10 +1,10 @@
-# DP: updates from the 9 branch upto 20190504 (r270874).
+# DP: updates from the 9 branch upto 20190507 (r270980).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Sat May  4 17:20:26 CEST 2019
-Sat May  4 15:20:26 UTC 2019 (revision 270874)
+Tue May  7 23:07:02 CEST 2019
+Tue May  7 21:07:02 UTC 2019 (revision 270980)
 EOF
 }
 
@@ -12,18 +12,77 @@ LANG=C svn diff svn://gcc.gnu.org/svn/gcc/tags/gcc_9_1_0_release svn://gcc.gnu.o
 	| sed -r 's,^--- (\S+)\t(\S+)(.*)$,--- a/src/\1\t\2,;s,^\+\+\+ (\S+)\t(\S+)(.*)$,+++ b/src/\1\t\2,' \
 	| awk '/^Index:.*\.(class|texi)/ {skip=1; next} /^Index:/ { skip=0 } skip==0'
 
+Index: ChangeLog
+===================================================================
+--- a/src/ChangeLog	(.../tags/gcc_9_1_0_release)
++++ b/src/ChangeLog	(.../branches/gcc-9-branch)
+@@ -1,3 +1,7 @@
++2019-05-04  Michael Meissner  <meissner@linux.ibm.com>
++
++	* ChangeLog.ibm: Delete unintentional commit on the wrong branch.
++
+ 2019-05-03  Release Manager
+ 
+ 	* GCC 9.1.0 released.
+Index: libgcc/ChangeLog
+===================================================================
+--- a/src/libgcc/ChangeLog	(.../tags/gcc_9_1_0_release)
++++ b/src/libgcc/ChangeLog	(.../branches/gcc-9-branch)
+@@ -1,3 +1,7 @@
++2019-05-04  Michael Meissner  <meissner@linux.ibm.com>
++
++	* ChangeLog.ibm: Delete unintentional commit on the wrong branch.
++
+ 2019-05-03  Release Manager
+ 
+ 	* GCC 9.1.0 released.
+Index: gcc/c/ChangeLog
+===================================================================
+--- a/src/gcc/c/ChangeLog	(.../tags/gcc_9_1_0_release)
++++ b/src/gcc/c/ChangeLog	(.../branches/gcc-9-branch)
+@@ -1,3 +1,7 @@
++2019-05-04  Michael Meissner  <meissner@linux.ibm.com>
++
++	* ChangeLog.ibm: Delete unintentional commit on the wrong branch.
++
+ 2019-05-03  Release Manager
+ 
+ 	* GCC 9.1.0 released.
 Index: gcc/DATESTAMP
 ===================================================================
 --- a/src/gcc/DATESTAMP	(.../tags/gcc_9_1_0_release)
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-9-branch)
 @@ -1 +1 @@
 -20190503
-+20190504
++20190507
 Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_9_1_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,9 @@
+@@ -1,3 +1,32 @@
++2019-05-07  Kelvin Nilsen  <kelvin@gcc.gnu.org>
++
++	Backport from mainline.
++	2019-05-06  Kelvin Nilsen  <kelvin@gcc.gnu.org>
++
++	PR target/89424
++	* config/rs6000/rs6000.c (rs6000_expand_vector_extract): Add
++	handling of V1TImode.
++
++2019-05-06  Martin Liska  <mliska@suse.cz>
++
++	Backport from mainline
++	2019-05-06  Martin Liska  <mliska@suse.cz>
++
++	PR sanitizer/90312
++	* config/i386/i386-options.c (ix86_option_override_internal): Error only
++	when -mabi is selected to a non-default version.
++
++2019-05-04  Michael Meissner  <meissner@linux.ibm.com>
++
++	* ChangeLog.ibm: Delete unintentional commit on the wrong branch.
++	* REVISION: Likewise.
++
 +2019-05-03  Richard Biener  <rguenther@suse.de>
 +
 +	PR tree-optimization/90316
@@ -33,7 +92,7 @@ Index: gcc/ChangeLog
  2019-05-03  Release Manager
  
  	* GCC 9.1.0 released.
-@@ -8,7 +18,7 @@
+@@ -8,7 +41,7 @@
  	2019-04-30  Ramana Radhakrishnan  <ramana.radhakrishnan@arm.com>
  	PR target/86538
  	* config/aarch64/aarch64-c.c (aarch64_update_cpp_builtins):
@@ -42,6 +101,308 @@ Index: gcc/ChangeLog
  
  2019-04-30  Martin Liska  <mliska@suse.cz>
  
+Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-20a.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-20a.c	(.../tags/gcc_9_1_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-20a.c	(.../branches/gcc-9-branch)
+@@ -9,7 +9,7 @@
+ #include <altivec.h>
+ 
+ /* Define this after PR89424 is addressed.  */
+-#undef PR89424
++#define PR89424
+ 
+ extern void abort (void);
+ 
+Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-13b.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-13b.c	(.../tags/gcc_9_1_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-13b.c	(.../branches/gcc-9-branch)
+@@ -9,7 +9,7 @@
+ #include <altivec.h>
+ 
+ /* Define this after PR89424 is addressed.  */
+-#undef PR89424
++#define PR89424
+ 
+ /* Define this after PR89626 is addressed.  */
+ #undef PR89626
+Index: gcc/testsuite/gcc.target/powerpc/pr89424-0.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/pr89424-0.c	(.../tags/gcc_9_1_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/pr89424-0.c	(.../branches/gcc-9-branch)
+@@ -0,0 +1,76 @@
++/* { dg-do run { target { powerpc*-*-* && lp64 } } } */
++/* { dg-require-effective-target vsx_hw } */
++/* { dg-options "-mvsx" } */
++
++/* This test should run the same on any target that supports vsx
++   instructions.  Intentionally not specifying cpu in order to test
++   all code generation paths.  */
++
++#include <altivec.h>
++
++extern void abort (void);
++
++/* Define PR89626 after that pr is addressed.  */
++#ifdef PR89626
++#define SIGNED
++#else
++#define SIGNED signed
++#endif
++
++#define CONST0		(((__int128) 31415926539) << 60)
++
++/* Test that indices > length of vector are applied modulo the vector
++   length.  */
++
++
++/* Test for variable selector and vector residing in register.  */
++__attribute__((noinline))
++__int128 ei (vector SIGNED __int128 v, int i)
++{
++  return __builtin_vec_ext_v1ti (v, i);
++}
++
++/* Test for variable selector and vector residing in memory.  */
++__int128 mei (vector SIGNED __int128 *vp, int i)
++{
++  return __builtin_vec_ext_v1ti (*vp, i);
++}
++
++int main (int argc, char *argv[]) {
++  vector SIGNED __int128 dv = { CONST0 };
++  __int128 d;
++
++  d = ei (dv, 0);
++  if (d != CONST0)
++    abort ();
++
++  d = ei (dv, 1);
++  if (d != CONST0)
++    abort ();
++
++  d = ei (dv, 2);
++  if (d != CONST0)
++    abort ();
++
++  d = ei (dv, 3);
++  if (d != CONST0)
++    abort ();
++
++  d = mei (&dv, 0);
++  if (d != CONST0)
++    abort ();
++
++  d = mei (&dv, 1);
++  if (d != CONST0)
++    abort ();
++
++  d = mei (&dv, 2);
++  if (d != CONST0)
++    abort ();
++
++  d = mei (&dv, 3);
++  if (d != CONST0)
++    abort ();
++
++  return 0;
++}
+Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-20b.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-20b.c	(.../tags/gcc_9_1_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-20b.c	(.../branches/gcc-9-branch)
+@@ -9,7 +9,7 @@
+ #include <altivec.h>
+ 
+ /* Define this after PR89424 is addressed.  */
+-#undef PR89424
++#define PR89424
+ 
+ extern void abort (void);
+ 
+Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-13a.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-13a.c	(.../tags/gcc_9_1_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-13a.c	(.../branches/gcc-9-branch)
+@@ -9,7 +9,7 @@
+ #include <altivec.h>
+ 
+ /* Define this after PR89424 is addressed.  */
+-#undef PR89424
++#define PR89424
+ 
+ /* Define this after PR89626 is addressed.  */
+ #undef PR89626
+Index: gcc/testsuite/gcc.dg/asan/pr87930.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/asan/pr87930.c	(.../tags/gcc_9_1_0_release)
++++ b/src/gcc/testsuite/gcc.dg/asan/pr87930.c	(.../branches/gcc-9-branch)
+@@ -1,4 +1,4 @@
+-/* { dg-do compile { target { { i?86-*-* x86_64-*-* } && lp64 } } } */
++/* { dg-do compile { target { { i?86-*-linux* i?86-*-gnu* x86_64-*-linux* } && lp64 } } } */
+ /* { dg-options "-fsanitize=address -mabi=ms" } */
+ 
+ int i;
+Index: gcc/testsuite/gcc.dg/tsan/pr88017.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/tsan/pr88017.c	(.../tags/gcc_9_1_0_release)
++++ b/src/gcc/testsuite/gcc.dg/tsan/pr88017.c	(.../branches/gcc-9-branch)
+@@ -1,4 +1,4 @@
+-/* { dg-do compile { target { { i?86-*-* x86_64-*-* } && lp64 } } } */
++/* { dg-do compile { target { { i?86-*-linux* i?86-*-gnu* x86_64-*-linux* } && lp64 } } } */
+ /* { dg-options "-fsanitize=thread -mabi=ms" } */
+ 
+ int i;
+Index: gcc/testsuite/ChangeLog
+===================================================================
+--- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_9_1_0_release)
++++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-9-branch)
+@@ -1,3 +1,40 @@
++2019-05-07  Kelvin Nilsen  <kelvin@gcc.gnu.org>
++
++	Backport from mainline.
++	2019-05-06  Kelvin Nilsen  <kelvin@gcc.gnu.org>
++
++	PR target/89424
++	* gcc.target/powerpc/pr89424-0.c: New test.
++	* gcc.target/powerpc/vsx-builtin-13a.c: Define macro PR89424 to
++	enable testing of newly patched capability.
++	* gcc.target/powerpc/vsx-builtin-13b.c: Likewise.
++	* gcc.target/powerpc/vsx-builtin-20a.c: Likewise.
++	* gcc.target/powerpc/vsx-builtin-20b.c: Likewise.
++
++2019-05-06  Marek Polacek  <polacek@redhat.com>
++
++	PR c++/90265 - ICE with generic lambda.
++	* g++.dg/cpp1y/lambda-generic-90265.C: New test.
++
++2019-05-06  Paolo Carlini  <paolo.carlini@oracle.com>
++
++	PR c++/90173
++	* g++.dg/cpp1z/class-deduction66.C: New.
++
++2019-05-06  Martin Liska  <mliska@suse.cz>
++
++	Backport from mainline
++	2019-05-06  Martin Liska  <mliska@suse.cz>
++
++	PR sanitizer/90312
++	* gcc.dg/asan/pr87930.c: Run the test only on *linux or *gnu
++	systems.
++	* gcc.dg/tsan/pr88017.c: Likewise.
++
++2019-05-04  Michael Meissner  <meissner@linux.ibm.com>
++
++	* ChangeLog.ibm: Delete unintentional commit on the wrong branch.
++
+ 2019-05-03  Release Manager
+ 
+ 	* GCC 9.1.0 released.
+Index: gcc/testsuite/g++.dg/cpp1y/lambda-generic-90265.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp1y/lambda-generic-90265.C	(.../tags/gcc_9_1_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp1y/lambda-generic-90265.C	(.../branches/gcc-9-branch)
+@@ -0,0 +1,4 @@
++// PR c++/90265
++// { dg-do compile { target c++14 } }
++
++void (*a)(int, int, int, void *) = [](auto, auto, auto, auto) {};
+Index: gcc/testsuite/g++.dg/cpp1z/class-deduction66.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp1z/class-deduction66.C	(.../tags/gcc_9_1_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp1z/class-deduction66.C	(.../branches/gcc-9-branch)
+@@ -0,0 +1,10 @@
++// PR c++/90173
++// { dg-do compile { target c++17 } }
++
++template <typename T> struct A { };
++
++A(int) -> A<int>;
++
++namespace decl {
++  A (*fp)() = 0;  // { dg-error "placeholder" }
++}
+Index: gcc/cp/decl.c
+===================================================================
+--- a/src/gcc/cp/decl.c	(.../tags/gcc_9_1_0_release)
++++ b/src/gcc/cp/decl.c	(.../branches/gcc-9-branch)
+@@ -10973,6 +10973,7 @@
+       error_at (typespec_loc, "template placeholder type %qT must be followed "
+ 		"by a simple declarator-id", type);
+       inform (DECL_SOURCE_LOCATION (tmpl), "%qD declared here", tmpl);
++      type = error_mark_node;
+     }
+ 
+   staticp = 0;
+Index: gcc/cp/ChangeLog
+===================================================================
+--- a/src/gcc/cp/ChangeLog	(.../tags/gcc_9_1_0_release)
++++ b/src/gcc/cp/ChangeLog	(.../branches/gcc-9-branch)
+@@ -1,3 +1,20 @@
++2019-05-06  Marek Polacek  <polacek@redhat.com>
++
++	PR c++/90265 - ICE with generic lambda.
++	* pt.c (tsubst_copy_and_build): Use a dedicated variable for the last
++	element in the vector.
++
++2019-05-06  Paolo Carlini  <paolo.carlini@oracle.com>
++
++	PR c++/90173
++	* decl.c (grokdeclarator): Set type to error_mark_node
++	upon error about template placeholder type non followed
++	by a simple declarator-id.
++
++2019-05-04  Michael Meissner  <meissner@linux.ibm.com>
++
++	* ChangeLog.ibm: Delete unintentional commit on the wrong branch.
++
+ 2019-05-03  Release Manager
+ 
+ 	* GCC 9.1.0 released.
+Index: gcc/cp/pt.c
+===================================================================
+--- a/src/gcc/cp/pt.c	(.../tags/gcc_9_1_0_release)
++++ b/src/gcc/cp/pt.c	(.../branches/gcc-9-branch)
+@@ -18881,7 +18881,8 @@
+ 	    if (thisarg)
+ 	      {
+ 		/* Shift the other args over to make room.  */
+-		vec_safe_push (call_args, (*call_args)[nargs-1]);
++		tree last = (*call_args)[nargs - 1];
++		vec_safe_push (call_args, last);
+ 		for (int i = nargs-1; i > 0; --i)
+ 		  (*call_args)[i] = (*call_args)[i-1];
+ 		(*call_args)[0] = thisarg;
+Index: gcc/ada/ChangeLog
+===================================================================
+--- a/src/gcc/ada/ChangeLog	(.../tags/gcc_9_1_0_release)
++++ b/src/gcc/ada/ChangeLog	(.../branches/gcc-9-branch)
+@@ -1,3 +1,8 @@
++2019-05-07  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
++
++	* gcc-interface/Makefile.in (install-gcc-specs): Use foreach.
++	Honor DESTDIR.
++
+ 2019-05-03  Release Manager
+ 
+ 	* GCC 9.1.0 released.
+Index: gcc/ada/gcc-interface/Makefile.in
+===================================================================
+--- a/src/gcc/ada/gcc-interface/Makefile.in	(.../tags/gcc_9_1_0_release)
++++ b/src/gcc/ada/gcc-interface/Makefile.in	(.../branches/gcc-9-branch)
+@@ -505,9 +505,8 @@
+ install-gcc-specs:
+ #	Install all the requested GCC spec files.
+ 
+-	for f in $(GCC_SPEC_FILES); do \
+-	    $(INSTALL_DATA_DATE) $(srcdir)/ada/$$f $(libsubdir)/; \
+-	done
++	$(foreach f,$(GCC_SPEC_FILES), \
++	    $(INSTALL_DATA_DATE) $(srcdir)/ada/$(f) $(DESTDIR)$(libsubdir)/;)
+ 
+ install-gnatlib: ../stamp-gnatlib-$(RTSDIR) install-gcc-specs
+ 	$(RMDIR) $(DESTDIR)$(ADA_RTL_OBJ_DIR)
 Index: gcc/tree-ssa-pre.c
 ===================================================================
 --- a/src/gcc/tree-ssa-pre.c	(.../tags/gcc_9_1_0_release)
@@ -54,6 +415,49 @@ Index: gcc/tree-ssa-pre.c
  
    run_rpo_vn (VN_WALK);
  
+Index: gcc/config/i386/i386.c
+===================================================================
+--- a/src/gcc/config/i386/i386.c	(.../tags/gcc_9_1_0_release)
++++ b/src/gcc/config/i386/i386.c	(.../branches/gcc-9-branch)
+@@ -3705,12 +3705,17 @@
+     error ("%<-mabi=ms%> not supported with X32 ABI");
+   gcc_assert (opts->x_ix86_abi == SYSV_ABI || opts->x_ix86_abi == MS_ABI);
+ 
+-  if ((opts->x_flag_sanitize & SANITIZE_USER_ADDRESS) && opts->x_ix86_abi == MS_ABI)
+-    error ("%<-mabi=ms%> not supported with %<-fsanitize=address%>");
+-  if ((opts->x_flag_sanitize & SANITIZE_KERNEL_ADDRESS) && opts->x_ix86_abi == MS_ABI)
+-    error ("%<-mabi=ms%> not supported with %<-fsanitize=kernel-address%>");
+-  if ((opts->x_flag_sanitize & SANITIZE_THREAD) && opts->x_ix86_abi == MS_ABI)
+-    error ("%<-mabi=ms%> not supported with %<-fsanitize=thread%>");
++  const char *abi_name = opts->x_ix86_abi == MS_ABI ? "ms" : "sysv";
++  if ((opts->x_flag_sanitize & SANITIZE_USER_ADDRESS)
++      && opts->x_ix86_abi != DEFAULT_ABI)
++    error ("%<-mabi=%s%> not supported with %<-fsanitize=address%>", abi_name);
++  if ((opts->x_flag_sanitize & SANITIZE_KERNEL_ADDRESS)
++      && opts->x_ix86_abi != DEFAULT_ABI)
++    error ("%<-mabi=%s%> not supported with %<-fsanitize=kernel-address%>",
++	   abi_name);
++  if ((opts->x_flag_sanitize & SANITIZE_THREAD)
++      && opts->x_ix86_abi != DEFAULT_ABI)
++    error ("%<-mabi=%s%> not supported with %<-fsanitize=thread%>", abi_name);
+ 
+   /* For targets using ms ABI enable ms-extensions, if not
+      explicit turned off.  For non-ms ABI we turn off this
+Index: gcc/config/rs6000/rs6000.c
+===================================================================
+--- a/src/gcc/config/rs6000/rs6000.c	(.../tags/gcc_9_1_0_release)
++++ b/src/gcc/config/rs6000/rs6000.c	(.../branches/gcc-9-branch)
+@@ -6944,6 +6944,10 @@
+ 
+       switch (mode)
+ 	{
++	case E_V1TImode:
++	  emit_move_insn (target, gen_lowpart (TImode, vec));
++	  return;
++
+ 	case E_V2DFmode:
+ 	  emit_insn (gen_vsx_extract_v2df_var (target, vec, elt));
+ 	  return;
 Index: libgo/go/os/user/user_test.go
 ===================================================================
 --- a/src/libgo/go/os/user/user_test.go	(.../tags/gcc_9_1_0_release)
@@ -68,3 +472,14 @@ Index: libgo/go/os/user/user_test.go
  	if runtime.GOOS == "solaris" {
  		t.Skip("skipping GroupIds, see golang.org/issue/14709")
  	}
+Index: .
+===================================================================
+--- a/src/.	(.../tags/gcc_9_1_0_release)
++++ b/src/.	(.../branches/gcc-9-branch)
+
+Property changes on: .
+___________________________________________________________________
+Added: svnmerge-integrated
+## -0,0 +1 ##
++/trunk:1-270579
+\ No newline at end of property
