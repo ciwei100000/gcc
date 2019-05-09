@@ -1428,6 +1428,13 @@ $(configure_hppa64_stamp): $(build_stamp) \
 
 $(build_hppa64_stamp): $(configure_hppa64_stamp) \
     $(if $(filter yes, $(with_jit)), $(build_jit_stamp))
+	if [ -f $(srcdir)/gcc/distro-defaults.h ]; then \
+	  if [ ! -f $(srcdir)/gcc/distro-defaults.h.saved ]; then \
+	    mv $(srcdir)/gcc/distro-defaults.h $(srcdir)/gcc/distro-defaults.h.saved; \
+	  fi; \
+	  echo '/* Empty distro-defaults for hppa64 cross build */' \
+	    > $(srcdir)/gcc/distro-defaults.h; \
+	fi
 	  $(SET_PATH) \
 	  $(SET_SHELL) \
 	  $(SET_LOCPATH) \
@@ -1435,6 +1442,9 @@ $(build_hppa64_stamp): $(configure_hppa64_stamp) \
 	    $(MAKE) -C $(builddir_hppa64) \
 		$(call pass_vars, \
 		  CFLAGS_FOR_TARGET CXXFLAGS_FOR_TARGET LDFLAGS_FOR_TARGET)
+	if [ -f $(srcdir)/gcc/distro-defaults.h.saved ]; then \
+	  mv -f $(srcdir)/gcc/distro-defaults.h.saved $(srcdir)/gcc/distro-defaults.h; \
+	fi
 	touch $(build_hppa64_stamp)
 
 $(configure_neon_stamp): $(build_stamp) \
