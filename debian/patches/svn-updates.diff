@@ -1,10 +1,10 @@
-# DP: updates from the 8 branch upto 20190506 (r270919).
+# DP: updates from the 8 branch upto 20190514 (r271166).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Mon May  6 19:12:25 CEST 2019
-Mon May  6 17:12:25 UTC 2019 (revision 270919)
+Tue May 14 14:11:53 CEST 2019
+Tue May 14 12:11:53 UTC 2019 (revision 271166)
 EOF
 }
 
@@ -12,6 +12,403 @@ LANG=C svn diff svn://gcc.gnu.org/svn/gcc/tags/gcc_8_3_0_release svn://gcc.gnu.o
 	| sed -r 's,^--- (\S+)\t(\S+)(.*)$,--- a/src/\1\t\2,;s,^\+\+\+ (\S+)\t(\S+)(.*)$,+++ b/src/\1\t\2,' \
 	| awk '/^Index:.*\.(class|texi)/ {skip=1; next} /^Index:/ { skip=0 } skip==0'
 
+Index: libstdc++-v3/src/filesystem/std-dir.cc
+===================================================================
+--- a/src/libstdc++-v3/src/filesystem/std-dir.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/src/filesystem/std-dir.cc	(.../branches/gcc-8-branch)
+@@ -57,7 +57,13 @@
+   {
+     if (const auto entp = _Dir_base::advance(skip_permission_denied, ec))
+       {
+-	entry = fs::directory_entry{path / entp->d_name, get_file_type(*entp)};
++	file_type type = file_type::none;
++#ifdef _GLIBCXX_HAVE_STRUCT_DIRENT_D_TYPE
++	// Even if the OS supports dirent::d_type the filesystem might not:
++	if (entp->d_type != DT_UNKNOWN)
++	  type = get_file_type(*entp);
++#endif
++	entry = fs::directory_entry{path / entp->d_name, type};
+ 	return true;
+       }
+     else if (!ec)
+Index: libstdc++-v3/doc/xml/faq.xml
+===================================================================
+--- a/src/libstdc++-v3/doc/xml/faq.xml	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/doc/xml/faq.xml	(.../branches/gcc-8-branch)
+@@ -1001,21 +1001,31 @@
+ <qandaentry xml:id="faq.memory_leaks">
+   <question xml:id="q-memory_leaks">
+     <para>
+-      <quote>Memory leaks</quote> in containers
++      <quote>Memory leaks</quote> in libstdc++
+     </para>
+   </question>
+   <answer xml:id="a-memory_leaks">
+-    <note>
+-      <para>This answer is old and probably no longer be relevant.</para>
+-    </note>
+     <para>
+-    A few people have reported that the standard containers appear
++    Since GCC 5.1.0, libstdc++ automatically allocates a pool
++    of a few dozen kilobytes on startup. This pool is used to ensure it's
++    possible to throw exceptions (such as <classname>bad_alloc</classname>)
++    even when <code>malloc</code> is unable to allocate any more memory.
++    With some versions of <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://valgrind.org/"><command>valgrind</command></link>
++    this pool will be shown as "still reachable" when the process exits, e.g.
++    <code>still reachable: 72,704 bytes in 1 blocks</code>.
++    This memory is not a leak, because it's still in use by libstdc++,
++    and the memory will be returned to the OS when the process exits.
++    Later versions of <command>valgrind</command> know how to free this
++    pool as the process exits, and so won't show any "still reachable" memory.
++    </para>
++    <para>
++    In the past, a few people reported that the standard containers appear
+     to leak memory when tested with memory checkers such as
+     <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://valgrind.org/"><command>valgrind</command></link>.
+     Under some (non-default) configurations the library's allocators keep
+     free memory in a
+-    pool for later reuse, rather than returning it to the OS.  Although
+-    this memory is always reachable by the library and is never
++    pool for later reuse, rather than deallocating it with <code>delete</code>
++    Although this memory is always reachable by the library and is never
+     lost, memory debugging tools can report it as a leak.  If you
+     want to test the library for memory leaks please read
+     <link linkend="debug.memory">Tips for memory leak hunting</link>
+Index: libstdc++-v3/doc/xml/manual/intro.xml
+===================================================================
+--- a/src/libstdc++-v3/doc/xml/manual/intro.xml	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/doc/xml/manual/intro.xml	(.../branches/gcc-8-branch)
+@@ -1105,6 +1105,14 @@
+     ill-formed.
+     </para></listitem></varlistentry>
+ 
++    <varlistentry xml:id="manual.bugs.dr2537"><term><link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="&DR;#2537">2537</link>:
++       <emphasis>Constructors for <code>priority_queue</code> taking allocators
++	 should call <code>make_heap</code>
++       </emphasis>
++    </term>
++    <listitem><para>Call <code>make_heap</code>.
++    </para></listitem></varlistentry>
++
+     <varlistentry xml:id="manual.bugs.dr2583"><term><link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="&DR;#2583">2583</link>:
+        <emphasis>There is no way to supply an allocator for <code>basic_string(str, pos)</code>
+        </emphasis>
+@@ -1112,6 +1120,14 @@
+     <listitem><para>Add new constructor
+     </para></listitem></varlistentry>
+ 
++    <varlistentry xml:id="manual.bugs.dr2586"><term><link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="&DR;#2586">2586</link>:
++       <emphasis>Wrong value category used in <code>scoped_allocator_adaptor::construct()</code>
++       </emphasis>
++    </term>
++    <listitem><para>Change internal helper for uses-allocator construction
++      to always check using const lvalue allocators.
++    </para></listitem></varlistentry>
++
+     <varlistentry xml:id="manual.bugs.dr2684"><term><link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="&DR;#2684">2684</link>:
+        <emphasis><code>priority_queue</code> lacking comparator typedef
+        </emphasis>
+Index: libstdc++-v3/doc/xml/manual/evolution.xml
+===================================================================
+--- a/src/libstdc++-v3/doc/xml/manual/evolution.xml	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/doc/xml/manual/evolution.xml	(.../branches/gcc-8-branch)
+@@ -80,11 +80,12 @@
+ 
+    <para> For GCC releases from 2.95 through the 3.1 series, defining
+    <literal>__USE_MALLOC</literal> on the gcc command line would change the
+-   default allocation strategy to instead use <code> malloc</code> and
+-   <function>free</function>. For the 3.2 and 3.3 release series the same
++   default allocation strategy to instead use <code>malloc</code> and
++   <code>free</code>. For the 3.2 and 3.3 release series the same
+    functionality was spelled <literal>_GLIBCXX_FORCE_NEW</literal>. From
+-   GCC 3.4 onwards the functionality is enabled by setting
+-   <literal>GLIBCXX_FORCE_NEW</literal> in the environment, see
++   GCC 3.4 onwards the default allocator uses <code>new</code> anyway,
++   but for the optional pooling allocators the functionality is enabled by
++   setting <literal>GLIBCXX_FORCE_NEW</literal> in the environment, see
+    <link linkend="manual.ext.allocator.mt">the mt allocator chapter</link>
+    for details.
+    </para>
+Index: libstdc++-v3/doc/xml/manual/using.xml
+===================================================================
+--- a/src/libstdc++-v3/doc/xml/manual/using.xml	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/doc/xml/manual/using.xml	(.../branches/gcc-8-branch)
+@@ -1130,8 +1130,8 @@
+         enabled for
+         <classname>std::vector&lt;T, std::allocator&lt;T&gt;&gt;</classname>
+         and only when <classname>std::allocator</classname> is derived from
+-        <xref linkend="allocator.impl"><classname>new_allocator</classname>
+-        or <classname>malloc_allocator</classname></xref>. The annotations
++        <link linkend="allocator.impl"><classname>new_allocator</classname>
++        or <classname>malloc_allocator</classname></link>. The annotations
+         must be present on all vector operations or none, so this macro must
+         be defined to the same value for all translation units that create,
+         destroy or modify vectors.
+Index: libstdc++-v3/doc/xml/manual/debug.xml
+===================================================================
+--- a/src/libstdc++-v3/doc/xml/manual/debug.xml	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/doc/xml/manual/debug.xml	(.../branches/gcc-8-branch)
+@@ -94,50 +94,35 @@
+ 
+ <section xml:id="debug.memory"><info><title>Memory Leak Hunting</title></info>
+ 
++<para>
++  On many targets GCC supports AddressSanitizer, a fast memory error detector,
++  which is enabled by the <option>-fsanitize=address</option> option.
++</para>
+ 
+ <para>
+-  There are various third party memory tracing and debug utilities
++  There are also various third party memory tracing and debug utilities
+   that can be used to provide detailed memory allocation information
+   about C++ code. An exhaustive list of tools is not going to be
+   attempted, but includes <code>mtrace</code>, <code>valgrind</code>,
+-  <code>mudflap</code>, and the non-free commercial product
+-  <code>purify</code>. In addition, <code>libcwd</code> has a
+-  replacement for the global new and delete operators that can track
+-  memory allocation and deallocation and provide useful memory
+-  statistics.
++  <code>mudflap</code> (no longer supported since GCC 4.9.0), ElectricFence,
++  and the non-free commercial product <code>purify</code>.
++  In addition, <code>libcwd</code>, jemalloc and TCMalloc have replacements
++  for the global <code>new</code> and <code>delete</code> operators
++  that can track memory allocation and deallocation and provide useful
++  memory statistics.
+ </para>
+ 
+ <para>
+-  Regardless of the memory debugging tool being used, there is one
+-  thing of great importance to keep in mind when debugging C++ code
+-  that uses <code>new</code> and <code>delete</code>: there are
+-  different kinds of allocation schemes that can be used by <code>
+-  std::allocator</code>. For implementation details, see the <link linkend="manual.ext.allocator.mt">mt allocator</link> documentation and
+-  look specifically for <code>GLIBCXX_FORCE_NEW</code>.
+-</para>
+-
+-<para>
+-  In a nutshell, the optional <classname>mt_allocator</classname>
+-  is a high-performance pool allocator, and can
+-  give the mistaken impression that in a suspect executable, memory is
+-  being leaked, when in reality the memory "leak" is a pool being used
+-  by the library's allocator and is reclaimed after program
+-  termination.
+-</para>
+-
+-<para>
+   For valgrind, there are some specific items to keep in mind. First
+   of all, use a version of valgrind that will work with current GNU
+   C++ tools: the first that can do this is valgrind 1.0.4, but later
+-  versions should work at least as well. Second of all, use a
+-  completely unoptimized build to avoid confusing valgrind. Third, use
+-  GLIBCXX_FORCE_NEW to keep extraneous pool allocation noise from
+-  cluttering debug information.
++  versions should work better. Second, using an unoptimized build
++  might avoid confusing valgrind.
+ </para>
+ 
+ <para>
+-  Fourth, it may be necessary to force deallocation in other libraries
+-  as well, namely the "C" library. On linux, this can be accomplished
++  Third, it may be necessary to force deallocation in other libraries
++  as well, namely the "C" library. On GNU/Linux, this can be accomplished
+   with the appropriate use of the <code>__cxa_atexit</code> or
+   <code>atexit</code> functions.
+ </para>
+@@ -157,7 +142,6 @@
+    }
+ </programlisting>
+ 
+-
+ <para>or, using <code>__cxa_atexit</code>:</para>
+ 
+ <programlisting>
+@@ -184,8 +168,41 @@
+    valgrind -v --num-callers=20 --leak-check=yes --leak-resolution=high --show-reachable=yes a.out
+ </programlisting>
+ 
++<section xml:id="debug.memory.mtalloc">
++<info><title>Non-memory leaks in Pool and MT allocators</title></info>
++
++<para>
++  There are different kinds of allocation schemes that can be used by
++  <code>std::allocator</code>. Prior to GCC 3.4.0 the default was to use
++  a pooling allocator, <classname>pool_allocator</classname>,
++  which is still available as the optional
++  <classname>__pool_alloc</classname> extension.
++  Another optional extension, <classname>__mt_alloc</classname>,
++  is a high-performance pool allocator.
++</para>
++
++<para>
++  In a suspect executable these pooling allocators can give
++  the mistaken impression that memory is being leaked,
++  when in reality the memory "leak" is a pool being used
++  by the library's allocator and is reclaimed after program
++  termination.
++</para>
++
++<para>
++  If you're using memory debugging tools on a program that uses
++  one of these pooling allocators, you can set the environment variable
++  <literal>GLIBCXX_FORCE_NEW</literal> to keep extraneous pool allocation
++  noise from cluttering debug information.
++  For more details, see the
++  <link linkend="manual.ext.allocator.mt">mt allocator</link>
++  documentation and look specifically for <code>GLIBCXX_FORCE_NEW</code>.
++</para>
++
+ </section>
+ 
++</section>
++
+ <section xml:id="debug.races"><info><title>Data Race Hunting</title></info>
+ <para>
+   All synchronization primitives used in the library internals need to be
+Index: libstdc++-v3/doc/html/manual/using_macros.html
+===================================================================
+--- a/src/libstdc++-v3/doc/html/manual/using_macros.html	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/doc/html/manual/using_macros.html	(.../branches/gcc-8-branch)
+@@ -116,7 +116,8 @@
+         enabled for
+         <code class="classname">std::vector&lt;T, std::allocator&lt;T&gt;&gt;</code>
+         and only when <code class="classname">std::allocator</code> is derived from
+-        <a class="xref" href="memory.html#allocator.impl" title="Implementation">the section called “Implementation”</a>. The annotations
++        <a class="link" href="memory.html#allocator.impl" title="Implementation"><code class="classname">new_allocator</code>
++        or <code class="classname">malloc_allocator</code></a>. The annotations
+         must be present on all vector operations or none, so this macro must
+         be defined to the same value for all translation units that create,
+         destroy or modify vectors.
+Index: libstdc++-v3/include/std/optional
+===================================================================
+--- a/src/libstdc++-v3/include/std/optional	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/include/std/optional	(.../branches/gcc-8-branch)
+@@ -1256,7 +1256,7 @@
+ 	}
+ 
+       template<typename _Up>
+-	_Tp
++	constexpr _Tp
+ 	value_or(_Up&& __u) &&
+ 	{
+ 	  static_assert(is_move_constructible_v<_Tp>);
+Index: libstdc++-v3/include/std/type_traits
+===================================================================
+--- a/src/libstdc++-v3/include/std/type_traits	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/include/std/type_traits	(.../branches/gcc-8-branch)
+@@ -2024,9 +2024,14 @@
+     struct __expanded_common_type_wrapper<__failure_type, _Args...>
+     { typedef __failure_type type; };
+ 
++  template<>
++    struct common_type<>
++    { };
++
+   template<typename _Tp>
+     struct common_type<_Tp>
+-    { typedef typename decay<_Tp>::type type; };
++    : common_type<_Tp, _Tp>
++    { };
+ 
+   template<typename _Tp, typename _Up>
+     struct common_type<_Tp, _Up>
+Index: libstdc++-v3/include/std/variant
+===================================================================
+--- a/src/libstdc++-v3/include/std/variant	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/include/std/variant	(.../branches/gcc-8-branch)
+@@ -1076,6 +1076,17 @@
+ 
+       using _Traits = __detail::__variant::_Traits<_Types...>;
+ 
++      template<typename _Tp>
++	struct __is_in_place_tag : false_type { };
++      template<typename _Tp>
++	struct __is_in_place_tag<in_place_type_t<_Tp>> : true_type { };
++      template<size_t _Np>
++	struct __is_in_place_tag<in_place_index_t<_Np>> : true_type { };
++
++      template<typename _Tp>
++	static constexpr bool __not_in_place_tag
++	  = !__is_in_place_tag<decay_t<_Tp>>::value;
++
+     public:
+       variant() = default;
+       variant(const variant& __rhs) = default;
+@@ -1087,6 +1098,7 @@
+       template<typename _Tp,
+ 	       typename = enable_if_t<!is_same_v<decay_t<_Tp>, variant>>,
+ 	       typename = enable_if_t<(sizeof...(_Types)>0)>,
++	       typename = enable_if_t<__not_in_place_tag<_Tp>>,
+ 	       typename = enable_if_t<__exactly_once<__accepted_type<_Tp&&>>
+ 			  && is_constructible_v<__accepted_type<_Tp&&>, _Tp&&>>>
+ 	constexpr
+Index: libstdc++-v3/include/bits/hashtable.h
+===================================================================
+--- a/src/libstdc++-v3/include/bits/hashtable.h	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/include/bits/hashtable.h	(.../branches/gcc-8-branch)
+@@ -192,11 +192,6 @@
+       static_assert(is_same<typename _Alloc::value_type, _Value>{},
+ 	  "unordered container must have the same value_type as its allocator");
+ #endif
+-      static_assert(__is_invocable<const _H1&, const _Key&>{},
+-	  "hash function must be invocable with an argument of key type");
+-      static_assert(__is_invocable<const _Equal&, const _Key&, const _Key&>{},
+-	  "key equality predicate must be invocable with two arguments of "
+-	  "key type");
+ 
+       using __traits_type = _Traits;
+       using __hash_cached = typename __traits_type::__hash_cached;
+@@ -1373,6 +1368,12 @@
+     {
+       clear();
+       _M_deallocate_buckets();
++
++      static_assert(__is_invocable<const _H1&, const _Key&>{},
++	  "hash function must be invocable with an argument of key type");
++      static_assert(__is_invocable<const _Equal&, const _Key&, const _Key&>{},
++	  "key equality predicate must be invocable with two arguments of "
++	  "key type");
+     }
+ 
+   template<typename _Key, typename _Value,
+Index: libstdc++-v3/include/bits/stl_queue.h
+===================================================================
+--- a/src/libstdc++-v3/include/bits/stl_queue.h	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/include/bits/stl_queue.h	(.../branches/gcc-8-branch)
+@@ -504,14 +504,18 @@
+ 	priority_queue(const _Compare& __x, const _Alloc& __a)
+ 	: c(__a), comp(__x) { }
+ 
++      // _GLIBCXX_RESOLVE_LIB_DEFECTS
++      // 2537. Constructors [...] taking allocators should call make_heap
+       template<typename _Alloc, typename _Requires = _Uses<_Alloc>>
+ 	priority_queue(const _Compare& __x, const _Sequence& __c,
+ 		       const _Alloc& __a)
+-	: c(__c, __a), comp(__x) { }
++	: c(__c, __a), comp(__x)
++	{ std::make_heap(c.begin(), c.end(), comp); }
+ 
+       template<typename _Alloc, typename _Requires = _Uses<_Alloc>>
+ 	priority_queue(const _Compare& __x, _Sequence&& __c, const _Alloc& __a)
+-	: c(std::move(__c), __a), comp(__x) { }
++	: c(std::move(__c), __a), comp(__x)
++	{ std::make_heap(c.begin(), c.end(), comp); }
+ 
+       template<typename _Alloc, typename _Requires = _Uses<_Alloc>>
+ 	priority_queue(const priority_queue& __q, const _Alloc& __a)
+Index: libstdc++-v3/include/bits/fs_path.h
+===================================================================
+--- a/src/libstdc++-v3/include/bits/fs_path.h	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/include/bits/fs_path.h	(.../branches/gcc-8-branch)
+@@ -789,6 +789,9 @@
+   inline path&
+   path::operator=(path&& __p) noexcept
+   {
++    if (&__p == this)
++      return *this;
++
+     _M_pathname = std::move(__p._M_pathname);
+     _M_cmpts = std::move(__p._M_cmpts);
+     _M_type = __p._M_type;
 Index: libstdc++-v3/include/bits/char_traits.h
 ===================================================================
 --- a/src/libstdc++-v3/include/bits/char_traits.h	(.../tags/gcc_8_3_0_release)
@@ -25,11 +422,266 @@ Index: libstdc++-v3/include/bits/char_traits.h
  	__i++;
        return __i == __n;
      }
+Index: libstdc++-v3/include/bits/forward_list.tcc
+===================================================================
+--- a/src/libstdc++-v3/include/bits/forward_list.tcc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/include/bits/forward_list.tcc	(.../branches/gcc-8-branch)
+@@ -375,7 +375,7 @@
+       auto __iy = __ly.cbegin();
+       while (__ix != __lx.cend() && __iy != __ly.cend())
+ 	{
+-	  if (*__ix != *__iy)
++	  if (!(*__ix == *__iy))
+ 	    return false;
+ 	  ++__ix;
+ 	  ++__iy;
+@@ -445,9 +445,9 @@
+ 			__p = static_cast<_Node*>(__p->_M_next);
+ 			--__psize;
+ 		      }
+-		    else if (__comp(*__p->_M_valptr(), *__q->_M_valptr()))
++		    else if (!__comp(*__q->_M_valptr(), *__p->_M_valptr()))
+ 		      {
+-			// First node of p is lower; e must come from p.
++			// First node of q is not lower; e must come from p.
+ 			__e = __p;
+ 			__p = static_cast<_Node*>(__p->_M_next);
+ 			--__psize;
+Index: libstdc++-v3/include/bits/uses_allocator.h
+===================================================================
+--- a/src/libstdc++-v3/include/bits/uses_allocator.h	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/include/bits/uses_allocator.h	(.../branches/gcc-8-branch)
+@@ -83,14 +83,17 @@
+   template<typename _Tp, typename _Alloc, typename... _Args>
+     struct __uses_alloc<true, _Tp, _Alloc, _Args...>
+     : conditional<
+-        is_constructible<_Tp, allocator_arg_t, _Alloc, _Args...>::value,
++        is_constructible<_Tp, allocator_arg_t, const _Alloc&, _Args...>::value,
+         __uses_alloc1<_Alloc>,
+        	__uses_alloc2<_Alloc>>::type
+     {
++      // _GLIBCXX_RESOLVE_LIB_DEFECTS
++      // 2586. Wrong value category used in scoped_allocator_adaptor::construct
+       static_assert(__or_<
+-	  is_constructible<_Tp, allocator_arg_t, _Alloc, _Args...>,
+-	  is_constructible<_Tp, _Args..., _Alloc>>::value, "construction with"
+-	  " an allocator must be possible if uses_allocator is true");
++	  is_constructible<_Tp, allocator_arg_t, const _Alloc&, _Args...>,
++	  is_constructible<_Tp, _Args..., const _Alloc&>>::value,
++	  "construction with an allocator must be possible"
++	  " if uses_allocator is true");
+     };
+ 
+   template<typename _Tp, typename _Alloc, typename... _Args>
+Index: libstdc++-v3/include/bits/stl_tree.h
+===================================================================
+--- a/src/libstdc++-v3/include/bits/stl_tree.h	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/include/bits/stl_tree.h	(.../branches/gcc-8-branch)
+@@ -448,17 +448,6 @@
+ 
+       typedef __gnu_cxx::__alloc_traits<_Node_allocator> _Alloc_traits;
+ 
+-#if __cplusplus >= 201103L
+-      static_assert(__is_invocable<_Compare&, const _Key&, const _Key&>{},
+-	  "comparison object must be invocable with two arguments of key type");
+-# if __cplusplus >= 201703L
+-      // _GLIBCXX_RESOLVE_LIB_DEFECTS
+-      // 2542. Missing const requirements for associative containers
+-      static_assert(is_invocable_v<const _Compare&, const _Key&, const _Key&>,
+-	  "comparison object must be invocable as const");
+-# endif // C++17
+-#endif // C++11
+-
+     protected:
+       typedef _Rb_tree_node_base* 		_Base_ptr;
+       typedef const _Rb_tree_node_base* 	_Const_Base_ptr;
+@@ -962,8 +951,22 @@
+ #endif
+ 
+       ~_Rb_tree() _GLIBCXX_NOEXCEPT
+-      { _M_erase(_M_begin()); }
++      {
++	_M_erase(_M_begin());
+ 
++#if __cplusplus >= 201103L
++	static_assert(__is_invocable<_Compare&, const _Key&, const _Key&>{},
++		      "comparison object must be invocable "
++		      "with two arguments of key type");
++# if __cplusplus >= 201703L
++      // _GLIBCXX_RESOLVE_LIB_DEFECTS
++      // 2542. Missing const requirements for associative containers
++	static_assert(is_invocable_v<const _Compare&, const _Key&, const _Key&>,
++		      "comparison object must be invocable as const");
++# endif // C++17
++#endif // C++11
++      }
++
+       _Rb_tree&
+       operator=(const _Rb_tree& __x);
+ 
+Index: libstdc++-v3/libsupc++/hash_bytes.cc
+===================================================================
+--- a/src/libstdc++-v3/libsupc++/hash_bytes.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/libsupc++/hash_bytes.cc	(.../branches/gcc-8-branch)
+@@ -139,7 +139,7 @@
+ 
+     // Remove the bytes not divisible by the sizeof(size_t).  This
+     // allows the main loop to process the data as 64-bit integers.
+-    const int len_aligned = len & ~0x7;
++    const size_t len_aligned = len & ~(size_t)0x7;
+     const char* const end = buf + len_aligned;
+     size_t hash = seed ^ (len * mul);
+     for (const char* p = buf; p != end; p += 8)
 Index: libstdc++-v3/ChangeLog
 ===================================================================
 --- a/src/libstdc++-v3/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/libstdc++-v3/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,11 @@
+@@ -1,3 +1,156 @@
++2019-05-11  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backport from mainline
++	2019-05-10  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/81266
++	* testsuite/util/thread/all.h: Do not use remove_pointer for
++	std::thread::native_handle_type.
++
++2019-05-07  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backport from mainline
++	2019-02-06  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/89102 (partial)
++	* include/std/type_traits (common_type<>): Define.
++	(common_type<T>): Derive from common_type<T, T>.
++	* testsuite/20_util/common_type/requirements/explicit_instantiation.cc:
++	Test zero-length template argument list.
++	* testsuite/20_util/common_type/requirements/sfinae_friendly_1.cc:
++	Test additional single argument cases.
++	* testsuite/20_util/common_type/requirements/sfinae_friendly_2.cc:
++	Adjust expected error.
++
++	Backport from mainline
++	2019-01-22  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/88740
++	* testsuite/util/testsuite_hooks.h [stderr] (VERIFY): Use fprintf to
++	write to stderr instead of using printf.
++
++	Backport from mainline
++	2019-04-23  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/90165
++	* include/std/variant (variant::__is_in_place_tag)
++	(variant::__not_in_place_tag): New helpers for variant(T&&)
++	constructor constraint.
++	(variant::variant(T&&)): Use __not_in_place_tag in constraints.
++	* testsuite/20_util/variant/compile.cc: Check variant(T&&) constructor
++	isn't used for in_place_type or in_place_index arguments.
++
++	Backport from mainline
++	2019-04-17  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/90105
++	* include/bits/forward_list.tcc (operator==): Do not use operator!= to
++	compare elements.
++	(forward_list<T, A>::sort(Comp)): When elements are equal take the one
++	earlier in the list, so that sort is stable.
++	* testsuite/23_containers/forward_list/operations/90105.cc: New test.
++	* testsuite/23_containers/forward_list/comparable.cc: Test with
++	types that meet the minimum EqualityComparable and LessThanComparable
++	requirements. Remove irrelevant comment.
++
++	Backport from mainline
++	2019-04-17  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/std/optional (optional::value_or(U&&) &&): Add missing
++	constexpr specifier.
++	* testsuite/20_util/optional/constexpr/observers/4.cc: Check value_or
++	for disengaged optionals and rvalue optionals.
++	* testsuite/20_util/optional/observers/4.cc: Likewise.
++
++	Backport from mainline
++	2019-04-10  Jonathan Wakely  <jwakely@redhat.com>
++
++	* doc/xml/faq.xml: Add information about emergency EH pool.
++	* doc/xml/manual/debug.xml: Update list of memory debugging tools.
++	Move outdated information on mt_allocator to a separate section.
++	* doc/xml/manual/evolution.xml: Clarify that GLIBCXX_FORCE_NEW
++	doesn't affect the default allocator.
++
++	Backport from mainline
++	2019-04-05  Jonathan Wakely  <jwakely@redhat.com>
++
++	* src/filesystem/std-dir.cc (_Dir::advance(bool, error_code&)): Handle
++	d_type == DT_UNKNOWN immediately.
++	(_Dir::should_recurse(bool, error_code&)): Remove file_type::unknown
++	handling here.
++	* testsuite/27_io/filesystem/iterators/caching.cc: New test.
++
++	Backport from mainline
++	2019-04-05  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/bits/fs_path.h (path::operator=(path&&)): Check for self
++	assignment.
++	* testsuite/27_io/filesystem/path/assign/copy.cc: Test self
++	assignment.
++
++	Backport from mainline
++	2019-03-26  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/85965
++	* include/bits/hashtable.h (_Hashtable): Move static assertions to
++	destructor so they are not evaluated until the _Key type is complete.
++	* include/bits/stl_tree.h (_Rb_tree): Likewise.
++	* testsuite/23_containers/set/85965.cc: New test.
++	* testsuite/23_containers/unordered_set/85965.cc: New test.
++	* testsuite/23_containers/map/48101_neg.cc: Replace "here" errors
++	with regexp matching the corresponding _Rb_tree specialization.
++	* testsuite/23_containers/multimap/48101_neg.cc: Likewise.
++	* testsuite/23_containers/multiset/48101_neg.cc: Remove "here" error.
++	* testsuite/23_containers/set/48101_neg.cc: Likewise.
++	* testsuite/23_containers/unordered_map/48101_neg.cc: Likewise.
++	* testsuite/23_containers/unordered_multimap/48101_neg.cc: Likewise.
++	* testsuite/23_containers/unordered_multiset/48101_neg.cc: Likewise.
++	* testsuite/23_containers/unordered_set/48101_neg.cc: Likewise.
++
++	Backport from mainline
++	2019-03-11  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/89629
++	* libsupc++/hash_bytes.cc [__SIZEOF_SIZE_T__ == 8] (_Hash_bytes):
++	Use correct type for len_aligned.
++	* testsuite/20_util/hash/89629.cc: New test.
++
++	Backport from mainline
++	2019-03-08  Jonathan Wakely  <jwakely@redhat.com>
++
++	* doc/xml/manual/using.xml: Use link element instead of xref.
++
++	Backport from mainline
++	2019-02-14  Jonathan Wakely  <jwakely@redhat.com>
++
++	* doc/xml/manual/intro.xml: Document LWG 2586 status.
++	* include/bits/uses_allocator.h (__uses_alloc): Use const lvalue
++	allocator type in is_constructible checks.
++	* testsuite/20_util/scoped_allocator/69293_neg.cc: Adjust dg-error.
++	* testsuite/20_util/scoped_allocator/dr2586.cc: New test.
++	* testsuite/20_util/tuple/cons/allocators.cc: Add test using
++	problematic type from LWG 2586 discussion.
++	* testsuite/20_util/uses_allocator/69293_neg.cc: Adjust dg-error.
++	* testsuite/20_util/uses_allocator/cons_neg.cc: Likewise.
++
++	Backport from mainline
++	2019-02-14  Jonathan Wakely  <jwakely@redhat.com>
++
++	* doc/xml/manual/intro.xml: Document LWG 2537 status.
++	* include/bits/stl_queue.h
++	(priority_queue(const Compare&, const Container&, const Alloc&))
++	(priority_queue(const Compare&, Container&&, const Alloc&)): Call
++	make_heap.
++	* testsuite/23_containers/priority_queue/dr2537.cc: New test.
++
 +2019-02-22  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	PR libstdc++/89446
@@ -41,6 +693,490 @@ Index: libstdc++-v3/ChangeLog
  2019-02-22  Release Manager
  
  	* GCC 8.3.0 released.
+Index: libstdc++-v3/testsuite/23_containers/unordered_map/48101_neg.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/23_containers/unordered_map/48101_neg.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/23_containers/unordered_map/48101_neg.cc	(.../branches/gcc-8-branch)
+@@ -23,7 +23,7 @@
+ test01()
+ {
+   using namespace std;
+-  unordered_map<int, int, equal_to<int>, hash<int>> c2;  // { dg-error "here" }
++  unordered_map<int, int, equal_to<int>, hash<int>> c2;
+ }
+ 
+ // { dg-error "hash function must be invocable" "" { target *-*-* } 0 }
+Index: libstdc++-v3/testsuite/23_containers/priority_queue/dr2537.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/23_containers/priority_queue/dr2537.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/23_containers/priority_queue/dr2537.cc	(.../branches/gcc-8-branch)
+@@ -0,0 +1,50 @@
++// Copyright (C) 2019 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-do run { target c++11 } }
++
++#include <queue>
++#include <testsuite_hooks.h>
++
++struct Q : std::priority_queue<int>
++{
++  using priority_queue::priority_queue;
++
++  bool is_heap() const
++  { return std::is_heap(c.begin(), c.end()); }
++};
++
++void
++test01()
++{
++  const Q::value_compare cmp;
++  const Q::container_type c{ 2, 3, 5, 7, 11, 13, 17, 19, 23 };
++  const Q::container_type::allocator_type a;
++
++  Q q1(cmp, c, a);
++  VERIFY( q1.is_heap() );
++
++  auto c2 = c;
++  Q q2(cmp, std::move(c2), a);
++  VERIFY( q2.is_heap() );
++}
++
++int
++main()
++{
++  test01();
++}
+Index: libstdc++-v3/testsuite/23_containers/multimap/48101_neg.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/23_containers/multimap/48101_neg.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/23_containers/multimap/48101_neg.cc	(.../branches/gcc-8-branch)
+@@ -23,8 +23,10 @@
+ void
+ test01()
+ {
+-  std::multimap<int, int, std::less<int*>> c;      // { dg-error "here" }
+-  std::multimap<int, int, std::allocator<int>> c2; // { dg-error "here" }
++  std::multimap<int, int, std::less<int*>> c;
++  std::multimap<int, int, std::allocator<int>> c2;
+ }
+ 
++// { dg-error "_Compare = std::less<int.>" "" { target *-*-* } 0 }
++// { dg-error "_Compare = std::allocator<int>" "" { target *-*-* } 0 }
+ // { dg-error "comparison object must be invocable" "" { target *-*-* } 0 }
+Index: libstdc++-v3/testsuite/23_containers/set/85965.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/23_containers/set/85965.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/23_containers/set/85965.cc	(.../branches/gcc-8-branch)
+@@ -0,0 +1,29 @@
++// Copyright (C) 2019 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-do compile { target c++11 } }
++
++#include <set>
++
++struct Base { };
++struct Derived; // derives from Base, but incomplete at this point
++
++struct Foo
++{
++  // PR libstdc++/85965
++  std::set<Derived*, std::less<Base*>> s;
++};
+Index: libstdc++-v3/testsuite/23_containers/set/48101_neg.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/23_containers/set/48101_neg.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/23_containers/set/48101_neg.cc	(.../branches/gcc-8-branch)
+@@ -23,7 +23,7 @@
+ test01()
+ {
+   std::set<const int> c;	      // { dg-error "here" }
+-  std::set<int, std::less<long*>> c2; // { dg-error "here" }
++  std::set<int, std::less<long*>> c2;
+ }
+ 
+ // { dg-error "non-const, non-volatile value_type" "" { target *-*-* } 0 }
+Index: libstdc++-v3/testsuite/23_containers/forward_list/operations/90105.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/23_containers/forward_list/operations/90105.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/23_containers/forward_list/operations/90105.cc	(.../branches/gcc-8-branch)
+@@ -0,0 +1,60 @@
++// Copyright (C) 2019 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-do run { target c++11 } }
++
++#include <forward_list>
++#include <testsuite_hooks.h>
++
++// PR libstdc++/90105 - std::forward_list::sort() is not "stable"
++
++struct X
++{
++  int key;
++  int val;
++};
++
++bool operator<(const X& l, const X& r)
++{ return l.key < r.key; }
++
++bool operator==(const X& l, const X& r)
++{ return l.key == r.key && l.val == r.val; }
++
++void
++test01()
++{
++  std::forward_list<X> l{ {1, 1}, {2, 2}, {1, 3}, {0, 4}, {2, 5}, {0, 6} };
++  l.sort();
++  std::forward_list<X> exp{ {0, 4}, {0, 6}, {1, 1}, {1, 3}, {2, 2}, {2, 5} };
++  VERIFY( l == exp );
++}
++
++void
++test02()
++{
++  std::forward_list<X> l{ {1, 1}, {1, 2}, {1, 3}, {1, 4}, {1, 5}, {1, 6} };
++  const std::forward_list<X> exp = l;
++  l.sort();
++  VERIFY( l == exp );
++}
++
++int
++main()
++{
++  test01();
++  test02();
++}
+Index: libstdc++-v3/testsuite/23_containers/forward_list/comparable.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/23_containers/forward_list/comparable.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/23_containers/forward_list/comparable.cc	(.../branches/gcc-8-branch)
+@@ -17,15 +17,11 @@
+ // with this library; see the file COPYING3.  If not see
+ // <http://www.gnu.org/licenses/>.
+ 
+-
+-// NOTE: This makes use of the fact that we know how moveable
+-// is implemented on list (via swap). If the implementation changed
+-// this test may begin to fail.
+-
+ #include <forward_list>
+ #include <testsuite_hooks.h>
+ 
+-int main()
++void
++test01()
+ {
+   std::forward_list<double> a = {0.0, 1.0, 2.0, 3.0, 4.0};
+   std::forward_list<double> b = {0.0, 1.0, 2.0, 3.0, 4.0, 5.0};
+@@ -43,6 +39,40 @@
+   VERIFY((b >  a) == true);
+   VERIFY((b >= a) == true);
+   VERIFY((b <= a) == false);
++}
+ 
+-  return 0;
++void
++test02()
++{
++  // The EqualityComparable requirements only require ==
++  struct X {
++    bool operator==(const X&) const { return true; }
++  };
++
++  std::forward_list<X> a(2);
++  const auto b = a;
++  VERIFY( a == b );
+ }
++
++void
++test03()
++{
++  // The LessThanComparable requirements only require <
++  struct X {
++    bool operator<(const X&) const { return false; }
++  };
++
++  std::forward_list<X> a(2);
++  const auto b = a;
++  VERIFY( !(a < b) );
++  VERIFY( !(a > b) );
++  VERIFY( a <= b );
++  VERIFY( a >= b );
++}
++
++int main()
++{
++  test01();
++  test02();
++  test03();
++}
+Index: libstdc++-v3/testsuite/23_containers/unordered_multimap/48101_neg.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/23_containers/unordered_multimap/48101_neg.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/23_containers/unordered_multimap/48101_neg.cc	(.../branches/gcc-8-branch)
+@@ -23,7 +23,7 @@
+ test01()
+ {
+   using namespace std;
+-  unordered_multimap<int, int, equal_to<int>, hash<int>> c2; // { dg-error "here" }
++  unordered_multimap<int, int, equal_to<int>, hash<int>> c2;
+ }
+ 
+ // { dg-error "hash function must be invocable" "" { target *-*-* } 0 }
+Index: libstdc++-v3/testsuite/23_containers/unordered_set/85965.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/23_containers/unordered_set/85965.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/23_containers/unordered_set/85965.cc	(.../branches/gcc-8-branch)
+@@ -0,0 +1,29 @@
++// Copyright (C) 2019 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-do compile { target c++11 } }
++
++#include <unordered_set>
++
++struct Base { };
++struct Derived; // derives from Base, but incomplete at this point
++
++struct Foo
++{
++  // PR libstdc++/85965
++  std::unordered_set<Derived*, std::equal_to<Base*>, std::hash<Base*>> u;
++};
+Index: libstdc++-v3/testsuite/23_containers/unordered_set/48101_neg.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/23_containers/unordered_set/48101_neg.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/23_containers/unordered_set/48101_neg.cc	(.../branches/gcc-8-branch)
+@@ -24,7 +24,7 @@
+ {
+   using namespace std;
+   unordered_set<const int, hash<int>> c;	    // { dg-error "here" }
+-  unordered_set<int, equal_to<int>, hash<int>> c2;  // { dg-error "here" }
++  unordered_set<int, equal_to<int>, hash<int>> c2;
+ }
+ 
+ // { dg-error "non-const, non-volatile value_type" "" { target *-*-* } 0 }
+Index: libstdc++-v3/testsuite/23_containers/multiset/48101_neg.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/23_containers/multiset/48101_neg.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/23_containers/multiset/48101_neg.cc	(.../branches/gcc-8-branch)
+@@ -23,7 +23,7 @@
+ test01()
+ {
+   std::multiset<const int> c;		   // { dg-error "here" }
+-  std::multiset<int, std::less<long*>> c2; // { dg-error "here" }
++  std::multiset<int, std::less<long*>> c2;
+ }
+ 
+ // { dg-error "non-const, non-volatile value_type" "" { target *-*-* } 0 }
+Index: libstdc++-v3/testsuite/23_containers/unordered_multiset/48101_neg.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/23_containers/unordered_multiset/48101_neg.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/23_containers/unordered_multiset/48101_neg.cc	(.../branches/gcc-8-branch)
+@@ -24,7 +24,7 @@
+ {
+   using namespace std;
+   unordered_multiset<const int, hash<int>> c;		// { dg-error "here" }
+-  unordered_multiset<int, equal_to<int>, hash<int>> c2; // { dg-error "here" }
++  unordered_multiset<int, equal_to<int>, hash<int>> c2;
+ }
+ 
+ // { dg-error "non-const, non-volatile value_type" "" { target *-*-* } 0 }
+Index: libstdc++-v3/testsuite/23_containers/map/48101_neg.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/23_containers/map/48101_neg.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/23_containers/map/48101_neg.cc	(.../branches/gcc-8-branch)
+@@ -23,8 +23,10 @@
+ void
+ test01()
+ {
+-  std::map<int, int, std::less<int*>> c;      // { dg-error "here" }
+-  std::map<int, int, std::allocator<int>> c2; // { dg-error "here" }
++  std::map<int, int, std::less<int*>> c;
++  std::map<int, int, std::allocator<int>> c2;
+ }
+ 
++// { dg-error "_Compare = std::less<int.>" "" { target *-*-* } 0 }
++// { dg-error "_Compare = std::allocator<int>" "" { target *-*-* } 0 }
+ // { dg-error "comparison object must be invocable" "" { target *-*-* } 0 }
+Index: libstdc++-v3/testsuite/27_io/filesystem/iterators/caching.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/27_io/filesystem/iterators/caching.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/27_io/filesystem/iterators/caching.cc	(.../branches/gcc-8-branch)
+@@ -0,0 +1,76 @@
++// Copyright (C) 2019 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-options "-std=gnu++17 -lstdc++fs" }
++// { dg-do run { target c++17 } }
++// { dg-require-filesystem-ts "" }
++
++#include <filesystem>
++#include <testsuite_fs.h>
++#include <testsuite_hooks.h>
++
++namespace fs = std::filesystem;
++
++__gnu_test::scoped_file
++create_dir(fs::path dir = __gnu_test::nonexistent_path())
++{
++  fs::create_directory(dir);
++  return { dir, __gnu_test::scoped_file::adopt_file };
++}
++
++void
++test01()
++{
++  auto testdir = create_dir();
++  __gnu_test::scoped_file file1(testdir.path/"file1");
++  __gnu_test::scoped_file file2(testdir.path/"file2");
++
++  fs::directory_iterator it(testdir.path);
++  VERIFY( it->is_regular_file() );
++  ++it;
++  VERIFY( it->is_regular_file() );
++  ++it;
++  VERIFY( it == fs::directory_iterator{} );
++}
++
++void
++test02()
++{
++  auto testdir = create_dir();
++  const auto sub1 = create_dir(testdir.path/"sub1");
++  __gnu_test::scoped_file file1(sub1.path / "file");
++  const auto sub2 = create_dir(testdir.path/"sub2");
++  __gnu_test::scoped_file file2(sub2.path / "file");
++
++  fs::recursive_directory_iterator it(testdir.path);
++  VERIFY( it->is_directory() );
++  ++it;
++  VERIFY( it->is_regular_file() );
++  ++it;
++  VERIFY( it->is_directory() );
++  ++it;
++  VERIFY( it->is_regular_file() );
++  ++it;
++  VERIFY( it == fs::recursive_directory_iterator{} );
++}
++
++int
++main()
++{
++  test01();
++  test02();
++}
+Index: libstdc++-v3/testsuite/27_io/filesystem/path/assign/copy.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/27_io/filesystem/path/assign/copy.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/27_io/filesystem/path/assign/copy.cc	(.../branches/gcc-8-branch)
+@@ -21,6 +21,7 @@
+ 
+ #include <filesystem>
+ #include <testsuite_fs.h>
++#include <testsuite_hooks.h>
+ 
+ using std::filesystem::path;
+ using __gnu_test::compare_paths;
+@@ -48,9 +49,26 @@
+   }
+ }
+ 
++void
++test03()
++{
++  // self assignment should have no effect
++  const path orig = "foo/bar/baz";
++  path p = orig;
++  const auto ptr1 = p.c_str();
++  const auto ptr2 = p.begin()->c_str();
++  p = std::move(p);
++  __gnu_test::compare_paths(p, orig);
++  p = p;
++  __gnu_test::compare_paths(p, orig);
++  VERIFY( ptr1 == p.c_str() );
++  VERIFY( ptr2 == p.begin()->c_str() );
++}
++
+ int
+ main()
+ {
+   test01();
+   test02();
++  test03();
+ }
 Index: libstdc++-v3/testsuite/21_strings/basic_string_view/operators/char/89446.cc
 ===================================================================
 --- a/src/libstdc++-v3/testsuite/21_strings/basic_string_view/operators/char/89446.cc	(.../tags/gcc_8_3_0_release)
@@ -74,6 +1210,402 @@ Index: libstdc++-v3/testsuite/21_strings/basic_string_view/operators/char/89446.
 +  std::string_view s1, s2;
 +  return s1 != s2;
 +}
+Index: libstdc++-v3/testsuite/util/thread/all.h
+===================================================================
+--- a/src/libstdc++-v3/testsuite/util/thread/all.h	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/util/thread/all.h	(.../branches/gcc-8-branch)
+@@ -25,6 +25,7 @@
+ #include <sstream>
+ #include <stdexcept>
+ #include <type_traits>
++#include <thread>
+ 
+ // C++11 only.
+ namespace __gnu_test
+@@ -39,7 +40,12 @@
+ 
+       // Remove possible pointer type.
+       typedef typename test_type::native_handle_type native_handle;
+-      typedef typename std::remove_pointer<native_handle>::type native_type;
++      // For std::thread native_handle_type is the type of its data member,
++      // for other types it's a pointer to the type of the data member.
++      typedef typename std::conditional<
++	std::is_same<test_type, std::thread>::value,
++	native_handle,
++	typename std::remove_pointer<native_handle>::type>::type native_type;
+ 
+       int st = sizeof(test_type);
+       int snt = sizeof(native_type);
+Index: libstdc++-v3/testsuite/util/testsuite_hooks.h
+===================================================================
+--- a/src/libstdc++-v3/testsuite/util/testsuite_hooks.h	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/util/testsuite_hooks.h	(.../branches/gcc-8-branch)
+@@ -46,18 +46,25 @@
+ #include <bits/c++config.h>
+ #include <bits/functexcept.h>
+ #include <ctime>
++#include <stdio.h>
+ 
+ #ifdef _GLIBCXX_HAVE_SYS_STAT_H
+ #include <sys/stat.h>
+ #endif
+ 
++#ifdef stderr
++# define _VERIFY_PRINT(S, F, L, P, C) __builtin_fprintf(stderr, S, F, L, P, C)
++#else
++# define _VERIFY_PRINT(S, F, L, P, C) __builtin_printf(S, F, L, P, C)
++#endif
++
+ #define VERIFY(fn)                                                      \
+   do                                                                    \
+   {                                                                     \
+     if (! (fn))								\
+       {									\
+-	__builtin_printf("%s:%d: %s: Assertion '%s' failed.\n",		\
+-			 __FILE__, __LINE__, __PRETTY_FUNCTION__, #fn); \
++	_VERIFY_PRINT("%s:%d: %s: Assertion '%s' failed.\n",		\
++		      __FILE__, __LINE__, __PRETTY_FUNCTION__, #fn);	\
+ 	__builtin_abort();						\
+       }									\
+   } while (false)
+Index: libstdc++-v3/testsuite/20_util/scoped_allocator/69293_neg.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/20_util/scoped_allocator/69293_neg.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/20_util/scoped_allocator/69293_neg.cc	(.../branches/gcc-8-branch)
+@@ -46,5 +46,5 @@
+   scoped_alloc sa;
+   auto p = sa.allocate(1);
+   sa.construct(p);  // this is required to be ill-formed
+-  // { dg-error "static assertion failed" "" { target *-*-* } 90 }
++  // { dg-error "failed: .* uses_allocator is true" "" { target *-*-* } 0 }
+ }
+Index: libstdc++-v3/testsuite/20_util/scoped_allocator/dr2586.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/20_util/scoped_allocator/dr2586.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/20_util/scoped_allocator/dr2586.cc	(.../branches/gcc-8-branch)
+@@ -0,0 +1,34 @@
++// Copyright (C) 2019 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-do compile { target c++11 } }
++
++#include <memory>
++#include <scoped_allocator>
++
++// DR 2586. Wrong value category used in scoped_allocator_adaptor::construct()
++
++struct X {
++  using allocator_type = std::allocator<X>;
++  X(std::allocator_arg_t, allocator_type&&) { }
++  X(const allocator_type&) { }
++};
++
++int main() {
++  std::scoped_allocator_adaptor<std::allocator<X>> sa;
++  sa.construct(sa.allocate(1));
++}
+Index: libstdc++-v3/testsuite/20_util/hash/89629.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/20_util/hash/89629.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/20_util/hash/89629.cc	(.../branches/gcc-8-branch)
+@@ -0,0 +1,43 @@
++// Copyright (C) 2019 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-do run { target { lp64 || llp64 } } }
++// { dg-require-effective-target c++11 }
++// { dg-require-effective-target run_expensive_tests }
++
++#include <functional>
++#include <string>
++
++void
++test01()
++{
++  const std::size_t big = std::size_t(1) << 31;
++  std::string s;
++  try {
++    s.resize(big, 'a');
++  } catch (const std::bad_alloc&) {
++    return; // try to avoid a FAIL if memory allocation fails
++  }
++  // PR libstdc++/89629
++  (void) std::hash<std::string>{}(s);
++}
++
++int
++main()
++{
++  test01();
++}
+Index: libstdc++-v3/testsuite/20_util/variant/compile.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/20_util/variant/compile.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/20_util/variant/compile.cc	(.../branches/gcc-8-branch)
+@@ -129,10 +129,15 @@
+   static_assert(noexcept(variant<int, DefaultNoexcept>(DefaultNoexcept{})), "");
+ }
+ 
++struct none { none() = delete; };
++struct any { template <typename T> any(T&&) {} };
++
+ void in_place_index_ctor()
+ {
+   variant<string, string> a(in_place_index<0>, "a");
+   variant<string, string> b(in_place_index<1>, {'a'});
++
++  static_assert(!is_constructible_v<variant<none, any>, std::in_place_index_t<0>>, "PR libstdc++/90165");
+ }
+ 
+ void in_place_type_ctor()
+@@ -140,6 +145,7 @@
+   variant<int, string, int> a(in_place_type<string>, "a");
+   variant<int, string, int> b(in_place_type<string>, {'a'});
+   static_assert(!is_constructible_v<variant<string, string>, in_place_type_t<string>, const char*>, "");
++  static_assert(!is_constructible_v<variant<none, any>, std::in_place_type_t<none>>, "PR libstdc++/90165");
+ }
+ 
+ void dtor()
+Index: libstdc++-v3/testsuite/20_util/tuple/cons/allocators.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/20_util/tuple/cons/allocators.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/20_util/tuple/cons/allocators.cc	(.../branches/gcc-8-branch)
+@@ -181,9 +181,23 @@
+   test_type empty = make_tuple();
+ }
+ 
++void test03()
++{
++  struct dr2586
++  {
++    using allocator_type = std::allocator<int>;
++    dr2586(std::allocator_arg_t, allocator_type&&) { }
++    dr2586(const allocator_type&) { }
++  };
++
++  const dr2586::allocator_type a;
++  std::tuple<dr2586> t{std::allocator_arg, a};
++}
++
+ int main()
+ {
+   test01();
+   test02();
++  test03();
+   return 0;
+ }
+Index: libstdc++-v3/testsuite/20_util/uses_allocator/cons_neg.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/20_util/uses_allocator/cons_neg.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/20_util/uses_allocator/cons_neg.cc	(.../branches/gcc-8-branch)
+@@ -43,4 +43,4 @@
+ 
+   tuple<Type> t(allocator_arg, a, 1);
+ }
+-// { dg-error "static assertion failed" "" { target *-*-* } 90 }
++// { dg-error "failed: .* uses_allocator is true" "" { target *-*-* } 0 }
+Index: libstdc++-v3/testsuite/20_util/uses_allocator/69293_neg.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/20_util/uses_allocator/69293_neg.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/20_util/uses_allocator/69293_neg.cc	(.../branches/gcc-8-branch)
+@@ -44,5 +44,5 @@
+ {
+   alloc_type a;
+   std::tuple<X> t(std::allocator_arg, a); // this is required to be ill-formed
+-  // { dg-error "static assertion failed" "" { target *-*-* } 90 }
++  // { dg-error "failed: .* uses_allocator is true" "" { target *-*-* } 0 }
+ }
+Index: libstdc++-v3/testsuite/20_util/optional/constexpr/observers/4.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/20_util/optional/constexpr/observers/4.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/20_util/optional/constexpr/observers/4.cc	(.../branches/gcc-8-branch)
+@@ -25,10 +25,42 @@
+   int i;
+ };
+ 
+-int main()
++void test01()
+ {
+   constexpr std::optional<value_type> o { value_type { 51 } };
+   constexpr value_type fallback { 3 };
+-  static_assert( o.value_or(fallback).i == 51, "" );
+-  static_assert( o.value_or(fallback).i == (*o).i, "" );
++  static_assert( o.value_or(fallback).i == 51 );
++  static_assert( o.value_or(fallback).i == (*o).i );
+ }
++
++void test02()
++{
++  constexpr std::optional<value_type> o;
++  constexpr value_type fallback { 3 };
++  static_assert( o.value_or(fallback).i == 3 );
++}
++
++template<typename T>
++  constexpr std::optional<value_type>
++  make_rvalue(T t)
++  { return std::optional<value_type>{t}; }
++
++void test03()
++{
++  constexpr value_type fallback { 3 };
++  static_assert( make_rvalue(value_type{51}).value_or(fallback).i == 51 );
++}
++
++void test04()
++{
++  constexpr value_type fallback { 3 };
++  static_assert( make_rvalue(std::nullopt).value_or(fallback).i == 3 );
++}
++
++int main()
++{
++  test01();
++  test02();
++  test03();
++  test04();
++}
+Index: libstdc++-v3/testsuite/20_util/optional/observers/4.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/20_util/optional/observers/4.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/20_util/optional/observers/4.cc	(.../branches/gcc-8-branch)
+@@ -26,7 +26,7 @@
+   int i;
+ };
+ 
+-int main()
++void test01()
+ {
+   std::optional<value_type> o { value_type { 51 } };
+   value_type fallback { 3 };
+@@ -33,3 +33,35 @@
+   VERIFY( o.value_or(fallback).i == 51 );
+   VERIFY( o.value_or(fallback).i == (*o).i );
+ }
++
++void test02()
++{
++  std::optional<value_type> o;
++  value_type fallback { 3 };
++  VERIFY( o.value_or(fallback).i == 3 );
++}
++
++void test03()
++{
++  std::optional<value_type> o { value_type { 51 } };
++  value_type fallback { 3 };
++  VERIFY( std::move(o).value_or(fallback).i == 51 );
++  VERIFY( o.has_value() );
++  VERIFY( std::move(o).value_or(fallback).i == (*o).i );
++}
++
++void test04()
++{
++  std::optional<value_type> o;
++  value_type fallback { 3 };
++  VERIFY( std::move(o).value_or(fallback).i == 3 );
++  VERIFY( !o.has_value() );
++}
++
++int main()
++{
++  test01();
++  test02();
++  test03();
++  test04();
++}
+Index: libstdc++-v3/testsuite/20_util/common_type/requirements/sfinae_friendly_1.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/20_util/common_type/requirements/sfinae_friendly_1.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/20_util/common_type/requirements/sfinae_friendly_1.cc	(.../branches/gcc-8-branch)
+@@ -159,7 +159,10 @@
+   };
+ }
+ 
++static_assert(is_type<std::common_type<int>, int>(), "");
++static_assert(is_type<std::common_type<const int>, int>(), "");
+ static_assert(is_type<std::common_type<int, int>, int>(), "");
++static_assert(is_type<std::common_type<const int, int>, int>(), "");
+ static_assert(is_type<std::common_type<ScEn, ScEn>, ScEn>(), "");
+ static_assert(is_type<std::common_type<UnscEn, UnscEn>, UnscEn>(), "");
+ static_assert(is_type<std::common_type<UnscEn, int>, int>(), "");
+@@ -180,6 +183,8 @@
+ 	      const volatile int*>(), "");
+ static_assert(is_type<std::common_type<void*, const volatile int*>,
+ 	      const volatile void*>(), "");
++static_assert(is_type<std::common_type<void>, void>(), "");
++static_assert(is_type<std::common_type<const void>, void>(), "");
+ static_assert(is_type<std::common_type<void, void>, void>(), "");
+ static_assert(is_type<std::common_type<const void, const void>, void>(), "");
+ static_assert(is_type<std::common_type<int&, int&&>, int>(), "");
+@@ -316,6 +321,14 @@
+ static_assert(!has_type<std::common_type<std::initializer_list<int>,
+ 					 std::initializer_list<long>>>(), "");
+ 
++// PR libstdc++/89102
++static_assert(!has_type<std::common_type<int() &>>(), "");
++static_assert(!has_type<std::common_type<int() & noexcept>>(), "");
++static_assert(!has_type<std::common_type<int() const>>(), "");
++static_assert(!has_type<std::common_type<int(...) &>>(), "");
++static_assert(!has_type<std::common_type<int(...) & noexcept>>(), "");
++static_assert(!has_type<std::common_type<int(...) const>>(), "");
++
+ void test(int i)
+ {
+   auto local_lmd1 = [=](int, double) { return i + i; };
+Index: libstdc++-v3/testsuite/20_util/common_type/requirements/sfinae_friendly_2.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/20_util/common_type/requirements/sfinae_friendly_2.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/20_util/common_type/requirements/sfinae_friendly_2.cc	(.../branches/gcc-8-branch)
+@@ -25,7 +25,7 @@
+ constexpr
+ std::array<typename std::common_type<Args...>::type, 
+   sizeof...(Args)>
+-make_array(Args&&... args)  // { dg-error "invalid use" }
++make_array(Args&&... args)  // { dg-error "no type.*common_type<>" }
+ {
+   typedef typename std::common_type<Args...>::type CT;
+   return std::array<CT, sizeof...(Args)>{static_cast<CT>
+Index: libstdc++-v3/testsuite/20_util/common_type/requirements/explicit_instantiation.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/20_util/common_type/requirements/explicit_instantiation.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/20_util/common_type/requirements/explicit_instantiation.cc	(.../branches/gcc-8-branch)
+@@ -30,6 +30,7 @@
+   typedef void test_type5;
+   typedef const void test_type6;  
+ 
++  template struct common_type<>;
+   template struct common_type<test_type1>;
+   template struct common_type<test_type1, test_type2>;
+   template struct common_type<test_type1, test_type2, test_type3>;
 Index: include/ChangeLog
 ===================================================================
 --- a/src/include/ChangeLog	(.../tags/gcc_8_3_0_release)
@@ -545,7 +2077,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-8-branch)
 @@ -1 +1 @@
 -20190222
-+20190506
++20190514
 Index: gcc/tree-ssa-loop-ch.c
 ===================================================================
 --- a/src/gcc/tree-ssa-loop-ch.c	(.../tags/gcc_8_3_0_release)
@@ -951,6 +2483,166 @@ Index: gcc/omp-low.c
        ctx->depth = 1;
      }
  
+Index: gcc/gcov.c
+===================================================================
+--- a/src/gcc/gcov.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/gcov.c	(.../branches/gcc-8-branch)
+@@ -604,27 +604,11 @@
+ typedef vector<arc_info *> arc_vector_t;
+ typedef vector<const block_info *> block_vector_t;
+ 
+-/* Enum with types of loop in CFG.  */
+-
+-enum loop_type
+-{
+-  NO_LOOP = 0,
+-  LOOP = 1,
+-  NEGATIVE_LOOP = 3
+-};
+-
+-/* Loop_type operator that merges two values: A and B.  */
+-
+-inline loop_type& operator |= (loop_type& a, loop_type b)
+-{
+-    return a = static_cast<loop_type> (a | b);
+-}
+-
+ /* Handle cycle identified by EDGES, where the function finds minimum cs_count
+    and subtract the value from all counts.  The subtracted value is added
+    to COUNT.  Returns type of loop.  */
+ 
+-static loop_type
++static void
+ handle_cycle (const arc_vector_t &edges, int64_t &count)
+ {
+   /* Find the minimum edge of the cycle, and reduce all nodes in the cycle by
+@@ -640,7 +624,7 @@
+   for (unsigned i = 0; i < edges.size (); i++)
+     edges[i]->cs_count -= cycle_count;
+ 
+-  return cycle_count < 0 ? NEGATIVE_LOOP : LOOP;
++  gcc_assert (cycle_count > 0);
+ }
+ 
+ /* Unblock a block U from BLOCKED.  Apart from that, iterate all blocks
+@@ -666,17 +650,28 @@
+     unblock (*it, blocked, block_lists);
+ }
+ 
++/* Return true when PATH contains a zero cycle arc count.  */
++
++static bool
++path_contains_zero_cycle_arc (arc_vector_t &path)
++{
++  for (unsigned i = 0; i < path.size (); i++)
++    if (path[i]->cs_count == 0)
++      return true;
++  return false;
++}
++
+ /* Find circuit going to block V, PATH is provisional seen cycle.
+    BLOCKED is vector of blocked vertices, BLOCK_LISTS contains vertices
+    blocked by a block.  COUNT is accumulated count of the current LINE.
+    Returns what type of loop it contains.  */
+ 
+-static loop_type
++static bool
+ circuit (block_info *v, arc_vector_t &path, block_info *start,
+ 	 block_vector_t &blocked, vector<block_vector_t> &block_lists,
+ 	 line_info &linfo, int64_t &count)
+ {
+-  loop_type result = NO_LOOP;
++  bool loop_found = false;
+ 
+   /* Add v to the block list.  */
+   gcc_assert (find (blocked.begin (), blocked.end (), v) == blocked.end ());
+@@ -686,26 +681,35 @@
+   for (arc_info *arc = v->succ; arc; arc = arc->succ_next)
+     {
+       block_info *w = arc->dst;
+-      if (w < start || !linfo.has_block (w))
++      if (w < start
++	  || arc->cs_count == 0
++	  || !linfo.has_block (w))
+ 	continue;
+ 
+       path.push_back (arc);
+       if (w == start)
+-	/* Cycle has been found.  */
+-	result |= handle_cycle (path, count);
+-      else if (find (blocked.begin (), blocked.end (), w) == blocked.end ())
+-	result |= circuit (w, path, start, blocked, block_lists, linfo, count);
++	{
++	  /* Cycle has been found.  */
++	  handle_cycle (path, count);
++	  loop_found = true;
++	}
++      else if (!path_contains_zero_cycle_arc (path)
++	       &&  find (blocked.begin (), blocked.end (), w) == blocked.end ())
++	loop_found |= circuit (w, path, start, blocked, block_lists, linfo,
++			       count);
+ 
+       path.pop_back ();
+     }
+ 
+-  if (result != NO_LOOP)
++  if (loop_found)
+     unblock (v, blocked, block_lists);
+   else
+     for (arc_info *arc = v->succ; arc; arc = arc->succ_next)
+       {
+ 	block_info *w = arc->dst;
+-	if (w < start || !linfo.has_block (w))
++	if (w < start
++	    || arc->cs_count == 0
++	    || !linfo.has_block (w))
+ 	  continue;
+ 
+ 	size_t index
+@@ -716,14 +720,13 @@
+ 	  list.push_back (v);
+       }
+ 
+-  return result;
++  return loop_found;
+ }
+ 
+-/* Find cycles for a LINFO.  If HANDLE_NEGATIVE_CYCLES is set and the line
+-   contains a negative loop, then perform the same function once again.  */
++/* Find cycles for a LINFO.  */
+ 
+ static gcov_type
+-get_cycles_count (line_info &linfo, bool handle_negative_cycles = true)
++get_cycles_count (line_info &linfo)
+ {
+   /* Note that this algorithm works even if blocks aren't in sorted order.
+      Each iteration of the circuit detection is completely independent
+@@ -731,7 +734,7 @@
+      Therefore, operating on a permuted order (i.e., non-sorted) only
+      has the effect of permuting the output cycles.  */
+ 
+-  loop_type result = NO_LOOP;
++  bool loop_found = false;
+   gcov_type count = 0;
+   for (vector<block_info *>::iterator it = linfo.blocks.begin ();
+        it != linfo.blocks.end (); it++)
+@@ -739,14 +742,10 @@
+       arc_vector_t path;
+       block_vector_t blocked;
+       vector<block_vector_t > block_lists;
+-      result |= circuit (*it, path, *it, blocked, block_lists, linfo,
+-			 count);
++      loop_found |= circuit (*it, path, *it, blocked, block_lists, linfo,
++			     count);
+     }
+ 
+-  /* If we have a negative cycle, repeat the find_cycles routine.  */
+-  if (result == NEGATIVE_LOOP && handle_negative_cycles)
+-    count += get_cycles_count (linfo, false);
+-
+   return count;
+ }
+ 
 Index: gcc/toplev.c
 ===================================================================
 --- a/src/gcc/toplev.c	(.../tags/gcc_8_3_0_release)
@@ -994,7 +2686,50 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,863 @@
+@@ -1,3 +1,906 @@
++2019-05-14  Martin Liska  <mliska@suse.cz>
++
++	Backport from mainline
++	2019-05-13  Martin Liska  <mliska@suse.cz>
++
++	PR gcov-profile/90380
++	* gcov.c (handle_cycle): Do not support zero cycle count,
++	it should not be possible.
++	(path_contains_zero_cycle_arc): New function.
++	(circuit): Ignore zero cycle arc counts.
++
++2019-05-14  Martin Liska  <mliska@suse.cz>
++
++	Backport from mainline
++	2019-05-13  Martin Liska  <mliska@suse.cz>
++
++	PR gcov-profile/90380
++	* gcov.c (enum loop_type): Remove the enum and
++	the operator.
++	(handle_cycle): Assert that we should not reach
++	a negative count.
++	(circuit): Use loop_found instead of a tri-state loop_type.
++	(get_cycles_count): Do not handle NEGATIVE_LOOP as it can't
++	happen.
++
++2019-05-11  Andreas Tobler <andreast@gcc.gnu.org>
++
++	Backport from mainline.
++	2019-04-25  Andreas Tobler  <andreast@gcc.gnu.org>
++
++	* config/i386/freebsd64.h: Add bits for 32-bit multilib support.
++	* config/i386/t-freebsd64: New file.
++	* config.gcc: Add the t-freebsd64 for multilib support.
++
++2019-05-08  Kelvin Nilsen  <kelvin@gcc.gnu.org>
++
++	Backport from mainline.
++	2019-05-06  Kelvin Nilsen  <kelvin@gcc.gnu.org>
++
++	PR target/89424
++	* config/rs6000/rs6000.c (rs6000_expand_vector_extract): Add
++	handling of V1TImode.
++
 +2019-05-06  Richard Biener  <rguenther@suse.de>
 +
 +	PR bootstrap/90359
@@ -1858,7 +3593,7 @@ Index: gcc/ChangeLog
  2019-02-22  Release Manager
  
  	* GCC 8.3.0 released.
-@@ -568,7 +1432,7 @@
+@@ -568,7 +1475,7 @@
  
  	Backport from mainline
  	2018-11-20  Richard Biener  <rguenther@suse.de>
@@ -2043,7 +3778,7 @@ Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-20a.c
 +#include <altivec.h>
 +
 +/* Define this after PR89424 is addressed.  */
-+#undef PR89424
++#define PR89424
 +
 +extern void abort (void);
 +
@@ -2600,7 +4335,7 @@ Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-13b.c
 +#include <altivec.h>
 +
 +/* Define this after PR89424 is addressed.  */
-+#undef PR89424
++#define PR89424
 +
 +/* Define this after PR89626 is addressed.  */
 +#undef PR89626
@@ -3741,6 +5476,87 @@ Index: gcc/testsuite/gcc.target/powerpc/ppc-fortran/ppc-fortran.exp
  	return
      }
  
+Index: gcc/testsuite/gcc.target/powerpc/pr89424-0.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/pr89424-0.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/pr89424-0.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,76 @@
++/* { dg-do run { target { powerpc*-*-* && lp64 } } } */
++/* { dg-require-effective-target vsx_hw } */
++/* { dg-options "-mvsx" } */
++
++/* This test should run the same on any target that supports vsx
++   instructions.  Intentionally not specifying cpu in order to test
++   all code generation paths.  */
++
++#include <altivec.h>
++
++extern void abort (void);
++
++/* Define PR89626 after that pr is addressed.  */
++#ifdef PR89626
++#define SIGNED
++#else
++#define SIGNED signed
++#endif
++
++#define CONST0		(((__int128) 31415926539) << 60)
++
++/* Test that indices > length of vector are applied modulo the vector
++   length.  */
++
++
++/* Test for variable selector and vector residing in register.  */
++__attribute__((noinline))
++__int128 ei (vector SIGNED __int128 v, int i)
++{
++  return __builtin_vec_ext_v1ti (v, i);
++}
++
++/* Test for variable selector and vector residing in memory.  */
++__int128 mei (vector SIGNED __int128 *vp, int i)
++{
++  return __builtin_vec_ext_v1ti (*vp, i);
++}
++
++int main (int argc, char *argv[]) {
++  vector SIGNED __int128 dv = { CONST0 };
++  __int128 d;
++
++  d = ei (dv, 0);
++  if (d != CONST0)
++    abort ();
++
++  d = ei (dv, 1);
++  if (d != CONST0)
++    abort ();
++
++  d = ei (dv, 2);
++  if (d != CONST0)
++    abort ();
++
++  d = ei (dv, 3);
++  if (d != CONST0)
++    abort ();
++
++  d = mei (&dv, 0);
++  if (d != CONST0)
++    abort ();
++
++  d = mei (&dv, 1);
++  if (d != CONST0)
++    abort ();
++
++  d = mei (&dv, 2);
++  if (d != CONST0)
++    abort ();
++
++  d = mei (&dv, 3);
++  if (d != CONST0)
++    abort ();
++
++  return 0;
++}
 Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-19b.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-19b.c	(.../tags/gcc_8_3_0_release)
@@ -4445,7 +6261,7 @@ Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-20b.c
 +#include <altivec.h>
 +
 +/* Define this after PR89424 is addressed.  */
-+#undef PR89424
++#define PR89424
 +
 +extern void abort (void);
 +
@@ -4715,7 +6531,7 @@ Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-13a.c
 +#include <altivec.h>
 +
 +/* Define this after PR89424 is addressed.  */
-+#undef PR89424
++#define PR89424
 +
 +/* Define this after PR89626 is addressed.  */
 +#undef PR89626
@@ -9848,7 +11664,20 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,803 @@
+@@ -1,3 +1,816 @@
++2019-05-08  Kelvin Nilsen  <kelvin@gcc.gnu.org>
++
++	Backport from mainline.
++	2019-05-06  Kelvin Nilsen  <kelvin@gcc.gnu.org>
++
++	PR target/89424
++	* gcc.target/powerpc/pr89424-0.c: New test.
++	* gcc.target/powerpc/vsx-builtin-13a.c: Define macro PR89424 to
++	enable testing of newly patched capability.
++	* gcc.target/powerpc/vsx-builtin-13b.c: Likewise.
++	* gcc.target/powerpc/vsx-builtin-20a.c: Likewise.
++	* gcc.target/powerpc/vsx-builtin-20b.c: Likewise.
++
 +2019-05-06  Richard Biener  <rguenther@suse.de>
 +
 +	PR bootstrap/90359
@@ -10675,6 +12504,22 @@ Index: gcc/testsuite/g++.dg/ubsan/vptr-14.C
 +  S a;
 +  foo (&a, 0);
 +}
+Index: gcc/testsuite/g++.dg/warn/conv5.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/warn/conv5.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/warn/conv5.C	(.../branches/gcc-8-branch)
+@@ -0,0 +1,11 @@
++// PR c++/89876
++// { dg-do compile { target c++11 } }
++// { dg-prune-output "sorry" }
++
++template <typename T>
++T f (T, char*);
++
++template <typename T>
++decltype (f (T (), "")) g (T) { return ""; } // { dg-error "invalid conversion" }
++
++void h () { g (0); }
 Index: gcc/testsuite/g++.dg/opt/pr90026.C
 ===================================================================
 --- a/src/gcc/testsuite/g++.dg/opt/pr90026.C	(.../tags/gcc_8_3_0_release)
@@ -10789,6 +12634,32 @@ Index: gcc/testsuite/g++.dg/asm-qual-3.C
  
  // There are many other things wrong with this code, so:
  // { dg-excess-errors "" }
+Index: gcc/testsuite/g++.dg/cpp0x/using-enum-3.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp0x/using-enum-3.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp0x/using-enum-3.C	(.../branches/gcc-8-branch)
+@@ -0,0 +1,21 @@
++// PR c++/89511
++// { dg-do compile { target c++11 } }
++
++void f ()
++{
++  enum e { a };
++  using e::a; // { dg-error "not a namespace or unscoped enum" }
++}
++
++struct S {
++  enum E { A };
++  using E::A; // { dg-error "type .S. is not a base type for type .S." }
++};
++
++namespace N {
++  enum E { B };
++}
++
++struct T {
++  using N::E::B; // { dg-error "using-declaration for non-member at class scope" }
++};
 Index: gcc/testsuite/g++.dg/cpp0x/lambda/lambda-defarg9.C
 ===================================================================
 --- a/src/gcc/testsuite/g++.dg/cpp0x/lambda/lambda-defarg9.C	(.../tags/gcc_8_3_0_release)
@@ -10883,6 +12754,46 @@ Index: gcc/testsuite/g++.dg/cpp0x/decltype-tid1.C
 +void foo ()
 +{
 +  bar<0> ();
++}
+Index: gcc/testsuite/g++.dg/cpp0x/rv-conv2.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp0x/rv-conv2.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp0x/rv-conv2.C	(.../branches/gcc-8-branch)
+@@ -0,0 +1,18 @@
++// PR c++/89705
++// { dg-do compile { target c++11 } }
++
++struct W { operator const volatile int(); };
++const int& rci = W();
++
++struct X { operator const int(); };
++int&& rri = X();
++
++struct Y { operator volatile int(); };
++int&& rri2 = Y();
++
++struct Z { operator const volatile int(); };
++volatile int&& rri3 = Z();
++
++enum E { A };
++struct S { operator const E(); };
++E&& rre = S();
+Index: gcc/testsuite/g++.dg/cpp0x/initlist-value4.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp0x/initlist-value4.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp0x/initlist-value4.C	(.../branches/gcc-8-branch)
+@@ -0,0 +1,12 @@
++// PR c++/88857
++// { dg-do compile { target c++11 } }
++
++class S { int a; };
++void foo (const S &, int);
++
++template <int N>
++void
++bar ()
++{
++  foo ({}); // { dg-error "too few arguments to function" }
 +}
 Index: gcc/testsuite/g++.dg/cpp0x/pr89403.C
 ===================================================================
@@ -11260,6 +13171,59 @@ Index: gcc/testsuite/g++.dg/cpp1z/inline-var5.C
 +  class L {};
 +  X<L> v {};
 +}
+Index: gcc/testsuite/g++.dg/cpp1z/aggr-base8.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp1z/aggr-base8.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp1z/aggr-base8.C	(.../branches/gcc-8-branch)
+@@ -0,0 +1,48 @@
++// PR c++/89214
++// { dg-do compile { target c++17 } }
++
++struct A
++{
++  A (int);
++};
++
++struct BB
++{
++  A a;
++};
++
++struct B : BB
++{
++};
++
++void
++foo ()
++{
++  B b1 = {42};
++  B b2 = {{42}};
++  B b3 = {{{42}}};
++
++  B b4 = B{42};
++  B b5 = B{{42}};
++  B b6 = B{{{42}}};
++
++  B b7 = {B{42}};
++  B b8 = {B{{42}}};
++  B b9 = {B{{{42}}}};
++
++  B b10 = {{B{42}}}; // { dg-warning "initializing a base class of type .BB. results in object slicing" }
++  B b11 = {{B{{42}}}}; // { dg-warning "initializing a base class of type .BB. results in object slicing" }
++  B b12 = {{B{{{42}}}}}; // { dg-warning "initializing a base class of type .BB. results in object slicing" }
++
++  B bb1{42};
++  B bb2{{42}};
++  B bb3{{{42}}};
++
++  B bb7{B{42}};
++  B bb8{B{{42}}};
++  B bb9{B{{{42}}}};
++
++  B bb10{{B{42}}}; // { dg-warning "initializing a base class of type .BB. results in object slicing" }
++  B bb11{{B{{42}}}}; // { dg-warning "initializing a base class of type .BB. results in object slicing" }
++  B bb12{{B{{{42}}}}}; // { dg-warning "initializing a base class of type .BB. results in object slicing" }
++}
 Index: gcc/testsuite/g++.dg/cpp1z/class-deduction62.C
 ===================================================================
 --- a/src/gcc/testsuite/g++.dg/cpp1z/class-deduction62.C	(.../tags/gcc_8_3_0_release)
@@ -11287,6 +13251,44 @@ Index: gcc/testsuite/g++.dg/cpp1z/class-deduction62.C
 +  template<class R> auto operator()(R r) const
 +    noexcept(noexcept(indirect_view{r}));
 +};
+Index: gcc/testsuite/g++.dg/cpp1z/aggr-base9.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp1z/aggr-base9.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp1z/aggr-base9.C	(.../branches/gcc-8-branch)
+@@ -0,0 +1,33 @@
++// PR c++/89214
++// { dg-do compile { target c++17 } }
++
++struct B {
++  int c;
++};
++
++struct D : B { };
++
++void
++foo ()
++{
++  D d1 = {42};
++  D d2 = {{42}};
++  
++  D d4 = D{42};
++  D d5 = D{{42}};
++ 
++  D d7 = {D{42}};
++  D d8 = {D{{42}}};
++
++  D d10 = {{D{42}}}; // { dg-warning "initializing a base class of type .B. results in object slicing" }
++  D d11 = {{D{{42}}}}; // { dg-warning "initializing a base class of type .B. results in object slicing" }
++
++  D dd1{42};
++  D dd2{{42}};
++  
++  D dd7{D{42}};
++  D dd8{D{{42}}};
++
++  D dd10{{D{42}}}; // { dg-warning "initializing a base class of type .B. results in object slicing" }
++  D dd11{{D{{42}}}}; // { dg-warning "initializing a base class of type .B. results in object slicing" }
++}
 Index: gcc/testsuite/g++.dg/cpp1z/class-deduction63.C
 ===================================================================
 --- a/src/gcc/testsuite/g++.dg/cpp1z/class-deduction63.C	(.../tags/gcc_8_3_0_release)
@@ -12059,7 +14061,38 @@ Index: gcc/cp/ChangeLog
 ===================================================================
 --- a/src/gcc/cp/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/cp/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,131 @@
+@@ -1,3 +1,162 @@
++2019-05-07  Marek Polacek  <polacek@redhat.com>	
++
++	Backported from mainline
++	2019-02-27  Marek Polacek  <polacek@redhat.com>
++
++	PR c++/88857 - ICE with value-initialization of argument in template.
++	* call.c (convert_like_real): Don't call build_value_init in template.
++
++	2019-03-25  Marek Polacek  <polacek@redhat.com>
++
++	PR c++/89214 - ICE when initializing aggregates with bases.
++	* typeck2.c (digest_init_r): Warn about object slicing instead of
++	crashing.
++
++	2019-02-27  Marek Polacek  <polacek@redhat.com>
++
++	PR c++/89511 - ICE with using-declaration and unscoped enumerator.
++	* parser.c (cp_parser_using_declaration): For an unscoped enum
++	only use its context if it's not a function declaration.
++
++	2019-03-25  Marek Polacek  <polacek@redhat.com>
++
++	PR c++/89705 - ICE with reference binding with conversion function.
++	* call.c (reference_binding): If the result of the conversion function
++	is a prvalue of non-class type, use the cv-unqualified type.
++
++	2019-03-29  Marek Polacek  <polacek@redhat.com>
++
++	PR c++/89876 - ICE with deprecated conversion.
++	* call.c (convert_like_real): Only give warnings with tf_warning.
++
 +2019-04-30  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from mainline
@@ -12195,7 +14228,39 @@ Index: gcc/cp/typeck2.c
 ===================================================================
 --- a/src/gcc/cp/typeck2.c	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/cp/typeck2.c	(.../branches/gcc-8-branch)
-@@ -1538,6 +1538,13 @@
+@@ -1142,8 +1142,29 @@
+     {
+       tree elt = CONSTRUCTOR_ELT (init, 0)->value;
+       if (reference_related_p (type, TREE_TYPE (elt)))
+-	/* We should have fixed this in reshape_init.  */
+-	gcc_unreachable ();
++	{
++	  /* In C++17, aggregates can have bases, thus participate in
++	     aggregate initialization.  In the following case:
++
++	       struct B { int c; };
++	       struct D : B { };
++	       D d{{D{{42}}}};
++
++	    there's an extra set of braces, so the D temporary initializes
++	    the first element of d, which is the B base subobject.  The base
++	    of type B is copy-initialized from the D temporary, causing
++	    object slicing.  */
++	  tree field = next_initializable_field (TYPE_FIELDS (type));
++	  if (field && DECL_FIELD_IS_BASE (field))
++	    {
++	      if (warning_at (loc, 0, "initializing a base class of type %qT "
++			      "results in object slicing", TREE_TYPE (field)))
++		inform (loc, "remove %<{ }%> around initializer");
++	    }
++	  else
++	    /* We should have fixed this in reshape_init.  */
++	    gcc_unreachable ();
++	}
+     }
+ 
+   if (BRACE_ENCLOSED_INITIALIZER_P (init)
+@@ -1538,6 +1559,13 @@
  	    }
  	}
  
@@ -12576,7 +14641,17 @@ Index: gcc/cp/parser.c
    cp_parser_require (parser, CPP_CLOSE_SQUARE, RT_CLOSE_SQUARE);
  }
  
-@@ -19125,8 +19167,9 @@
+@@ -18773,7 +18815,8 @@
+ 						  /*is_declaration=*/true);
+   if (!qscope)
+     qscope = global_namespace;
+-  else if (UNSCOPED_ENUM_P (qscope))
++  else if (UNSCOPED_ENUM_P (qscope)
++	   && !TYPE_FUNCTION_SCOPE_P (qscope))
+     qscope = CP_TYPE_CONTEXT (qscope);
+ 
+   if (access_declaration_p && cp_parser_error_occurred (parser))
+@@ -19125,8 +19168,9 @@
    location_t volatile_loc = UNKNOWN_LOCATION;
    location_t inline_loc = UNKNOWN_LOCATION;
    location_t goto_loc = UNKNOWN_LOCATION;
@@ -12587,7 +14662,7 @@ Index: gcc/cp/parser.c
      for (;;)
        {
  	cp_token *token = cp_lexer_peek_token (parser->lexer);
-@@ -19152,6 +19195,8 @@
+@@ -19152,6 +19196,8 @@
  	      }
  	    else
  	      inline_loc = loc;
@@ -12596,7 +14671,7 @@ Index: gcc/cp/parser.c
  	    cp_lexer_consume_token (parser->lexer);
  	    continue;
  
-@@ -19163,6 +19208,8 @@
+@@ -19163,6 +19209,8 @@
  	      }
  	    else
  	      goto_loc = loc;
@@ -12605,7 +14680,7 @@ Index: gcc/cp/parser.c
  	    cp_lexer_consume_token (parser->lexer);
  	    continue;
  
-@@ -19182,6 +19229,12 @@
+@@ -19182,6 +19230,12 @@
    bool inline_p = (inline_loc != UNKNOWN_LOCATION);
    bool goto_p = (goto_loc != UNKNOWN_LOCATION);
  
@@ -12618,6 +14693,40 @@ Index: gcc/cp/parser.c
    /* Look for the opening `('.  */
    if (!cp_parser_require (parser, CPP_OPEN_PAREN, RT_OPEN_PAREN))
      return;
+Index: gcc/cp/call.c
+===================================================================
+--- a/src/gcc/cp/call.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/cp/call.c	(.../branches/gcc-8-branch)
+@@ -1767,6 +1767,9 @@
+ 	    && DECL_CONV_FN_P (t->cand->fn))
+ 	  {
+ 	    tree ftype = TREE_TYPE (TREE_TYPE (t->cand->fn));
++	    /* A prvalue of non-class type is cv-unqualified.  */
++	    if (TREE_CODE (ftype) != REFERENCE_TYPE && !CLASS_TYPE_P (ftype))
++	      ftype = cv_unqualified (ftype);
+ 	    int sflags = (flags|LOOKUP_NO_CONVERSION)&~LOOKUP_NO_TEMP_BIND;
+ 	    conversion *new_second
+ 	      = reference_binding (rto, ftype, NULL_TREE, c_cast_p,
+@@ -6775,7 +6778,8 @@
+ 	/* If we're initializing from {}, it's value-initialization.  */
+ 	if (BRACE_ENCLOSED_INITIALIZER_P (expr)
+ 	    && CONSTRUCTOR_NELTS (expr) == 0
+-	    && TYPE_HAS_DEFAULT_CONSTRUCTOR (totype))
++	    && TYPE_HAS_DEFAULT_CONSTRUCTOR (totype)
++	    && !processing_template_decl)
+ 	  {
+ 	    bool direct = CONSTRUCTOR_IS_DIRECT_INIT (expr);
+ 	    if (abstract_virtuals_error_sfinae (NULL_TREE, totype, complain))
+@@ -7110,7 +7114,8 @@
+ 
+     case ck_qual:
+       /* Warn about deprecated conversion if appropriate.  */
+-      string_conv_p (totype, expr, 1);
++      if (complain & tf_warning)
++	string_conv_p (totype, expr, 1);
+       break;
+ 
+     case ck_ptr:
 Index: gcc/cp/lambda.c
 ===================================================================
 --- a/src/gcc/cp/lambda.c	(.../tags/gcc_8_3_0_release)
@@ -13282,7 +15391,12 @@ Index: gcc/ada/ChangeLog
 ===================================================================
 --- a/src/gcc/ada/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/ada/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,13 @@
+@@ -1,3 +1,18 @@
++2019-05-07  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
++
++	* gcc-interface/Makefile.in (install-gcc-specs): Use foreach.
++	Honor DESTDIR.
++
 +2019-02-23  Eric Botcazou  <ebotcazou@adacore.com>
 +
 +	PR ada/89349
@@ -13296,6 +15410,22 @@ Index: gcc/ada/ChangeLog
  2019-02-22  Release Manager
  
  	* GCC 8.3.0 released.
+Index: gcc/ada/gcc-interface/Makefile.in
+===================================================================
+--- a/src/gcc/ada/gcc-interface/Makefile.in	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/ada/gcc-interface/Makefile.in	(.../branches/gcc-8-branch)
+@@ -2285,9 +2285,8 @@
+ install-gcc-specs:
+ #	Install all the requested GCC spec files.
+ 
+-	for f in $(GCC_SPEC_FILES); do \
+-	    $(INSTALL_DATA_DATE) $(srcdir)/ada/$$f $(libsubdir)/; \
+-	done
++	$(foreach f,$(GCC_SPEC_FILES), \
++	    $(INSTALL_DATA_DATE) $(srcdir)/ada/$(f) $(DESTDIR)$(libsubdir)/;)
+ 
+ install-gnatlib: ../stamp-gnatlib-$(RTSDIR) install-gcc-specs
+ 	$(RMDIR) $(DESTDIR)$(ADA_RTL_OBJ_DIR)
 Index: gcc/ada/osint.adb
 ===================================================================
 --- a/src/gcc/ada/osint.adb	(.../tags/gcc_8_3_0_release)
@@ -16222,6 +18352,23 @@ Index: gcc/vr-values.c
  	  BITMAP_FREE (new_vr->equiv);
  	  set_value_range_to_varying (old_vr);
  	  set_value_range_to_varying (new_vr);
+Index: gcc/config.gcc
+===================================================================
+--- a/src/gcc/config.gcc	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config.gcc	(.../branches/gcc-8-branch)
+@@ -4676,8 +4676,11 @@
+ 		;;
+ 	i[34567]86-*-dragonfly* | x86_64-*-dragonfly*)
+ 		;;
+-	i[34567]86-*-freebsd* | x86_64-*-freebsd*)
++	i[34567]86-*-freebsd*)
+ 		;;
++	x86_64-*-freebsd*)
++		tmake_file="${tmake_file} i386/t-freebsd64"
++		;;
+ 	ia64*-*-linux*)
+ 		;;
+ 
 Index: gcc/tree-ssa-structalias.c
 ===================================================================
 --- a/src/gcc/tree-ssa-structalias.c	(.../tags/gcc_8_3_0_release)
@@ -16667,6 +18814,41 @@ Index: gcc/config/s390/s390-builtins.def
  
  OB_DEF     (s390_vec_store_len,         s390_vec_store_len_s8,s390_vec_store_len_dbl,B_VX,          BT_FN_VOID_OV4SI_VOIDPTR_UINT)
  OB_DEF_VAR (s390_vec_store_len_s8,      s390_vstl,          0,                  0,                  BT_OV_VOID_V16QI_SCHARPTR_UINT)
+Index: gcc/config/i386/t-freebsd64
+===================================================================
+--- a/src/gcc/config/i386/t-freebsd64	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/i386/t-freebsd64	(.../branches/gcc-8-branch)
+@@ -0,0 +1,30 @@
++# Copyright (C) 2019 Free Software Foundation, Inc.
++#
++# This file is part of GCC.
++#
++# GCC is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 3, or (at your option)
++# any later version.
++#
++# GCC is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++#
++# You should have received a copy of the GNU General Public License
++# along with GCC; see the file COPYING3.  If not see
++# <http://www.gnu.org/licenses/>.
++
++# The 32-bit libraries are found in /usr/lib32
++
++# To support i386 and x86-64, the directory structrue
++# should be:
++#
++# 	/lib has x86-64 libraries.
++# 	/lib32 has i386 libraries.
++#
++
++MULTILIB_OPTIONS    = m32
++MULTILIB_DIRNAMES   = 32
++MULTILIB_OSDIRNAMES = ../lib32
 Index: gcc/config/i386/i386.md
 ===================================================================
 --- a/src/gcc/config/i386/i386.md	(.../tags/gcc_8_3_0_release)
@@ -16689,6 +18871,26 @@ Index: gcc/config/i386/i386.md
  
  ;; See comment for addsi_1_zext why we do use nonimmediate_operand
  (define_insn "*andsi_1_zext"
+Index: gcc/config/i386/freebsd64.h
+===================================================================
+--- a/src/gcc/config/i386/freebsd64.h	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/i386/freebsd64.h	(.../branches/gcc-8-branch)
+@@ -31,7 +31,7 @@
+ 
+ #undef	LINK_SPEC
+ #define LINK_SPEC "\
+-  %{m32:-m elf_i386_fbsd} \
++  %{m32:-m elf_i386_fbsd}%{!m32:-m elf_x86_64_fbsd} \
+   %{p:%nconsider using '-pg' instead of '-p' with gprof(1)} \
+   %{v:-V} \
+   %{assert*} %{R*} %{rpath*} %{defsym*} \
+@@ -42,3 +42,6 @@
+ 	-dynamic-linker %(fbsd_dynamic_linker) } \
+     %{static:-Bstatic}} \
+   %{symbolic:-Bsymbolic}"
++
++#undef	MULTILIB_DEFAULTS
++#define MULTILIB_DEFAULTS { "m64" }
 Index: gcc/config/i386/sse.md
 ===================================================================
 --- a/src/gcc/config/i386/sse.md	(.../tags/gcc_8_3_0_release)
@@ -17675,7 +19877,18 @@ Index: gcc/config/rs6000/rs6000.c
  	  emit_move_insn (target, gen_lowpart (TImode, vec));
  	  break;
  	case E_V2DFmode:
-@@ -7454,18 +7453,32 @@
+@@ -7425,6 +7424,10 @@
+ 
+       switch (mode)
+ 	{
++	case E_V1TImode:
++	  emit_move_insn (target, gen_lowpart (TImode, vec));
++	  return;
++
+ 	case E_V2DFmode:
+ 	  emit_insn (gen_vsx_extract_v2df_var (target, vec, elt));
+ 	  return;
+@@ -7454,18 +7457,32 @@
  	}
      }
  
@@ -17714,7 +19927,7 @@ Index: gcc/config/rs6000/rs6000.c
  }
  
  /* Helper function to return the register number of a RTX.  */
-@@ -7646,7 +7659,7 @@
+@@ -7646,7 +7663,7 @@
  			      rtx tmp_altivec)
  {
    machine_mode mode = GET_MODE (src);
@@ -17723,7 +19936,7 @@ Index: gcc/config/rs6000/rs6000.c
    unsigned scalar_size = GET_MODE_SIZE (scalar_mode);
    int byte_shift = exact_log2 (scalar_size);
  
-@@ -7657,6 +7670,10 @@
+@@ -7657,6 +7674,10 @@
       systems.  */
    if (MEM_P (src))
      {
@@ -17734,7 +19947,7 @@ Index: gcc/config/rs6000/rs6000.c
        gcc_assert (REG_P (tmp_gpr));
        emit_move_insn (dest, rs6000_adjust_vec_address (dest, src, element,
  						       tmp_gpr, scalar_mode));
-@@ -7665,7 +7682,9 @@
+@@ -7665,7 +7686,9 @@
  
    else if (REG_P (src) || SUBREG_P (src))
      {
@@ -17745,7 +19958,7 @@ Index: gcc/config/rs6000/rs6000.c
        rtx element2;
        int dest_regno = regno_or_subregno (dest);
        int src_regno = regno_or_subregno (src);
-@@ -7741,7 +7760,7 @@
+@@ -7741,7 +7764,7 @@
  	{
  	  if (!VECTOR_ELT_ORDER_BIG)
  	    {
@@ -17754,7 +19967,7 @@ Index: gcc/config/rs6000/rs6000.c
  
  	      emit_insn (gen_anddi3 (tmp_gpr, element, num_ele_m1));
  	      emit_insn (gen_subdi3 (tmp_gpr, num_ele_m1, tmp_gpr));
-@@ -7799,8 +7818,8 @@
+@@ -7799,8 +7822,8 @@
  	    emit_insn (gen_vsx_vslo_v2di (tmp_altivec_di, src_v2di,
  					  tmp_altivec));
  	    emit_move_insn (tmp_gpr_di, tmp_altivec_di);
@@ -17765,7 +19978,7 @@ Index: gcc/config/rs6000/rs6000.c
  	    return;
  	  }
  
-@@ -15417,9 +15436,17 @@
+@@ -15417,9 +15440,17 @@
    op0 = expand_normal (arg0);
    op1 = expand_normal (arg1);
  
@@ -17785,7 +19998,7 @@ Index: gcc/config/rs6000/rs6000.c
  
    tmode = TYPE_MODE (TREE_TYPE (TREE_TYPE (arg0)));
    mode0 = TYPE_MODE (TREE_TYPE (arg0));
-@@ -16765,15 +16792,6 @@
+@@ -16765,15 +16796,6 @@
      case ALTIVEC_BUILTIN_VSPLTISH:
      case ALTIVEC_BUILTIN_VSPLTISW:
        {
@@ -17801,7 +20014,7 @@ Index: gcc/config/rs6000/rs6000.c
  	 arg0 = gimple_call_arg (stmt, 0);
  	 lhs = gimple_call_lhs (stmt);
  
-@@ -16780,8 +16798,7 @@
+@@ -16780,8 +16802,7 @@
  	 /* Only fold the vec_splat_*() if the lower bits of arg 0 is a
  	    5-bit signed constant in range -16 to +15.  */
  	 if (TREE_CODE (arg0) != INTEGER_CST
@@ -17811,7 +20024,7 @@ Index: gcc/config/rs6000/rs6000.c
  	   return false;
  	 gimple_seq stmts = NULL;
  	 location_t loc = gimple_location (stmt);
-@@ -18261,6 +18278,7 @@
+@@ -18261,6 +18282,7 @@
      {
      /* unsigned 1 argument functions.  */
      case CRYPTO_BUILTIN_VSBOX:
@@ -17819,7 +20032,7 @@ Index: gcc/config/rs6000/rs6000.c
      case P8V_BUILTIN_VGBBD:
      case MISC_BUILTIN_CDTBCD:
      case MISC_BUILTIN_CBCDTD:
-@@ -18276,9 +18294,13 @@
+@@ -18276,9 +18298,13 @@
      case ALTIVEC_BUILTIN_VMULOUH:
      case P8V_BUILTIN_VMULOUW:
      case CRYPTO_BUILTIN_VCIPHER:
@@ -17833,7 +20046,7 @@ Index: gcc/config/rs6000/rs6000.c
      case CRYPTO_BUILTIN_VPMSUMB:
      case CRYPTO_BUILTIN_VPMSUMH:
      case CRYPTO_BUILTIN_VPMSUMW:
-@@ -37840,6 +37862,7 @@
+@@ -37840,6 +37866,7 @@
  
    /* Build result decl and add to function_decl.  */
    tree t = build_decl (UNKNOWN_LOCATION, RESULT_DECL, NULL_TREE, ptr_type_node);
