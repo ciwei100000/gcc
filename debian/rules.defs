@@ -309,15 +309,6 @@ ifdef WITH_BOOTSTRAP
   # longer needed.
   with_bootstrap = $(WITH_BOOTSTRAP)
 endif
-ifneq ($(findstring nostrap, $(DEB_BUILD_OPTIONS)),)
-  with_bootstrap := off
-endif
-
-ifneq ($(findstring gccdebug, $(DEB_BUILD_OPTIONS)),)
-  with_bootstrap := off
-  DEB_BUILD_OPTIONS := $(DEB_BUILD_OPTIONS) nostrip
-  export DEB_BUILD_OPTIONS
-endif
 
 ifneq ($(trunk_build),yes)
   ifeq ($(build_type),build-native)
@@ -327,6 +318,22 @@ ifneq ($(trunk_build),yes)
       endif
     endif
   endif
+endif
+
+ifneq ($(findstring nostrap, $(DEB_BUILD_OPTIONS)),)
+  with_bootstrap := off
+endif
+
+# Enable LTO only for 64bit builds
+ifeq ($(DEB_BUILD_ARCH_BITS)-$(DEB_HOST_ARCH_BITS),64-64)
+  with_lto_build := yes
+endif
+
+ifneq ($(findstring gccdebug, $(DEB_BUILD_OPTIONS)),)
+  with_bootstrap := off
+  with_lto_build :=
+  DEB_BUILD_OPTIONS := $(DEB_BUILD_OPTIONS) nostrip
+  export DEB_BUILD_OPTIONS
 endif
 
 # -------------------------------------------------------------------
