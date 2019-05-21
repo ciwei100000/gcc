@@ -1,10 +1,10 @@
-# DP: updates from the 8 branch upto 20190514 (r271166).
+# DP: updates from the 8 branch upto 20190521 (r271463).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Tue May 14 14:11:53 CEST 2019
-Tue May 14 12:11:53 UTC 2019 (revision 271166)
+Tue May 21 14:34:34 CEST 2019
+Tue May 21 12:34:34 UTC 2019 (revision 271463)
 EOF
 }
 
@@ -31,6 +31,29 @@ Index: libstdc++-v3/src/filesystem/std-dir.cc
  	return true;
        }
      else if (!ec)
+Index: libstdc++-v3/src/filesystem/std-ops.cc
+===================================================================
+--- a/src/libstdc++-v3/src/filesystem/std-ops.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/src/filesystem/std-ops.cc	(.../branches/gcc-8-branch)
+@@ -77,6 +77,9 @@
+ 	std::make_error_code(errc::not_supported)));
+   return ret;
+ #else
++  if (p.empty())
++    _GLIBCXX_THROW_OR_ABORT(filesystem_error("cannot make absolute path", p,
++	  make_error_code(std::errc::invalid_argument)));
+   return current_path() / p;
+ #endif
+ }
+@@ -87,7 +90,7 @@
+   path ret;
+   if (p.empty())
+     {
+-      ec = make_error_code(std::errc::no_such_file_or_directory);
++      ec = make_error_code(std::errc::invalid_argument);
+       return ret;
+     }
+   if (p.is_absolute())
 Index: libstdc++-v3/doc/xml/faq.xml
 ===================================================================
 --- a/src/libstdc++-v3/doc/xml/faq.xml	(.../tags/gcc_8_3_0_release)
@@ -295,7 +318,73 @@ Index: libstdc++-v3/include/std/type_traits
 ===================================================================
 --- a/src/libstdc++-v3/include/std/type_traits	(.../tags/gcc_8_3_0_release)
 +++ b/src/libstdc++-v3/include/std/type_traits	(.../branches/gcc-8-branch)
-@@ -2024,9 +2024,14 @@
+@@ -867,60 +867,18 @@
+     : public __is_nt_destructible_safe<_Tp>::type
+     { };
+ 
+-  struct __do_is_default_constructible_impl
+-  {
+-    template<typename _Tp, typename = decltype(_Tp())>
+-      static true_type __test(int);
+-
+-    template<typename>
+-      static false_type __test(...);
+-  };
+-
+-  template<typename _Tp>
+-    struct __is_default_constructible_impl
+-    : public __do_is_default_constructible_impl
+-    {
+-      typedef decltype(__test<_Tp>(0)) type;
+-    };
+-
+-  template<typename _Tp>
+-    struct __is_default_constructible_atom
+-    : public __and_<__not_<is_void<_Tp>>,
+-                    __is_default_constructible_impl<_Tp>>
++  /// is_constructible
++  template<typename _Tp, typename... _Args>
++    struct is_constructible
++      : public __bool_constant<__is_constructible(_Tp, _Args...)>
+     { };
+ 
+-  template<typename _Tp, bool = is_array<_Tp>::value>
+-    struct __is_default_constructible_safe;
+-
+-  // The following technique is a workaround for a current core language
+-  // restriction, which does not allow for array types to occur in
+-  // functional casts of the form T().  Complete arrays can be default-
+-  // constructed, if the element type is default-constructible, but
+-  // arrays with unknown bounds are not.
+-  template<typename _Tp>
+-    struct __is_default_constructible_safe<_Tp, true>
+-    : public __and_<__is_array_known_bounds<_Tp>,
+-		    __is_default_constructible_atom<typename
+-                      remove_all_extents<_Tp>::type>>
+-    { };
+-
+-  template<typename _Tp>
+-    struct __is_default_constructible_safe<_Tp, false>
+-    : public __is_default_constructible_atom<_Tp>::type
+-    { };
+-
+   /// is_default_constructible
+   template<typename _Tp>
+     struct is_default_constructible
+-    : public __is_default_constructible_safe<_Tp>::type
++    : public is_constructible<_Tp>::type
+     { };
+ 
+-  /// is_constructible
+-  template<typename _Tp, typename... _Args>
+-    struct is_constructible
+-      : public __bool_constant<__is_constructible(_Tp, _Args...)>
+-    { };
+-
+   template<typename _Tp, bool = __is_referenceable<_Tp>::value>
+     struct __is_copy_constructible_impl;
+ 
+@@ -2024,9 +1982,14 @@
      struct __expanded_common_type_wrapper<__failure_type, _Args...>
      { typedef __failure_type type; };
  
@@ -341,6 +430,27 @@ Index: libstdc++-v3/include/std/variant
  	       typename = enable_if_t<__exactly_once<__accepted_type<_Tp&&>>
  			  && is_constructible_v<__accepted_type<_Tp&&>, _Tp&&>>>
  	constexpr
+Index: libstdc++-v3/include/experimental/bits/fs_path.h
+===================================================================
+--- a/src/libstdc++-v3/include/experimental/bits/fs_path.h	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/include/experimental/bits/fs_path.h	(.../branches/gcc-8-branch)
+@@ -120,11 +120,12 @@
+       : decltype(__is_path_src(std::declval<_Source>(), 0))
+       { };
+ 
+-    template<typename _Tp1, typename _Tp2 = void>
++    template<typename _Tp1, typename _Tp2 = void,
++	     typename _Tp1_nocv = typename remove_cv<_Tp1>::type,
++	     typename _Tp1_noptr = typename remove_pointer<_Tp1>::type>
+       using _Path = typename
+-	std::enable_if<__and_<__not_<is_same<typename remove_cv<_Tp1>::type,
+-					     path>>,
+-			      __not_<is_void<_Tp1>>,
++	std::enable_if<__and_<__not_<is_same<_Tp1_nocv, path>>,
++			      __not_<is_void<_Tp1_noptr>>,
+ 			      __constructible_from<_Tp1, _Tp2>>::value,
+ 		       path>::type;
+ 
 Index: libstdc++-v3/include/bits/hashtable.h
 ===================================================================
 --- a/src/libstdc++-v3/include/bits/hashtable.h	(.../tags/gcc_8_3_0_release)
@@ -399,6 +509,15 @@ Index: libstdc++-v3/include/bits/fs_path.h
 ===================================================================
 --- a/src/libstdc++-v3/include/bits/fs_path.h	(.../tags/gcc_8_3_0_release)
 +++ b/src/libstdc++-v3/include/bits/fs_path.h	(.../branches/gcc-8-branch)
+@@ -107,7 +107,7 @@
+     template<typename _Tp1, typename _Tp2 = void>
+       using _Path = typename
+ 	std::enable_if<__and_<__not_<is_same<remove_cv_t<_Tp1>, path>>,
+-			      __not_<is_void<_Tp1>>,
++			      __not_<is_void<remove_pointer_t<_Tp1>>>,
+ 			      __constructible_from<_Tp1, _Tp2>>::value,
+ 		       path>::type;
+ 
 @@ -789,6 +789,9 @@
    inline path&
    path::operator=(path&& __p) noexcept
@@ -536,7 +655,55 @@ Index: libstdc++-v3/ChangeLog
 ===================================================================
 --- a/src/libstdc++-v3/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/libstdc++-v3/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,156 @@
+@@ -1,3 +1,204 @@
++2019-05-20  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from mainline
++	2019-05-20  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR c++/90532 Ensure __is_constructible(T[]) is false
++	* include/std/type_traits (__do_is_default_constructible_impl)
++	(__is_default_constructible_atom, __is_default_constructible_safe):
++	Remove.
++	(is_default_constructible): Use is_constructible.
++	* testsuite/20_util/is_constructible/value.cc: Check int[] case.
++	* testsuite/20_util/is_default_constructible/value.cc: Likewise.
++	* testsuite/20_util/is_trivially_constructible/value.cc: Likewise.
++	* testsuite/20_util/is_trivially_default_constructible/value.cc:
++	Likewise.
++
++2019-05-17  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backport from mainline
++	2019-05-04  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/90299
++	* src/filesystem/std-ops.cc (absolute(const path&)): Report an error
++	if the argument is an empty path.
++	(absolute(const path&, error_code&)): Use invalid_argument as error
++	code instead of no_such_file_or_directory.
++	* testsuite/27_io/filesystem/operations/absolute.cc: Check handling
++	of non-existent paths and empty paths with both overloads of absolute.
++
++2019-05-15  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backport from mainline
++	2019-04-30  Jonathan Wakely  <jwakely@redhat.com>
++
++	* testsuite/27_io/filesystem/path/decompose/root_path.cc: Remove
++	macros accidentally left in.
++
++	Backport from mainline
++	2019-05-13  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/90454.cc path construction from void*
++	* include/bits/fs_path.h (path::_Path): Use remove_pointer so that
++	pointers to void are rejected as well as void.
++	* include/experimental/bits/fs_path.h (path::_Path): Likewise.
++	* testsuite/27_io/filesystem/path/construct/80762.cc: Also check
++	pointers to void.
++	* testsuite/experimental/filesystem/path/construct/80762.cc: Likewise.
++
 +2019-05-11  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	Backport from mainline
@@ -1057,6 +1224,48 @@ Index: libstdc++-v3/testsuite/23_containers/map/48101_neg.cc
 +// { dg-error "_Compare = std::less<int.>" "" { target *-*-* } 0 }
 +// { dg-error "_Compare = std::allocator<int>" "" { target *-*-* } 0 }
  // { dg-error "comparison object must be invocable" "" { target *-*-* } 0 }
+Index: libstdc++-v3/testsuite/27_io/filesystem/operations/absolute.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/27_io/filesystem/operations/absolute.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/27_io/filesystem/operations/absolute.cc	(.../branches/gcc-8-branch)
+@@ -50,9 +50,37 @@
+   VERIFY( absolute(p3) == (std::filesystem::current_path()/p3) );
+ }
+ 
++void
++test03()
++{
++  // PR libstdc++/90299
++  const path p = __gnu_test::nonexistent_path();
++  std::error_code ec;
++  const path pabs = absolute(p, ec);
++  VERIFY( !ec );
++  VERIFY( pabs.is_absolute() );
++
++  const path pabs2 = absolute(p);
++  VERIFY( pabs2 == pabs );
++
++  const path eabs = absolute(path{}, ec);
++  VERIFY( ec == std::errc::invalid_argument );
++  VERIFY( eabs.empty() );
++
++  try {
++    absolute(path{});
++    VERIFY( false );
++  } catch (const std::filesystem::filesystem_error& e) {
++    VERIFY( e.code() == std::errc::invalid_argument );
++    VERIFY( e.path1().empty() );
++    VERIFY( e.path2().empty() );
++  }
++}
++
+ int
+ main()
+ {
+   test01();
+   test02();
++  test03();
+ }
 Index: libstdc++-v3/testsuite/27_io/filesystem/iterators/caching.cc
 ===================================================================
 --- a/src/libstdc++-v3/testsuite/27_io/filesystem/iterators/caching.cc	(.../tags/gcc_8_3_0_release)
@@ -1177,6 +1386,52 @@ Index: libstdc++-v3/testsuite/27_io/filesystem/path/assign/copy.cc
    test02();
 +  test03();
  }
+Index: libstdc++-v3/testsuite/27_io/filesystem/path/construct/80762.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/27_io/filesystem/path/construct/80762.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/27_io/filesystem/path/construct/80762.cc	(.../branches/gcc-8-branch)
+@@ -22,8 +22,18 @@
+ 
+ using std::filesystem::path;
+ 
++// PR libstdc++/80762.cc
+ static_assert( !std::is_constructible_v<path, void> );
+ static_assert( !std::is_constructible_v<path, volatile path> );
+ static_assert( !std::is_constructible_v<path, volatile path&> );
+ static_assert( !std::is_constructible_v<path, const volatile path> );
+ static_assert( !std::is_constructible_v<path, const volatile path&> );
++
++// PR libstdc++/90454.cc
++static_assert( !std::is_constructible_v<path, void*> );
++static_assert( !std::is_constructible_v<path, const void*> );
++static_assert( !std::is_constructible_v<path, volatile void*> );
++static_assert( !std::is_constructible_v<path, const volatile void*> );
++static_assert( !std::is_constructible_v<path, void*&> );
++static_assert( !std::is_constructible_v<path, void* const&> );
++static_assert( !std::is_constructible_v<path, const void* const&> );
+Index: libstdc++-v3/testsuite/27_io/filesystem/path/decompose/root_path.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/27_io/filesystem/path/decompose/root_path.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/27_io/filesystem/path/decompose/root_path.cc	(.../branches/gcc-8-branch)
+@@ -36,10 +36,6 @@
+   VERIFY( p2.root_path() == path("/") );
+ }
+ 
+-#undef VERIFY
+-#define VERIFY(X) do { if (!(X)) { __builtin_puts("FAIL: " #X); } } while(false)
+-#define DUMP(X, Y, Z) do { if (!(Y == Z)) { __builtin_printf("%s %s %s\n", X.c_str(), Y.c_str(), Z.c_str()); } } while(false)
+-
+ void
+ test02()
+ {
+@@ -49,7 +45,6 @@
+     path rootn = p.root_name();
+     path rootd = p.root_directory();
+     VERIFY( rootp == (rootn / rootd) );
+-    DUMP(p,  rootp , (rootn / rootd) );
+   }
+ }
+ 
 Index: libstdc++-v3/testsuite/21_strings/basic_string_view/operators/char/89446.cc
 ===================================================================
 --- a/src/libstdc++-v3/testsuite/21_strings/basic_string_view/operators/char/89446.cc	(.../tags/gcc_8_3_0_release)
@@ -1210,6 +1465,29 @@ Index: libstdc++-v3/testsuite/21_strings/basic_string_view/operators/char/89446.
 +  std::string_view s1, s2;
 +  return s1 != s2;
 +}
+Index: libstdc++-v3/testsuite/experimental/filesystem/path/construct/80762.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/experimental/filesystem/path/construct/80762.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/experimental/filesystem/path/construct/80762.cc	(.../branches/gcc-8-branch)
+@@ -22,8 +22,18 @@
+ 
+ using std::experimental::filesystem::path;
+ 
++// PR libstdc++/80762.cc
+ static_assert( !std::is_constructible<path, void>::value, "" );
+ static_assert( !std::is_constructible<path, volatile path>::value, "" );
+ static_assert( !std::is_constructible<path, volatile path&>::value, "" );
+ static_assert( !std::is_constructible<path, const volatile path>::value, "" );
+ static_assert( !std::is_constructible<path, const volatile path&>::value, "" );
++
++// PR libstdc++/90454.cc
++static_assert( !std::is_constructible<path, void*>::value, "" );
++static_assert( !std::is_constructible<path, const void*>::value, "" );
++static_assert( !std::is_constructible<path, volatile void*>::value, "" );
++static_assert( !std::is_constructible<path, const volatile void*>::value, "" );
++static_assert( !std::is_constructible<path, void*&>::value, "" );
++static_assert( !std::is_constructible<path, void* const&>::value, "" );
++static_assert( !std::is_constructible<path, const void* const&>::value, "" );
 Index: libstdc++-v3/testsuite/util/thread/all.h
 ===================================================================
 --- a/src/libstdc++-v3/testsuite/util/thread/all.h	(.../tags/gcc_8_3_0_release)
@@ -1422,6 +1700,24 @@ Index: libstdc++-v3/testsuite/20_util/tuple/cons/allocators.cc
 +  test03();
    return 0;
  }
+Index: libstdc++-v3/testsuite/20_util/is_trivially_default_constructible/value.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/20_util/is_trivially_default_constructible/value.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/20_util/is_trivially_default_constructible/value.cc	(.../branches/gcc-8-branch)
+@@ -62,4 +62,13 @@
+ 		construct::Nontrivial>(false), "");
+   static_assert(test_category<is_trivially_default_constructible, 
+ 		HasTemplateCtor>(true), "");
++
++  static_assert(test_category<is_trivially_default_constructible,
++		int[]>(false), "PR c++/90532");
++  struct A { };
++  static_assert(test_category<is_trivially_default_constructible,
++		A[]>(false), "PR c++/90532");
++  struct B { B() { } };
++  static_assert(test_category<is_trivially_default_constructible,
++		B[]>(false), "PR c++/90532");
+ }
 Index: libstdc++-v3/testsuite/20_util/uses_allocator/cons_neg.cc
 ===================================================================
 --- a/src/libstdc++-v3/testsuite/20_util/uses_allocator/cons_neg.cc	(.../tags/gcc_8_3_0_release)
@@ -1443,6 +1739,24 @@ Index: libstdc++-v3/testsuite/20_util/uses_allocator/69293_neg.cc
 -  // { dg-error "static assertion failed" "" { target *-*-* } 90 }
 +  // { dg-error "failed: .* uses_allocator is true" "" { target *-*-* } 0 }
  }
+Index: libstdc++-v3/testsuite/20_util/is_default_constructible/value.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/20_util/is_default_constructible/value.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/20_util/is_default_constructible/value.cc	(.../branches/gcc-8-branch)
+@@ -138,3 +138,13 @@
+ static_assert(!std::is_default_constructible<const DelCopy>::value, "Error");
+ static_assert(!std::is_default_constructible<DelDtor>::value, "Error");
+ static_assert(!std::is_default_constructible<const DelDtor>::value, "Error");
++
++static_assert(!std::is_default_constructible<int[]>::value, "PR c++/90532");
++static_assert(!std::is_default_constructible<Empty[]>::value, "PR c++/90532");
++static_assert(!std::is_default_constructible<B[]>::value, "PR c++/90532");
++static_assert(!std::is_default_constructible<D[]>::value, "PR c++/90532");
++static_assert(!std::is_default_constructible<U[]>::value, "PR c++/90532");
++static_assert(!std::is_default_constructible<Ukn[]>::value, "PR c++/90532");
++static_assert(!std::is_default_constructible<Ellipsis[]>::value, "PR c++/90532");
++static_assert(!std::is_default_constructible<Any[]>::value, "PR c++/90532");
++static_assert(!std::is_default_constructible<nAny[]>::value, "PR c++/90532");
 Index: libstdc++-v3/testsuite/20_util/optional/constexpr/observers/4.cc
 ===================================================================
 --- a/src/libstdc++-v3/testsuite/20_util/optional/constexpr/observers/4.cc	(.../tags/gcc_8_3_0_release)
@@ -1606,6 +1920,33 @@ Index: libstdc++-v3/testsuite/20_util/common_type/requirements/explicit_instanti
    template struct common_type<test_type1>;
    template struct common_type<test_type1, test_type2>;
    template struct common_type<test_type1, test_type2, test_type3>;
+Index: libstdc++-v3/testsuite/20_util/is_trivially_constructible/value.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/20_util/is_trivially_constructible/value.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/20_util/is_trivially_constructible/value.cc	(.../branches/gcc-8-branch)
+@@ -180,4 +180,6 @@
+ 		MoveOnly, const MoveOnly&>(false), "");
+   static_assert(test_property<is_trivially_constructible,
+ 		MoveOnly2>(false), "");
++  static_assert(test_property<is_trivially_constructible,
++		int[]>(false), "PR c++/90532");
+ }
+Index: libstdc++-v3/testsuite/20_util/is_constructible/value.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/20_util/is_constructible/value.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/20_util/is_constructible/value.cc	(.../branches/gcc-8-branch)
+@@ -35,4 +35,11 @@
+   static_assert(test_property<is_constructible, ExplicitClass>(false), "");
+   static_assert(test_property<is_constructible, ExplicitClass,
+ 		int, double>(false), "");
++  static_assert(test_property<is_constructible, int[]>(false), "PR c++/90532");
++  static_assert(test_property<is_constructible,
++		__gnu_test::construct::Empty[]>(false), "PR c++/90532");
++  static_assert(test_property<is_constructible,
++		__gnu_test::construct::Ukn[]>(false), "PR c++/90532");
++  static_assert(test_property<is_constructible,
++		__gnu_test::construct::nAny[]>(false), "PR c++/90532");
+ }
 Index: include/ChangeLog
 ===================================================================
 --- a/src/include/ChangeLog	(.../tags/gcc_8_3_0_release)
@@ -2077,7 +2418,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-8-branch)
 @@ -1 +1 @@
 -20190222
-+20190514
++20190521
 Index: gcc/tree-ssa-loop-ch.c
 ===================================================================
 --- a/src/gcc/tree-ssa-loop-ch.c	(.../tags/gcc_8_3_0_release)
@@ -2686,7 +3027,52 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,906 @@
+@@ -1,3 +1,951 @@
++2019-05-21  Sebastian Huber  <sebastian.huber@embedded-brains.de>
++
++	Backported from mainline
++	2019-05-16  Sebastian Huber  <sebastian.huber@embedded-brains.de>
++
++	* config/arm/t-rtems: Replace ARMv7-M multilibs with Cortex-M
++	multilibs.
++
++2019-05-20  Jeff Law  <law@redhat.com>
++
++	Backport from mainline
++	2019-05-17  Dragan Mladjenovic  <dmladjenovic@wavecomp.com>
++
++	* config/mips/mips.c (mips_dwarf_frame_reg_mode): Replace
++	TARGET_FLOAT64 with !TARGET_FLOAT32, thus handling both fp64
++	and fpxx modes.
++
++2019-05-16  Kelvin Nilsen  <kelvin@gcc.gnu.org>
++
++	Backport from mainline.
++	2019-05-07  Kelvin Nilsen  <kelvin@gcc.gnu.org>
++
++	PR target/89765
++	* config/rs6000/rs6000-c.c (altivec_resolve_overloaded_builtin):
++	In handling of ALTIVEC_BUILTIN_VEC_INSERT, use modular arithmetic
++	to compute vector element selector for both constant and variable
++	operands.
++
++2019-05-15  David Edelsohn  <dje.gcc@gmail.com>
++
++	Backport from mainline
++	2019-04-11  David Edelsohn  <dje.gcc@gmail.com>
++	* xcoffout.h (xcoff_private_rodata_section_name): Declare.
++	* xcoffout.c (xcoff_private_rodata_section_name): Define.
++	* config/rs6000/rs6000.c (rs6000_xcoff_asm_init_sections): Create
++	read_only_private_data_section using coff_private_rodata_section_name.
++	(rs6000_xcoff_file_start): Generate coff_private_rodata_section_name.
++
++	2018-12-04  David Edelsohn  <dje.gcc@gmail.com>
++	2018-12-13  David Edelsohn  <dje.gcc@gmail.com>
++	PR target/61976
++	* config/rs6000/rs6000.c (rs6000_function_arg): Don't pass aggregates
++	in FPRs on AIX. Ensure type is non-NULL.
++	(rs6000_arg_partial_bytes): Same.
++
 +2019-05-14  Martin Liska  <mliska@suse.cz>
 +
 +	Backport from mainline
@@ -3593,7 +3979,7 @@ Index: gcc/ChangeLog
  2019-02-22  Release Manager
  
  	* GCC 8.3.0 released.
-@@ -568,7 +1475,7 @@
+@@ -568,7 +1520,7 @@
  
  	Backport from mainline
  	2018-11-20  Richard Biener  <rguenther@suse.de>
@@ -3602,6 +3988,286 @@ Index: gcc/ChangeLog
  	PR tree-optimization/88105
  	* tree-ssa-dom.c (pass_dominator::execute): Do not walk
  	backedges.
+Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-18d.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-18d.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-18d.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,148 @@
++/* { dg-do run } */
++/* { dg-require-effective-target vmx_hw } */
++/* { dg-options "-maltivec -O3" } */
++
++/* This test should run the same on any target that supports altivec/vmx
++   instructions.  Unsigned Intentionally not specifying cpu in order to test
++   all code generation paths.  */
++
++#include <altivec.h>
++
++extern void abort (void);
++
++#define CONST0		(0)
++#define CONST1		(1)
++#define CONST2		(2)
++#define CONST3		(3)
++
++/* Test that indices > length of vector are applied modulo the vector
++   length.  */
++
++/* Test for vector residing in register.  */
++vector unsigned int s3 (vector unsigned int v, unsigned int x)
++{
++  return vec_insert (x, v, 3);
++}
++
++vector unsigned int s1 (vector unsigned int v, unsigned int x)
++{
++  return vec_insert (x, v, 1);
++}
++
++vector unsigned int s21 (vector unsigned int v, unsigned int x)
++{
++  return vec_insert (x, v, 21);
++}
++
++vector unsigned int s30 (vector unsigned int v, unsigned int x)
++{
++  return vec_insert (x, v, 30);
++}
++
++/* Test for vector residing in memory.  */
++vector unsigned int ms3 (vector unsigned int *vp, unsigned int x)
++{
++  return vec_insert (x, *vp, 3);
++}
++
++vector unsigned int ms1(vector unsigned int *vp, unsigned int x)
++{
++  return vec_insert (x, *vp, 1);
++}
++
++vector unsigned int ms21(vector unsigned int *vp, unsigned int x)
++{
++  return vec_insert (x, *vp, 21);
++}
++
++vector unsigned int ms30(vector unsigned int *vp, unsigned int x)
++{
++  return vec_insert (x, *vp, 30);
++}
++
++/* Test the same with variable indices.  */
++
++/* Test for variable selector and vector residing in register.  */
++__attribute__((noinline))
++vector unsigned int ci (vector unsigned int v, int i, unsigned int x)
++{
++  return vec_insert (x, v, i);
++}
++
++/* Test for variable selector and vector residing in memory.  */
++__attribute__((noinline))
++vector unsigned int mci(vector unsigned int *vp, int i, unsigned int x)
++{
++  return vec_insert (x, *vp, i);
++}
++
++
++int main (int argc, unsigned char *argv[]) {
++  vector unsigned int sv = { CONST0, CONST1, CONST2, CONST3 };
++
++  sv = s3 (sv, CONST2);
++  if (sv [3] != CONST2)
++    abort ();
++
++  sv = s1 (sv, CONST2);
++  if (sv [1] != CONST2)
++    abort ();
++
++  sv = s21 (sv, CONST3);
++  if (sv [1] != CONST3)
++    abort ();
++
++  sv = s30 (sv, CONST1);
++  if (sv [2] != CONST1)
++    abort ();
++
++  sv = ms3 (&sv, CONST0);
++  if (sv [3] != CONST0)
++    abort ();
++
++  sv = ms1 (&sv, CONST0);
++  if (sv [1] != CONST0)
++    abort ();
++
++  sv = ms21 (&sv, CONST1);
++  if (sv [1] != CONST1)
++    abort ();
++
++  sv = ms30 (&sv, CONST0);
++  if (sv [2] != CONST0)
++    abort ();
++
++  sv = ci (sv, 5, CONST3);
++  if (sv [1] != CONST3)
++    abort ();
++
++  sv = ci (sv, 2, CONST0);
++  if (sv [2] != CONST0)
++    abort ();
++
++  sv = ci (sv, 15, CONST1);
++  if (sv [3] != CONST1)
++    abort ();
++
++  sv = ci (sv, 28, CONST3);
++  if (sv [0] != CONST3)
++    abort ();
++
++  sv = mci (&sv, 5, CONST0);
++  if (sv [1] != CONST0)
++    abort ();
++
++  sv = mci (&sv, 12, CONST2);
++  if (sv [0] != CONST2)
++    abort ();
++
++  sv = mci (&sv, 25, CONST3);
++  if (sv [1] != CONST3)
++    abort ();
++
++  sv = mci (&sv, 16, CONST1);
++  if (sv [0] != CONST1)
++    abort ();
++
++  return 0;
++}
+Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-19c.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-19c.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-19c.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,122 @@
++/* { dg-do run { target int128 } } */
++/* { dg-require-effective-target vsx_hw } */
++/* { dg-options "-mvsx" } */
++
++/* This test should run the same on any target that supports vsx
++   instructions.  Intentionally not specifying cpu in order to test
++   all code generation paths.  */
++
++#include <altivec.h>
++
++extern void abort (void);
++
++#define CONST0		(31415926539LL)
++#define CONST1		(2 * 31415926539LL)
++#define CONST2		(3 * 31415926539LL)
++#define CONST3		(4 * 31415926539LL)
++#define CONST4		(5 * 31415926539LL)
++#define CONST5		(6 * 31415926539LL)
++#define CONST6		(7 * 31415926539LL)
++#define CONST7		(8 * 31415926539LL)
++
++/* Test that indices > length of vector are applied modulo the vector
++   length.  */
++
++/* Test for vector residing in register.  */
++vector unsigned long long int
++e0 (vector unsigned long long int v, unsigned long long int x)
++{
++  return vec_insert (x, v, 0);
++}
++
++vector unsigned long long int
++e3 (vector unsigned long long int v, unsigned long long int x)
++{
++  return vec_insert (x, v, 3);
++}
++
++/* Test for vector residing in memory.  */
++vector unsigned long long int
++me0 (vector unsigned long long int *vp, unsigned long long int x)
++{
++  return vec_insert (x, *vp, 0);
++}
++
++vector unsigned long long int
++me3 (vector unsigned long long int *vp, unsigned long long int x)
++{
++  return vec_insert (x, *vp, 3);
++}
++
++/* Test the same with variable indices.  */
++
++/* Test for variable selector and vector residing in register.  */
++__attribute__((noinline))
++vector unsigned long long int
++ei (vector unsigned long long int v, int i, unsigned long long int x)
++{
++  return vec_insert (x, v, i);
++}
++
++/* Test for variable selector and vector residing in memory.  */
++__attribute__((noinline))
++vector unsigned long long int
++mei (vector unsigned long long int *vp, int i, unsigned long long int x)
++{
++  return vec_insert (x, *vp, i);
++}
++
++int main (int argc, char *argv[]) {
++  vector unsigned long long int dv = { CONST0, CONST1 };
++  unsigned long long int d;
++
++  dv = e0 (dv, CONST7);
++  if (dv [0] != CONST7)
++    abort ();
++
++  dv = e3 (dv, CONST2);
++  if (dv [1] != CONST2)
++    abort ();
++
++  dv = me0 (&dv, CONST4);
++  if (dv [0] != CONST4)
++    abort ();
++
++  dv = me3 (&dv, CONST3);
++  if (dv [1] != CONST3)
++    abort ();
++
++  dv = ei (dv, 0, CONST5);
++  if (dv [0] != CONST5)
++    abort ();
++
++  dv = ei (dv, 1, CONST2);
++  if (dv [1] != CONST2)
++    abort ();
++
++  dv = ei (dv, 2, CONST3);
++  if (dv [0] != CONST3)
++    abort ();
++
++  dv = ei (dv, 3, CONST6);
++  if (dv [1] != CONST6)
++    abort ();
++
++  dv = mei (&dv, 0, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = mei (&dv, 1, CONST3);
++  if (dv [1] != CONST3)
++    abort ();
++
++  dv = mei (&dv, 2, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = mei (&dv, 3, CONST2);
++  if (dv [1] != CONST2)
++    abort ();
++
++  return 0;
++}
 Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-10a.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-10a.c	(.../tags/gcc_8_3_0_release)
@@ -3879,6 +4545,166 @@ Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-20a.c
 +  if (d != CONST0)
 +    abort ();
 +#endif
++
++  return 0;
++}
+Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-10c.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-10c.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-10c.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,155 @@
++/* { dg-do run } */
++/* { dg-require-effective-target vmx_hw } */
++/* { dg-options "-maltivec" } */
++
++/* This test should run the same on any target that supports altivec/vmx
++   instructions.  Intentionally not specifying cpu in order to test
++   all code generation paths.  */
++
++#include <altivec.h>
++
++extern void abort (void);
++
++#define CONST0		(0)
++#define CONST1		(1)
++#define CONST2		(2)
++#define CONST3		(3)
++#define CONST4		(4)
++#define CONST5		(5)
++#define CONST6		(6)
++#define CONST7		(7)
++
++
++/* Test that indices > length of vector are applied modulo the vector
++   length.  */
++
++/* Test for vector residing in register.  */
++vector short s3 (vector short v, short x)
++{
++  return vec_insert (x, v, 3);
++}
++
++vector short s7 (vector short v, short x)
++{
++  return vec_insert (x, v, 7);
++}
++
++vector short s21 (vector short v, short x)
++{
++  return vec_insert (x, v, 21);
++}
++
++vector short s30 (vector short v, short x)
++{
++  return vec_insert (x, v, 30);
++}
++
++/* Test for vector residing in memory.  */
++vector short ms3 (vector short *vp, short x)
++{
++  return vec_insert (x, *vp, 3);
++}
++
++vector short ms7 (vector short *vp, short x)
++{
++  return vec_insert (x, *vp, 7);
++}
++
++vector short ms21 (vector short *vp, short x)
++{
++  return vec_insert (x, *vp, 21);
++}
++
++vector short ms30 (vector short *vp, short x)
++{
++  return vec_insert (x, *vp, 30);
++}
++
++/* Test the same with variable indices.  */
++
++/* Test for variable selector and vector residing in register.  */
++__attribute__((noinline))
++vector short ci (vector short v, int i, short x)
++{
++  return vec_insert (x, v, i);
++}
++
++/* Test for variable selector and vector residing in memory.  */
++__attribute__((noinline))
++vector short mci (vector short *vp, int i, short x)
++{
++  return vec_insert (x, *vp, i);
++}
++
++
++int main (int argc, short *argv[]) {
++  vector short sv = {
++    CONST0, CONST1, CONST2, CONST3, CONST4, CONST5, CONST6, CONST7 };
++  short s;
++
++  sv = s3 (sv, CONST6);
++  if (sv [3] != CONST6)
++    abort ();
++
++  sv = s7 (sv, CONST4);
++  if (sv [7] != CONST4)
++    abort ();
++
++  sv = s21 (sv, CONST3);
++  if (sv [5] != CONST3)
++    abort ();
++
++  sv = s30 (sv, CONST2);
++  if (sv [6] != CONST2)
++    abort ();
++
++  sv = ms3 (&sv, CONST5);
++  if (sv [3] != CONST5)
++    abort ();
++
++  sv = ms7 (&sv, CONST1);
++  if (sv [7] != CONST1)
++    abort ();
++
++  sv = ms21 (&sv, CONST2);
++  if (sv [5] != CONST2)
++    abort ();
++
++  sv = ms30 (&sv, CONST0);
++  if (sv [6] != CONST0)
++    abort ();
++
++  sv = ci (sv, 5, CONST6);
++  if (sv [5] != CONST6)
++    abort ();
++
++  sv = ci (sv, 2, CONST4);
++  if (sv [2] != CONST4)
++    abort ();
++
++  sv = ci (sv, 15, CONST3);
++  if (sv [7] != CONST3)
++    abort ();
++
++  sv = ci (sv, 28, CONST3);
++  if (sv [4] != CONST3)
++    abort ();
++
++  sv = mci (&sv, 5, CONST3);
++  if (sv [5] != CONST3)
++    abort ();
++
++  sv = mci (&sv, 12, CONST7);
++  if (sv [4] != CONST7)
++    abort ();
++
++  sv = mci (&sv, 25, CONST6);
++  if (sv [1] != CONST6)
++    abort ();
++
++  sv = mci (&sv, 16, CONST5);
++  if (sv [0] != CONST5)
++    abort ();
 +
 +  return 0;
 +}
@@ -4319,6 +5145,566 @@ Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-12a.c
 +
 +  return 0;
 +}
+Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-20c.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-20c.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-20c.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,115 @@
++/* { dg-do run { target int128 } } */
++/* { dg-require-effective-target vsx_hw } */
++/* { dg-options "-mvsx" } */
++
++/* This test should run the same on any target that supports vsx
++   instructions.  Intentionally not specifying cpu in order to test
++   all code generation paths.  */
++
++#include <altivec.h>
++
++extern void abort (void);
++
++#define CONST0		(((unsigned __int128) 31415926539) << 60)
++#define CONST1		(((unsigned __int128) 31415926539) << 54)
++#define CONST2		(((unsigned __int128) 31415926539) << 48)
++#define CONST3		(((unsigned __int128) 31415926539) << 32)
++
++/* Test that indices > length of vector are applied modulo the vector
++   length.  */
++
++/* Test for vector residing in register.  */
++vector unsigned __int128 e0 (vector unsigned __int128 v, unsigned __int128 x)
++{
++  return vec_insert (x, v, 0);
++}
++
++vector unsigned __int128 e3 (vector unsigned __int128 v, unsigned __int128 x)
++{
++  return vec_insert (x, v, 3);
++}
++
++/* Test for vector residing in memory.  */
++vector unsigned __int128
++me0 (vector unsigned __int128 *vp, unsigned __int128 x)
++{
++  return vec_insert (x, *vp, 0);
++}
++
++vector unsigned __int128
++me3 (vector unsigned __int128 *vp, unsigned __int128 x)
++{
++  return vec_insert (x, *vp, 3);
++}
++
++/* Test the same with variable indices.  */
++
++/* Test for variable selector and vector residing in register.  */
++__attribute__((noinline))
++vector unsigned __int128
++ei (vector unsigned __int128 v, int i, unsigned __int128 x)
++{
++  return vec_insert (x, v, i);
++}
++
++/* Test for variable selector and vector residing in memory.  */
++__attribute__((noinline))
++vector unsigned __int128
++mei (vector unsigned __int128 *vp, int i, unsigned __int128 x)
++{
++  return vec_insert (x, *vp, i);
++}
++
++int main (int argc, char *argv[]) {
++  vector unsigned __int128 dv = { CONST0 };
++
++  dv = e0 (dv, CONST3);
++  if (dv [0] != CONST3)
++    abort ();
++
++  dv = e3 (dv, CONST2);
++  if (dv [0] != CONST2)
++    abort ();
++
++  dv = me0 (&dv, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = me3 (&dv, CONST3);
++  if (dv [0] != CONST3)
++    abort ();
++
++  dv = ei (dv, 0, CONST0);
++  if (dv [0] != CONST0)
++    abort ();
++
++  dv = ei (dv, 1, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = ei (dv, 2, CONST2);
++  if (dv [0] != CONST2)
++    abort ();
++
++  dv = ei (dv, 3, CONST3);
++  if (dv [0] != CONST3)
++    abort ();
++
++  dv = mei (&dv, 0, CONST0);
++  if (dv [0] != CONST0)
++    abort ();
++
++  dv = mei (&dv, 1, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = mei (&dv, 2, CONST2);
++  if (dv [0] != CONST2)
++    abort ();
++
++  dv = mei (&dv, 3, CONST3);
++  if (dv [0] != CONST3)
++    abort ();
++
++  return 0;
++}
+Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-11d.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-11d.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-11d.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,149 @@
++/* { dg-do run } */
++/* { dg-require-effective-target vmx_hw } */
++/* { dg-options "-maltivec -O3" } */
++
++/* This test should run the same on any target that supports altivec/vmx
++   instructions.  Intentionally not specifying cpu in order to test
++   all code generation paths.  */
++
++#include <altivec.h>
++
++extern void abort (void);
++
++#define CONST0		(0)
++#define CONST1		(1)
++#define CONST2		(2)
++#define CONST3		(3)
++
++/* Test that indices > length of vector are applied modulo the vector
++   length.  */
++
++/* Test for vector residing in register.  */
++vector int s3 (vector int v, int x)
++{
++  return vec_insert (x, v, 3);
++}
++
++vector int s1 (vector int v, int x)
++{
++  return vec_insert (x, v, 1);
++}
++
++vector int s21 (vector int v, int x)
++{
++  return vec_insert (x, v, 21);
++}
++
++vector int s30 (vector int v, int x)
++{
++  return vec_insert (x, v, 30);
++}
++
++/* Test for vector residing in memory.  */
++vector int ms3  (vector int *vp, int x)
++{
++  return vec_insert (x, *vp, 3);
++}
++
++vector int ms1 (vector int *vp, int x)
++{
++  return vec_insert (x, *vp, 1);
++}
++
++vector int ms21 (vector int *vp, int x)
++{
++  return vec_insert (x, *vp, 21);
++}
++
++vector int ms30 (vector int *vp, int x)
++{
++  return vec_insert (x, *vp, 30);
++}
++
++/* Test the same with variable indices.  */
++
++/* Test for variable selector and vector residing in register.  */
++__attribute__((noinline))
++vector int ci (vector int v, int i, int x)
++{
++  return vec_insert (x, v, i);
++}
++
++/* Test for variable selector and vector residing in memory.  */
++__attribute__((noinline))
++vector int mci(vector int *vp, int i, int x)
++{
++  return vec_insert (x, *vp, i);
++}
++
++
++int main (int argc, int *argv[]) {
++  vector int sv = { CONST0, CONST1, CONST2, CONST3 };
++  int s;
++
++  sv = s3 (sv, CONST1);
++  if (sv [3] != CONST1)
++    abort ();
++
++  sv = s1 (sv, CONST3);
++  if (sv [1] != CONST3)
++    abort ();
++
++  sv = s21 (sv, CONST0);
++  if (sv [1] != CONST0)
++    abort ();
++
++  sv = s30 (sv, CONST1);
++  if (sv [2] != CONST1)
++    abort ();
++
++  sv = ms3 (&sv, CONST2);
++  if (sv [3] != CONST2)
++    abort ();
++
++  sv = ms1 (&sv, CONST0);
++  if (sv [1] != CONST0)
++    abort ();
++
++  sv = ms21 (&sv, CONST3);
++  if (sv [1] != CONST3)
++    abort ();
++
++  sv = ms30 (&sv, CONST0);
++  if (sv [2] != CONST0)
++    abort ();
++
++  sv = ci (sv, 5, CONST0);
++  if (sv [1] != CONST0)
++    abort ();
++
++  sv = ci (sv, 2, CONST3);
++  if (sv [2] != CONST3)
++    abort ();
++
++  sv = ci (sv, 15, CONST1);
++  if (sv [3] != CONST1)
++    abort ();
++
++  sv = ci (sv, 28, CONST3);
++  if (sv [0] != CONST3)
++    abort ();
++
++  sv = mci (&sv, 5, CONST2);
++  if (sv [1] != CONST2)
++    abort ();
++
++  sv = mci (&sv, 12, CONST1);
++  if (sv [0] != CONST1)
++    abort ();
++
++  sv = mci (&sv, 25, CONST2);
++  if (sv [1] != CONST2)
++    abort ();
++
++  sv = mci (&sv, 16, CONST3);
++  if (sv [0] != CONST3)
++    abort ();
++
++  return 0;
++}
+Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-9d.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-9d.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-9d.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,164 @@
++/* { dg-do run } */
++/* { dg-require-effective-target vmx_hw } */
++/* { dg-options "-maltivec -O3" } */
++
++/* This test should run the same on any target that supports altivec/vmx
++   instructions.  Intentionally not specifying cpu in order to test
++   all code generation paths.  */
++
++#include <altivec.h>
++
++extern void abort (void);
++
++#define CONST0		(0)
++#define CONST1		(1)
++#define CONST2		(2)
++#define CONST3		(3)
++#define CONST4		(4)
++#define CONST5		(5)
++#define CONST6		(6)
++#define CONST7		(7)
++#define CONST8		(8)
++#define CONST9		(9)
++#define CONSTA		(10)
++#define CONSTB		(11)
++#define CONSTC		(12)
++#define CONSTD		(13)
++#define CONSTE		(14)
++#define CONSTF		(15)
++
++
++/* Test that indices > length of vector are applied modulo the vector
++   length.  */
++
++/* Test for vector residing in register.  */
++vector signed char c0 (vector signed char v, signed char x)
++{
++  return vec_insert (x, v, 0);
++}
++
++vector signed char c9 (vector signed char v, signed char x)
++{
++  return vec_insert (x, v, 9);
++}
++
++vector signed char c21 (vector signed char v, signed char x)
++{
++  return vec_insert (x, v, 21);
++}
++
++vector signed char c30 (vector signed char v, signed char x)
++{
++  return vec_insert (x, v, 30);
++}
++
++/* Test for vector residing in memory.  */
++vector signed char mc0 (vector signed char *vp, signed char x)
++{
++  return vec_insert (x, *vp, 0);
++}
++
++vector signed char mc9 (vector signed char *vp, signed char x)
++{
++  return vec_insert (x, *vp, 9);
++}
++
++vector signed char mc21 (vector signed char *vp, signed char x)
++{
++  return vec_insert (x, *vp, 21);
++}
++
++vector signed char mc30 (vector signed char *vp, signed char x)
++{
++  return vec_insert (x, *vp, 30);
++}
++
++/* Test the same with variable indices.  */
++
++/* Test for variable selector and vector residing in register.  */
++__attribute__((noinline))
++vector signed char ci (vector signed char v, int i, signed char x)
++{
++  return vec_insert (x, v, i);
++}
++
++/* Test for variable selector and vector residing in memory.  */
++__attribute__((noinline))
++vector signed char mci(vector signed char *vp, int i, signed char x) {
++  return vec_insert (x, *vp, i);
++}
++
++
++int main (int argc, char *argv[]) {
++  vector signed char cv = { CONST0, CONST1, CONST2, CONST3,
++			    CONST4, CONST5, CONST6, CONST7,
++			    CONST8, CONST9, CONSTA, CONSTB,
++			    CONSTC, CONSTD, CONSTE, CONSTF };
++  signed char c;
++
++  cv = c0 (cv, CONSTF);
++  if (cv [0] != CONSTF)
++    abort ();
++
++  cv = c9 (cv, CONST7);
++  if (cv [9] != CONST7)
++    abort ();
++
++  cv = c21 (cv, CONSTA);
++  if (cv [5] != CONSTA)
++    abort ();
++
++  cv = c30 (cv, CONSTC);
++  if (cv [14] != CONSTC)
++    abort ();
++
++  cv = mc0 (&cv, CONSTB);
++  if (cv [0] != CONSTB)
++    abort ();
++
++  cv = mc9 (&cv, CONST1);
++  if (cv [9] != CONST1)
++    abort ();
++
++  cv = mc21 (&cv, CONST7);
++  if (cv [5] != CONST7)
++    abort ();
++
++  cv = mc30 (&cv, CONST2);
++  if (cv [14] != CONST2)
++    abort ();
++
++  cv = ci (cv, 8, CONST4);
++  if (cv [8] != CONST4)
++    abort ();
++
++  cv = ci (cv, 13, CONSTB);
++  if (cv [13] != CONSTB)
++    abort ();
++
++  cv = ci (cv, 23, CONST3);
++  if (cv [7] != CONST3)
++    abort ();
++
++  cv = ci (cv, 31, CONST2);
++  if (cv [15] != CONST2)
++    abort ();
++
++  cv = mci (&cv, 5, CONST1);
++  if (cv [5] != CONST1)
++    abort ();
++
++  cv = mci (&cv, 12, CONST3);
++  if (cv [12] != CONST3)
++    abort ();
++
++  cv = mci (&cv, 25, CONST5);
++  if (cv [9] != CONST5)
++    abort ();
++
++  cv = mci (&cv, 16, CONSTD);
++  if (cv [0] != CONSTD)
++    abort ();
++
++  return 0;
++}
+Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-12c.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-12c.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-12c.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,112 @@
++/* { dg-do run { target int128 } } */
++/* { dg-require-effective-target vsx_hw } */
++/* { dg-options "-mvsx" } */
++
++/* This test should run the same on any target that supports vsx
++   instructions.  Intentionally not specifying cpu in order to test
++   all code generation paths.  */
++
++#include <altivec.h>
++
++extern void abort (void);
++
++#define CONST0		(31415926539LL)
++#define CONST1		(2 * 31415926539LL)
++#define CONST2		(3 * 31415926539LL)
++#define CONST3		(4 * 31415926539LL)
++
++/* Test that indices > length of vector are applied modulo the vector
++   length.  */
++
++/* Test for vector residing in register.  */
++vector long long int e0 (vector long long int v, long long int x)
++{
++  return vec_insert (x, v, 0);
++}
++
++vector long long int e3 (vector long long int v, long long int x)
++{
++  return vec_insert (x, v, 3);
++}
++
++/* Test for vector residing in memory.  */
++vector long long int me0 (vector long long int *vp, long long int x)
++{
++  return vec_insert (x, *vp, 0);
++}
++
++vector long long int me3 (vector long long int *vp, long long int x)
++{
++  return vec_insert (x, *vp, 3);
++}
++
++/* Test the same with variable indices.  */
++
++/* Test for variable selector and vector residing in register.  */
++__attribute__((noinline))
++vector long long int ei (vector long long int v, int i, long long int x)
++{
++  return vec_insert (x, v, i);
++}
++
++/* Test for variable selector and vector residing in memory.  */
++__attribute__((noinline))
++vector long long int mei (vector long long int *vp, int i, long long int x)
++{
++  return vec_insert (x, *vp, i);
++}
++
++int main (int argc, char *argv[]) {
++  vector long long int dv = { CONST0, CONST1 };
++  long long int d;
++
++  dv = e0 (dv, CONST3);
++  if (dv [0] != CONST3)
++    abort ();
++
++  dv = e3 (dv, CONST0);
++  if (dv [1] != CONST0)
++    abort ();
++
++  dv = me0 (&dv, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = me3 (&dv, CONST2);
++  if (dv [1] != CONST2)
++    abort ();
++
++  dv = ei (dv, 0, CONST3);
++  if (dv [0] != CONST3)
++    abort ();
++
++  dv = ei (dv, 1, CONST2);
++  if (dv [1] != CONST2)
++    abort ();
++
++  dv = ei (dv, 2, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = ei (dv, 3, CONST3);
++  if (dv [1] != CONST3)
++    abort ();
++
++  dv = mei (&dv, 0, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = mei (&dv, 1, CONST0);
++  if (dv [1] != CONST0)
++    abort ();
++
++  dv = mei (&dv, 2, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = mei (&dv, 3, CONST2);
++  if (dv [1] != CONST2)
++    abort ();
++
++  return 0;
++}
 Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-13b.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-13b.c	(.../tags/gcc_8_3_0_release)
@@ -4598,6 +5984,280 @@ Index: gcc/testsuite/gcc.target/powerpc/vec-extract-v16qiu-v2a.c
 +#define DISABLE_INLINE_OF_GET_AUTO_N
 +
 +#include "vec-extract-v16qiu-v2.h"
+Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-13d.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-13d.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-13d.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,115 @@
++/* { dg-do run { target int128 } } */
++/* { dg-require-effective-target vsx_hw } */
++/* { dg-options "-mvsx -O3" } */
++
++/* This test should run the same on any target that supports vsx
++   instructions.  Intentionally not specifying cpu in order to test
++   all code generation paths.  */
++
++#include <altivec.h>
++
++#define SIGNED signed
++
++extern void abort (void);
++
++#define CONST0		(((SIGNED __int128) 31415926539) << 60)
++#define CONST1		(((SIGNED __int128) 31415926539) << 55)
++#define CONST2		(((SIGNED __int128) 31415926539) << 50)
++#define CONST3		(((SIGNED __int128) 31415926539) << 45)
++
++/* Test that indices > length of vector are applied modulo the vector
++   length.  */
++
++/* Test for vector residing in register.  */
++vector SIGNED __int128 e0 (vector SIGNED __int128 v, SIGNED __int128 x)
++{
++  return vec_insert (x, v, 0);
++}
++
++vector SIGNED __int128 e3 (vector SIGNED __int128 v, SIGNED __int128 x)
++{
++  return vec_insert (x, v, 3);
++}
++
++/* Test for vector residing in memory.  */
++vector SIGNED __int128 me0 (vector SIGNED __int128 *vp, SIGNED __int128 x)
++{
++  return vec_insert (x, *vp, 0);
++}
++
++vector SIGNED __int128 me3 (vector SIGNED __int128 *vp, SIGNED __int128 x)
++{
++  return vec_insert (x, *vp, 3);
++}
++
++/* Test the same with variable indices.  */
++
++/* Test for variable selector and vector residing in register.  */
++__attribute__((noinline))
++vector SIGNED __int128
++ei (vector SIGNED __int128 v, int i, SIGNED __int128 x)
++{
++  return vec_insert (x, v, i);
++}
++
++/* Test for variable selector and vector residing in memory.  */
++__attribute__((noinline))
++vector SIGNED __int128
++mei (vector SIGNED __int128 *vp, int i, SIGNED __int128 x)
++{
++  return vec_insert (x, *vp, i);
++}
++
++int main (int argc, char *argv[]) {
++  vector SIGNED __int128 dv = { CONST0 };
++  SIGNED __int128 d;
++
++  dv = e0 (dv, CONST3);
++  if (dv [0] != CONST3)
++    abort ();
++
++  dv = e3 (dv, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = me0 (&dv, CONST2);
++  if (dv [0] != CONST2)
++    abort ();
++
++  dv = me3 (&dv, CONST3);
++  if (dv [0] != CONST3)
++    abort ();
++
++  dv = ei (dv, 0, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = ei (dv, 1, CONST2);
++  if (dv [0] != CONST2)
++    abort ();
++
++  dv = ei (dv, 2, CONST3);
++  if (dv [0] != CONST3)
++    abort ();
++
++  dv = ei (dv, 3, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = mei (&dv, 0, CONST2);
++  if (dv [0] != CONST2)
++    abort ();
++
++  dv = mei (&dv, 1, CONST3);
++  if (dv [0] != CONST3)
++    abort ();
++
++  dv = mei (&dv, 2, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = mei (&dv, 3, CONST2);
++  if (dv [0] != CONST2)
++    abort ();
++  return 0;
++}
+Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-14c.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-14c.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-14c.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,149 @@
++/* { dg-do run } */
++/* { dg-require-effective-target vmx_hw } */
++/* { dg-options "-maltivec" } */
++
++/* This test should run the same on any target that supports altivec/vmx
++   instructions.  Intentionally not specifying cpu in order to test
++   all code generation paths.  */
++
++#include <altivec.h>
++
++extern void abort (void);
++
++#define CONST0		((float) (3.1415926539))
++#define CONST1		((float) (3.1415926539 * 2))
++#define CONST2		((float) (3.1415926539 * 3))
++#define CONST3		((float) (3.1415926539 * 4))
++
++/* Test that indices > length of vector are applied modulo the vector
++   length.  */
++
++/* Test for vector residing in register.  */
++vector float e0(vector float v, float x)
++{
++  return vec_insert (x, v, 0);
++}
++
++vector float e1(vector float v, float x)
++{
++  return vec_insert (x, v, 1);
++}
++
++vector float e7(vector float v, float x)
++{
++  return vec_insert (x, v, 7);
++}
++
++vector float e8(vector float v, float x)
++{
++  return vec_insert (x, v, 8);
++}
++
++/* Test for vector residing in memory.  */
++vector float me0(vector float *vp, float x)
++{
++  return vec_insert (x, *vp, 0);
++}
++
++vector float me1(vector float *vp, float x)
++{
++  return vec_insert (x, *vp, 1);
++}
++
++vector float me13(vector float *vp, float x)
++{
++  return vec_insert (x, *vp, 13);
++}
++
++vector float me15(vector float *vp, float x)
++{
++  return vec_insert (x, *vp, 15);
++}
++
++/* Test the same with variable indices.  */
++
++/* Test for variable selector and vector residing in register.  */
++__attribute__((noinline))
++vector float ei(vector float v, int i, float x)
++{
++  return vec_insert (x, v, i);
++}
++
++/* Test for variable selector and vector residing in memory.  */
++__attribute__((noinline))
++vector float mei(vector float *vp, int i, float x)
++{
++  return vec_insert (x, *vp, i);
++}
++
++
++int main (int argc, char *argv[]) {
++  vector float dv = { CONST0, CONST1, CONST2, CONST3 };
++  float d;
++
++  dv = e0 (dv, CONST3);
++  if (dv [0] != CONST3)
++    abort ();
++
++  dv = e1 (dv, CONST0);
++  if (dv [1] != CONST0)
++    abort ();
++
++  dv = e7 (dv, CONST2);
++  if (dv [3] != CONST2)
++    abort ();
++
++  dv = e8 (dv, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = me0 (&dv, CONST2);
++  if (dv [0] != CONST2)
++    abort ();
++
++  dv = me1 (&dv, CONST3);
++  if (dv [1] != CONST3)
++    abort ();
++
++  dv = me13 (&dv, CONST2);
++  if (dv [1] != CONST2)
++    abort ();
++
++  dv = me15 (&dv, CONST1);
++  if (dv [3] != CONST1)
++    abort ();
++
++  dv = ei (dv, 0, CONST3);
++  if (dv [0] != CONST3)
++    abort ();
++
++  dv = ei (dv, 2, CONST1);
++  if (dv [2] != CONST1)
++    abort ();
++
++  dv = ei (dv, 11, CONST0);
++  if (dv [3] != CONST0)
++    abort ();
++
++  dv = ei (dv, 17, CONST2);
++  if (dv [1] != CONST2)
++    abort ();
++
++  dv = mei (&dv, 0, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = mei (&dv, 1, CONST0);
++  if (dv [1] != CONST0)
++    abort ();
++
++  dv = mei (&dv, 15, CONST1);
++  if (dv [3] != CONST1)
++    abort ();
++
++  dv = mei (&dv, 6, CONST0);
++  if (dv [2] != CONST0)
++    abort ();
++
++  return 0;
++}
 Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-15b.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-15b.c	(.../tags/gcc_8_3_0_release)
@@ -4882,6 +6542,347 @@ Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-16a.c
 +
 +  c = mci (&cv, 16);
 +  if (c != CONST0)
++    abort ();
++
++  return 0;
++}
+Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-15d.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-15d.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-15d.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,151 @@
++/* { dg-do run { target int128 } } */
++/* { dg-require-effective-target vsx_hw } */
++/* { dg-options "-mvsx -O3" } */
++
++/* This test should run the same on any target that supports vsx
++   instructions.  Intentionally not specifying cpu in order to test
++   all code generation paths.  */
++
++#include <altivec.h>
++
++extern void abort (void);
++
++#define CONST0		(3.1415926539)
++#define CONST1		(3.1415926539 * 2)
++#define CONST2		(3.1415926539 * 3)
++#define CONST3		(3.1415926539 * 4)
++
++
++/* Test that indices > length of vector are applied modulo the vector
++   length.  */
++
++/* Test for vector residing in register.  */
++vector double e0(vector double v, double x)
++{
++  return vec_insert (x, v, 0);
++}
++
++vector double e1(vector double v, double x)
++{
++  return vec_insert (x, v, 1);
++}
++
++vector double e2(vector double v, double x)
++{
++  return vec_insert (x, v, 2);
++}
++
++vector double e3(vector double v, double x)
++{
++  return vec_insert (x, v, 3);
++}
++
++/* Test for vector residing in memory.  */
++vector double me0(vector double *vp, double x)
++{
++  return vec_insert (x, *vp, 0);
++}
++
++vector double me1(vector double *vp, double x)
++{
++  return vec_insert (x, *vp, 1);
++}
++
++vector double me2(vector double *vp, double x)
++{
++  return vec_insert (x, *vp, 2);
++}
++
++vector double me3(vector double *vp, double x)
++{
++  return vec_insert (x, *vp, 3);
++}
++
++/* Test the same with variable indices.  */
++
++/* Test for variable selector and vector residing in register.  */
++__attribute__((noinline))
++vector double ei(vector double v, int i, double x)
++{
++  return vec_insert (x, v, i);
++}
++
++/* Test for variable selector and vector residing in memory.  */
++__attribute__((noinline))
++vector double mei(vector double *vp, int i, double x)
++{
++  return vec_insert (x, *vp, i);
++}
++
++int main (int argc, char *argv[]) {
++  vector double dv;
++  double d;
++  dv[0] = CONST0;
++  dv[1] = CONST1;
++
++  dv = e0 (dv, CONST3);
++  if (dv [0] != CONST3)
++    abort ();
++
++  dv = e1 (dv, CONST2);
++  if (dv [1] != CONST2)
++    abort ();
++
++  dv = e2 (dv, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = e3 (dv, CONST0);
++  if (dv [1] != CONST0)
++    abort ();
++
++  dv = me0 (&dv, CONST2);
++  if (dv [0] != CONST2)
++    abort ();
++
++  dv = me1 (&dv, CONST3);
++  if (dv [1] != CONST3)
++    abort ();
++
++  dv = me2 (&dv, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = me3 (&dv, CONST0);
++  if (dv [1] != CONST0)
++    abort ();
++
++  dv = ei (dv, 0, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = ei (dv, 1, CONST0);
++  if (dv [1] != CONST0)
++    abort ();
++
++  dv = ei (dv, 2, CONST3);
++  if (dv [0] != CONST3)
++    abort ();
++
++  dv = ei (dv, 3, CONST2);
++  if (dv [1] != CONST2)
++    abort ();
++
++  dv = mei (&dv, 0, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = mei (&dv, 1, CONST0);
++  if (dv [1] != CONST0)
++    abort ();
++
++  dv = mei (&dv, 2, CONST2);
++  if (dv [0] != CONST2)
++    abort ();
++
++  dv = mei (&dv, 3, CONST3);
++  if (dv [1] != CONST3)
++    abort ();
++
++  return 0;
++}
+Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-16c.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-16c.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-16c.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,180 @@
++/* { dg-do run } */
++/* { dg-require-effective-target vmx_hw } */
++/* { dg-options "-maltivec" } */
++
++/* This test should run the same on any target that supports altivec/vmx
++   instructions.  Intentionally not specifying cpu in order to test
++   all code generation paths.  */
++
++#include <stdio.h>
++#include <altivec.h>
++
++extern void abort (void);
++
++#define CONST0		(0)
++#define CONST1		(1)
++#define CONST2		(2)
++#define CONST3		(3)
++#define CONST4		(4)
++#define CONST5		(5)
++#define CONST6		(6)
++#define CONST7		(7)
++#define CONST8		(8)
++#define CONST9		(9)
++#define CONSTA		(10)
++#define CONSTB		(11)
++#define CONSTC		(12)
++#define CONSTD		(13)
++#define CONSTE		(14)
++#define CONSTF		(15)
++
++
++/* Test that indices > length of vector are applied modulo the vector
++   length.  */
++
++/* Test for vector residing in register.  */
++vector unsigned char c0 (vector unsigned char v, unsigned char x)
++{
++  return vec_insert (x, v, 0);
++}
++
++vector unsigned char c9 (vector unsigned char v, unsigned char x)
++{
++  return vec_insert (x, v, 9);
++}
++
++vector unsigned char c21 (vector unsigned char v, unsigned char x)
++{
++  return vec_insert (x, v, 21);
++}
++
++vector unsigned char c30 (vector unsigned char v, unsigned char x)
++{
++  return vec_insert (x, v, 30);
++}
++
++/* Test for vector residing in memory.  */
++vector unsigned char mc0 (vector unsigned char *vp, unsigned char x)
++{
++  return vec_insert (x, *vp, 0);
++}
++
++vector unsigned char mc9 (vector unsigned char *vp, unsigned char x)
++{
++  return vec_insert (x, *vp, 9);
++}
++
++vector unsigned char mc21 (vector unsigned char *vp, unsigned char x)
++{
++  return vec_insert (x, *vp, 21);
++}
++
++vector unsigned char mc30 (vector unsigned char *vp, unsigned char x)
++{
++  return vec_insert (x, *vp, 30);
++}
++
++/* Test the same with variable indices.  */
++
++/* Test for variable selector and vector residing in register.  */
++__attribute__((noinline))
++vector unsigned char ci (vector unsigned char v, int i, unsigned char x)
++{
++  return vec_insert (x, v, i);
++}
++
++/* Test for variable selector and vector residing in memory.  */
++__attribute__((noinline))
++vector unsigned char mci (vector unsigned char *vp, int i, unsigned char x)
++{
++  return vec_insert (x, *vp, i);
++}
++
++
++int main (int argc, char *argv[]) {
++  vector unsigned char cv = { CONST0, CONST1, CONST2, CONST3,
++			      CONST4, CONST5, CONST6, CONST7,
++			      CONST8, CONST9, CONSTA, CONSTB,
++			      CONSTC, CONSTD, CONSTE, CONSTF };
++  printf ("A\n");
++  cv = c0 (cv, CONST3);
++  if (cv [0] != CONST3)
++    abort ();
++
++  printf ("B\n");
++  cv = c9 (cv, CONST2);
++  if (cv [9] != CONST2)
++    abort ();
++
++  printf ("C\n");
++  cv = c21 (cv, CONSTF);
++  if (cv [5] != CONSTF)
++    abort ();
++
++  printf ("D\n");
++  cv = c30 (cv, CONST3);
++  if (cv [14] != CONST3)
++    abort ();
++
++  printf ("E\n");
++  cv = mc0 (&cv, CONST4);
++  if (cv [0] != CONST4)
++    abort ();
++
++  printf ("F\n");
++  cv = mc9 (&cv, CONST3);
++  if (cv [9] != CONST3)
++    abort ();
++
++  printf ("G\n");
++  cv = mc21 (&cv, CONST1);
++  if (cv [5] != CONST1)
++    abort ();
++
++  printf ("H\n");
++  cv = mc30 (&cv, CONSTC);
++  if (cv [14] != CONSTC)
++    abort ();
++
++  printf ("I\n");
++  cv = ci (cv, 8, CONSTD);
++  if (cv [8] != CONSTD)
++    abort ();
++
++  printf ("J\n");
++  cv = ci (cv, 13, CONST5);
++  if (cv [13] != CONST5)
++    abort ();
++
++  printf ("K\n");
++  cv = ci (cv, 23, CONST6);
++  if (cv [7] != CONST6)
++    abort ();
++
++  printf ("L\n");
++  cv = ci (cv, 31, CONST7);
++  if (cv [15] != CONST7)
++    abort ();
++
++  printf ("M\n");
++  cv = mci (&cv, 5, CONST8);
++  if (cv [5] != CONST8)
++    abort ();
++
++  printf ("N\n");
++  cv = mci (&cv, 12, CONST9);
++  if (cv [12] != CONST9)
++    abort ();
++
++  printf ("O\n");
++  cv = mci (&cv, 25, CONSTA);
++  if (cv [9] != CONSTA)
++    abort ();
++
++  printf ("P\n");
++  cv = mci (&cv, 16, CONSTB);
++  if (cv [0] != CONSTB)
 +    abort ();
 +
 +  return 0;
@@ -5476,6 +7477,165 @@ Index: gcc/testsuite/gcc.target/powerpc/ppc-fortran/ppc-fortran.exp
  	return
      }
  
+Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-17d.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-17d.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-17d.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,154 @@
++/* { dg-do run } */
++/* { dg-require-effective-target vmx_hw } */
++/* { dg-options "-maltivec" } */
++
++/* This test should run the same on any target that supports altivec/vmx
++   instructions.  Intentionally not specifying cpu in order to test
++   all code generation paths.  */
++
++#include <altivec.h>
++
++extern void abort (void);
++
++#define CONST0		(0)
++#define CONST1		(1)
++#define CONST2		(2)
++#define CONST3		(3)
++#define CONST4		(4)
++#define CONST5		(5)
++#define CONST6		(6)
++#define CONST7		(7)
++
++
++/* Test that indices > length of vector are applied modulo the vector
++   length.  */
++
++/* Test for vector residing in register.  */
++vector unsigned short s3 (vector unsigned short v, unsigned short x)
++{
++  return vec_insert (x, v, 3);
++}
++
++vector unsigned short s7 (vector unsigned short v, unsigned short x)
++{
++  return vec_insert (x, v, 7);
++}
++
++vector unsigned short s21 (vector unsigned short v, unsigned short x)
++{
++  return vec_insert (x, v, 21);
++}
++
++vector unsigned short s30 (vector unsigned short v, unsigned short x)
++{
++  return vec_insert (x, v, 30);
++}
++
++/* Test for vector residing in memory.  */
++vector unsigned short ms3 (vector unsigned short *vp, unsigned short x)
++{
++  return vec_insert (x, *vp, 3);
++}
++
++vector unsigned short ms7 (vector unsigned short *vp, unsigned short x)
++{
++  return vec_insert (x, *vp, 7);
++}
++
++vector unsigned short ms21 (vector unsigned short *vp, unsigned short x)
++{
++  return vec_insert (x, *vp, 21);
++}
++
++vector unsigned short ms30 (vector unsigned short *vp, unsigned short x)
++{
++  return vec_insert (x, *vp, 30);
++}
++
++/* Test the same with variable indices.  */
++
++/* Test for variable selector and vector residing in register.  */
++__attribute__((noinline))
++vector unsigned short ci (vector unsigned short v, int i, unsigned short x)
++{
++  return vec_insert (x, v, i);
++}
++
++/* Test for variable selector and vector residing in memory.  */
++__attribute__((noinline))
++vector unsigned short mci (vector unsigned short *vp, int i, unsigned short x)
++{
++  return vec_insert (x, *vp, i);
++}
++
++
++int main (int argc, unsigned short *argv[]) {
++  vector unsigned short sv = {
++    CONST0, CONST1, CONST2, CONST3, CONST4, CONST5, CONST6, CONST7 };
++
++  sv = s3 (sv, CONST1);
++  if (sv [3] != CONST1)
++    abort ();
++
++  sv = s7 (sv, CONST2);
++  if (sv [7] != CONST2)
++    abort ();
++
++  sv = s21 (sv, CONST3);
++  if (sv [5] != CONST3)
++    abort ();
++
++  sv = s30 (sv, CONST4);
++  if (sv [6] != CONST4)
++    abort ();
++
++  sv = ms3 (&sv, CONST5);
++  if (sv [3] != CONST5)
++    abort ();
++
++  sv = ms7 (&sv, CONST6);
++  if (sv [7] != CONST6)
++    abort ();
++
++  sv = ms21 (&sv, CONST7);
++  if (sv [5] != CONST7)
++    abort ();
++
++  sv = ms30 (&sv, CONST0);
++  if (sv [6] != CONST0)
++    abort ();
++
++  sv = ci (sv, 5, CONST1);
++  if (sv [5] != CONST1)
++    abort ();
++
++  sv = ci (sv, 2, CONST3);
++  if (sv [2] != CONST3)
++    abort ();
++
++  sv = ci (sv, 15, CONST2);
++  if (sv [7] != CONST2)
++    abort ();
++
++  sv = ci (sv, 28, CONST5);
++  if (sv [4] != CONST5)
++    abort ();
++
++  sv = mci (&sv, 5, CONST4);
++  if (sv [5] != CONST4)
++    abort ();
++
++  sv = mci (&sv, 12, CONST6);
++  if (sv [4] != CONST6)
++    abort ();
++
++  sv = mci (&sv, 25, CONST7);
++  if (sv [1] != CONST7)
++    abort ();
++
++  sv = mci (&sv, 16, CONST4);
++  if (sv [0] != CONST4)
++    abort ();
++
++  return 0;
++}
 Index: gcc/testsuite/gcc.target/powerpc/pr89424-0.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/powerpc/pr89424-0.c	(.../tags/gcc_8_3_0_release)
@@ -5553,6 +7713,159 @@ Index: gcc/testsuite/gcc.target/powerpc/pr89424-0.c
 +
 +  d = mei (&dv, 3);
 +  if (d != CONST0)
++    abort ();
++
++  return 0;
++}
+Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-18c.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-18c.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-18c.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,148 @@
++/* { dg-do run } */
++/* { dg-require-effective-target vmx_hw } */
++/* { dg-options "-maltivec" } */
++
++/* This test should run the same on any target that supports altivec/vmx
++   instructions.  Unsigned Intentionally not specifying cpu in order to test
++   all code generation paths.  */
++
++#include <altivec.h>
++
++extern void abort (void);
++
++#define CONST0		(0)
++#define CONST1		(1)
++#define CONST2		(2)
++#define CONST3		(3)
++
++/* Test that indices > length of vector are applied modulo the vector
++   length.  */
++
++/* Test for vector residing in register.  */
++vector unsigned int s3 (vector unsigned int v, unsigned int x)
++{
++  return vec_insert (x, v, 3);
++}
++
++vector unsigned int s1 (vector unsigned int v, unsigned int x)
++{
++  return vec_insert (x, v, 1);
++}
++
++vector unsigned int s21 (vector unsigned int v, unsigned int x)
++{
++  return vec_insert (x, v, 21);
++}
++
++vector unsigned int s30 (vector unsigned int v, unsigned int x)
++{
++  return vec_insert (x, v, 30);
++}
++
++/* Test for vector residing in memory.  */
++vector unsigned int ms3 (vector unsigned int *vp, unsigned int x)
++{
++  return vec_insert (x, *vp, 3);
++}
++
++vector unsigned int ms1(vector unsigned int *vp, unsigned int x)
++{
++  return vec_insert (x, *vp, 1);
++}
++
++vector unsigned int ms21(vector unsigned int *vp, unsigned int x)
++{
++  return vec_insert (x, *vp, 21);
++}
++
++vector unsigned int ms30(vector unsigned int *vp, unsigned int x)
++{
++  return vec_insert (x, *vp, 30);
++}
++
++/* Test the same with variable indices.  */
++
++/* Test for variable selector and vector residing in register.  */
++__attribute__((noinline))
++vector unsigned int ci (vector unsigned int v, int i, unsigned int x)
++{
++  return vec_insert (x, v, i);
++}
++
++/* Test for variable selector and vector residing in memory.  */
++__attribute__((noinline))
++vector unsigned int mci(vector unsigned int *vp, int i, unsigned int x)
++{
++  return vec_insert (x, *vp, i);
++}
++
++
++int main (int argc, unsigned char *argv[]) {
++  vector unsigned int sv = { CONST0, CONST1, CONST2, CONST3 };
++
++  sv = s3 (sv, CONST2);
++  if (sv [3] != CONST2)
++    abort ();
++
++  sv = s1 (sv, CONST2);
++  if (sv [1] != CONST2)
++    abort ();
++
++  sv = s21 (sv, CONST3);
++  if (sv [1] != CONST3)
++    abort ();
++
++  sv = s30 (sv, CONST1);
++  if (sv [2] != CONST1)
++    abort ();
++
++  sv = ms3 (&sv, CONST0);
++  if (sv [3] != CONST0)
++    abort ();
++
++  sv = ms1 (&sv, CONST0);
++  if (sv [1] != CONST0)
++    abort ();
++
++  sv = ms21 (&sv, CONST1);
++  if (sv [1] != CONST1)
++    abort ();
++
++  sv = ms30 (&sv, CONST0);
++  if (sv [2] != CONST0)
++    abort ();
++
++  sv = ci (sv, 5, CONST3);
++  if (sv [1] != CONST3)
++    abort ();
++
++  sv = ci (sv, 2, CONST0);
++  if (sv [2] != CONST0)
++    abort ();
++
++  sv = ci (sv, 15, CONST1);
++  if (sv [3] != CONST1)
++    abort ();
++
++  sv = ci (sv, 28, CONST3);
++  if (sv [0] != CONST3)
++    abort ();
++
++  sv = mci (&sv, 5, CONST0);
++  if (sv [1] != CONST0)
++    abort ();
++
++  sv = mci (&sv, 12, CONST2);
++  if (sv [0] != CONST2)
++    abort ();
++
++  sv = mci (&sv, 25, CONST3);
++  if (sv [1] != CONST3)
++    abort ();
++
++  sv = mci (&sv, 16, CONST1);
++  if (sv [0] != CONST1)
 +    abort ();
 +
 +  return 0;
@@ -5667,6 +7980,133 @@ Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-19b.c
 +
 +  d = mei (&dv, 3);
 +  if (d != CONST1)
++    abort ();
++
++  return 0;
++}
+Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-19d.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-19d.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-19d.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,122 @@
++/* { dg-do run { target int128 } } */
++/* { dg-require-effective-target vsx_hw } */
++/* { dg-options "-mvsx -O3" } */
++
++/* This test should run the same on any target that supports vsx
++   instructions.  Intentionally not specifying cpu in order to test
++   all code generation paths.  */
++
++#include <altivec.h>
++
++extern void abort (void);
++
++#define CONST0		(31415926539LL)
++#define CONST1		(2 * 31415926539LL)
++#define CONST2		(3 * 31415926539LL)
++#define CONST3		(4 * 31415926539LL)
++#define CONST4		(5 * 31415926539LL)
++#define CONST5		(6 * 31415926539LL)
++#define CONST6		(7 * 31415926539LL)
++#define CONST7		(8 * 31415926539LL)
++
++/* Test that indices > length of vector are applied modulo the vector
++   length.  */
++
++/* Test for vector residing in register.  */
++vector unsigned long long int
++e0 (vector unsigned long long int v, unsigned long long int x)
++{
++  return vec_insert (x, v, 0);
++}
++
++vector unsigned long long int
++e3 (vector unsigned long long int v, unsigned long long int x)
++{
++  return vec_insert (x, v, 3);
++}
++
++/* Test for vector residing in memory.  */
++vector unsigned long long int
++me0 (vector unsigned long long int *vp, unsigned long long int x)
++{
++  return vec_insert (x, *vp, 0);
++}
++
++vector unsigned long long int
++me3 (vector unsigned long long int *vp, unsigned long long int x)
++{
++  return vec_insert (x, *vp, 3);
++}
++
++/* Test the same with variable indices.  */
++
++/* Test for variable selector and vector residing in register.  */
++__attribute__((noinline))
++vector unsigned long long int
++ei (vector unsigned long long int v, int i, unsigned long long int x)
++{
++  return vec_insert (x, v, i);
++}
++
++/* Test for variable selector and vector residing in memory.  */
++__attribute__((noinline))
++vector unsigned long long int
++mei (vector unsigned long long int *vp, int i, unsigned long long int x)
++{
++  return vec_insert (x, *vp, i);
++}
++
++int main (int argc, char *argv[]) {
++  vector unsigned long long int dv = { CONST0, CONST1 };
++  unsigned long long int d;
++
++  dv = e0 (dv, CONST7);
++  if (dv [0] != CONST7)
++    abort ();
++
++  dv = e3 (dv, CONST2);
++  if (dv [1] != CONST2)
++    abort ();
++
++  dv = me0 (&dv, CONST4);
++  if (dv [0] != CONST4)
++    abort ();
++
++  dv = me3 (&dv, CONST3);
++  if (dv [1] != CONST3)
++    abort ();
++
++  dv = ei (dv, 0, CONST5);
++  if (dv [0] != CONST5)
++    abort ();
++
++  dv = ei (dv, 1, CONST2);
++  if (dv [1] != CONST2)
++    abort ();
++
++  dv = ei (dv, 2, CONST3);
++  if (dv [0] != CONST3)
++    abort ();
++
++  dv = ei (dv, 3, CONST6);
++  if (dv [1] != CONST6)
++    abort ();
++
++  dv = mei (&dv, 0, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = mei (&dv, 1, CONST3);
++  if (dv [1] != CONST3)
++    abort ();
++
++  dv = mei (&dv, 2, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = mei (&dv, 3, CONST2);
++  if (dv [1] != CONST2)
 +    abort ();
 +
 +  return 0;
@@ -6365,6 +8805,320 @@ Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-20b.c
 +
 +  return 0;
 +}
+Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-10d.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-10d.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-10d.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,155 @@
++/* { dg-do run } */
++/* { dg-require-effective-target vmx_hw } */
++/* { dg-options "-maltivec -O3" } */
++
++/* This test should run the same on any target that supports altivec/vmx
++   instructions.  Intentionally not specifying cpu in order to test
++   all code generation paths.  */
++
++#include <altivec.h>
++
++extern void abort (void);
++
++#define CONST0		(0)
++#define CONST1		(1)
++#define CONST2		(2)
++#define CONST3		(3)
++#define CONST4		(4)
++#define CONST5		(5)
++#define CONST6		(6)
++#define CONST7		(7)
++
++
++/* Test that indices > length of vector are applied modulo the vector
++   length.  */
++
++/* Test for vector residing in register.  */
++vector short s3 (vector short v, short x)
++{
++  return vec_insert (x, v, 3);
++}
++
++vector short s7 (vector short v, short x)
++{
++  return vec_insert (x, v, 7);
++}
++
++vector short s21 (vector short v, short x)
++{
++  return vec_insert (x, v, 21);
++}
++
++vector short s30 (vector short v, short x)
++{
++  return vec_insert (x, v, 30);
++}
++
++/* Test for vector residing in memory.  */
++vector short ms3 (vector short *vp, short x)
++{
++  return vec_insert (x, *vp, 3);
++}
++
++vector short ms7 (vector short *vp, short x)
++{
++  return vec_insert (x, *vp, 7);
++}
++
++vector short ms21 (vector short *vp, short x)
++{
++  return vec_insert (x, *vp, 21);
++}
++
++vector short ms30 (vector short *vp, short x)
++{
++  return vec_insert (x, *vp, 30);
++}
++
++/* Test the same with variable indices.  */
++
++/* Test for variable selector and vector residing in register.  */
++__attribute__((noinline))
++vector short ci (vector short v, int i, short x)
++{
++  return vec_insert (x, v, i);
++}
++
++/* Test for variable selector and vector residing in memory.  */
++__attribute__((noinline))
++vector short mci (vector short *vp, int i, short x)
++{
++  return vec_insert (x, *vp, i);
++}
++
++
++int main (int argc, short *argv[]) {
++  vector short sv = {
++    CONST0, CONST1, CONST2, CONST3, CONST4, CONST5, CONST6, CONST7 };
++  short s;
++
++  sv = s3 (sv, CONST6);
++  if (sv [3] != CONST6)
++    abort ();
++
++  sv = s7 (sv, CONST4);
++  if (sv [7] != CONST4)
++    abort ();
++
++  sv = s21 (sv, CONST3);
++  if (sv [5] != CONST3)
++    abort ();
++
++  sv = s30 (sv, CONST2);
++  if (sv [6] != CONST2)
++    abort ();
++
++  sv = ms3 (&sv, CONST5);
++  if (sv [3] != CONST5)
++    abort ();
++
++  sv = ms7 (&sv, CONST1);
++  if (sv [7] != CONST1)
++    abort ();
++
++  sv = ms21 (&sv, CONST2);
++  if (sv [5] != CONST2)
++    abort ();
++
++  sv = ms30 (&sv, CONST0);
++  if (sv [6] != CONST0)
++    abort ();
++
++  sv = ci (sv, 5, CONST6);
++  if (sv [5] != CONST6)
++    abort ();
++
++  sv = ci (sv, 2, CONST4);
++  if (sv [2] != CONST4)
++    abort ();
++
++  sv = ci (sv, 15, CONST3);
++  if (sv [7] != CONST3)
++    abort ();
++
++  sv = ci (sv, 28, CONST3);
++  if (sv [4] != CONST3)
++    abort ();
++
++  sv = mci (&sv, 5, CONST3);
++  if (sv [5] != CONST3)
++    abort ();
++
++  sv = mci (&sv, 12, CONST7);
++  if (sv [4] != CONST7)
++    abort ();
++
++  sv = mci (&sv, 25, CONST6);
++  if (sv [1] != CONST6)
++    abort ();
++
++  sv = mci (&sv, 16, CONST5);
++  if (sv [0] != CONST5)
++    abort ();
++
++  return 0;
++}
+Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-11c.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-11c.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-11c.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,149 @@
++/* { dg-do run } */
++/* { dg-require-effective-target vmx_hw } */
++/* { dg-options "-maltivec" } */
++
++/* This test should run the same on any target that supports altivec/vmx
++   instructions.  Intentionally not specifying cpu in order to test
++   all code generation paths.  */
++
++#include <altivec.h>
++
++extern void abort (void);
++
++#define CONST0		(0)
++#define CONST1		(1)
++#define CONST2		(2)
++#define CONST3		(3)
++
++/* Test that indices > length of vector are applied modulo the vector
++   length.  */
++
++/* Test for vector residing in register.  */
++vector int s3 (vector int v, int x)
++{
++  return vec_insert (x, v, 3);
++}
++
++vector int s1 (vector int v, int x)
++{
++  return vec_insert (x, v, 1);
++}
++
++vector int s21 (vector int v, int x)
++{
++  return vec_insert (x, v, 21);
++}
++
++vector int s30 (vector int v, int x)
++{
++  return vec_insert (x, v, 30);
++}
++
++/* Test for vector residing in memory.  */
++vector int ms3  (vector int *vp, int x)
++{
++  return vec_insert (x, *vp, 3);
++}
++
++vector int ms1 (vector int *vp, int x)
++{
++  return vec_insert (x, *vp, 1);
++}
++
++vector int ms21 (vector int *vp, int x)
++{
++  return vec_insert (x, *vp, 21);
++}
++
++vector int ms30 (vector int *vp, int x)
++{
++  return vec_insert (x, *vp, 30);
++}
++
++/* Test the same with variable indices.  */
++
++/* Test for variable selector and vector residing in register.  */
++__attribute__((noinline))
++vector int ci (vector int v, int i, int x)
++{
++  return vec_insert (x, v, i);
++}
++
++/* Test for variable selector and vector residing in memory.  */
++__attribute__((noinline))
++vector int mci(vector int *vp, int i, int x)
++{
++  return vec_insert (x, *vp, i);
++}
++
++
++int main (int argc, int *argv[]) {
++  vector int sv = { CONST0, CONST1, CONST2, CONST3 };
++  int s;
++
++  sv = s3 (sv, CONST1);
++  if (sv [3] != CONST1)
++    abort ();
++
++  sv = s1 (sv, CONST3);
++  if (sv [1] != CONST3)
++    abort ();
++
++  sv = s21 (sv, CONST0);
++  if (sv [1] != CONST0)
++    abort ();
++
++  sv = s30 (sv, CONST1);
++  if (sv [2] != CONST1)
++    abort ();
++
++  sv = ms3 (&sv, CONST2);
++  if (sv [3] != CONST2)
++    abort ();
++
++  sv = ms1 (&sv, CONST0);
++  if (sv [1] != CONST0)
++    abort ();
++
++  sv = ms21 (&sv, CONST3);
++  if (sv [1] != CONST3)
++    abort ();
++
++  sv = ms30 (&sv, CONST0);
++  if (sv [2] != CONST0)
++    abort ();
++
++  sv = ci (sv, 5, CONST0);
++  if (sv [1] != CONST0)
++    abort ();
++
++  sv = ci (sv, 2, CONST3);
++  if (sv [2] != CONST3)
++    abort ();
++
++  sv = ci (sv, 15, CONST1);
++  if (sv [3] != CONST1)
++    abort ();
++
++  sv = ci (sv, 28, CONST3);
++  if (sv [0] != CONST3)
++    abort ();
++
++  sv = mci (&sv, 5, CONST2);
++  if (sv [1] != CONST2)
++    abort ();
++
++  sv = mci (&sv, 12, CONST1);
++  if (sv [0] != CONST1)
++    abort ();
++
++  sv = mci (&sv, 25, CONST2);
++  if (sv [1] != CONST2)
++    abort ();
++
++  sv = mci (&sv, 16, CONST3);
++  if (sv [0] != CONST3)
++    abort ();
++
++  return 0;
++}
 Index: gcc/testsuite/gcc.target/powerpc/mmx-psubd-2.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/powerpc/mmx-psubd-2.c	(.../tags/gcc_8_3_0_release)
@@ -6401,6 +9155,175 @@ Index: gcc/testsuite/gcc.target/powerpc/mmx-psubd-2.c
 +  if (u.as_m64 != e.as_m64 || u.as_m64 != v.as_m64)
      abort ();
  }
+Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-9c.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-9c.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-9c.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,164 @@
++/* { dg-do run } */
++/* { dg-require-effective-target vmx_hw } */
++/* { dg-options "-maltivec" } */
++
++/* This test should run the same on any target that supports altivec/vmx
++   instructions.  Intentionally not specifying cpu in order to test
++   all code generation paths.  */
++
++#include <altivec.h>
++
++extern void abort (void);
++
++#define CONST0		(0)
++#define CONST1		(1)
++#define CONST2		(2)
++#define CONST3		(3)
++#define CONST4		(4)
++#define CONST5		(5)
++#define CONST6		(6)
++#define CONST7		(7)
++#define CONST8		(8)
++#define CONST9		(9)
++#define CONSTA		(10)
++#define CONSTB		(11)
++#define CONSTC		(12)
++#define CONSTD		(13)
++#define CONSTE		(14)
++#define CONSTF		(15)
++
++
++/* Test that indices > length of vector are applied modulo the vector
++   length.  */
++
++/* Test for vector residing in register.  */
++vector signed char c0 (vector signed char v, signed char x)
++{
++  return vec_insert (x, v, 0);
++}
++
++vector signed char c9 (vector signed char v, signed char x)
++{
++  return vec_insert (x, v, 9);
++}
++
++vector signed char c21 (vector signed char v, signed char x)
++{
++  return vec_insert (x, v, 21);
++}
++
++vector signed char c30 (vector signed char v, signed char x)
++{
++  return vec_insert (x, v, 30);
++}
++
++/* Test for vector residing in memory.  */
++vector signed char mc0 (vector signed char *vp, signed char x)
++{
++  return vec_insert (x, *vp, 0);
++}
++
++vector signed char mc9 (vector signed char *vp, signed char x)
++{
++  return vec_insert (x, *vp, 9);
++}
++
++vector signed char mc21 (vector signed char *vp, signed char x)
++{
++  return vec_insert (x, *vp, 21);
++}
++
++vector signed char mc30 (vector signed char *vp, signed char x)
++{
++  return vec_insert (x, *vp, 30);
++}
++
++/* Test the same with variable indices.  */
++
++/* Test for variable selector and vector residing in register.  */
++__attribute__((noinline))
++vector signed char ci (vector signed char v, int i, signed char x)
++{
++  return vec_insert (x, v, i);
++}
++
++/* Test for variable selector and vector residing in memory.  */
++__attribute__((noinline))
++vector signed char mci(vector signed char *vp, int i, signed char x) {
++  return vec_insert (x, *vp, i);
++}
++
++
++int main (int argc, char *argv[]) {
++  vector signed char cv = { CONST0, CONST1, CONST2, CONST3,
++			    CONST4, CONST5, CONST6, CONST7,
++			    CONST8, CONST9, CONSTA, CONSTB,
++			    CONSTC, CONSTD, CONSTE, CONSTF };
++  signed char c;
++
++  cv = c0 (cv, CONSTF);
++  if (cv [0] != CONSTF)
++    abort ();
++
++  cv = c9 (cv, CONST7);
++  if (cv [9] != CONST7)
++    abort ();
++
++  cv = c21 (cv, CONSTA);
++  if (cv [5] != CONSTA)
++    abort ();
++
++  cv = c30 (cv, CONSTC);
++  if (cv [14] != CONSTC)
++    abort ();
++
++  cv = mc0 (&cv, CONSTB);
++  if (cv [0] != CONSTB)
++    abort ();
++
++  cv = mc9 (&cv, CONST1);
++  if (cv [9] != CONST1)
++    abort ();
++
++  cv = mc21 (&cv, CONST7);
++  if (cv [5] != CONST7)
++    abort ();
++
++  cv = mc30 (&cv, CONST2);
++  if (cv [14] != CONST2)
++    abort ();
++
++  cv = ci (cv, 8, CONST4);
++  if (cv [8] != CONST4)
++    abort ();
++
++  cv = ci (cv, 13, CONSTB);
++  if (cv [13] != CONSTB)
++    abort ();
++
++  cv = ci (cv, 23, CONST3);
++  if (cv [7] != CONST3)
++    abort ();
++
++  cv = ci (cv, 31, CONST2);
++  if (cv [15] != CONST2)
++    abort ();
++
++  cv = mci (&cv, 5, CONST1);
++  if (cv [5] != CONST1)
++    abort ();
++
++  cv = mci (&cv, 12, CONST3);
++  if (cv [12] != CONST3)
++    abort ();
++
++  cv = mci (&cv, 25, CONST5);
++  if (cv [9] != CONST5)
++    abort ();
++
++  cv = mci (&cv, 16, CONSTD);
++  if (cv [0] != CONSTD)
++    abort ();
++
++  return 0;
++}
 Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-12b.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-12b.c	(.../tags/gcc_8_3_0_release)
@@ -6642,6 +9565,363 @@ Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-13a.c
 +    abort ();
 +#endif
 +
++  return 0;
++}
+Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-20d.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-20d.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-20d.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,115 @@
++/* { dg-do run { target int128 } } */
++/* { dg-require-effective-target vsx_hw } */
++/* { dg-options "-mvsx -O3" } */
++
++/* This test should run the same on any target that supports vsx
++   instructions.  Intentionally not specifying cpu in order to test
++   all code generation paths.  */
++
++#include <altivec.h>
++
++extern void abort (void);
++
++#define CONST0		(((unsigned __int128) 31415926539) << 60)
++#define CONST1		(((unsigned __int128) 31415926539) << 54)
++#define CONST2		(((unsigned __int128) 31415926539) << 48)
++#define CONST3		(((unsigned __int128) 31415926539) << 32)
++
++/* Test that indices > length of vector are applied modulo the vector
++   length.  */
++
++/* Test for vector residing in register.  */
++vector unsigned __int128 e0 (vector unsigned __int128 v, unsigned __int128 x)
++{
++  return vec_insert (x, v, 0);
++}
++
++vector unsigned __int128 e3 (vector unsigned __int128 v, unsigned __int128 x)
++{
++  return vec_insert (x, v, 3);
++}
++
++/* Test for vector residing in memory.  */
++vector unsigned __int128
++me0 (vector unsigned __int128 *vp, unsigned __int128 x)
++{
++  return vec_insert (x, *vp, 0);
++}
++
++vector unsigned __int128
++me3 (vector unsigned __int128 *vp, unsigned __int128 x)
++{
++  return vec_insert (x, *vp, 3);
++}
++
++/* Test the same with variable indices.  */
++
++/* Test for variable selector and vector residing in register.  */
++__attribute__((noinline))
++vector unsigned __int128
++ei (vector unsigned __int128 v, int i, unsigned __int128 x)
++{
++  return vec_insert (x, v, i);
++}
++
++/* Test for variable selector and vector residing in memory.  */
++__attribute__((noinline))
++vector unsigned __int128
++mei (vector unsigned __int128 *vp, int i, unsigned __int128 x)
++{
++  return vec_insert (x, *vp, i);
++}
++
++int main (int argc, char *argv[]) {
++  vector unsigned __int128 dv = { CONST0 };
++
++  dv = e0 (dv, CONST3);
++  if (dv [0] != CONST3)
++    abort ();
++
++  dv = e3 (dv, CONST2);
++  if (dv [0] != CONST2)
++    abort ();
++
++  dv = me0 (&dv, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = me3 (&dv, CONST3);
++  if (dv [0] != CONST3)
++    abort ();
++
++  dv = ei (dv, 0, CONST0);
++  if (dv [0] != CONST0)
++    abort ();
++
++  dv = ei (dv, 1, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = ei (dv, 2, CONST2);
++  if (dv [0] != CONST2)
++    abort ();
++
++  dv = ei (dv, 3, CONST3);
++  if (dv [0] != CONST3)
++    abort ();
++
++  dv = mei (&dv, 0, CONST0);
++  if (dv [0] != CONST0)
++    abort ();
++
++  dv = mei (&dv, 1, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = mei (&dv, 2, CONST2);
++  if (dv [0] != CONST2)
++    abort ();
++
++  dv = mei (&dv, 3, CONST3);
++  if (dv [0] != CONST3)
++    abort ();
++
++  return 0;
++}
+Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-12d.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-12d.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-12d.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,112 @@
++/* { dg-do run { target int128 } } */
++/* { dg-require-effective-target vsx_hw } */
++/* { dg-options "-mvsx -O3" } */
++
++/* This test should run the same on any target that supports vsx
++   instructions.  Intentionally not specifying cpu in order to test
++   all code generation paths.  */
++
++#include <altivec.h>
++
++extern void abort (void);
++
++#define CONST0		(31415926539LL)
++#define CONST1		(2 * 31415926539LL)
++#define CONST2		(3 * 31415926539LL)
++#define CONST3		(4 * 31415926539LL)
++
++/* Test that indices > length of vector are applied modulo the vector
++   length.  */
++
++/* Test for vector residing in register.  */
++vector long long int e0 (vector long long int v, long long int x)
++{
++  return vec_insert (x, v, 0);
++}
++
++vector long long int e3 (vector long long int v, long long int x)
++{
++  return vec_insert (x, v, 3);
++}
++
++/* Test for vector residing in memory.  */
++vector long long int me0 (vector long long int *vp, long long int x)
++{
++  return vec_insert (x, *vp, 0);
++}
++
++vector long long int me3 (vector long long int *vp, long long int x)
++{
++  return vec_insert (x, *vp, 3);
++}
++
++/* Test the same with variable indices.  */
++
++/* Test for variable selector and vector residing in register.  */
++__attribute__((noinline))
++vector long long int ei (vector long long int v, int i, long long int x)
++{
++  return vec_insert (x, v, i);
++}
++
++/* Test for variable selector and vector residing in memory.  */
++__attribute__((noinline))
++vector long long int mei (vector long long int *vp, int i, long long int x)
++{
++  return vec_insert (x, *vp, i);
++}
++
++int main (int argc, char *argv[]) {
++  vector long long int dv = { CONST0, CONST1 };
++  long long int d;
++
++  dv = e0 (dv, CONST3);
++  if (dv [0] != CONST3)
++    abort ();
++
++  dv = e3 (dv, CONST0);
++  if (dv [1] != CONST0)
++    abort ();
++
++  dv = me0 (&dv, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = me3 (&dv, CONST2);
++  if (dv [1] != CONST2)
++    abort ();
++
++  dv = ei (dv, 0, CONST3);
++  if (dv [0] != CONST3)
++    abort ();
++
++  dv = ei (dv, 1, CONST2);
++  if (dv [1] != CONST2)
++    abort ();
++
++  dv = ei (dv, 2, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = ei (dv, 3, CONST3);
++  if (dv [1] != CONST3)
++    abort ();
++
++  dv = mei (&dv, 0, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = mei (&dv, 1, CONST0);
++  if (dv [1] != CONST0)
++    abort ();
++
++  dv = mei (&dv, 2, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = mei (&dv, 3, CONST2);
++  if (dv [1] != CONST2)
++    abort ();
++
++  return 0;
++}
+Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-13c.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-13c.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-13c.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,115 @@
++/* { dg-do run { target int128 } } */
++/* { dg-require-effective-target vsx_hw } */
++/* { dg-options "-mvsx" } */
++
++/* This test should run the same on any target that supports vsx
++   instructions.  Intentionally not specifying cpu in order to test
++   all code generation paths.  */
++
++#include <altivec.h>
++
++#define SIGNED signed
++
++extern void abort (void);
++
++#define CONST0		(((SIGNED __int128) 31415926539) << 60)
++#define CONST1		(((SIGNED __int128) 31415926539) << 55)
++#define CONST2		(((SIGNED __int128) 31415926539) << 50)
++#define CONST3		(((SIGNED __int128) 31415926539) << 45)
++
++/* Test that indices > length of vector are applied modulo the vector
++   length.  */
++
++/* Test for vector residing in register.  */
++vector SIGNED __int128 e0 (vector SIGNED __int128 v, SIGNED __int128 x)
++{
++  return vec_insert (x, v, 0);
++}
++
++vector SIGNED __int128 e3 (vector SIGNED __int128 v, SIGNED __int128 x)
++{
++  return vec_insert (x, v, 3);
++}
++
++/* Test for vector residing in memory.  */
++vector SIGNED __int128 me0 (vector SIGNED __int128 *vp, SIGNED __int128 x)
++{
++  return vec_insert (x, *vp, 0);
++}
++
++vector SIGNED __int128 me3 (vector SIGNED __int128 *vp, SIGNED __int128 x)
++{
++  return vec_insert (x, *vp, 3);
++}
++
++/* Test the same with variable indices.  */
++
++/* Test for variable selector and vector residing in register.  */
++__attribute__((noinline))
++vector SIGNED __int128
++ei (vector SIGNED __int128 v, int i, SIGNED __int128 x)
++{
++  return vec_insert (x, v, i);
++}
++
++/* Test for variable selector and vector residing in memory.  */
++__attribute__((noinline))
++vector SIGNED __int128
++mei (vector SIGNED __int128 *vp, int i, SIGNED __int128 x)
++{
++  return vec_insert (x, *vp, i);
++}
++
++int main (int argc, char *argv[]) {
++  vector SIGNED __int128 dv = { CONST0 };
++  SIGNED __int128 d;
++
++  dv = e0 (dv, CONST3);
++  if (dv [0] != CONST3)
++    abort ();
++
++  dv = e3 (dv, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = me0 (&dv, CONST2);
++  if (dv [0] != CONST2)
++    abort ();
++
++  dv = me3 (&dv, CONST3);
++  if (dv [0] != CONST3)
++    abort ();
++
++  dv = ei (dv, 0, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = ei (dv, 1, CONST2);
++  if (dv [0] != CONST2)
++    abort ();
++
++  dv = ei (dv, 2, CONST3);
++  if (dv [0] != CONST3)
++    abort ();
++
++  dv = ei (dv, 3, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = mei (&dv, 0, CONST2);
++  if (dv [0] != CONST2)
++    abort ();
++
++  dv = mei (&dv, 1, CONST3);
++  if (dv [0] != CONST3)
++    abort ();
++
++  dv = mei (&dv, 2, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = mei (&dv, 3, CONST2);
++  if (dv [0] != CONST2)
++    abort ();
 +  return 0;
 +}
 Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-14b.c
@@ -6986,6 +10266,316 @@ Index: gcc/testsuite/gcc.target/powerpc/pr87532.c
 +	  a[0], a[1], a[2], a[3], a[4]);
 +
 +  do_auto (a);
++
++  return 0;
++}
+Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-14d.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-14d.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-14d.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,149 @@
++/* { dg-do run } */
++/* { dg-require-effective-target vmx_hw } */
++/* { dg-options "-maltivec -O3" } */
++
++/* This test should run the same on any target that supports altivec/vmx
++   instructions.  Intentionally not specifying cpu in order to test
++   all code generation paths.  */
++
++#include <altivec.h>
++
++extern void abort (void);
++
++#define CONST0		((float) (3.1415926539))
++#define CONST1		((float) (3.1415926539 * 2))
++#define CONST2		((float) (3.1415926539 * 3))
++#define CONST3		((float) (3.1415926539 * 4))
++
++/* Test that indices > length of vector are applied modulo the vector
++   length.  */
++
++/* Test for vector residing in register.  */
++vector float e0(vector float v, float x)
++{
++  return vec_insert (x, v, 0);
++}
++
++vector float e1(vector float v, float x)
++{
++  return vec_insert (x, v, 1);
++}
++
++vector float e7(vector float v, float x)
++{
++  return vec_insert (x, v, 7);
++}
++
++vector float e8(vector float v, float x)
++{
++  return vec_insert (x, v, 8);
++}
++
++/* Test for vector residing in memory.  */
++vector float me0(vector float *vp, float x)
++{
++  return vec_insert (x, *vp, 0);
++}
++
++vector float me1(vector float *vp, float x)
++{
++  return vec_insert (x, *vp, 1);
++}
++
++vector float me13(vector float *vp, float x)
++{
++  return vec_insert (x, *vp, 13);
++}
++
++vector float me15(vector float *vp, float x)
++{
++  return vec_insert (x, *vp, 15);
++}
++
++/* Test the same with variable indices.  */
++
++/* Test for variable selector and vector residing in register.  */
++__attribute__((noinline))
++vector float ei(vector float v, int i, float x)
++{
++  return vec_insert (x, v, i);
++}
++
++/* Test for variable selector and vector residing in memory.  */
++__attribute__((noinline))
++vector float mei(vector float *vp, int i, float x)
++{
++  return vec_insert (x, *vp, i);
++}
++
++
++int main (int argc, char *argv[]) {
++  vector float dv = { CONST0, CONST1, CONST2, CONST3 };
++  float d;
++
++  dv = e0 (dv, CONST3);
++  if (dv [0] != CONST3)
++    abort ();
++
++  dv = e1 (dv, CONST0);
++  if (dv [1] != CONST0)
++    abort ();
++
++  dv = e7 (dv, CONST2);
++  if (dv [3] != CONST2)
++    abort ();
++
++  dv = e8 (dv, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = me0 (&dv, CONST2);
++  if (dv [0] != CONST2)
++    abort ();
++
++  dv = me1 (&dv, CONST3);
++  if (dv [1] != CONST3)
++    abort ();
++
++  dv = me13 (&dv, CONST2);
++  if (dv [1] != CONST2)
++    abort ();
++
++  dv = me15 (&dv, CONST1);
++  if (dv [3] != CONST1)
++    abort ();
++
++  dv = ei (dv, 0, CONST3);
++  if (dv [0] != CONST3)
++    abort ();
++
++  dv = ei (dv, 2, CONST1);
++  if (dv [2] != CONST1)
++    abort ();
++
++  dv = ei (dv, 11, CONST0);
++  if (dv [3] != CONST0)
++    abort ();
++
++  dv = ei (dv, 17, CONST2);
++  if (dv [1] != CONST2)
++    abort ();
++
++  dv = mei (&dv, 0, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = mei (&dv, 1, CONST0);
++  if (dv [1] != CONST0)
++    abort ();
++
++  dv = mei (&dv, 15, CONST1);
++  if (dv [3] != CONST1)
++    abort ();
++
++  dv = mei (&dv, 6, CONST0);
++  if (dv [2] != CONST0)
++    abort ();
++
++  return 0;
++}
+Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-15c.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-15c.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-15c.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,151 @@
++/* { dg-do run { target int128 } } */
++/* { dg-require-effective-target vsx_hw } */
++/* { dg-options "-mvsx" } */
++
++/* This test should run the same on any target that supports vsx
++   instructions.  Intentionally not specifying cpu in order to test
++   all code generation paths.  */
++
++#include <altivec.h>
++
++extern void abort (void);
++
++#define CONST0		(3.1415926539)
++#define CONST1		(3.1415926539 * 2)
++#define CONST2		(3.1415926539 * 3)
++#define CONST3		(3.1415926539 * 4)
++
++
++/* Test that indices > length of vector are applied modulo the vector
++   length.  */
++
++/* Test for vector residing in register.  */
++vector double e0(vector double v, double x)
++{
++  return vec_insert (x, v, 0);
++}
++
++vector double e1(vector double v, double x)
++{
++  return vec_insert (x, v, 1);
++}
++
++vector double e2(vector double v, double x)
++{
++  return vec_insert (x, v, 2);
++}
++
++vector double e3(vector double v, double x)
++{
++  return vec_insert (x, v, 3);
++}
++
++/* Test for vector residing in memory.  */
++vector double me0(vector double *vp, double x)
++{
++  return vec_insert (x, *vp, 0);
++}
++
++vector double me1(vector double *vp, double x)
++{
++  return vec_insert (x, *vp, 1);
++}
++
++vector double me2(vector double *vp, double x)
++{
++  return vec_insert (x, *vp, 2);
++}
++
++vector double me3(vector double *vp, double x)
++{
++  return vec_insert (x, *vp, 3);
++}
++
++/* Test the same with variable indices.  */
++
++/* Test for variable selector and vector residing in register.  */
++__attribute__((noinline))
++vector double ei(vector double v, int i, double x)
++{
++  return vec_insert (x, v, i);
++}
++
++/* Test for variable selector and vector residing in memory.  */
++__attribute__((noinline))
++vector double mei(vector double *vp, int i, double x)
++{
++  return vec_insert (x, *vp, i);
++}
++
++int main (int argc, char *argv[]) {
++  vector double dv;
++  double d;
++  dv[0] = CONST0;
++  dv[1] = CONST1;
++
++  dv = e0 (dv, CONST3);
++  if (dv [0] != CONST3)
++    abort ();
++
++  dv = e1 (dv, CONST2);
++  if (dv [1] != CONST2)
++    abort ();
++
++  dv = e2 (dv, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = e3 (dv, CONST0);
++  if (dv [1] != CONST0)
++    abort ();
++
++  dv = me0 (&dv, CONST2);
++  if (dv [0] != CONST2)
++    abort ();
++
++  dv = me1 (&dv, CONST3);
++  if (dv [1] != CONST3)
++    abort ();
++
++  dv = me2 (&dv, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = me3 (&dv, CONST0);
++  if (dv [1] != CONST0)
++    abort ();
++
++  dv = ei (dv, 0, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = ei (dv, 1, CONST0);
++  if (dv [1] != CONST0)
++    abort ();
++
++  dv = ei (dv, 2, CONST3);
++  if (dv [0] != CONST3)
++    abort ();
++
++  dv = ei (dv, 3, CONST2);
++  if (dv [1] != CONST2)
++    abort ();
++
++  dv = mei (&dv, 0, CONST1);
++  if (dv [0] != CONST1)
++    abort ();
++
++  dv = mei (&dv, 1, CONST0);
++  if (dv [1] != CONST0)
++    abort ();
++
++  dv = mei (&dv, 2, CONST2);
++  if (dv [0] != CONST2)
++    abort ();
++
++  dv = mei (&dv, 3, CONST3);
++  if (dv [1] != CONST3)
++    abort ();
 +
 +  return 0;
 +}
@@ -7577,6 +11167,174 @@ Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-17a.c
 +
 +  return 0;
 +}
+Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-16d.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-16d.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-16d.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,163 @@
++/* { dg-do run } */
++/* { dg-require-effective-target vmx_hw } */
++/* { dg-options "-maltivec -O3" } */
++
++/* This test should run the same on any target that supports altivec/vmx
++   instructions.  Intentionally not specifying cpu in order to test
++   all code generation paths.  */
++
++#include <altivec.h>
++
++extern void abort (void);
++
++#define CONST0		(0)
++#define CONST1		(1)
++#define CONST2		(2)
++#define CONST3		(3)
++#define CONST4		(4)
++#define CONST5		(5)
++#define CONST6		(6)
++#define CONST7		(7)
++#define CONST8		(8)
++#define CONST9		(9)
++#define CONSTA		(10)
++#define CONSTB		(11)
++#define CONSTC		(12)
++#define CONSTD		(13)
++#define CONSTE		(14)
++#define CONSTF		(15)
++
++
++/* Test that indices > length of vector are applied modulo the vector
++   length.  */
++
++/* Test for vector residing in register.  */
++vector unsigned char c0 (vector unsigned char v, unsigned char x)
++{
++  return vec_insert (x, v, 0);
++}
++
++vector unsigned char c9 (vector unsigned char v, unsigned char x)
++{
++  return vec_insert (x, v, 9);
++}
++
++vector unsigned char c21 (vector unsigned char v, unsigned char x)
++{
++  return vec_insert (x, v, 21);
++}
++
++vector unsigned char c30 (vector unsigned char v, unsigned char x)
++{
++  return vec_insert (x, v, 30);
++}
++
++/* Test for vector residing in memory.  */
++vector unsigned char mc0 (vector unsigned char *vp, unsigned char x)
++{
++  return vec_insert (x, *vp, 0);
++}
++
++vector unsigned char mc9 (vector unsigned char *vp, unsigned char x)
++{
++  return vec_insert (x, *vp, 9);
++}
++
++vector unsigned char mc21 (vector unsigned char *vp, unsigned char x)
++{
++  return vec_insert (x, *vp, 21);
++}
++
++vector unsigned char mc30 (vector unsigned char *vp, unsigned char x)
++{
++  return vec_insert (x, *vp, 30);
++}
++
++/* Test the same with variable indices.  */
++
++/* Test for variable selector and vector residing in register.  */
++__attribute__((noinline))
++vector unsigned char ci (vector unsigned char v, int i, unsigned char x)
++{
++  return vec_insert (x, v, i);
++}
++
++/* Test for variable selector and vector residing in memory.  */
++__attribute__((noinline))
++vector unsigned char mci (vector unsigned char *vp, int i, unsigned char x)
++{
++  return vec_insert (x, *vp, i);
++}
++
++
++int main (int argc, char *argv[]) {
++  vector unsigned char cv = { CONST0, CONST1, CONST2, CONST3,
++			      CONST4, CONST5, CONST6, CONST7,
++			      CONST8, CONST9, CONSTA, CONSTB,
++			      CONSTC, CONSTD, CONSTE, CONSTF };
++  cv = c0 (cv, CONST3);
++  if (cv [0] != CONST3)
++    abort ();
++
++  cv = c9 (cv, CONST2);
++  if (cv [9] != CONST2)
++    abort ();
++
++  cv = c21 (cv, CONSTF);
++  if (cv [5] != CONSTF)
++    abort ();
++
++  cv = c30 (cv, CONST3);
++  if (cv [14] != CONST3)
++    abort ();
++
++  cv = mc0 (&cv, CONST4);
++  if (cv [0] != CONST4)
++    abort ();
++
++  cv = mc9 (&cv, CONST3);
++  if (cv [9] != CONST3)
++    abort ();
++
++  cv = mc21 (&cv, CONST1);
++  if (cv [5] != CONST1)
++    abort ();
++
++  cv = mc30 (&cv, CONSTC);
++  if (cv [14] != CONSTC)
++    abort ();
++
++  cv = ci (cv, 8, CONSTD);
++  if (cv [8] != CONSTD)
++    abort ();
++
++  cv = ci (cv, 13, CONST5);
++  if (cv [13] != CONST5)
++    abort ();
++
++  cv = ci (cv, 23, CONST6);
++  if (cv [7] != CONST6)
++    abort ();
++
++  cv = ci (cv, 31, CONST7);
++  if (cv [15] != CONST7)
++    abort ();
++
++  cv = mci (&cv, 5, CONST8);
++  if (cv [5] != CONST8)
++    abort ();
++
++  cv = mci (&cv, 12, CONST9);
++  if (cv [12] != CONST9)
++    abort ();
++
++  cv = mci (&cv, 25, CONSTA);
++  if (cv [9] != CONSTA)
++    abort ();
++
++  cv = mci (&cv, 16, CONSTB);
++  if (cv [0] != CONSTB)
++    abort ();
++
++  return 0;
++}
 Index: gcc/testsuite/gcc.target/powerpc/pr88100.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/powerpc/pr88100.c	(.../tags/gcc_8_3_0_release)
@@ -7625,6 +11383,570 @@ Index: gcc/testsuite/gcc.target/powerpc/pr88100.c
 +splats3 (void)
 +{
 +  return vec_splat_s32(0x10000000);/* { dg-error "argument 1 must be a 5-bit signed literal" } */
++}
+Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-17c.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-17c.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-17c.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,154 @@
++/* { dg-do run } */
++/* { dg-require-effective-target vmx_hw } */
++/* { dg-options "-maltivec" } */
++
++/* This test should run the same on any target that supports altivec/vmx
++   instructions.  Intentionally not specifying cpu in order to test
++   all code generation paths.  */
++
++#include <altivec.h>
++
++extern void abort (void);
++
++#define CONST0		(0)
++#define CONST1		(1)
++#define CONST2		(2)
++#define CONST3		(3)
++#define CONST4		(4)
++#define CONST5		(5)
++#define CONST6		(6)
++#define CONST7		(7)
++
++
++/* Test that indices > length of vector are applied modulo the vector
++   length.  */
++
++/* Test for vector residing in register.  */
++vector unsigned short s3 (vector unsigned short v, unsigned short x)
++{
++  return vec_insert (x, v, 3);
++}
++
++vector unsigned short s7 (vector unsigned short v, unsigned short x)
++{
++  return vec_insert (x, v, 7);
++}
++
++vector unsigned short s21 (vector unsigned short v, unsigned short x)
++{
++  return vec_insert (x, v, 21);
++}
++
++vector unsigned short s30 (vector unsigned short v, unsigned short x)
++{
++  return vec_insert (x, v, 30);
++}
++
++/* Test for vector residing in memory.  */
++vector unsigned short ms3 (vector unsigned short *vp, unsigned short x)
++{
++  return vec_insert (x, *vp, 3);
++}
++
++vector unsigned short ms7 (vector unsigned short *vp, unsigned short x)
++{
++  return vec_insert (x, *vp, 7);
++}
++
++vector unsigned short ms21 (vector unsigned short *vp, unsigned short x)
++{
++  return vec_insert (x, *vp, 21);
++}
++
++vector unsigned short ms30 (vector unsigned short *vp, unsigned short x)
++{
++  return vec_insert (x, *vp, 30);
++}
++
++/* Test the same with variable indices.  */
++
++/* Test for variable selector and vector residing in register.  */
++__attribute__((noinline))
++vector unsigned short ci (vector unsigned short v, int i, unsigned short x)
++{
++  return vec_insert (x, v, i);
++}
++
++/* Test for variable selector and vector residing in memory.  */
++__attribute__((noinline))
++vector unsigned short mci (vector unsigned short *vp, int i, unsigned short x)
++{
++  return vec_insert (x, *vp, i);
++}
++
++
++int main (int argc, unsigned short *argv[]) {
++  vector unsigned short sv = {
++    CONST0, CONST1, CONST2, CONST3, CONST4, CONST5, CONST6, CONST7 };
++
++  sv = s3 (sv, CONST1);
++  if (sv [3] != CONST1)
++    abort ();
++
++  sv = s7 (sv, CONST2);
++  if (sv [7] != CONST2)
++    abort ();
++
++  sv = s21 (sv, CONST3);
++  if (sv [5] != CONST3)
++    abort ();
++
++  sv = s30 (sv, CONST4);
++  if (sv [6] != CONST4)
++    abort ();
++
++  sv = ms3 (&sv, CONST5);
++  if (sv [3] != CONST5)
++    abort ();
++
++  sv = ms7 (&sv, CONST6);
++  if (sv [7] != CONST6)
++    abort ();
++
++  sv = ms21 (&sv, CONST7);
++  if (sv [5] != CONST7)
++    abort ();
++
++  sv = ms30 (&sv, CONST0);
++  if (sv [6] != CONST0)
++    abort ();
++
++  sv = ci (sv, 5, CONST1);
++  if (sv [5] != CONST1)
++    abort ();
++
++  sv = ci (sv, 2, CONST3);
++  if (sv [2] != CONST3)
++    abort ();
++
++  sv = ci (sv, 15, CONST2);
++  if (sv [7] != CONST2)
++    abort ();
++
++  sv = ci (sv, 28, CONST5);
++  if (sv [4] != CONST5)
++    abort ();
++
++  sv = mci (&sv, 5, CONST4);
++  if (sv [5] != CONST4)
++    abort ();
++
++  sv = mci (&sv, 12, CONST6);
++  if (sv [4] != CONST6)
++    abort ();
++
++  sv = mci (&sv, 25, CONST7);
++  if (sv [1] != CONST7)
++    abort ();
++
++  sv = mci (&sv, 16, CONST4);
++  if (sv [0] != CONST4)
++    abort ();
++
++  return 0;
++}
+Index: gcc/testsuite/gcc.target/powerpc/pr89765-mc.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/pr89765-mc.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/pr89765-mc.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,400 @@
++/* { dg-do run { target int128 } } */
++/* { dg-require-effective-target vsx_hw } */
++/* { dg-options "-mvsx -O2" } */
++
++/* This test should run the same on any target that supports vsx
++   instructions.  Intentionally not specifying cpu in order to test
++   all code generation paths.  */
++
++#include <stdlib.h>
++#include <stddef.h>
++#include <altivec.h>
++
++#include <stdio.h>
++
++static vector unsigned __int128
++deoptimize_uint128 (vector unsigned __int128  a)
++{
++  __asm__ (" # %x0" : "+v" (a));
++  return a;
++}
++
++static vector unsigned long long int
++deoptimize_ulong (vector unsigned long long int a)
++{
++  __asm__ (" # %x0" : "+v" (a));
++  return a;
++}
++
++static vector unsigned int
++deoptimize_uint (vector unsigned int a)
++{
++  __asm__ (" # %x0" : "+v" (a));
++  return a;
++}
++
++static vector unsigned char
++deoptimize_uchar (vector unsigned char a)
++{
++  __asm__ (" # %x0" : "+v" (a));
++  return a;
++}
++
++static vector unsigned short
++deoptimize_ushort (vector unsigned short a)
++{
++  __asm__ (" # %x0" : "+v" (a));
++  return a;
++}
++
++__attribute ((noinline))
++vector unsigned __int128
++set_auto_n_uint128 (vector unsigned __int128 a, int n, unsigned __int128 x)
++{
++  return vec_insert (x, a, n);
++}
++
++__attribute ((noinline))
++vector unsigned long long int
++set_auto_n_ulong (vector unsigned long long int a, int n,
++		  unsigned long long int x)
++{
++  return vec_insert (x, a, n);
++}
++
++__attribute ((noinline))
++vector unsigned int
++set_auto_n_uint (vector unsigned int a, int n, unsigned int x)
++{
++  return vec_insert (x, a, n);
++}
++
++__attribute ((noinline))
++vector unsigned char
++set_auto_n_uchar (vector unsigned char a, int n, unsigned char x)
++{
++  return vec_insert (x, a, n);
++}
++
++__attribute ((noinline))
++vector unsigned short
++set_auto_n_ushort (vector unsigned short a, int n, unsigned short x)
++{
++  return vec_insert (x, a, n);
++}
++
++__attribute ((noinline))
++unsigned __int128
++get_auto_n_uint128 (vector unsigned __int128 a, int n)
++{
++  return vec_extract (a, n);
++}
++
++__attribute ((noinline))
++unsigned long long int
++get_auto_n_ulong (vector unsigned long long int a, int n)
++{
++  return vec_extract (a, n);
++}
++
++__attribute ((noinline))
++unsigned int
++get_auto_n_uint (vector unsigned int a, int n)
++{
++  return vec_extract (a, n);
++}
++
++__attribute ((noinline))
++unsigned char
++get_auto_n_uchar (vector unsigned char a, int n)
++{
++  return vec_extract (a, n);
++}
++
++__attribute ((noinline))
++unsigned short
++get_auto_n_ushort (vector unsigned short a, int n)
++{
++  return vec_extract (a, n);
++}
++
++int check_uint128_element (int i, unsigned __int128 entry)
++{
++  printf ("checking uint128 entry at index %d\n", i);
++
++  return (entry == ((((unsigned __int128) 0xffeeddccbbaa9988ULL) << 64)
++		    | 0x0706050403020100ULL));
++}
++
++unsigned __int128 get_uint128_element (int i)
++{
++  return ((((unsigned __int128) 0xffeeddccbbaa9988ULL) << 64)
++	  | 0x0706050403020100ULL);
++}
++
++int check_ulong_element (int i, unsigned long long int entry)
++{
++  printf ("checking ulong entry 0x%llx at index %d\n", entry, i);
++
++  switch (i % 2)
++    {
++      case 0: return (entry == 0x9999901010ULL);
++      case 1: return (entry == 0x7777733333ULL);
++      default:
++	return 0;
++    }
++}
++
++unsigned long long int get_ulong_element (int i)
++{
++  switch (i % 2)
++    {
++    case 0: return 0x9999901010ULL;
++    case 1: return 0x7777733333ULL;
++    }
++}
++
++int check_uint_element (int i, unsigned int entry)
++{
++  printf ("checking uint entry 0x%x at index %d\n", entry, i);
++
++  switch (i % 4)
++    {
++    case 0: return (entry == 0x99999);
++    case 1: return (entry == 0x01010);
++    case 2: return (entry == 0x77777);
++    case 3: return (entry == 0x33333);
++    default:
++      return 0;
++    }
++}
++
++unsigned int get_uint_element (int i)
++{
++  switch (i % 4)
++    {
++    case 0: return 0x99999;
++    case 1: return 0x01010;
++    case 2: return 0x77777;
++    case 3: return 0x33333;
++    }
++}
++
++int check_uchar_element (int i, unsigned char entry)
++{
++  printf ("checking uchar entry 0x%x at index %d\n", entry, i);
++  switch (i % 16)
++    {
++    case 0: return (entry == 0x90);
++    case 1: return (entry == 0x80);
++    case 2: return (entry == 0x70);
++    case 3: return (entry == 0x60);
++    case 4: return (entry == 0x50);
++    case 5: return (entry == 0x40);
++    case 6: return (entry == 0x30);
++    case 7: return (entry == 0x20);
++    case 8: return (entry == 0x10);
++    case 9: return (entry == 0xf0);
++    case 10: return (entry == 0xe0);
++    case 11: return (entry == 0xd0);
++    case 12: return (entry == 0xc0);
++    case 13: return (entry == 0xb0);
++    case 14: return (entry == 0xa0);
++    case 15: return (entry == 0xff);
++    default:
++      return 0;
++    }
++}
++
++unsigned char get_uchar_element (int i)
++{
++  switch (i % 16)
++    {
++    case 0: return 0x90;
++    case 1: return 0x80;
++    case 2: return 0x70;
++    case 3: return 0x60;
++    case 4: return 0x50;
++    case 5: return 0x40;
++    case 6: return 0x30;
++    case 7: return 0x20;
++    case 8: return 0x10;
++    case 9: return 0xf0;
++    case 10: return 0xe0;
++    case 11: return 0xd0;
++    case 12: return 0xc0;
++    case 13: return 0xb0;
++    case 14: return 0xa0;
++    case 15: return 0xff;
++    }
++}
++
++int check_ushort_element (int i, unsigned short entry)
++{
++  printf ("checking ushort entry 0x%x at index %d\n", entry, i);
++  switch (i % 8)
++    {
++    case 0: return (entry == 0x9988);
++    case 1: return (entry == 0x8877);
++    case 2: return (entry == 0x7766);
++    case 3: return (entry == 0x6655);
++    case 4: return (entry == 0x5544);
++    case 5: return (entry == 0x4433);
++    case 6: return (entry == 0x3322);
++    case 7: return (entry == 0x2211);
++    default:
++      return 0;
++    }
++}
++
++unsigned short get_ushort_element (int i)
++{
++  switch (i % 8)
++    {
++    case 0: return 0x9988;
++    case 1: return 0x8877;
++    case 2: return 0x7766;
++    case 3: return 0x6655;
++    case 4: return 0x5544;
++    case 5: return 0x4433;
++    case 6: return 0x3322;
++    case 7: return 0x2211;
++    }
++}
++
++vector unsigned __int128
++init_auto_uint128 (vector unsigned __int128 a)
++{
++  int i;
++  for (i = 0; i < 32; i += 3)
++    a = set_auto_n_uint128 (a, i, get_uint128_element (i));
++  return a;
++}
++
++void do_auto_uint128 (vector unsigned __int128 a)
++{
++  int i;
++  unsigned __int128 c;
++  for (i = 0; i < 32; i += 3)
++    {
++      c = get_auto_n_uint128 (a, i);
++      if (!check_uint128_element (i, c)) abort ();
++    }
++}
++
++vector unsigned long long int
++init_auto_ulong (vector unsigned long long int a)
++{
++  int i;
++  for (i = 0; i < 32; i += 3)
++    a = set_auto_n_ulong (a, i, get_ulong_element (i));
++  return a;
++}
++
++void do_auto_ulong (vector unsigned long long int a)
++{
++  int i;
++  unsigned long long int c;
++  for (i = 0; i < 32; i += 3)
++    {
++      c = get_auto_n_ulong (a, i);
++      if (!check_ulong_element (i, c)) abort ();
++    }
++ }
++
++vector unsigned int init_auto_uint (vector unsigned int a)
++{
++  int i;
++  for (i = 0; i < 32; i += 3)
++    a = set_auto_n_uint (a, i, get_uint_element (i));
++  return a;
++}
++
++void do_auto_uint (vector unsigned int a)
++{
++  int i;
++  unsigned int c;
++  for (i = 0; i < 32; i += 3)
++    {
++      c = get_auto_n_uint (a, i);
++      if (!check_uint_element (i, c)) abort ();
++    }
++ }
++
++vector unsigned short init_auto_ushort ( vector unsigned short a )
++{
++  int i;
++  for (i = 0; i < 32; i += 3)
++    a = set_auto_n_ushort (a, i, get_ushort_element (i));
++  return a;
++}
++
++void do_auto_ushort (vector unsigned short a)
++{
++  int i;
++  unsigned short c;
++  for (i = 0; i < 32; i += 3)
++    {
++      c = get_auto_n_ushort (a, i);
++      if (!check_ushort_element (i, c)) abort ();
++    }
++}
++
++vector unsigned char init_auto_uchar (vector unsigned char a)
++{
++  int i;
++  for (i = 0; i < 32; i += 3)
++    a = set_auto_n_uchar (a, i, get_uchar_element (i));
++  return a;
++}
++
++void do_auto_uchar (vector unsigned char a)
++{
++  int i;
++  unsigned char c;
++  for (i = 0; i < 32; i += 3)
++    {
++      c = get_auto_n_uchar (a, i);
++      if (!check_uchar_element (i, c)) abort ();
++    }
++}
++
++int
++main (void)
++{
++  size_t i;
++
++  vector unsigned __int128 u = { 0 };
++  vector unsigned __int128 du;
++
++  vector unsigned long long int v = { 0, 0 };
++  vector unsigned long long int dv;
++
++  vector unsigned int x = { 0, 0, 0, 0 };
++  vector unsigned int dx;
++
++  vector unsigned char y = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
++  vector unsigned char dy;
++
++  vector unsigned short z = { 0, 0, 0, 0, 0, 0, 0, 0 };
++  vector unsigned short dz;
++
++  du = init_auto_uint128 (u);
++  dv = init_auto_ulong (v);
++  dx = init_auto_uint (x);
++  dy = init_auto_uchar (y);
++  dz = init_auto_ushort (z);
++
++  du = deoptimize_uint128 (du);
++  dv = deoptimize_ulong (dv);
++  dx = deoptimize_uint (dx);
++  dy = deoptimize_uchar (dy);
++  dz = deoptimize_ushort (dz);
++
++  do_auto_uint128 (du);
++  do_auto_ulong (dv);
++  do_auto_uint (dx);
++  do_auto_uchar (dy);
++  do_auto_ushort (dz);
++  return 0;
 +}
 Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-18b.c
 ===================================================================
@@ -8186,6 +12508,73 @@ Index: gcc/testsuite/gcc.target/s390/zvector/xl-xst-align-2.c
 +
 +/* { dg-final { scan-assembler-times "vl\t%v\[0-9\]*,0\\(%r2\\),3" 4 } } */
 +/* { dg-final { scan-assembler-times "vst\t%v\[0-9\]*,0\\(%r2\\),3" 2 } } */
+Index: gcc/testsuite/gcc.target/mips/dwarfregtable-3.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/mips/dwarfregtable-3.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/mips/dwarfregtable-3.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,5 @@
++/* Check if content of dwarf reg size table matches the expected.  */
++/* { dg-do run } */
++/* { dg-options "-mabi=32 -mfp64" } */
++
++#include "dwarfregtable.h"
+Index: gcc/testsuite/gcc.target/mips/dwarfregtable-4.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/mips/dwarfregtable-4.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/mips/dwarfregtable-4.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,5 @@
++/* Check if content of dwarf reg size table matches the expected.  */
++/* { dg-do run } */
++/* { dg-options "-mabi=32 -mfp64 -modd-spreg" } */
++
++#include "dwarfregtable.h"
+Index: gcc/testsuite/gcc.target/mips/dwarfregtable-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/mips/dwarfregtable-1.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/mips/dwarfregtable-1.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,5 @@
++/* Check if content of dwarf reg size table matches the expected.  */
++/* { dg-do run } */
++/* { dg-options "-mabi=32 -mfp32" } */
++
++#include "dwarfregtable.h"
+Index: gcc/testsuite/gcc.target/mips/dwarfregtable.h
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/mips/dwarfregtable.h	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/mips/dwarfregtable.h	(.../branches/gcc-8-branch)
+@@ -0,0 +1,22 @@
++
++typedef unsigned Unwind_Word __attribute__((__mode__(__unwind_word__)));
++
++#define DWARF_FRAME_REGISTERS 188
++
++static unsigned char ref_dwarf_reg_size_table[DWARF_FRAME_REGISTERS + 1] =
++  {
++    [0 ... 66] =  sizeof (Unwind_Word),
++    [80 ... 181] = sizeof (Unwind_Word)
++  };
++
++static unsigned char dwarf_reg_size_table[DWARF_FRAME_REGISTERS + 1] = {};
++
++int
++main (void)
++{
++  __builtin_init_dwarf_reg_size_table (dwarf_reg_size_table);
++  if (__builtin_memcmp (ref_dwarf_reg_size_table,
++                       dwarf_reg_size_table, DWARF_FRAME_REGISTERS + 1) != 0)
++    __builtin_abort ();
++  return 0;
++}
+Index: gcc/testsuite/gcc.target/mips/dwarfregtable-2.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/mips/dwarfregtable-2.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/mips/dwarfregtable-2.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,5 @@
++/* Check if content of dwarf reg size table matches the expected.  */
++/* { dg-do run } */
++/* { dg-options "-mabi=32 -mfpxx" } */
++
++#include "dwarfregtable.h"
 Index: gcc/testsuite/gcc.target/aarch64/options_set_9.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/aarch64/options_set_9.c	(.../tags/gcc_8_3_0_release)
@@ -11664,7 +16053,59 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,816 @@
+@@ -1,3 +1,868 @@
++2019-05-20  Jeff Law  <law@redhat.com>
++
++	Backported from mainline
++	2019-05-17  Dragan Mladjenovic  <dmladjenovic@wavecomp.com>
++
++	* g++.dg/eh/o32-fp.C: New.
++	* gcc.target/mips/dwarfregtable-1.c: New.
++	* gcc.target/mips/dwarfregtable-2.c: New.
++	* gcc.target/mips/dwarfregtable-3.c: New.
++	* gcc.target/mips/dwarfregtable-4.c: New.
++	* gcc.target/mips/dwarfregtable.h: New.
++
++2019-05-20  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from mainline
++	2019-05-20  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR c++/90532 Ensure __is_constructible(T[]) is false
++	* g++.dg/ext/90532.C: New test.
++
++2019-05-16  Kelvin Nilsen  <kelvin@gcc.gnu.org>
++
++	Backport from mainline.
++	2019-05-07  Kelvin Nilsen  <kelvin@gcc.gnu.org>
++
++	PR target/89765
++	* gcc.target/powerpc/pr89765-mc.c: New test.
++	* gcc.target/powerpc/vsx-builtin-10c.c: New test.
++	* gcc.target/powerpc/vsx-builtin-10d.c: New test.
++	* gcc.target/powerpc/vsx-builtin-11c.c: New test.
++	* gcc.target/powerpc/vsx-builtin-11d.c: New test.
++	* gcc.target/powerpc/vsx-builtin-12c.c: New test.
++	* gcc.target/powerpc/vsx-builtin-12d.c: New test.
++	* gcc.target/powerpc/vsx-builtin-13c.c: New test.
++	* gcc.target/powerpc/vsx-builtin-13d.c: New test.
++	* gcc.target/powerpc/vsx-builtin-14c.c: New test.
++	* gcc.target/powerpc/vsx-builtin-14d.c: New test.
++	* gcc.target/powerpc/vsx-builtin-15c.c: New test.
++	* gcc.target/powerpc/vsx-builtin-15d.c: New test.
++	* gcc.target/powerpc/vsx-builtin-16c.c: New test.
++	* gcc.target/powerpc/vsx-builtin-16d.c: New test.
++	* gcc.target/powerpc/vsx-builtin-17c.c: New test.
++	* gcc.target/powerpc/vsx-builtin-17d.c: New test.
++	* gcc.target/powerpc/vsx-builtin-18c.c: New test.
++	* gcc.target/powerpc/vsx-builtin-18d.c: New test.
++	* gcc.target/powerpc/vsx-builtin-19c.c: New test.
++	* gcc.target/powerpc/vsx-builtin-19d.c: New test.
++	* gcc.target/powerpc/vsx-builtin-20c.c: New test.
++	* gcc.target/powerpc/vsx-builtin-20d.c: New test.
++	* gcc.target/powerpc/vsx-builtin-9c.c: New test.
++	* gcc.target/powerpc/vsx-builtin-9d.c: New test.
++
 +2019-05-08  Kelvin Nilsen  <kelvin@gcc.gnu.org>
 +
 +	Backport from mainline.
@@ -12842,6 +17283,58 @@ Index: gcc/testsuite/g++.dg/cpp0x/nullptr40.C
 +    void bar();
 +    p<A, &A::bar> j;
 +};
+Index: gcc/testsuite/g++.dg/eh/o32-fp.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/eh/o32-fp.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/eh/o32-fp.C	(.../branches/gcc-8-branch)
+@@ -0,0 +1,47 @@
++// Test whether call saved float are restored properly for O32 ABI
++// { dg-do run { target { { { mips*-*-linux* } && hard_float } && { ! mips64 } } } }
++// { dg-options "-O2" }
++
++void __attribute__((noinline))
++bar (void)
++{
++  throw 1;
++}
++
++void __attribute__((noinline))
++foo (void)
++{
++  register double f20 __asm__ ("f20") = 0.0;
++  register double f22 __asm__ ("f22") = 0.0;
++  register double f24 __asm__ ("f24") = 0.0;
++  register double f26 __asm__ ("f26") = 0.0;
++  register double f28 __asm__ ("f28") = 0.0;
++  register double f30 __asm__ ("f30") = 0.0;
++  __asm__ __volatile__("":"+f"(f20),"+f"(f22),"+f"(f24),"+f"(f26),"+f"(f30));
++  bar ();
++}
++
++int
++main (void)
++{
++  register double f20 __asm__ ("f20") = 12.0;
++  register double f22 __asm__ ("f22") = 13.0;
++  register double f24 __asm__ ("f24") = 14.0;
++  register double f26 __asm__ ("f26") = 15.0;
++  register double f28 __asm__ ("f28") = 16.0;
++  register double f30 __asm__ ("f30") = 17.0;
++
++  try
++    {
++      foo ();
++    }
++  catch (...)
++    {
++      __asm__ ("":"+f"(f20),"+f"(f22),"+f"(f24),"+f"(f26),"+f"(f30));
++    }
++
++  if (f20 != 12.0 || f22 != 13.0 || f24 != 14.0
++      || f26 != 15.0 || f28 != 16.0 || f30 != 17.0)
++    __builtin_abort ();
++  return 0;
++}
 Index: gcc/testsuite/g++.dg/torture/pr89698.C
 ===================================================================
 --- a/src/gcc/testsuite/g++.dg/torture/pr89698.C	(.../tags/gcc_8_3_0_release)
@@ -13358,6 +17851,38 @@ Index: gcc/testsuite/g++.dg/ext/flexary34.C
 +Tst u = Tst();
 +void foo () { Tst u = {}; }
 +Tst *bar () { return new Tst (); }
+Index: gcc/testsuite/g++.dg/ext/90532.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/ext/90532.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/ext/90532.C	(.../branches/gcc-8-branch)
+@@ -0,0 +1,27 @@
++// { dg-do compile { target c++11 } }
++// PR c++/90532
++static_assert( !__is_constructible(int[]), "" );
++static_assert( !__is_constructible(int[], int), "" );
++static_assert( !__is_constructible(int[], int[]), "" );
++static_assert( !__is_trivially_constructible(int[]), "" );
++static_assert( !__is_trivially_constructible(int[], int), "" );
++static_assert( !__is_trivially_constructible(int[], int[]), "" );
++static_assert( !__is_trivially_constructible(int[], int(&)[]), "" );
++static_assert( !__is_trivially_constructible(int[], void), "" );
++struct A { };
++static_assert( !__is_constructible(A[]), "" );
++static_assert( !__is_constructible(A[], const A&), "" );
++static_assert( !__is_constructible(A[], const A[]), "" );
++static_assert( !__is_trivially_constructible(A[]), "" );
++static_assert( !__is_trivially_constructible(A[], const A&), "" );
++static_assert( !__is_trivially_constructible(A[], const A[]), "" );
++static_assert( !__is_trivially_constructible(A[], A(&)[]), "" );
++static_assert( !__is_trivially_constructible(A[], void), "" );
++struct B { B(); };
++static_assert( !__is_constructible(B[]), "" );
++static_assert( !__is_constructible(B[], const B&), "" );
++static_assert( !__is_trivially_constructible(B[]), "" );
++static_assert( !__is_trivially_constructible(B[], const B&), "" );
++static_assert( !__is_trivially_constructible(B[], const B[]), "" );
++static_assert( !__is_trivially_constructible(B[], B(&)[]), "" );
++static_assert( !__is_trivially_constructible(B[], void), "" );
 Index: gcc/testsuite/g++.dg/ext/asm15.C
 ===================================================================
 --- a/src/gcc/testsuite/g++.dg/ext/asm15.C	(.../tags/gcc_8_3_0_release)
@@ -14057,11 +18582,33 @@ Index: gcc/cp/decl.c
  	      const char *msg;
  	      if (DECL_INLINE_VAR_P (decl))
  		msg = G_("sorry: semantics of inline variable "
+Index: gcc/cp/method.c
+===================================================================
+--- a/src/gcc/cp/method.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/cp/method.c	(.../branches/gcc-8-branch)
+@@ -1201,6 +1201,8 @@
+     expr = assignable_expr (to, from);
+   else if (trivial && from && TREE_CHAIN (from))
+     return error_mark_node; // only 0- and 1-argument ctors can be trivial
++  else if (TREE_CODE (to) == ARRAY_TYPE && !TYPE_DOMAIN (to))
++    return error_mark_node; // can't construct an array of unknown bound
+   else
+     expr = constructible_expr (to, from);
+   return expr;
 Index: gcc/cp/ChangeLog
 ===================================================================
 --- a/src/gcc/cp/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/cp/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,162 @@
+@@ -1,3 +1,171 @@
++2019-05-20  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from mainline
++	2019-05-20  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR c++/90532 Ensure __is_constructible(T[]) is false
++	* method.c (is_xible_helper): Return error_mark_node for construction
++	of an array of unknown bound.
++
 +2019-05-07  Marek Polacek  <polacek@redhat.com>	
 +
 +	Backported from mainline
@@ -14855,6 +19402,18 @@ Index: gcc/modulo-sched.c
  	return false;
               
         last_in_row = next_ps_i;
+Index: gcc/xcoffout.c
+===================================================================
+--- a/src/gcc/xcoffout.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/xcoffout.c	(.../branches/gcc-8-branch)
+@@ -64,6 +64,7 @@
+ 
+ char *xcoff_bss_section_name;
+ char *xcoff_private_data_section_name;
++char *xcoff_private_rodata_section_name;
+ char *xcoff_tls_data_section_name;
+ char *xcoff_tbss_section_name;
+ char *xcoff_read_only_section_name;
 Index: gcc/tree-ssa-math-opts.c
 ===================================================================
 --- a/src/gcc/tree-ssa-math-opts.c	(.../tags/gcc_8_3_0_release)
@@ -15098,6 +19657,18 @@ Index: gcc/tree-ssa-dom.c
  	      return retval;
  	    }
  	}
+Index: gcc/xcoffout.h
+===================================================================
+--- a/src/gcc/xcoffout.h	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/xcoffout.h	(.../branches/gcc-8-branch)
+@@ -127,6 +127,7 @@
+ 
+ extern char *xcoff_bss_section_name;
+ extern char *xcoff_private_data_section_name;
++extern char *xcoff_private_rodata_section_name;
+ extern char *xcoff_tls_data_section_name;
+ extern char *xcoff_tbss_section_name;
+ extern char *xcoff_read_only_section_name;
 Index: gcc/gimple-ssa-warn-restrict.c
 ===================================================================
 --- a/src/gcc/gimple-ssa-warn-restrict.c	(.../tags/gcc_8_3_0_release)
@@ -19846,6 +24417,55 @@ Index: gcc/config/rs6000/rs6000-c.c
  	      switch (mode)
  		{
  		default:
+@@ -6785,11 +6787,13 @@
+       /* If we can use the VSX xxpermdi instruction, use that for insert.  */
+       mode = TYPE_MODE (arg1_type);
+       if ((mode == V2DFmode || mode == V2DImode) && VECTOR_UNIT_VSX_P (mode)
+-	  && TREE_CODE (arg2) == INTEGER_CST
+-	  && wi::ltu_p (wi::to_wide (arg2), 2))
++	  && TREE_CODE (arg2) == INTEGER_CST)
+ 	{
++	  wide_int selector = wi::to_wide (arg2);
++	  selector = wi::umod_trunc (selector, 2);
+ 	  tree call = NULL_TREE;
+ 
++	  arg2 = wide_int_to_tree (TREE_TYPE (arg2), selector);
+ 	  if (mode == V2DFmode)
+ 	    call = rs6000_builtin_decls[VSX_BUILTIN_VEC_SET_V2DF];
+ 	  else if (mode == V2DImode)
+@@ -6801,11 +6805,12 @@
+ 	    return build_call_expr (call, 3, arg1, arg0, arg2);
+ 	}
+       else if (mode == V1TImode && VECTOR_UNIT_VSX_P (mode)
+-	       && TREE_CODE (arg2) == INTEGER_CST
+-	       && wi::eq_p (wi::to_wide (arg2), 0))
++	       && TREE_CODE (arg2) == INTEGER_CST)
+ 	{
+ 	  tree call = rs6000_builtin_decls[VSX_BUILTIN_VEC_SET_V1TI];
++	  wide_int selector = wi::zero(32);
+ 
++	  arg2 = wide_int_to_tree (TREE_TYPE (arg2), selector);
+ 	  /* Note, __builtin_vec_insert_<xxx> has vector and scalar types
+ 	     reversed.  */
+ 	  return build_call_expr (call, 3, arg1, arg0, arg2);
+@@ -6813,10 +6818,13 @@
+ 
+       /* Build *(((arg1_inner_type*)&(vector type){arg1})+arg2) = arg0. */
+       arg1_inner_type = TREE_TYPE (arg1_type);
+-      arg2 = build_binary_op (loc, BIT_AND_EXPR, arg2,
+-			      build_int_cst (TREE_TYPE (arg2),
+-					     TYPE_VECTOR_SUBPARTS (arg1_type)
+-					     - 1), 0);
++      if (TYPE_VECTOR_SUBPARTS (arg1_type) == 1)
++	arg2 = build_int_cst (TREE_TYPE (arg2), 0);
++      else
++	arg2 = build_binary_op (loc, BIT_AND_EXPR, arg2,
++				build_int_cst (TREE_TYPE (arg2),
++					       TYPE_VECTOR_SUBPARTS (arg1_type)
++					       - 1), 0);
+       decl = build_decl (loc, VAR_DECL, NULL_TREE, arg1_type);
+       DECL_EXTERNAL (decl) = 0;
+       TREE_PUBLIC (decl) = 0;
 Index: gcc/config/rs6000/rs6000-p8swap.c
 ===================================================================
 --- a/src/gcc/config/rs6000/rs6000-p8swap.c	(.../tags/gcc_8_3_0_release)
@@ -19978,7 +24598,29 @@ Index: gcc/config/rs6000/rs6000.c
  	    return;
  	  }
  
-@@ -15417,9 +15440,17 @@
+@@ -12592,7 +12615,9 @@
+       if (elt_mode == TDmode && (cum->fregno % 2) == 1)
+ 	cum->fregno++;
+ 
+-      if (USE_FP_FOR_ARG_P (cum, elt_mode))
++      if (USE_FP_FOR_ARG_P (cum, elt_mode)
++	  && !(TARGET_AIX && !TARGET_ELF
++	       && type != NULL && AGGREGATE_TYPE_P (type)))
+ 	{
+ 	  rtx rvec[GP_ARG_NUM_REG + AGGR_ARG_NUM_REG + 1];
+ 	  rtx r, off;
+@@ -12728,7 +12753,9 @@
+ 
+   align_words = rs6000_parm_start (mode, type, cum->words);
+ 
+-  if (USE_FP_FOR_ARG_P (cum, elt_mode))
++  if (USE_FP_FOR_ARG_P (cum, elt_mode)
++      && !(TARGET_AIX && !TARGET_ELF
++	   && type != NULL && AGGREGATE_TYPE_P (type)))
+     {
+       unsigned long n_fpreg = (GET_MODE_SIZE (elt_mode) + 7) >> 3;
+ 
+@@ -15417,9 +15444,17 @@
    op0 = expand_normal (arg0);
    op1 = expand_normal (arg1);
  
@@ -19998,7 +24640,7 @@ Index: gcc/config/rs6000/rs6000.c
  
    tmode = TYPE_MODE (TREE_TYPE (TREE_TYPE (arg0)));
    mode0 = TYPE_MODE (TREE_TYPE (arg0));
-@@ -16765,15 +16796,6 @@
+@@ -16765,15 +16800,6 @@
      case ALTIVEC_BUILTIN_VSPLTISH:
      case ALTIVEC_BUILTIN_VSPLTISW:
        {
@@ -20014,7 +24656,7 @@ Index: gcc/config/rs6000/rs6000.c
  	 arg0 = gimple_call_arg (stmt, 0);
  	 lhs = gimple_call_lhs (stmt);
  
-@@ -16780,8 +16802,7 @@
+@@ -16780,8 +16806,7 @@
  	 /* Only fold the vec_splat_*() if the lower bits of arg 0 is a
  	    5-bit signed constant in range -16 to +15.  */
  	 if (TREE_CODE (arg0) != INTEGER_CST
@@ -20024,7 +24666,7 @@ Index: gcc/config/rs6000/rs6000.c
  	   return false;
  	 gimple_seq stmts = NULL;
  	 location_t loc = gimple_location (stmt);
-@@ -18261,6 +18282,7 @@
+@@ -18261,6 +18286,7 @@
      {
      /* unsigned 1 argument functions.  */
      case CRYPTO_BUILTIN_VSBOX:
@@ -20032,7 +24674,7 @@ Index: gcc/config/rs6000/rs6000.c
      case P8V_BUILTIN_VGBBD:
      case MISC_BUILTIN_CDTBCD:
      case MISC_BUILTIN_CBCDTD:
-@@ -18276,9 +18298,13 @@
+@@ -18276,9 +18302,13 @@
      case ALTIVEC_BUILTIN_VMULOUH:
      case P8V_BUILTIN_VMULOUW:
      case CRYPTO_BUILTIN_VCIPHER:
@@ -20046,7 +24688,38 @@ Index: gcc/config/rs6000/rs6000.c
      case CRYPTO_BUILTIN_VPMSUMB:
      case CRYPTO_BUILTIN_VPMSUMH:
      case CRYPTO_BUILTIN_VPMSUMW:
-@@ -37840,6 +37866,7 @@
+@@ -34192,6 +34222,10 @@
+ 			   rs6000_xcoff_output_readwrite_section_asm_op,
+ 			   &xcoff_private_data_section_name);
+ 
++  read_only_private_data_section
++    = get_unnamed_section (0, rs6000_xcoff_output_readonly_section_asm_op,
++			   &xcoff_private_rodata_section_name);
++
+   tls_data_section
+     = get_unnamed_section (SECTION_TLS,
+ 			   rs6000_xcoff_output_tls_section_asm_op,
+@@ -34202,10 +34236,6 @@
+ 			   rs6000_xcoff_output_tls_section_asm_op,
+ 			   &xcoff_private_data_section_name);
+ 
+-  read_only_private_data_section
+-    = get_unnamed_section (0, rs6000_xcoff_output_readonly_section_asm_op,
+-			   &xcoff_private_data_section_name);
+-
+   toc_section
+     = get_unnamed_section (0, rs6000_xcoff_output_toc_section_asm_op, NULL);
+ 
+@@ -34386,6 +34416,8 @@
+ 			   main_input_filename, ".bss_");
+   rs6000_gen_section_name (&xcoff_private_data_section_name,
+ 			   main_input_filename, ".rw_");
++  rs6000_gen_section_name (&xcoff_private_rodata_section_name,
++			   main_input_filename, ".rop_");
+   rs6000_gen_section_name (&xcoff_read_only_section_name,
+ 			   main_input_filename, ".ro_");
+   rs6000_gen_section_name (&xcoff_tls_data_section_name,
+@@ -37840,6 +37872,7 @@
  
    /* Build result decl and add to function_decl.  */
    tree t = build_decl (UNKNOWN_LOCATION, RESULT_DECL, NULL_TREE, ptr_type_node);
@@ -20369,6 +25042,46 @@ Index: gcc/config/arm/constraints.md
  (define_constraint "Dl"
   "@internal
    In ARM/Thumb-2 state a const_vector which can be used with a Neon vorr or
+Index: gcc/config/arm/t-rtems
+===================================================================
+--- a/src/gcc/config/arm/t-rtems	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/arm/t-rtems	(.../branches/gcc-8-branch)
+@@ -17,8 +17,8 @@
+ MULTILIB_OPTIONS	+= mthumb
+ MULTILIB_DIRNAMES	+= thumb
+ 
+-MULTILIB_OPTIONS	+= march=armv5te+fp/march=armv6-m/march=armv7-a/march=armv7-a+simd/march=armv7-r/march=armv7-r+fp/march=armv7-m/march=armv7e-m+fp/march=armv7e-m+fp.dp
+-MULTILIB_DIRNAMES	+= armv5te+fp       armv6-m       armv7-a       armv7-a+simd       armv7-r       armv7-r+fp       armv7-m       armv7e-m+fp        armv7e-m+fp.dp
++MULTILIB_OPTIONS	+= march=armv5te+fp/march=armv6-m/march=armv7-a/march=armv7-a+simd/march=armv7-r/march=armv7-r+fp/mcpu=cortex-m3/mcpu=cortex-m4/mcpu=cortex-m4+nofp/mcpu=cortex-m7
++MULTILIB_DIRNAMES	+= armv5te+fp       armv6-m       armv7-a       armv7-a+simd       armv7-r       armv7-r+fp       cortex-m3      cortex-m4      cortex-m4+nofp      cortex-m7
+ 
+ MULTILIB_OPTIONS	+= mfloat-abi=hard
+ MULTILIB_DIRNAMES	+= hard
+@@ -31,7 +31,8 @@
+ MULTILIB_REQUIRED	+= mthumb/march=armv7-a
+ MULTILIB_REQUIRED	+= mthumb/march=armv7-r+fp/mfloat-abi=hard
+ MULTILIB_REQUIRED	+= mthumb/march=armv7-r
+-MULTILIB_REQUIRED	+= mthumb/march=armv7e-m+fp/mfloat-abi=hard
+-MULTILIB_REQUIRED	+= mthumb/march=armv7e-m+fp.dp/mfloat-abi=hard
+-MULTILIB_REQUIRED	+= mthumb/march=armv7-m
++MULTILIB_REQUIRED	+= mthumb/mcpu=cortex-m3
++MULTILIB_REQUIRED	+= mthumb/mcpu=cortex-m4/mfloat-abi=hard
++MULTILIB_REQUIRED	+= mthumb/mcpu=cortex-m4+nofp
++MULTILIB_REQUIRED	+= mthumb/mcpu=cortex-m7/mfloat-abi=hard
+ MULTILIB_REQUIRED	+= mthumb
+Index: gcc/config/mips/mips.c
+===================================================================
+--- a/src/gcc/config/mips/mips.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/mips/mips.c	(.../branches/gcc-8-branch)
+@@ -9532,7 +9532,7 @@
+ {
+   machine_mode mode = default_dwarf_frame_reg_mode (regno);
+ 
+-  if (FP_REG_P (regno) && mips_abi == ABI_32 && TARGET_FLOAT64)
++  if (FP_REG_P (regno) && mips_abi == ABI_32 && !TARGET_FLOAT32)
+     mode = SImode;
+ 
+   return mode;
 Index: gcc/dce.c
 ===================================================================
 --- a/src/gcc/dce.c	(.../tags/gcc_8_3_0_release)
