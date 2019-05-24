@@ -703,7 +703,23 @@ ifeq ($(single_package),yes)
 endif
 with_offload_nvptx := $(call envfilt, nvptx, , , $(with_offload_nvptx))
 
-#with_offload_nvptx := not yet built for GCC 8
+#with_offload_nvptx := not yet built for GCC 9
+
+hsa_archs := amd64
+ifneq (,$(filter $(DEB_TARGET_ARCH),$(hsa_archs)))
+  offload_targets += hsa
+  with_offload_hsa := yes
+endif
+ifneq (,$(findstring build-cross, $(build_type)))
+  with_offload_hsa := disabled for cross builds
+endif
+
+ifeq ($(single_package),yes)
+  with_offload_hsa := disabled for snapshot builds
+endif
+with_offload_hsa := $(call envfilt, hsa, , , $(with_offload_hsa))
+
+#with_offload_hsa := not yet built for GCC 9
 
 with_cc1 := yes
 with_cc1 := $(call envfilt, cc1, , , $(with_cc1))

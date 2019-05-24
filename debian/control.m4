@@ -5496,6 +5496,19 @@ Description: GCC OpenMP v4.5 plugin for offloading to NVPTX
 ')`'dnl libgompnvptx
 ')`'dnl olnvptx
 
+ifenabled(`olhsa',`
+ifenabled(`libgomphsa',`
+Package: libgomp-plugin-hsa`'GOMP_SO
+Architecture: amd64
+Multi-Arch: same
+Section: libs
+Depends: BASEDEP, libgomp`'GOMP_SO`'LS, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: GCC OpenMP v4.5 plugin for offloading to HSA
+ This package contains libgomp plugin for offloading to HSA.
+')`'dnl libgompnvptx
+')`'dnl olnvptx
+
 ifdef(`TARGET',`',`dnl
 ifenabled(`libnof',`
 #Package: gcc`'PV-nof
