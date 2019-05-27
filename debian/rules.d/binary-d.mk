@@ -192,6 +192,13 @@ define __do_libphobos
 		,$(2)) \
 		$(if $(filter yes, $(with_common_libs)),,-- -Ldebian/shlibs.common$(2))
 	$(call cross_mangle_substvars,$(p_l))
+
+	$(if $(2),
+	mkdir -p $(d_l)/usr/share/lintian/overrides; \
+	echo "$$pkgname binary: embedded-library" \
+		>> $(d_l)/usr/share/lintian/overrides/$(p_l)
+	)
+
 	dh_lintian -p$(p_l)
 	echo $(p_l) $(p_d) >> debian/$(lib_binaries)
 
