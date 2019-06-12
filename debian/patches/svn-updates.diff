@@ -1,10 +1,10 @@
-# DP: updates from the 8 branch upto 20190528 (r271694).
+# DP: updates from the 8 branch upto 20190612 (r272183).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Tue May 28 13:19:35 CEST 2019
-Tue May 28 11:19:35 UTC 2019 (revision 271694)
+Wed Jun 12 16:00:09 CEST 2019
+Wed Jun 12 14:00:09 UTC 2019 (revision 272183)
 EOF
 }
 
@@ -12,6 +12,53 @@ LANG=C svn diff svn://gcc.gnu.org/svn/gcc/tags/gcc_8_3_0_release svn://gcc.gnu.o
 	| sed -r 's,^--- (\S+)\t(\S+)(.*)$,--- a/src/\1\t\2,;s,^\+\+\+ (\S+)\t(\S+)(.*)$,+++ b/src/\1\t\2,' \
 	| awk '/^Index:.*\.(class|texi)/ {skip=1; next} /^Index:/ { skip=0 } skip==0'
 
+Index: libgomp/ChangeLog
+===================================================================
+--- a/src/libgomp/ChangeLog	(.../tags/gcc_8_3_0_release)
++++ b/src/libgomp/ChangeLog	(.../branches/gcc-8-branch)
+@@ -1,3 +1,8 @@
++2019-06-11  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/90811
++	* testsuite/libgomp.c/pr90811.c: New test.
++
+ 2019-02-22  Release Manager
+ 
+ 	* GCC 8.3.0 released.
+Index: libgomp/testsuite/libgomp.c/pr90811.c
+===================================================================
+--- a/src/libgomp/testsuite/libgomp.c/pr90811.c	(.../tags/gcc_8_3_0_release)
++++ b/src/libgomp/testsuite/libgomp.c/pr90811.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,29 @@
++/* PR target/90811 */
++
++int
++main ()
++{
++  long long a[100], b[100];
++  int i;
++  for (i = 0; i < 100; i++)
++    {
++      a[i] = i;
++      b[i] = i % 10;
++    }
++  #pragma omp target teams distribute parallel for simd map(tofrom: a[:100], b[:100])
++  for (i = 0; i < 100; i++)
++    {
++      long long c = 0;
++      const long long d[] = { 1, 3, 5, 7, 9 };
++      for (int j = 4; j >= 0; j--)
++         c = d[j] + b[i] * c;
++      a[i] += c;
++    }
++  for (i = 0; i < 100; i++)
++    {
++      const long long r[] = { 1, 26, 229, 976, 2849, 6646, 13381, 24284, 40801, 64594 };
++      if (a[i] != r[i % 10] + (i / 10 * 10))
++	__builtin_abort ();
++    }
++  return 0;
++}
 Index: libstdc++-v3/configure
 ===================================================================
 --- a/src/libstdc++-v3/configure	(.../tags/gcc_8_3_0_release)
@@ -1014,6 +1061,97 @@ Index: libstdc++-v3/src/Makefile.in
  XMLLINT = @XMLLINT@
  XSLTPROC = @XSLTPROC@
  XSL_STYLE_DIR = @XSL_STYLE_DIR@
+Index: libstdc++-v3/src/filesystem/path.cc
+===================================================================
+--- a/src/libstdc++-v3/src/filesystem/path.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/src/filesystem/path.cc	(.../branches/gcc-8-branch)
+@@ -334,6 +334,28 @@
+   if (_M_pathname.empty())
+     return;
+ 
++  {
++    // Approximate count of components, to reserve space in _M_cmpts vector:
++    int count = 1;
++    bool saw_sep_last = _S_is_dir_sep(_M_pathname[0]);
++    bool saw_non_sep = !saw_sep_last;
++    for (value_type c : _M_pathname)
++      {
++	if (_S_is_dir_sep(c))
++	  saw_sep_last = true;
++	else if (saw_sep_last)
++	  {
++	    ++count;
++	    saw_sep_last = false;
++	    saw_non_sep = true;
++	  }
++      }
++    if (saw_non_sep && saw_sep_last)
++      ++count; // empty filename after trailing slash
++    if (count > 1)
++      _M_cmpts.reserve(count);
++  }
++
+   size_t pos = 0;
+   const size_t len = _M_pathname.size();
+ 
+@@ -356,9 +378,13 @@
+ 	      pos = 3;
+ 	      while (pos < len && !_S_is_dir_sep(_M_pathname[pos]))
+ 		++pos;
++	      if (pos == len)
++		{
++		  _M_type = _Type::_Root_name;
++		  return;
++		}
+ 	      _M_add_root_name(pos);
+-	      if (pos < len) // also got root directory
+-		_M_add_root_dir(pos);
++	      _M_add_root_dir(pos);
+ 	    }
+ 	  else
+ 	    {
+@@ -367,6 +393,11 @@
+ 	      _M_add_root_dir(0);
+ 	    }
+ 	}
++      else if (len == 1) // got root directory only
++	{
++	  _M_type = _Type::_Root_dir;
++	  return;
++	}
+       else // got root directory
+ 	_M_add_root_dir(0);
+       ++pos;
+@@ -375,6 +406,11 @@
+   else if (len > 1 && _M_pathname[1] == L':')
+     {
+       // got disk designator
++      if (len == 2)
++	{
++	  _M_type = _Type::_Root_name;
++	  return;
++	}
+       _M_add_root_name(2);
+       if (len > 2 && _S_is_dir_sep(_M_pathname[2]))
+ 	_M_add_root_dir(2);
+@@ -381,6 +417,17 @@
+       pos = 2;
+     }
+ #endif
++  else
++    {
++      size_t n = 1;
++      for (; n < _M_pathname.size() && !_S_is_dir_sep(_M_pathname[n]); ++n)
++	{ }
++      if (n == _M_pathname.size())
++	{
++	  _M_type = _Type::_Filename;
++	  return;
++	}
++    }
+ 
+   size_t back = pos;
+   while (pos < len)
 Index: libstdc++-v3/src/filesystem/Makefile.in
 ===================================================================
 --- a/src/libstdc++-v3/src/filesystem/Makefile.in	(.../tags/gcc_8_3_0_release)
@@ -1045,6 +1183,85 @@ Index: libstdc++-v3/src/filesystem/std-dir.cc
  	return true;
        }
      else if (!ec)
+Index: libstdc++-v3/src/filesystem/std-path.cc
+===================================================================
+--- a/src/libstdc++-v3/src/filesystem/std-path.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/src/filesystem/std-path.cc	(.../branches/gcc-8-branch)
+@@ -539,6 +539,28 @@
+     }
+   _M_type = _Type::_Multi;
+ 
++  {
++    // Approximate count of components, to reserve space in _M_cmpts vector:
++    int count = 1;
++    bool saw_sep_last = _S_is_dir_sep(_M_pathname[0]);
++    bool saw_non_sep = !saw_sep_last;
++    for (value_type c : _M_pathname)
++      {
++	if (_S_is_dir_sep(c))
++	  saw_sep_last = true;
++	else if (saw_sep_last)
++	  {
++	    ++count;
++	    saw_sep_last = false;
++	    saw_non_sep = true;
++	  }
++      }
++    if (saw_non_sep && saw_sep_last)
++      ++count; // empty filename after trailing slash
++    if (count > 1)
++      _M_cmpts.reserve(count);
++  }
++
+   size_t pos = 0;
+   const size_t len = _M_pathname.size();
+ 
+@@ -555,9 +577,13 @@
+ 	      pos = 3;
+ 	      while (pos < len && !_S_is_dir_sep(_M_pathname[pos]))
+ 		++pos;
++	      if (pos == len)
++		{
++		  _M_type = _Type::_Root_name;
++		  return;
++		}
+ 	      _M_add_root_name(pos);
+-	      if (pos < len) // also got root directory
+-		_M_add_root_dir(pos);
++	      _M_add_root_dir(pos);
+ 	    }
+ 	  else
+ 	    {
+@@ -584,6 +610,11 @@
+   else if (len > 1 && _M_pathname[1] == L':')
+     {
+       // got disk designator
++      if (len == 2)
++	{
++	  _M_type = _Type::_Root_name;
++	  return;
++	}
+       _M_add_root_name(2);
+       if (len > 2 && _S_is_dir_sep(_M_pathname[2]))
+ 	_M_add_root_dir(2);
+@@ -590,6 +621,17 @@
+       pos = 2;
+     }
+ #endif
++  else
++    {
++      size_t n = 1;
++      for (; n < _M_pathname.size() && !_S_is_dir_sep(_M_pathname[n]); ++n)
++	{ }
++      if (n == _M_pathname.size())
++	{
++	  _M_type = _Type::_Filename;
++	  return;
++	}
++    }
+ 
+   size_t back = pos;
+   while (pos < len)
 Index: libstdc++-v3/src/filesystem/std-ops.cc
 ===================================================================
 --- a/src/libstdc++-v3/src/filesystem/std-ops.cc	(.../tags/gcc_8_3_0_release)
@@ -1227,6 +1444,15 @@ Index: libstdc++-v3/doc/xml/manual/status_cxx2017.xml
    </tbody>
  </tgroup>
  </table>
+@@ -1049,7 +1074,7 @@
+    <para>
+       <emphasis>30.10.2.1 [fs.conform.9945]</emphasis>
+       The behavior of the filesystem library implementation will depend on
+-      the target operating system. Some features will not be not supported
++      the target operating system. Some features will not be supported
+       on some targets.
+    </para>
+ 
 Index: libstdc++-v3/doc/xml/manual/evolution.xml
 ===================================================================
 --- a/src/libstdc++-v3/doc/xml/manual/evolution.xml	(.../tags/gcc_8_3_0_release)
@@ -1497,6 +1723,15 @@ Index: libstdc++-v3/doc/html/manual/status.html
  Note 1: This feature is supported in GCC 7.1 and 7.2 but before GCC 7.3 the
  <code class="code">__cpp_lib</code> macro is not defined, and compilation will fail if the
  header is included without using <code class="option">-std</code> to enable C++17 support.
+@@ -939,7 +951,7 @@
+    </p><p>
+       <span class="emphasis"><em>30.10.2.1 [fs.conform.9945]</em></span>
+       The behavior of the filesystem library implementation will depend on
+-      the target operating system. Some features will not be not supported
++      the target operating system. Some features will not be supported
+       on some targets.
+    </p><p>
+       <span class="emphasis"><em>30.10.5 [fs.filesystem.syn]</em></span>
 Index: libstdc++-v3/doc/html/manual/using.html
 ===================================================================
 --- a/src/libstdc++-v3/doc/html/manual/using.html	(.../tags/gcc_8_3_0_release)
@@ -2040,6 +2275,25 @@ Index: libstdc++-v3/include/experimental/bits/fs_path.h
  			      __constructible_from<_Tp1, _Tp2>>::value,
  		       path>::type;
  
+@@ -185,7 +186,8 @@
+     path(path&& __p) noexcept
+     : _M_pathname(std::move(__p._M_pathname)), _M_type(__p._M_type)
+     {
+-      _M_split_cmpts();
++      if (_M_type == _Type::_Multi)
++	_M_split_cmpts();
+       __p.clear();
+     }
+ 
+@@ -459,7 +461,7 @@
+ 	return _S_convert_loc(__tmp.data(), __tmp.data()+__tmp.size(), __loc);
+       }
+ 
+-    bool _S_is_dir_sep(value_type __ch)
++    static bool _S_is_dir_sep(value_type __ch)
+     {
+ #ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
+       return __ch == L'/' || __ch == preferred_separator;
 Index: libstdc++-v3/include/bits/hashtable.h
 ===================================================================
 --- a/src/libstdc++-v3/include/bits/hashtable.h	(.../tags/gcc_8_3_0_release)
@@ -2107,7 +2361,26 @@ Index: libstdc++-v3/include/bits/fs_path.h
  			      __constructible_from<_Tp1, _Tp2>>::value,
  		       path>::type;
  
-@@ -789,6 +789,9 @@
+@@ -168,7 +168,8 @@
+     path(path&& __p) noexcept
+     : _M_pathname(std::move(__p._M_pathname)), _M_type(__p._M_type)
+     {
+-      _M_split_cmpts();
++      if (_M_type == _Type::_Multi)
++	_M_split_cmpts();
+       __p.clear();
+     }
+ 
+@@ -478,7 +479,7 @@
+       static basic_string<_CharT, _Traits, _Allocator>
+       _S_str_convert(const string_type&, const _Allocator& __a);
+ 
+-    bool _S_is_dir_sep(value_type __ch)
++    static bool _S_is_dir_sep(value_type __ch)
+     {
+ #ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
+       return __ch == L'/' || __ch == preferred_separator;
+@@ -789,6 +790,9 @@
    inline path&
    path::operator=(path&& __p) noexcept
    {
@@ -2295,7 +2568,37 @@ Index: libstdc++-v3/ChangeLog
 ===================================================================
 --- a/src/libstdc++-v3/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/libstdc++-v3/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,295 @@
+@@ -1,3 +1,325 @@
++2019-06-01   Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backport from mainline
++	2018-12-22 Iain Sandoe <iain@sandoe.co.uk>
++
++	* /config/os/bsd/darwin/ppc-extra.ver: Append long double symbols.
++
++2019-05-30  Jonathan Wakely  <jwakely@redhat.com>
++
++	* doc/xml/manual/status_cxx2017.xml: Fix typo in documentation of
++	implementation-defined support for [fs.conform.9945].
++	* doc/html/*: Regenerate.
++
++2019-05-28  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/90634
++	* src/filesystem/path.cc (path::_M_split_cmpts()): Fix check for "/".
++	* testsuite/27_io/filesystem/path/construct/90634.cc: New test.
++	* testsuite/experimental/filesystem/path/construct/90634.cc: New test.
++
++	PR libstdc++/90634
++	* include/bits/fs_path.h (path::path(path&&)): Only call
++	_M_split_cmpts() for a path with multiple components.
++	(path::_S_is_dir_sep()): Add missing 'static' keyword to function.
++	* include/experimental/bits/fs_path.h: Likewise.
++	* src/filesystem/path.cc (path::_M_split_cmpts()): Count number of
++	components and reserve space in vector. Return early when there is
++	only one component.
++	* src/filesystem/std-path.cc (path::_M_split_cmpts()): Likewise.
++
 +2019-05-23  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	Backport from mainline
@@ -3129,6 +3432,81 @@ Index: libstdc++-v3/testsuite/27_io/filesystem/path/assign/copy.cc
    test02();
 +  test03();
  }
+Index: libstdc++-v3/testsuite/27_io/filesystem/path/construct/90634.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/27_io/filesystem/path/construct/90634.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/27_io/filesystem/path/construct/90634.cc	(.../branches/gcc-8-branch)
+@@ -0,0 +1,70 @@
++// Copyright (C) 2019 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-options "-std=gnu++17 -lstdc++fs" }
++// { dg-do run { target c++17 } }
++// { dg-require-filesystem-ts "" }
++
++#include <filesystem>
++#include <cstdlib>
++#include <testsuite_hooks.h>
++
++std::size_t bytes_allocated = 0;
++
++void* operator new(std::size_t n)
++{
++  bytes_allocated += n;
++  return std::malloc(n);
++}
++
++void operator delete(void* p) noexcept { std::free(p); }
++#if __cpp_sized_deallocation
++void operator delete(void* p, std::size_t) noexcept { std::free(p); }
++#endif
++
++void
++test01()
++{
++  std::string s0;
++  std::string s1 = "/";
++  std::string s2 = "///";
++  std::string s3 = "filename";
++  std::string s4 = "C:";
++  std::string s5 = "\\";
++
++  using std::filesystem::path;
++
++  bytes_allocated = 0;
++  path p0 = std::move(s0);
++  VERIFY( bytes_allocated == 0 );
++  path p1 = std::move(s1);
++  VERIFY( bytes_allocated == 0 );
++  path p2 = std::move(s2);
++  VERIFY( bytes_allocated == 0 );
++  path p3 = std::move(s3);
++  VERIFY( bytes_allocated == 0 );
++  path p4 = std::move(s4);
++  VERIFY( bytes_allocated == 0 );
++  path p5 = std::move(s5);
++  VERIFY( bytes_allocated == 0 );
++}
++
++int
++main()
++{
++  test01();
++}
 Index: libstdc++-v3/testsuite/27_io/filesystem/path/construct/80762.cc
 ===================================================================
 --- a/src/libstdc++-v3/testsuite/27_io/filesystem/path/construct/80762.cc	(.../tags/gcc_8_3_0_release)
@@ -3310,6 +3688,78 @@ Index: libstdc++-v3/testsuite/experimental/any/misc/any_cast_neg.cc
 -  any_cast<int&>(y); // { dg-error "qualifiers" "" { target { *-*-* } } 357 }
 +  any_cast<int&>(y); // { dg-error "qualifiers" "" { target { *-*-* } } 0 }
  }
+Index: libstdc++-v3/testsuite/experimental/filesystem/path/construct/90634.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/experimental/filesystem/path/construct/90634.cc	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/testsuite/experimental/filesystem/path/construct/90634.cc	(.../branches/gcc-8-branch)
+@@ -0,0 +1,67 @@
++// Copyright (C) 2019 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-options "-DUSE_FILESYSTEM_TS -lstdc++fs" }
++// { dg-do run { target c++11 } }
++// { dg-require-filesystem-ts "" }
++
++#include <experimental/filesystem>
++#include <cstdlib>
++#include <testsuite_hooks.h>
++
++std::size_t bytes_allocated = 0;
++
++void* operator new(std::size_t n)
++{
++  bytes_allocated += n;
++  return std::malloc(n);
++}
++
++void operator delete(void* p) noexcept { std::free(p); }
++#if __cpp_sized_deallocation
++void operator delete(void* p, std::size_t) noexcept { std::free(p); }
++#endif
++
++void
++test01()
++{
++  std::string s0;
++  std::string s1 = "/";
++  std::string s2 = "filename";
++  std::string s3 = "C:";
++  std::string s4 = "\\";
++
++  using std::experimental::filesystem::path;
++
++  bytes_allocated = 0;
++  path p0 = std::move(s0);
++  VERIFY( bytes_allocated == 0 );
++  path p1 = std::move(s1);
++  VERIFY( bytes_allocated == 0 );
++  path p2 = std::move(s2);
++  VERIFY( bytes_allocated == 0 );
++  path p3 = std::move(s3);
++  VERIFY( bytes_allocated == 0 );
++  path p4 = std::move(s4);
++  VERIFY( bytes_allocated == 0 );
++}
++
++int
++main()
++{
++  test01();
++}
 Index: libstdc++-v3/testsuite/experimental/filesystem/path/construct/80762.cc
 ===================================================================
 --- a/src/libstdc++-v3/testsuite/experimental/filesystem/path/construct/80762.cc	(.../tags/gcc_8_3_0_release)
@@ -3866,6 +4316,33 @@ Index: libstdc++-v3/testsuite/20_util/is_constructible/value.cc
 +  static_assert(test_property<is_constructible,
 +		__gnu_test::construct::nAny[]>(false), "PR c++/90532");
  }
+Index: libstdc++-v3/config/os/bsd/darwin/ppc-extra.ver
+===================================================================
+--- a/src/libstdc++-v3/config/os/bsd/darwin/ppc-extra.ver	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/config/os/bsd/darwin/ppc-extra.ver	(.../branches/gcc-8-branch)
+@@ -1 +1,22 @@
+   __eprintf;
++# 3.4
++  _ZNSt14numeric_limitsIgE*;
++  _ZNSirsERg;
++  _ZNSolsEg;
++  _ZNSt13basic_istreamIwSt11char_traitsIwEErsERg;
++  _ZNSt13basic_ostreamIwSt11char_traitsIwEElsEg;
++  _ZSt14__convert_to_vIgEvPKcRT_RSt12_Ios_IostateRKP*;
++  _ZStlsIg[cw]St11char_traitsI[cw]EERSt13basic_ostreamIT0_T1_ES6_RKSt7complexIT_E;
++  _ZStrsIg[cw]St11char_traitsI[cw]EERSt13basic_istreamIT0_T1_ES6_RSt7complexIT_E;
++# 3.4.7
++  _ZNSi10_M_extractIgEERSiRT_;
++  _ZNSt13basic_istreamIwSt11char_traitsIwEE10_M_extractIgEERS2_RT_;
++  _ZNSo9_M_insertIgEERSoT_;
++  _ZNSt13basic_ostreamIwSt11char_traitsIwEE9_M_insertIgEERS2_T_;
++# 3.4.10
++  _ZNKSt3tr14hashIgEclEg;
++  _ZNKSt4hashIgEclEg;
++# ldbl 1.3
++  _ZT[IS]g;
++  _ZT[IS]Pg;
++  _ZT[IS]PKg;
 Index: libstdc++-v3/acinclude.m4
 ===================================================================
 --- a/src/libstdc++-v3/acinclude.m4	(.../tags/gcc_8_3_0_release)
@@ -4430,7 +4907,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-8-branch)
 @@ -1 +1 @@
 -20190222
-+20190528
++20190612
 Index: gcc/tree-ssa-loop-ch.c
 ===================================================================
 --- a/src/gcc/tree-ssa-loop-ch.c	(.../tags/gcc_8_3_0_release)
@@ -4513,6 +4990,22 @@ Index: gcc/tree-ssa-strlen.c
        /* The above functions should be neither const nor pure.  Punt if they
  	 aren't.  */
        if (gimple_vdef (stmt) == NULL_TREE || gimple_vuse (stmt) == NULL_TREE)
+Index: gcc/tree.h
+===================================================================
+--- a/src/gcc/tree.h	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/tree.h	(.../branches/gcc-8-branch)
+@@ -909,6 +909,11 @@
+   (TREE_CHECK2 (NODE, VAR_DECL, \
+ 		RESULT_DECL)->decl_common.decl_nonshareable_flag)
+ 
++/* In a PARM_DECL, set for Fortran hidden string length arguments that some
++   buggy callers don't pass to the callee.  */
++#define DECL_HIDDEN_STRING_LENGTH(NODE) \
++  (TREE_CHECK (NODE, PARM_DECL)->decl_common.decl_nonshareable_flag)
++
+ /* In a CALL_EXPR, means that the call is the jump from a thunk to the
+    thunked-to function.  */
+ #define CALL_FROM_THUNK_P(NODE) (CALL_EXPR_CHECK (NODE)->base.protected_flag)
 Index: gcc/ipa-cp.c
 ===================================================================
 --- a/src/gcc/ipa-cp.c	(.../tags/gcc_8_3_0_release)
@@ -5039,7 +5532,81 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,988 @@
+@@ -1,3 +1,1062 @@
++2019-06-11  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/90811
++	* config/nvptx/nvptx.c (nvptx_output_softstack_switch): Use and.b%d
++	instead of and.u%d.
++
++2019-06-07  John David Anglin  <danglin@gcc.gnu.orig>
++
++	PR target/90751
++	* config/pa/pa-linux.h (ASM_DECLARE_FUNCTION_NAME): Update comment.
++	Call pa_output_function_label.
++	(TARGET_ASM_FUNCTION_PROLOGUE): define.
++	* config/pa/pa-protos.h (pa_output_function_label): Declare.
++	* config/pa/pa.c (pa_output_function_prologue): Add ATTRIBUTE_UNUSED
++	to declaration.
++	(pa_linux_output_function_prologue): Declare.
++	(TARGET_ASM_FUNCTION_PROLOGUE): Delete define.
++	(pa_output_function_label): New.
++	(pa_output_function_prologue): Revise to use pa_output_function_label.
++	(pa_linux_output_function_prologue): New.
++	* config/pa/pa.h (TARGET_ASM_FUNCTION_PROLOGUE): Define.
++
++2019-06-07  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backport from mainline.
++	2019-05-12  Iain Sandoe  <iain@sandoe.co.uk>
++
++	PR target/82920
++	* config/i386/darwin.h (CC1_SPEC): Report -mx32 as an error for
++	Darwin.
++
++2019-06-07  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backport from mainline.
++	2019-05-12  Iain Sandoe  <iain@sandoe.co.uk>
++
++	PR target/82920
++	* config/i386/i386.c (ix86_output_jmp_thunk_or_indirect): New.
++	(ix86_output_indirect_branch_via_reg): Use output mechanism
++	accounting for __USER_LABEL_PREFIX__.
++	(ix86_output_indirect_branch_via_push): Likewise.
++	(ix86_output_function_return): Likewise.
++	(ix86_output_indirect_function_return): Likewise.
++
++2019-05-30  Jakub Jelinek  <jakub@redhat.com>
++
++	* tree-predcom.c (is_inv_store_elimination_chain): Fix a typo - lenght
++	to length.
++
++2019-05-29  Jakub Jelinek  <jakub@redhat.com>
++
++	PR fortran/90329
++	* lto-streamer.h (LTO_minor_version): Bump to 2.
++
++	Backported from mainline
++	2019-05-16  Jakub Jelinek  <jakub@redhat.com>
++
++	PR fortran/90329
++	* tree-core.h (struct tree_decl_common): Document
++	decl_nonshareable_flag for PARM_DECLs.
++	* tree.h (DECL_HIDDEN_STRING_LENGTH): Define.
++	* calls.c (expand_call): Don't try tail call if caller
++	has any DECL_HIDDEN_STRING_LENGTH PARM_DECLs that are or might be
++	passed on the stack and callee needs to pass any arguments on the
++	stack.
++	* tree-streamer-in.c (unpack_ts_decl_common_value_fields): Use
++	else if instead of series of mutually exclusive ifs.  Handle
++	DECL_HIDDEN_STRING_LENGTH for PARM_DECLs.
++	* tree-streamer-out.c (pack_ts_decl_common_value_fields): Likewise.
++
++2019-05-28  John David Anglin  <danglin@gcc.gnu.org>
++
++	* config/pa/pa.c (hppa_profile_hook): Remove offset adjustment.
++
 +2019-05-27  Eric Botcazou  <ebotcazou@adacore.com>
 +
 +	* dwarf2out.c (resolve_args_picking_1): Deal with DW_OP_GNU_addr_index
@@ -6028,7 +6595,7 @@ Index: gcc/ChangeLog
  2019-02-22  Release Manager
  
  	* GCC 8.3.0 released.
-@@ -568,7 +1557,7 @@
+@@ -568,7 +1631,7 @@
  
  	Backport from mainline
  	2018-11-20  Richard Biener  <rguenther@suse.de>
@@ -14862,6 +15429,16 @@ Index: gcc/testsuite/gcc.target/i386/pr70799-4.c
 -{
 -  a = b >> c;
 -}
+Index: gcc/testsuite/gcc.target/i386/pr52146.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr52146.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr52146.c	(.../branches/gcc-8-branch)
+@@ -1,4 +1,5 @@
+ /* { dg-do compile { target { ! ia32 } } } */
++/* { dg-require-effective-target maybe_x32 } */
+ /* { dg-options "-O2 -mx32" } */
+ 
+ void
 Index: gcc/testsuite/gcc.target/i386/pr89523-4.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/pr89523-4.c	(.../tags/gcc_8_3_0_release)
@@ -14903,6 +15480,236 @@ Index: gcc/testsuite/gcc.target/i386/pr89523-4.c
 +{
 +  x = _mm_i32gather_pd ((void *) 0, idx, 1);
 +}
+Index: gcc/testsuite/gcc.target/i386/indirect-thunk-inline-3.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-inline-3.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/indirect-thunk-inline-3.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk-inline -fno-pic" } */
++/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk-inline " } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
+ 
+ typedef void (*dispatch_t)(long offset);
+ 
+@@ -12,10 +13,12 @@
+   return 0;
+ }
+ 
+-/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
+-/* { dg-final { scan-assembler-times "jmp\[ \t\]*\.LIND" 2 } } */
+-/* { dg-final { scan-assembler-times "call\[ \t\]*\.LIND" 2 } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*dispatch" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler {movq[ \t]*_dispatch} { target { lp64 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler {movl[ \t]*l_dispatch\$non_lazy_ptr-L[0-9]+\$pb} { target { ia32 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler-times {jmp[ \t]*\.?LIND} 2 } } */
++/* { dg-final { scan-assembler-times {call[ \t]*\.?LIND} 2 } } */
+ /* { dg-final { scan-assembler-times {\tpause} 1 } } */
+ /* { dg-final { scan-assembler-times {\tlfence} 1 } } */
+-/* { dg-final { scan-assembler-not "__x86_indirect_thunk" } } */
++/* { dg-final { scan-assembler-not "_?__x86_indirect_thunk" } } */
+ /* { dg-final { scan-assembler-not "pushq\[ \t\]%rax" { target x32 } } } */
+Index: gcc/testsuite/gcc.target/i386/indirect-thunk-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-1.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/indirect-thunk-1.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk -fno-pic" } */
++/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk" } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
+ 
+ typedef void (*dispatch_t)(long offset);
+ 
+@@ -11,9 +12,11 @@
+   dispatch(offset);
+ }
+ 
+-/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*dispatch" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler {movq[ \t]*_dispatch} { target { lp64 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler {movl[ \t]*l_dispatch\$non_lazy_ptr-L[0-9]+\$pb} { target { ia32 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler "jmp\[ \t\]*_?__x86_indirect_thunk_(r|e)ax" } } */
++/* { dg-final { scan-assembler {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler {call[ \t]*\.?LIND} } } */
+ /* { dg-final { scan-assembler {\tpause} } } */
+ /* { dg-final { scan-assembler {\tlfence} } } */
+Index: gcc/testsuite/gcc.target/i386/pr52857-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr52857-1.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr52857-1.c	(.../branches/gcc-8-branch)
+@@ -1,4 +1,5 @@
+ /* { dg-do compile { target { ! ia32 } } } */
++/* { dg-require-effective-target maybe_x32 } */
+ /* { dg-options "-g -O -mx32 -maddress-mode=long" } */
+ 
+ extern void get_BID128 (int *);
+Index: gcc/testsuite/gcc.target/i386/pr52698.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr52698.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr52698.c	(.../branches/gcc-8-branch)
+@@ -1,4 +1,5 @@
+ /* { dg-do compile { target { ! ia32 } } } */
++/* { dg-require-effective-target maybe_x32 } */
+ /* { dg-options "-O2 -mx32 -maddress-mode=long" } */
+ 
+ extern void abort (void);
+Index: gcc/testsuite/gcc.target/i386/ret-thunk-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/ret-thunk-1.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/ret-thunk-1.c	(.../branches/gcc-8-branch)
+@@ -6,8 +6,8 @@
+ {
+ }
+ 
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_return_thunk" } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler "jmp\[ \t\]*_?__x86_return_thunk" } } */
++/* { dg-final { scan-assembler {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler {call[ \t]*\.?LIND} } } */
+ /* { dg-final { scan-assembler {\tpause} } } */
+ /* { dg-final { scan-assembler {\tlfence} } } */
+Index: gcc/testsuite/gcc.target/i386/cet-notrack-icf-3.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/cet-notrack-icf-3.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/cet-notrack-icf-3.c	(.../branches/gcc-8-branch)
+@@ -3,8 +3,8 @@
+ /* { dg-options "-O2 -fcf-protection=none" } */
+ /* { dg-final { scan-assembler-not "endbr" } } */
+ /* { dg-final { scan-assembler-not "fn2:" } } */
+-/* { dg-final { scan-assembler "set\[ \t]+fn2,fn1" } } */
+-/* { dg-final { scan-assembler "set\[ \t]+fn3,fn1" } } */
++/* { dg-final { scan-assembler "set\[ \t]+fn2,fn1" { target { ! *-*-darwin* } } } } */
++/* { dg-final { scan-assembler "set\[ \t]+fn3,fn1" { target { ! *-*-darwin* } } } } */
+ 
+ int (*foo)(int);
+ 
+Index: gcc/testsuite/gcc.target/i386/ret-thunk-10.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/ret-thunk-10.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/ret-thunk-10.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=thunk-inline -mindirect-branch=thunk -fno-pic" } */
++/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=thunk-inline -mindirect-branch=thunk " } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
+ 
+ extern void (*bar) (void);
+ 
+@@ -10,11 +11,11 @@
+   return 0;
+ }
+ 
+-/* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler-not "jmp\[ \t\]*__x86_return_thunk" } } */
++/* { dg-final { scan-assembler {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler {call[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler-not "jmp\[ \t\]*_?__x86_return_thunk" } } */
+ /* { dg-final { scan-assembler-times {\tpause} 2 } } */
+ /* { dg-final { scan-assembler-times {\tlfence} 2 } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
+-/* { dg-final { scan-assembler "__x86_indirect_thunk_(r|e)ax:" } } */
++/* { dg-final { scan-assembler "call\[ \t\]*_?__x86_indirect_thunk_(r|e)ax" } } */
++/* { dg-final { scan-assembler "_?__x86_indirect_thunk_(r|e)ax:" } } */
+ /* { dg-final { scan-assembler-not "pushq\[ \t\]%rax" } } */
+Index: gcc/testsuite/gcc.target/i386/pr55049-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr55049-1.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr55049-1.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile { target { ! ia32 } } } */
+ /* { dg-require-effective-target fpic } */
++/* { dg-require-effective-target maybe_x32 } */
+ /* { dg-options "-O2 -fPIC -mx32" } */
+ 
+ extern void __morestack_fail (const char *msg);
+Index: gcc/testsuite/gcc.target/i386/pr54157.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr54157.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr54157.c	(.../branches/gcc-8-branch)
+@@ -1,4 +1,5 @@
+ /* { dg-do compile { target { ! ia32 } } } */
++/* { dg-require-effective-target maybe_x32 } */
+ /* { dg-options "-O2 -mx32 -maddress-mode=long -ftree-vectorize" } */
+ 
+ struct s2{
+Index: gcc/testsuite/gcc.target/i386/indirect-thunk-attr-2.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-2.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-2.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -fno-pic" } */
++/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep " } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
+ 
+ typedef void (*dispatch_t)(long offset);
+ 
+@@ -12,9 +13,11 @@
+   dispatch[offset](offset);
+ }
+ 
+-/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*dispatch" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler {movq[ \t]*_dispatch} { target { lp64 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler {movl[ \t]*l_dispatch\$non_lazy_ptr-L[0-9]+\$pb} { target { ia32 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler "jmp\[ \t\]*_?__x86_indirect_thunk_(r|e)ax" } } */
++/* { dg-final { scan-assembler {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler {call[ \t]*\.?LIND} } } */
+ /* { dg-final { scan-assembler {\tpause} } } */
+ /* { dg-final { scan-assembler {\tlfence} } } */
+Index: gcc/testsuite/gcc.target/i386/ret-thunk-25.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/ret-thunk-25.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/ret-thunk-25.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* PR target/r84530 */
+ /* { dg-do compile { target ia32 } } */
++/* { dg-skip-if "ABI differs for return complex value" { *-*-darwin* } } */
+ /* { dg-options "-O2 -mfunction-return=thunk -fcheck-pointer-bounds -mmpx -fno-pic" } */
+ 
+ struct s { _Complex unsigned short x; };
+Index: gcc/testsuite/gcc.target/i386/ret-thunk-9.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/ret-thunk-9.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/ret-thunk-9.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=thunk -mindirect-branch=thunk -fno-pic" } */
++/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=thunk -mindirect-branch=thunk " } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
+ 
+ extern void (*bar) (void);
+ 
+@@ -10,12 +11,14 @@
+   return 0;
+ }
+ 
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_return_thunk" } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler "__x86_return_thunk:" } } */
+-/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?bar" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler "jmp\[ \t\]*_?__x86_return_thunk" } } */
++/* { dg-final { scan-assembler {jmp[ \t]+\.?LIND} } } */
++/* { dg-final { scan-assembler {call[ \t]+\.?LIND} } } */
++/* { dg-final { scan-assembler "_?__x86_return_thunk:" } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*bar" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler {movq[ \t]*_bar} { target { lp64 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler {movl[ \t]*l_bar\$non_lazy_ptr-L[0-9]+\$pb} { target { ia32 && *-*-darwin* } } } } */
+ /* { dg-final { scan-assembler-times {\tpause} 2 } } */
+ /* { dg-final { scan-assembler-times {\tlfence} 2 } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
++/* { dg-final { scan-assembler "call\[ \t\]*_?__x86_indirect_thunk_(r|e)ax" } } */
+ /* { dg-final { scan-assembler-not "pushq\[ \t\]%rax" } } */
 Index: gcc/testsuite/gcc.target/i386/pr89523-5.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/pr89523-5.c	(.../tags/gcc_8_3_0_release)
@@ -14947,6 +15754,174 @@ Index: gcc/testsuite/gcc.target/i386/pr89523-5.c
 +  _mm512_prefetch_i32gather_pd (idx, base, 8, 3);
 +  _mm512_mask_prefetch_i32gather_pd (idx, m8, base, 8, 3);
 +}
+Index: gcc/testsuite/gcc.target/i386/indirect-thunk-inline-4.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-inline-4.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/indirect-thunk-inline-4.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk-inline -fno-pic" } */
++/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk-inline " } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
+ 
+ typedef void (*dispatch_t)(long offset);
+ 
+@@ -12,10 +13,12 @@
+   return 0;
+ }
+ 
+-/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
+-/* { dg-final { scan-assembler-times "jmp\[ \t\]*\.LIND" 2 } } */
+-/* { dg-final { scan-assembler-times "call\[ \t\]*\.LIND" 2 } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*dispatch" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler {movq[ \t]*_dispatch} { target { lp64 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler {movl[ \t]*l_dispatch\$non_lazy_ptr-L[0-9]+\$pb} { target { ia32 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler-times {jmp[ \t]*\.?LIND} 2 } } */
++/* { dg-final { scan-assembler-times {call[ \t]*\.?LIND} 2 } } */
+ /* { dg-final { scan-assembler-times {\tpause} 1 } } */
+ /* { dg-final { scan-assembler-times {\tlfence} 1 } } */
+-/* { dg-final { scan-assembler-not "__x86_indirect_thunk" } } */
++/* { dg-final { scan-assembler-not "_?__x86_indirect_thunk" } } */
+ /* { dg-final { scan-assembler-not "pushq\[ \t\]%rax" { target x32 } } } */
+Index: gcc/testsuite/gcc.target/i386/indirect-thunk-2.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-2.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/indirect-thunk-2.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk -fno-pic" } */
++/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk " } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
+ 
+ typedef void (*dispatch_t)(long offset);
+ 
+@@ -11,9 +12,11 @@
+   dispatch[offset](offset);
+ }
+ 
+-/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*dispatch" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler {movq[ \t]*_dispatch} { target { lp64 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler {movl[ \t]*l_dispatch\$non_lazy_ptr-L[0-9]+\$pb} { target { ia32 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler "jmp\[ \t\]*_?__x86_indirect_thunk_(r|e)ax" } } */
++/* { dg-final { scan-assembler {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler {call[ \t]*\.?LIND} } } */
+ /* { dg-final { scan-assembler {\tpause} } } */
+ /* { dg-final { scan-assembler {\tlfence} } } */
+Index: gcc/testsuite/gcc.target/i386/pr52857-2.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr52857-2.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr52857-2.c	(.../branches/gcc-8-branch)
+@@ -1,4 +1,5 @@
+ /* { dg-do compile { target { ! ia32 } } } */
++/* { dg-require-effective-target maybe_x32 } */
+ /* { dg-options "-g -O -mx32 -maddress-mode=long" } */
+ 
+ void uw_init_context_1 (void *);
+Index: gcc/testsuite/gcc.target/i386/indirect-thunk-register-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-register-1.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/indirect-thunk-register-1.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mindirect-branch=thunk -mindirect-branch-register -fno-pic" } */
++/* { dg-options "-O2 -mindirect-branch=thunk -mindirect-branch-register " } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
+ 
+ typedef void (*dispatch_t)(long offset);
+ 
+@@ -11,12 +12,12 @@
+   dispatch(offset);
+ }
+ 
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler "jmp\[ \t\]*_?__x86_indirect_thunk_(r|e)ax" } } */
++/* { dg-final { scan-assembler {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler {call[ \t]*\.?LIND} } } */
+ /* { dg-final { scan-assembler "mov\[ \t\](%eax|%rax), \\((%esp|%rsp)\\)" } } */
+ /* { dg-final { scan-assembler {\tpause} } } */
+ /* { dg-final { scan-assembler-not "push(?:l|q)\[ \t\]*_?dispatch"  } } */
+ /* { dg-final { scan-assembler-not "pushq\[ \t\]%rax" } } */
+-/* { dg-final { scan-assembler-not "__x86_indirect_thunk\n" } } */
+-/* { dg-final { scan-assembler-not "__x86_indirect_thunk_bnd\n" } } */
++/* { dg-final { scan-assembler-not "_?__x86_indirect_thunk\n" } } */
++/* { dg-final { scan-assembler-not "_?__x86_indirect_thunk_bnd\n" } } */
+Index: gcc/testsuite/gcc.target/i386/ret-thunk-2.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/ret-thunk-2.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/ret-thunk-2.c	(.../branches/gcc-8-branch)
+@@ -6,8 +6,8 @@
+ {
+ }
+ 
+-/* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler {call[ \t]*\.?LIND} } } */
+ /* { dg-final { scan-assembler {\tpause} } } */
+ /* { dg-final { scan-assembler {\tlfence} } } */
+-/* { dg-final { scan-assembler-not "jmp\[ \t\]*__x86_return_thunk" } } */
++/* { dg-final { scan-assembler-not "jmp\[ \t\]*_?__x86_return_thunk" } } */
+Index: gcc/testsuite/gcc.target/i386/cet-notrack-icf-4.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/cet-notrack-icf-4.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/cet-notrack-icf-4.c	(.../branches/gcc-8-branch)
+@@ -3,7 +3,7 @@
+ /* { dg-options "-O2 -fcf-protection" } */
+ /* { dg-final { scan-assembler "endbr" } } */
+ /* { dg-final { scan-assembler "fn2:" } } */
+-/* { dg-final { scan-assembler "set\[ \t]+fn3,fn1" } } */
++/* { dg-final { scan-assembler "set\[ \t]+fn3,fn1" { target { ! *-*-darwin* } } } } */
+ 
+ int (*foo)(int);
+ 
+Index: gcc/testsuite/gcc.target/i386/ret-thunk-11.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/ret-thunk-11.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/ret-thunk-11.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=thunk-extern -mindirect-branch=thunk -fno-pic" } */
++/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=thunk-extern -mindirect-branch=thunk " } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
+ 
+ extern void (*bar) (void);
+ 
+@@ -10,11 +11,11 @@
+   return 0;
+ }
+ 
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_return_thunk" } } */
++/* { dg-final { scan-assembler "jmp\[ \t\]*_?__x86_return_thunk" } } */
+ /* { dg-final { scan-assembler-times {\tpause} 1 } } */
+ /* { dg-final { scan-assembler-times {\tlfence} 1 } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
+-/* { dg-final { scan-assembler "__x86_indirect_thunk_(r|e)ax:" } } */
++/* { dg-final { scan-assembler {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler {call[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler "call\[ \t\]*_?__x86_indirect_thunk_(r|e)ax" } } */
++/* { dg-final { scan-assembler "_?__x86_indirect_thunk_(r|e)ax:" } } */
+ /* { dg-final { scan-assembler-not "pushq\[ \t\]%rax" } } */
+Index: gcc/testsuite/gcc.target/i386/cet-sjlj-5.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/cet-sjlj-5.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/cet-sjlj-5.c	(.../branches/gcc-8-branch)
+@@ -3,7 +3,7 @@
+ /* { dg-final { scan-assembler-times "endbr32" 2 { target ia32 } } } */
+ /* { dg-final { scan-assembler-times "endbr64" 2 { target { ! ia32 } } } } */
+ /* { dg-final { scan-assembler-times "call	_?setjmp" 1 } } */
+-/* { dg-final { scan-assembler-times "call	longjmp" 1 } } */
++/* { dg-final { scan-assembler-times "call	_?longjmp" 1 } } */
+ 
+ #include <stdio.h>
+ #include <setjmp.h>
 Index: gcc/testsuite/gcc.target/i386/pr89848.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/pr89848.c	(.../tags/gcc_8_3_0_release)
@@ -14963,6 +15938,34 @@ Index: gcc/testsuite/gcc.target/i386/pr89848.c
 +  x <<= x;
 +  return x;
 +}
+Index: gcc/testsuite/gcc.target/i386/indirect-thunk-attr-3.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-3.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-3.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -fno-pic" } */
++/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep " } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
+ 
+ typedef void (*dispatch_t)(long offset);
+ 
+@@ -14,9 +15,11 @@
+   return 0;
+ }
+ 
+-/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
+-/* { dg-final { scan-assembler-times "jmp\[ \t\]*\.LIND" 2 } } */
+-/* { dg-final { scan-assembler-times "call\[ \t\]*\.LIND" 2 } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*dispatch" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler {movq[ \t]*_dispatch} { target { lp64 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler {movl[ \t]*l_dispatch\$non_lazy_ptr-L[0-9]+\$pb} { target { ia32 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler-times {jmp[ \t]*\.?LIND} 2 } } */
++/* { dg-final { scan-assembler-times {call[ \t]*\.?LIND} 2 } } */
+ /* { dg-final { scan-assembler {\tpause} } } */
+ /* { dg-final { scan-assembler {\tlfence} } } */
+-/* { dg-final { scan-assembler-not "__x86_indirect_thunk" } } */
++/* { dg-final { scan-assembler-not "_?__x86_indirect_thunk" } } */
 Index: gcc/testsuite/gcc.target/i386/pr90547.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/pr90547.c	(.../tags/gcc_8_3_0_release)
@@ -15032,6 +16035,44 @@ Index: gcc/testsuite/gcc.target/i386/pr89523-6.c
 +  _mm512_prefetch_i32gather_pd (idx, (void *) 0, 8, 3);
 +  _mm512_mask_prefetch_i32gather_pd (idx, m8, (void *) 0, 8, 3);
 +}
+Index: gcc/testsuite/gcc.target/i386/indirect-thunk-3.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-3.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/indirect-thunk-3.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk -fno-pic" } */
++/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk " } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
+ 
+ typedef void (*dispatch_t)(long offset);
+ 
+@@ -12,9 +13,11 @@
+   return 0;
+ }
+ 
+-/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*dispatch" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler {movq[ \t]*_dispatch} { target { lp64 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler {movl[ \t]*l_dispatch\$non_lazy_ptr-L[0-9]+\$pb} { target { ia32 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler "call\[ \t\]*_?__x86_indirect_thunk_(r|e)ax" } } */
++/* { dg-final { scan-assembler {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler {call[ \t]*\.?LIND} } } */
+ /* { dg-final { scan-assembler {\tpause} } } */
+ /* { dg-final { scan-assembler {\tlfence} } } */
+Index: gcc/testsuite/gcc.target/i386/pr53698.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr53698.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr53698.c	(.../branches/gcc-8-branch)
+@@ -1,4 +1,5 @@
+ /* { dg-do compile { target { ! ia32 } } } */
++/* { dg-require-effective-target maybe_x32 } */
+ /* { dg-options "-O -mx32 -maddress-mode=long -fno-tree-dominator-opts" } */
+ 
+ extern char foo[];
 Index: gcc/testsuite/gcc.target/i386/pr89827.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/pr89827.c	(.../tags/gcc_8_3_0_release)
@@ -15048,17 +16089,99 @@ Index: gcc/testsuite/gcc.target/i386/pr89827.c
 +{
 +  a >>= (unsigned short) a;
 +}
+Index: gcc/testsuite/gcc.target/i386/indirect-thunk-register-2.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-register-2.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/indirect-thunk-register-2.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mindirect-branch=thunk-inline -mindirect-branch-register -fno-pic" } */
++/* { dg-options "-O2 -mindirect-branch=thunk-inline -mindirect-branch-register " } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
+ 
+ typedef void (*dispatch_t)(long offset);
+ 
+@@ -11,10 +12,10 @@
+   dispatch(offset);
+ }
+ 
+-/* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler {call[ \t]*\.?LIND} } } */
+ /* { dg-final { scan-assembler "mov\[ \t\](%eax|%rax), \\((%esp|%rsp)\\)" } } */
+ /* { dg-final { scan-assembler {\tpause} } } */
+ /* { dg-final { scan-assembler-not "push(?:l|q)\[ \t\]*_?dispatch"  } } */
+ /* { dg-final { scan-assembler-not "pushq\[ \t\]%rax" } } */
+-/* { dg-final { scan-assembler-not "__x86_indirect_thunk" } } */
++/* { dg-final { scan-assembler-not "_?__x86_indirect_thunk" } } */
+Index: gcc/testsuite/gcc.target/i386/ret-thunk-3.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/ret-thunk-3.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/ret-thunk-3.c	(.../branches/gcc-8-branch)
+@@ -6,7 +6,7 @@
+ {
+ }
+ 
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_return_thunk" } } */
++/* { dg-final { scan-assembler "jmp\[ \t\]*_?__x86_return_thunk" } } */
+ /* { dg-final { scan-assembler-not {\t(lfence|pause)} } } */
+-/* { dg-final { scan-assembler-not "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler-not "call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler-not {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler-not {call[ \t]*\.?LIND} } } */
+Index: gcc/testsuite/gcc.target/i386/ret-thunk-12.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/ret-thunk-12.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/ret-thunk-12.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk -fno-pic" } */
++/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk " } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
+ 
+ extern void (*bar) (void);
+ 
+@@ -10,11 +11,11 @@
+   return 0;
+ }
+ 
+-/* { dg-final { scan-assembler-not "jmp\[ \t\]*__x86_return_thunk" } } */
++/* { dg-final { scan-assembler-not "jmp\[ \t\]*_?__x86_return_thunk" } } */
+ /* { dg-final { scan-assembler-times {\tpause} 1 } } */
+ /* { dg-final { scan-assembler-times {\tlfence} 1 } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
+-/* { dg-final { scan-assembler "__x86_indirect_thunk_(r|e)ax:" } } */
++/* { dg-final { scan-assembler {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler {call[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler "call\[ \t\]*_?__x86_indirect_thunk_(r|e)ax" } } */
++/* { dg-final { scan-assembler "_?__x86_indirect_thunk_(r|e)ax:" } } */
+ /* { dg-final { scan-assembler-not "pushq\[ \t\]%rax" } } */
 Index: gcc/testsuite/gcc.target/i386/indirect-thunk-extern-7.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-extern-7.c	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/testsuite/gcc.target/i386/indirect-thunk-extern-7.c	(.../branches/gcc-8-branch)
-@@ -1,5 +1,5 @@
+@@ -1,5 +1,6 @@
  /* { dg-do compile } */
 -/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk-extern -fno-pic" } */
-+/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk-extern -fno-pic -fjump-tables" } */
++/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk-extern -fjump-tables" } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
  
  void func0 (void);
  void func1 (void);
+@@ -36,7 +37,7 @@
+ }
+ 
+ /* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*\.L\[0-9\]+\\(,%" { target *-*-linux* } } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk(_nt|)_(r|e)ax" } } */
++/* { dg-final { scan-assembler "jmp\[ \t\]*_?__x86_indirect_thunk(_nt|)_(r|e)ax" } } */
+ /* { dg-final { scan-assembler-not {\t(lfence|pause)} } } */
+-/* { dg-final { scan-assembler-not "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler-not "call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler-not {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler-not "call\[ \t\]*\.?LIND" } } */
 Index: gcc/testsuite/gcc.target/i386/pr89965.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/pr89965.c	(.../tags/gcc_8_3_0_release)
@@ -15103,6 +16226,48 @@ Index: gcc/testsuite/gcc.target/i386/pr89965.c
 +    __builtin_abort ();
 +  return 0;
 +}
+Index: gcc/testsuite/gcc.target/i386/indirect-thunk-attr-4.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-4.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-4.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -fno-pic" } */
++/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep " } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
+ 
+ typedef void (*dispatch_t)(long offset);
+ 
+@@ -13,9 +14,11 @@
+   return 0;
+ }
+ 
+-/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
+-/* { dg-final { scan-assembler-times "jmp\[ \t\]*\.LIND" 2 } } */
+-/* { dg-final { scan-assembler-times "call\[ \t\]*\.LIND" 2 } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*dispatch" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler {movq[ \t]*_dispatch} { target { lp64 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler {movl[ \t]*l_dispatch\$non_lazy_ptr-L[0-9]+\$pb} { target { ia32 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler-times {jmp[ \t]*\.?LIND} 2 } } */
++/* { dg-final { scan-assembler-times {call[ \t]*\.?LIND} 2 } } */
+ /* { dg-final { scan-assembler {\tpause} } } */
+ /* { dg-final { scan-assembler {\tlfence} } } */
+-/* { dg-final { scan-assembler-not "__x86_indirect_thunk" } } */
++/* { dg-final { scan-assembler-not "_?__x86_indirect_thunk" } } */
+Index: gcc/testsuite/gcc.target/i386/cet-notrack-5a.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/cet-notrack-5a.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/cet-notrack-5a.c	(.../branches/gcc-8-branch)
+@@ -2,7 +2,8 @@
+ /* { dg-options "-O -fcf-protection" } */
+ /* { dg-final { scan-assembler-times "endbr32" 1 { target ia32 } } } */
+ /* { dg-final { scan-assembler-times "endbr64" 1 { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler-not "\tcall\[ \t]+" } } */
++/* { dg-final { scan-assembler-not "\tcall\[ \t]+" { target { { ! ia32 } || { ! *-*-darwin* } } } } } */
++/* { dg-final { scan-assembler-times "\tcall\[ \t]+" 1 { target { ia32 && *-*-darwin* } } } } */
+ /* { dg-final { scan-assembler-times "notrack call\[ \t]+" 1 } } */
+ 
+ int (*fptr) (int) __attribute__ ((nocf_check));
 Index: gcc/testsuite/gcc.target/i386/pr89523-7.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/pr89523-7.c	(.../tags/gcc_8_3_0_release)
@@ -15150,6 +16315,181 @@ Index: gcc/testsuite/gcc.target/i386/pr89523-7.c
 +  _mm512_i32scatter_pd (addr, idx, src, 8);
 +  _mm512_mask_i32scatter_pd (addr, m8, idx, src, 8);
 +}
+Index: gcc/testsuite/gcc.target/i386/indirect-thunk-4.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-4.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/indirect-thunk-4.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk -fno-pic" } */
++/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk " } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
+ 
+ typedef void (*dispatch_t)(long offset);
+ 
+@@ -12,9 +13,11 @@
+   return 0;
+ }
+ 
+-/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*dispatch" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler {movq[ \t]*_dispatch} { target { lp64 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler {movl[ \t]*l_dispatch\$non_lazy_ptr-L[0-9]+\$pb} { target { ia32 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler "call\[ \t\]*_?__x86_indirect_thunk_(r|e)ax" } } */
++/* { dg-final { scan-assembler {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler {call[ \t]*\.?LIND} } } */
+ /* { dg-final { scan-assembler {\tpause} } } */
+ /* { dg-final { scan-assembler {\tlfence} } } */
+Index: gcc/testsuite/gcc.target/i386/indirect-thunk-register-3.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-register-3.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/indirect-thunk-register-3.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mindirect-branch=thunk-extern -mindirect-branch-register -fno-pic" } */
++/* { dg-options "-O2 -mindirect-branch=thunk-extern -mindirect-branch-register " } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
+ 
+ typedef void (*dispatch_t)(long offset);
+ 
+@@ -11,9 +12,9 @@
+   dispatch(offset);
+ }
+ 
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
++/* { dg-final { scan-assembler "jmp\[ \t\]*_?__x86_indirect_thunk_(r|e)ax" } } */
+ /* { dg-final { scan-assembler-not "push(?:l|q)\[ \t\]*_?dispatch"  } } */
+ /* { dg-final { scan-assembler-not "pushq\[ \t\]%rax" } } */
+ /* { dg-final { scan-assembler-not {\t(pause|pause|nop)} } } */
+-/* { dg-final { scan-assembler-not "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler-not "call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler-not {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler-not {call[ \t]*\.?LIND} } } */
+Index: gcc/testsuite/gcc.target/i386/ret-thunk-4.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/ret-thunk-4.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/ret-thunk-4.c	(.../branches/gcc-8-branch)
+@@ -6,7 +6,7 @@
+ {
+ }
+ 
+-/* { dg-final { scan-assembler-not "jmp\[ \t\]*__x86_return_thunk" } } */
++/* { dg-final { scan-assembler-not "jmp\[ \t\]*_?__x86_return_thunk" } } */
+ /* { dg-final { scan-assembler-not {\t(lfence|pause)} } } */
+-/* { dg-final { scan-assembler-not "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler-not "call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler-not {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler-not {call[ \t]*\.?LIND} } } */
+Index: gcc/testsuite/gcc.target/i386/ret-thunk-13.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/ret-thunk-13.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/ret-thunk-13.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk-inline -fno-pic" } */
++/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk-inline " } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
+ 
+ extern void (*bar) (void);
+ extern int foo (void) __attribute__ ((function_return("thunk")));
+@@ -11,11 +12,11 @@
+   return 0;
+ }
+ 
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_return_thunk" } } */
++/* { dg-final { scan-assembler "jmp\[ \t\]*_?__x86_return_thunk" } } */
+ /* { dg-final { scan-assembler-times {\tpause} 2 } } */
+ /* { dg-final { scan-assembler-times {\tlfence} 2 } } */
+-/* { dg-final { scan-assembler-times "jmp\[ \t\]*\.LIND" 3 } } */
+-/* { dg-final { scan-assembler-times "call\[ \t\]*\.LIND" 3 } } */
+-/* { dg-final { scan-assembler-not "jmp\[ \t\]*__x86_indirect_thunk" } } */
+-/* { dg-final { scan-assembler-not "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
++/* { dg-final { scan-assembler-times {jmp[ \t]*\.?LIND} 3 } } */
++/* { dg-final { scan-assembler-times {call[ \t]*\.?LIND} 3 } } */
++/* { dg-final { scan-assembler-not "jmp\[ \t\]*_?__x86_indirect_thunk" } } */
++/* { dg-final { scan-assembler-not "call\[ \t\]*_?__x86_indirect_thunk_(r|e)ax" } } */
+ /* { dg-final { scan-assembler-not "pushq\[ \t\]%rax" } } */
+Index: gcc/testsuite/gcc.target/i386/indirect-thunk-attr-5.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-5.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-5.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -fno-pic" } */
++/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep " } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
+ 
+ typedef void (*dispatch_t)(long offset);
+ 
+@@ -14,8 +15,10 @@
+   return 0;
+ }
+ 
+-/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*dispatch" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler {movq[ \t]*_dispatch} { target { lp64 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler {movl[ \t]*l_dispatch\$non_lazy_ptr-L[0-9]+\$pb} { target { ia32 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler "call\[ \t\]*_?__x86_indirect_thunk_(r|e)ax" } } */
+ /* { dg-final { scan-assembler-not {\t(lfence|pause)} } } */
+-/* { dg-final { scan-assembler-not "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler-not "call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler-not {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler-not {call[ \t]*\.?LIND} } } */
+Index: gcc/testsuite/gcc.target/i386/pr52876.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr52876.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr52876.c	(.../branches/gcc-8-branch)
+@@ -1,4 +1,5 @@
+ /* { dg-do run { target x32 } } */
++/* { dg-require-effective-target maybe_x32 } */
+ /* { dg-options "-O2 -mx32 -maddress-mode=long" } */
+ 
+ extern void abort (void);
+Index: gcc/testsuite/gcc.target/i386/cet-notrack-5b.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/cet-notrack-5b.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/cet-notrack-5b.c	(.../branches/gcc-8-branch)
+@@ -3,7 +3,8 @@
+ /* { dg-options "-O -fcf-protection" } */
+ /* { dg-final { scan-assembler-times "endbr32" 1 { target ia32 } } } */
+ /* { dg-final { scan-assembler-times "endbr64" 1 { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler-times "\tcall\[ \t]+" 1 } } */
++/* { dg-final { scan-assembler-times "\tcall\[ \t]+" 1 { target { { ! ia32 } || { ! *-*-darwin* } } } } } */
++/* { dg-final { scan-assembler-times "\tcall\[ \t]+" 2 { target { ia32 && *-*-darwin* } } } } */
+ /* { dg-final { scan-assembler-times "notrack call\[ \t]+" 1 } } */
+ 
+ int (*fptr) (int) __attribute__ ((nocf_check));
+Index: gcc/testsuite/gcc.target/i386/indirect-thunk-extern-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-extern-1.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/indirect-thunk-extern-1.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk-extern -fno-pic" } */
++/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk-extern " } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
+ 
+ typedef void (*dispatch_t)(long offset);
+ 
+@@ -11,8 +12,10 @@
+   dispatch(offset);
+ }
+ 
+-/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*dispatch" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler {movq[ \t]*_dispatch} { target { lp64 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler {movl[ \t]*l_dispatch\$non_lazy_ptr-L[0-9]+\$pb} { target { ia32 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler "jmp\[ \t\]*_?__x86_indirect_thunk_(r|e)ax" } } */
+ /* { dg-final { scan-assembler-not {\t(lfence|pause)} } } */
+-/* { dg-final { scan-assembler-not "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler-not "call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler-not {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler-not {call[ \t]*\.‚LIND} } } */
 Index: gcc/testsuite/gcc.target/i386/pr89523-8.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/pr89523-8.c	(.../tags/gcc_8_3_0_release)
@@ -15200,13 +16540,26 @@ Index: gcc/testsuite/gcc.target/i386/indirect-thunk-inline-7.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-inline-7.c	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/testsuite/gcc.target/i386/indirect-thunk-inline-7.c	(.../branches/gcc-8-branch)
-@@ -1,5 +1,5 @@
+@@ -1,5 +1,6 @@
  /* { dg-do compile } */
 -/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk-inline -fno-pic" } */
-+/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk-inline -fno-pic -fjump-tables" } */
++/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk-inline -fjump-tables" } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
  
  void func0 (void);
  void func1 (void);
+@@ -37,8 +38,8 @@
+ 
+ /* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*\.L\[0-9\]+\\(,%" { target *-*-linux* } } } */
+ /* { dg-final { scan-assembler-not "pushq\[ \t\]%(r|e)ax" } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler {call[ \t]*\.?LIND} } } */
+ /* { dg-final { scan-assembler {\tpause} } } */
+ /* { dg-final { scan-assembler {\tlfence} } } */
+-/* { dg-final { scan-assembler-not "__x86_indirect_thunk" } } */
++/* { dg-final { scan-assembler-not "_?__x86_indirect_thunk" } } */
 Index: gcc/testsuite/gcc.target/i386/pr89523-1a.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/pr89523-1a.c	(.../tags/gcc_8_3_0_release)
@@ -15236,6 +16589,29 @@ Index: gcc/testsuite/gcc.target/i386/pr89523-1a.c
 +      foo ();
 +  return (cost);
 +}
+Index: gcc/testsuite/gcc.target/i386/indirect-thunk-bnd-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-bnd-1.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/indirect-thunk-bnd-1.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile { target { ! x32 } } } */
+-/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk -fcheck-pointer-bounds -mmpx -fno-pic" } */
++/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk -fcheck-pointer-bounds -mmpx" } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
+ 
+ void (*dispatch) (char *);
+ char buf[10];
+@@ -11,8 +12,8 @@
+ }
+ 
+ /* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
+-/* { dg-final { scan-assembler "bnd jmp\[ \t\]*__x86_indirect_thunk_bnd_rax" { target lp64 } } } */
+-/* { dg-final { scan-assembler "bnd call\[ \t\]*__x86_indirect_thunk_bnd_eax" { target ia32 } } } */
++/* { dg-final { scan-assembler "bnd jmp\[ \t\]*_?__x86_indirect_thunk_bnd_rax" { target lp64 } } } */
++/* { dg-final { scan-assembler "bnd call\[ \t\]*_?__x86_indirect_thunk_bnd_eax" { target ia32 } } } */
+ /* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+ /* { dg-final { scan-assembler "bnd call\[ \t\]*\.LIND" } } */
+ /* { dg-final { scan-assembler "bnd ret" } } */
 Index: gcc/testsuite/gcc.target/i386/pr89945.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/pr89945.c	(.../tags/gcc_8_3_0_release)
@@ -15262,6 +16638,73 @@ Index: gcc/testsuite/gcc.target/i386/pr89945.c
 +        }
 +    }
 +}
+Index: gcc/testsuite/gcc.target/i386/indirect-thunk-register-4.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-register-4.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/indirect-thunk-register-4.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mindirect-branch=keep -fno-pic" } */
++/* { dg-options "-O2 -mindirect-branch=keep " } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
+ 
+ extern void (*func_p) (void);
+ 
+Index: gcc/testsuite/gcc.target/i386/ret-thunk-5.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/ret-thunk-5.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/ret-thunk-5.c	(.../branches/gcc-8-branch)
+@@ -8,8 +8,8 @@
+ {
+ }
+ 
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_return_thunk" } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler "jmp\[ \t\]*_?__x86_return_thunk" } } */
++/* { dg-final { scan-assembler {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler {call[ \t]*\.?LIND} } } */
+ /* { dg-final { scan-assembler {\tpause} } } */
+ /* { dg-final { scan-assembler {\tlfence} } } */
+Index: gcc/testsuite/gcc.target/i386/pr55093.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr55093.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr55093.c	(.../branches/gcc-8-branch)
+@@ -1,4 +1,5 @@
+ /* { dg-do compile { target { ! ia32 } } } */
++/* { dg-require-effective-target maybe_x32 } */
+ /* { dg-options "-O2 -mx32 -maddress-mode=long" } */
+ /* { dg-skip-if "different ABI" { x86_64-*-mingw* } } */
+ 
+Index: gcc/testsuite/gcc.target/i386/ret-thunk-14.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/ret-thunk-14.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/ret-thunk-14.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk-extern -fno-pic" } */
++/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk-extern " } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
+ 
+ extern void (*bar) (void);
+ 
+@@ -13,9 +14,11 @@
+ 
+ /* { dg-final { scan-assembler-times {\tpause} 1 } } */
+ /* { dg-final { scan-assembler-times {\tlfence} 1 } } */
+-/* { dg-final { scan-assembler-not "jmp\[ \t\]*__x86_return_thunk" } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?bar" { target *-*-linux* } } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
++/* { dg-final { scan-assembler-not "jmp\[ \t\]*_?__x86_return_thunk" } } */
++/* { dg-final { scan-assembler {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler {call[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*bar" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler {movq[ \t]*_bar} { target { lp64 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler {movl[ \t]*l_bar\$non_lazy_ptr-L[0-9]+\$pb} { target { ia32 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler "call\[ \t\]*_?__x86_indirect_thunk_(r|e)ax" } } */
+ /* { dg-final { scan-assembler-not "pushq\[ \t\]%rax" } } */
 Index: gcc/testsuite/gcc.target/i386/pr90193.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/pr90193.c	(.../tags/gcc_8_3_0_release)
@@ -15288,6 +16731,33 @@ Index: gcc/testsuite/gcc.target/i386/pr90193.c
 +{
 +  return foo ();
 +}
+Index: gcc/testsuite/gcc.target/i386/indirect-thunk-attr-6.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-6.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-6.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -fno-pic" } */
++/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep " } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
+ 
+ typedef void (*dispatch_t)(long offset);
+ 
+@@ -13,8 +14,10 @@
+   return 0;
+ }
+ 
+-/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*dispatch" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler {movq[ \t]*_dispatch} { target { lp64 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler {movl[ \t]*l_dispatch\$non_lazy_ptr-L[0-9]+\$pb} { target { ia32 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler "call\[ \t\]*_?__x86_indirect_thunk_(r|e)ax" } } */
+ /* { dg-final { scan-assembler-not {\t(lfence|pause)} } } */
+-/* { dg-final { scan-assembler-not "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler-not "call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler-not {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler-not {call[ \t]*\.?LIND} } } */
 Index: gcc/testsuite/gcc.target/i386/pr89902.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/pr89902.c	(.../tags/gcc_8_3_0_release)
@@ -15306,6 +16776,55 @@ Index: gcc/testsuite/gcc.target/i386/pr89902.c
 +  bar ();
 +  return x;
 +}
+Index: gcc/testsuite/gcc.target/i386/pr66470.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr66470.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr66470.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* PR target/66470 */
+ /* { dg-do compile { target { ! ia32 } } } */
++/* { dg-require-effective-target maybe_x32 } */
+ /* { dg-options "-O2 -mx32 -maddress-mode=long" } */
+ /* { dg-require-effective-target tls } */
+ 
+Index: gcc/testsuite/gcc.target/i386/pr59929.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr59929.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr59929.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do run } */
+ /* { dg-options "-O0 -mno-accumulate-outgoing-args" } */
++/* { dg-require-effective-target maybe_x32 } */
+ /* { dg-additional-options "-mx32 -maddress-mode=short" { target x32 } } */
+ 
+ void
+Index: gcc/testsuite/gcc.target/i386/indirect-thunk-extern-2.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-extern-2.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/indirect-thunk-extern-2.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk-extern -fno-pic" } */
++/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk-extern " } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
+ 
+ typedef void (*dispatch_t)(long offset);
+ 
+@@ -11,8 +12,10 @@
+   dispatch[offset](offset);
+ }
+ 
+-/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*dispatch" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler {movq[ \t]*_dispatch} { target { lp64 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler {movl[ \t]*l_dispatch\$non_lazy_ptr-L[0-9]+\$pb} { target { ia32 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler "jmp\[ \t\]*_?__x86_indirect_thunk_(r|e)ax" } } */
+ /* { dg-final { scan-assembler-not {\t(lfence|pause)} } } */
+-/* { dg-final { scan-assembler-not "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler-not "call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler-not {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler-not {call[ \t]*\.?LIND} } } */
 Index: gcc/testsuite/gcc.target/i386/pr89523-9.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/pr89523-9.c	(.../tags/gcc_8_3_0_release)
@@ -15381,6 +16900,108 @@ Index: gcc/testsuite/gcc.target/i386/pr89684.c
 +  bar (0, foo);
 +  bar (0, foo);
 +}
+Index: gcc/testsuite/gcc.target/i386/ret-thunk-22.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/ret-thunk-22.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/ret-thunk-22.c	(.../branches/gcc-8-branch)
+@@ -6,10 +6,12 @@
+ struct s gs = { 100 + 200i };
+ struct s __attribute__((noinline)) foo (void) { return gs; }
+ 
+-/* { dg-final { scan-assembler-times "popl\[\\t \]*%ecx" 1 } } */
+-/* { dg-final { scan-assembler "lea\[l\]?\[\\t \]*4\\(%esp\\), %esp" } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_return_thunk_ecx" } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler-times "popl\[\\t \]*%ecx" 1 { target { ! *-*-darwin* } } } } */
++/* { dg-final { scan-assembler "lea\[l\]?\[\\t \]*4\\(%esp\\), %esp" { target { ! *-*-darwin* } } } } */
++/* { dg-final { scan-assembler "jmp\[ \t\]*_?__x86_return_thunk_ecx" { target { ! *-*-darwin* } } } } */
++/* { dg-final { scan-assembler {call[ \t]*___x86.get_pc_thunk.cx} { target { *-*-darwin* } } } } */
++/* { dg-final { scan-assembler {jmp[ \t]*___x86_return_thunk} { target { *-*-darwin* } } } } */
++/* { dg-final { scan-assembler {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler {call[ \t]*\.?LIND} } } */
+ /* { dg-final { scan-assembler {\tpause} } } */
+ /* { dg-final { scan-assembler {\tlfence} } } */
+Index: gcc/testsuite/gcc.target/i386/indirect-thunk-bnd-2.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-bnd-2.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/indirect-thunk-bnd-2.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile { target { ! x32 } } } */
+-/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk -fcheck-pointer-bounds -mmpx -fno-pic" } */
++/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk -fcheck-pointer-bounds -mmpx" } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
+ 
+ void (*dispatch) (char *);
+ char buf[10];
+@@ -12,8 +13,8 @@
+ }
+ 
+ /* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
+-/* { dg-final { scan-assembler "bnd call\[ \t\]*__x86_indirect_thunk_bnd_(r|e)ax" } } */
+-/* { dg-final { scan-assembler "bnd call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler "bnd call\[ \t\]*_?__x86_indirect_thunk_bnd_(r|e)ax" } } */
++/* { dg-final { scan-assembler "bnd call\[ \t\]*\.?LIND" } } */
+ /* { dg-final { scan-assembler "bnd ret" } } */
+ /* { dg-final { scan-assembler {\tpause} } } */
+ /* { dg-final { scan-assembler {\tlfence} } } */
+Index: gcc/testsuite/gcc.target/i386/ret-thunk-6.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/ret-thunk-6.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/ret-thunk-6.c	(.../branches/gcc-8-branch)
+@@ -7,8 +7,8 @@
+ {
+ }
+ 
+-/* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler {call[ \t]*\.?LIND} } } */
+ /* { dg-final { scan-assembler {\tpause} } } */
+ /* { dg-final { scan-assembler {\tlfence} } } */
+-/* { dg-final { scan-assembler-not "jmp\[ \t\]*__x86_return_thunk" } } */
++/* { dg-final { scan-assembler-not "jmp\[ \t\]*_?__x86_return_thunk" } } */
+Index: gcc/testsuite/gcc.target/i386/ret-thunk-15.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/ret-thunk-15.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/ret-thunk-15.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=keep -fno-pic" } */
++/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=keep " } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
+ 
+ extern void (*bar) (void);
+ 
+@@ -11,11 +12,13 @@
+   return 0;
+ }
+ 
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_return_thunk" } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler "jmp\[ \t\]*_?__x86_return_thunk" } } */
++/* { dg-final { scan-assembler {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler {call[ \t]*\.?LIND} } } */
+ /* { dg-final { scan-assembler-times {\tpause} 1 } } */
+ /* { dg-final { scan-assembler-times {\tlfence} 1 } } */
+-/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?bar" { target *-*-linux* } } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*bar" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler {movq[ \t]*_bar} { target { lp64 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler {movl[ \t]*l_bar\$non_lazy_ptr-L[0-9]+\$pb} { target { ia32 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler "call\[ \t\]*_?__x86_indirect_thunk_(r|e)ax" } } */
+ /* { dg-final { scan-assembler-not "pushq\[ \t\]%rax" } } */
+Index: gcc/testsuite/gcc.target/i386/cet-sjlj-6b.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/cet-sjlj-6b.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/cet-sjlj-6b.c	(.../branches/gcc-8-branch)
+@@ -1,4 +1,5 @@
+ /* { dg-do compile { target { ! ia32 } } } */
++/* { dg-require-effective-target maybe_x32 } */
+ /* { dg-options "-O -maddress-mode=long -fcf-protection -mx32" } */
+ /* { dg-final { scan-assembler-times "endbr64" 2 } } */
+ /* { dg-final { scan-assembler-times "movq\t.*buf\\+16" 1 } } */
 Index: gcc/testsuite/gcc.target/i386/pr89523-2.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/pr89523-2.c	(.../tags/gcc_8_3_0_release)
@@ -15423,6 +17044,60 @@ Index: gcc/testsuite/gcc.target/i386/pr89523-2.c
 +{
 +  x = _mm_i32gather_pd (base, idx, 1);
 +}
+Index: gcc/testsuite/gcc.target/i386/indirect-thunk-inline-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-inline-1.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/indirect-thunk-inline-1.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk-inline -fno-pic" } */
++/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk-inline " } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
+ 
+ typedef void (*dispatch_t)(long offset);
+ 
+@@ -11,10 +12,12 @@
+   dispatch(offset);
+ }
+ 
+-/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*dispatch" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler {movq[ \t]*_dispatch} { target { lp64 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler {movl[ \t]*l_dispatch\$non_lazy_ptr-L[0-9]+\$pb} { target { ia32 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler {call[ \t]*\.?LIND} } } */
+ /* { dg-final { scan-assembler {\tpause} } } */
+ /* { dg-final { scan-assembler {\tlfence} } } */
+-/* { dg-final { scan-assembler-not "__x86_indirect_thunk" } } */
++/* { dg-final { scan-assembler-not "_?__x86_indirect_thunk" } } */
+ /* { dg-final { scan-assembler-not "pushq\[ \t\]%rax" { target x32 } } } */
+Index: gcc/testsuite/gcc.target/i386/indirect-thunk-attr-7.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-7.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-7.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -fno-pic" } */
++/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep " } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
+ 
+ void func0 (void);
+ void func1 (void);
+@@ -37,7 +38,9 @@
+ }
+ 
+ /* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*\.L\[0-9\]+\\(,%" { target *-*-linux* } } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk(_nt|)_(r|e)ax" } } */
++/* { dg-final { scan-assembler {leaq[ \t]*L[0-9]+\(%rip\)} { target { lp64 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler {addl[ \t]*L[0-9]+-L[0-9]+\$pb} { target { ia32 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler "jmp\[ \t\]*_?__x86_indirect_thunk(_nt|)_(r|e)ax" } } */
+ /* { dg-final { scan-assembler-not {\t(lfence|pause)} } } */
+-/* { dg-final { scan-assembler-not "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler-not "call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler-not {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler-not {call[ \t]*\.?LIND} } } */
 Index: gcc/testsuite/gcc.target/i386/pr89903.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/pr89903.c	(.../tags/gcc_8_3_0_release)
@@ -15496,17 +17171,96 @@ Index: gcc/testsuite/gcc.target/i386/fpprec-1.c
          -0.0, 0.0, -0.0, 0.0, -1.0, 1.0, -1.0, 1.0, -2.0, 2.0,
          -2.0, 2.0 };
  
+Index: gcc/testsuite/gcc.target/i386/cet-notrack-icf-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/cet-notrack-icf-1.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/cet-notrack-icf-1.c	(.../branches/gcc-8-branch)
+@@ -3,8 +3,8 @@
+ /* { dg-options "-O2 -fcf-protection=none" } */
+ /* { dg-final { scan-assembler-not "endbr" } } */
+ /* { dg-final { scan-assembler-not "fn3:" } } */
+-/* { dg-final { scan-assembler "set\[ \t]+fn2,fn1" } } */
+-/* { dg-final { scan-assembler "set\[ \t]+fn3,fn1" } } */
++/* { dg-final { scan-assembler "set\[ \t]+fn2,fn1" { target { ! *-*-darwin* } } } } */
++/* { dg-final { scan-assembler "set\[ \t]+fn3,fn1" { target { ! *-*-darwin* } } } } */
+ 
+ static __attribute__((noinline)) int
+ fn1 (int x)
+Index: gcc/testsuite/gcc.target/i386/indirect-thunk-extern-3.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-extern-3.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/indirect-thunk-extern-3.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk-extern -fno-pic" } */
++/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk-extern " } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
+ 
+ typedef void (*dispatch_t)(long offset);
+ 
+@@ -12,8 +13,10 @@
+   return 0;
+ }
+ 
+-/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*dispatch" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler {movq[ \t]*_dispatch} { target { lp64 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler {movl[ \t]*l_dispatch\$non_lazy_ptr-L[0-9]+\$pb} { target { ia32 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler "call\[ \t\]*_?__x86_indirect_thunk_(r|e)ax" } } */
+ /* { dg-final { scan-assembler-not {\t(lfence|pause)} } } */
+-/* { dg-final { scan-assembler-not "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler-not "call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler-not {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler-not {call[ \t]*\.?LIND} } } */
 Index: gcc/testsuite/gcc.target/i386/indirect-thunk-7.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-7.c	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/testsuite/gcc.target/i386/indirect-thunk-7.c	(.../branches/gcc-8-branch)
-@@ -1,5 +1,5 @@
+@@ -1,5 +1,6 @@
  /* { dg-do compile } */
 -/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk -fno-pic" } */
-+/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk -fno-pic -fjump-tables" } */
++/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk -fjump-tables" } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
  
  void func0 (void);
  void func1 (void);
+@@ -36,8 +37,10 @@
+ }
+ 
+ /* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*\.L\[0-9\]+\\(,%" { target *-*-linux* } } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler {leaq[ \t]*L[0-9]+\(%rip\)} { target { lp64 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler {addl[ \t]*L[0-9]+-L[0-9]+\$pb} { target { ia32 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler "jmp\[ \t\]*_?__x86_indirect_thunk_(r|e)ax" } } */
++/* { dg-final { scan-assembler {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler {call[ \t]*\.?LIND} } } */
+ /* { dg-final { scan-assembler {\tpause} } } */
+ /* { dg-final { scan-assembler {\tlfence} } } */
+Index: gcc/testsuite/gcc.target/i386/ret-thunk-23.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/ret-thunk-23.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/ret-thunk-23.c	(.../branches/gcc-8-branch)
+@@ -6,10 +6,12 @@
+ struct s gs = { 100 + 200i };
+ struct s __attribute__((noinline)) foo (void) { return gs; }
+ 
+-/* { dg-final { scan-assembler-times "popl\[\\t \]*%ecx" 1 } } */
+-/* { dg-final { scan-assembler "lea\[l\]?\[\\t \]*4\\(%esp\\), %esp" } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_return_thunk_ecx" } } */
+-/* { dg-final { scan-assembler-not "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler-not "call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler-times "popl\[\\t \]*%ecx" 1 { target { ! *-*-darwin* } } } } */
++/* { dg-final { scan-assembler "lea\[l\]?\[\\t \]*4\\(%esp\\), %esp" { target { ! *-*-darwin* } } } } */
++/* { dg-final { scan-assembler "jmp\[ \t\]*_?__x86_return_thunk_ecx" { target { ! *-*-darwin* } } } } */
++/* { dg-final { scan-assembler {call[ \t]*___x86.get_pc_thunk.cx} { target { *-*-darwin* } } } } */
++/* { dg-final { scan-assembler {jmp[ \t]*___x86_return_thunk} { target { *-*-darwin* } } } } */
++/* { dg-final { scan-assembler-not {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler-not {call[ \t]*\.?LIND} } } */
+ /* { dg-final { scan-assembler-not {\tpause} } } */
+ /* { dg-final { scan-assembler-not {\tlfence} } } */
 Index: gcc/testsuite/gcc.target/i386/pr85860.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/pr85860.c	(.../tags/gcc_8_3_0_release)
@@ -15535,6 +17289,56 @@ Index: gcc/testsuite/gcc.target/i386/pr85860.c
 +  while (a);
 +  return m + j + k + l;
 +}
+Index: gcc/testsuite/gcc.target/i386/ret-thunk-7.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/ret-thunk-7.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/ret-thunk-7.c	(.../branches/gcc-8-branch)
+@@ -7,7 +7,7 @@
+ {
+ }
+ 
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_return_thunk" } } */
++/* { dg-final { scan-assembler "jmp\[ \t\]*_?__x86_return_thunk" } } */
+ /* { dg-final { scan-assembler-not {\t(lfence|pause)} } } */
+-/* { dg-final { scan-assembler-not "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler-not "call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler-not {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler-not {call[ \t]*\.?LIND} } } */
+Index: gcc/testsuite/gcc.target/i386/ret-thunk-16.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/ret-thunk-16.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/ret-thunk-16.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mfunction-return=thunk-inline -mindirect-branch=thunk-extern -fno-pic" } */
++/* { dg-options "-O2 -mfunction-return=thunk-inline -mindirect-branch=thunk-extern " } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
+ 
+ extern void (*bar) (void);
+ 
+@@ -11,8 +12,8 @@
+   return 0;
+ }
+ 
+-/* { dg-final { scan-assembler-not "__x86_indirect_thunk" } } */
+-/* { dg-final { scan-assembler-not "__x86_return_thunk" } } */
++/* { dg-final { scan-assembler-not "_?__x86_indirect_thunk" } } */
++/* { dg-final { scan-assembler-not "_?__x86_return_thunk" } } */
+ /* { dg-final { scan-assembler-not {\t(lfence|pause)} } } */
+-/* { dg-final { scan-assembler-not "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler-not "call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler-not {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler-not {call[ \t]*\.?LIND} } } */
+Index: gcc/testsuite/gcc.target/i386/pr55116-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr55116-1.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr55116-1.c	(.../branches/gcc-8-branch)
+@@ -1,4 +1,5 @@
+ /* { dg-do compile { target { ! ia32 } } } */
++/* { dg-require-effective-target maybe_x32 } */
+ /* { dg-options "-O2 -mx32 -maddress-mode=long" } */
+ 
+ int glob_int_arr[100];
 Index: gcc/testsuite/gcc.target/i386/pr89523-3.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/pr89523-3.c	(.../tags/gcc_8_3_0_release)
@@ -15576,6 +17380,224 @@ Index: gcc/testsuite/gcc.target/i386/pr89523-3.c
 +{
 +  x = _mm_i64gather_pd (base, idx, 1);
 +}
+Index: gcc/testsuite/gcc.target/i386/indirect-thunk-inline-2.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-inline-2.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/indirect-thunk-inline-2.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk-inline -fno-pic" } */
++/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk-inline " } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
+ 
+ typedef void (*dispatch_t)(long offset);
+ 
+@@ -11,10 +12,12 @@
+   dispatch[offset](offset);
+ }
+ 
+-/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*dispatch" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler {movq[ \t]*_dispatch} { target { lp64 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler {movl[ \t]*l_dispatch\$non_lazy_ptr-L[0-9]+\$pb} { target { ia32 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler {call[ \t]*\.?LIND} } } */
+ /* { dg-final { scan-assembler {\tpause} } } */
+ /* { dg-final { scan-assembler {\tlfence} } } */
+-/* { dg-final { scan-assembler-not "__x86_indirect_thunk" } } */
++/* { dg-final { scan-assembler-not "_?__x86_indirect_thunk" } } */
+ /* { dg-final { scan-assembler-not "pushq\[ \t\]%rax" { target x32 } } } */
+Index: gcc/testsuite/gcc.target/i386/indirect-thunk-attr-8.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-8.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-8.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mfunction-return=keep -mindirect-branch=thunk -fno-pic" } */
++/* { dg-options "-O2 -mfunction-return=keep -mindirect-branch=thunk " } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
+ 
+ void func0 (void);
+ void func1 (void);
+@@ -36,7 +37,7 @@
+     }
+ }
+ 
+-/* { dg-final { scan-assembler-not "__x86_indirect_thunk" } } */
++/* { dg-final { scan-assembler-not "_?__x86_indirect_thunk" } } */
+ /* { dg-final { scan-assembler-not {\t(lfence|pause)} } } */
+-/* { dg-final { scan-assembler-not "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler-not "call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler-not {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler-not {call[ \t]*\.?LIND} } } */
+Index: gcc/testsuite/gcc.target/i386/cet-notrack-6b.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/cet-notrack-6b.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/cet-notrack-6b.c	(.../branches/gcc-8-branch)
+@@ -2,7 +2,8 @@
+ /* { dg-options "-O0 -fcf-protection" } */
+ /* { dg-final { scan-assembler-times "endbr32" 1 { target ia32 } } } */
+ /* { dg-final { scan-assembler-times "endbr64" 1 { target { ! ia32 } } } } */
+-/* { dg-final { scan-assembler-not "\tcall\[ \t]+" } } */
++/* { dg-final { scan-assembler-not "\tcall\[ \t]+" { target { { ! ia32 } || { ! *-*-darwin* } } } } } */
++/* { dg-final { scan-assembler-times "\tcall\[ \t]+" 1 { target { ia32 && *-*-darwin* } } } } */
+ /* { dg-final { scan-assembler-times "notrack call\[ \t]+" 1 } } */
+ 
+ int foo (int arg);
+Index: gcc/testsuite/gcc.target/i386/cet-notrack-icf-2.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/cet-notrack-icf-2.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/cet-notrack-icf-2.c	(.../branches/gcc-8-branch)
+@@ -3,7 +3,7 @@
+ /* { dg-options "-O2 -fcf-protection" } */
+ /* { dg-final { scan-assembler "endbr" } } */
+ /* { dg-final { scan-assembler "fn3:" } } */
+-/* { dg-final { scan-assembler "set\[ \t]+fn2,fn1" } } */
++/* { dg-final { scan-assembler "set\[ \t]+fn2,fn1" { target { ! *-*-darwin* } } } } */
+ 
+ static __attribute__((noinline)) int
+ fn1 (int x)
+Index: gcc/testsuite/gcc.target/i386/cet-sjlj-3.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/cet-sjlj-3.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/cet-sjlj-3.c	(.../branches/gcc-8-branch)
+@@ -3,7 +3,7 @@
+ /* { dg-final { scan-assembler-times "endbr32" 4 { target ia32 } } } */
+ /* { dg-final { scan-assembler-times "endbr64" 4 { target { ! ia32 } } } } */
+ /* { dg-final { scan-assembler-times "call	_?setjmp" 1 } } */
+-/* { dg-final { scan-assembler-times "call	longjmp" 1 } } */
++/* { dg-final { scan-assembler-times "call	_?longjmp" 1 } } */
+ 
+ #include <stdio.h>
+ #include <setjmp.h>
+Index: gcc/testsuite/gcc.target/i386/indirect-thunk-extern-4.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-extern-4.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/indirect-thunk-extern-4.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk-extern -fno-pic" } */
++/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -mindirect-branch=thunk-extern " } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
+ 
+ typedef void (*dispatch_t)(long offset);
+ 
+@@ -12,7 +13,8 @@
+   return 0;
+ }
+ 
+-/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" { target x32 } } } */
+-/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*dispatch" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler {movq[ \t]*_dispatch} { target { lp64 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler {movl[ \t]*l_dispatch\$non_lazy_ptr-L[0-9]+\$pb} { target { ia32 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler "call\[ \t\]*_?__x86_indirect_thunk_(r|e)ax" } } */
+ /* { dg-final { scan-assembler-not {\t(lfence|pause)} } } */
+Index: gcc/testsuite/gcc.target/i386/pr55597.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr55597.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr55597.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile { target { ! ia32 } } } */
+ /* { dg-require-effective-target fpic } */
++/* { dg-require-effective-target maybe_x32 } */
+ /* { dg-options "-O2 -fPIC -mx32 -maddress-mode=long" } */
+ 
+ struct initial_sp
+Index: gcc/testsuite/gcc.target/i386/indirect-thunk-attr-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-1.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/indirect-thunk-attr-1.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep -fno-pic" } */
++/* { dg-options "-O2 -mno-indirect-branch-register -mfunction-return=keep " } */
++/* { dg-additional-options "-fno-pic" { target { ! *-*-darwin* } } } */
+ 
+ typedef void (*dispatch_t)(long offset);
+ 
+@@ -14,9 +15,11 @@
+   dispatch(offset);
+ }
+ 
+-/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*_?dispatch" { target *-*-linux* } } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*__x86_indirect_thunk_(r|e)ax" } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler "mov(?:l|q)\[ \t\]*dispatch" { target *-*-linux* } } } */
++/* { dg-final { scan-assembler {movq[ \t]*_dispatch} { target { lp64 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler {movl[ \t]*l_dispatch\$non_lazy_ptr-L[0-9]+\$pb} { target { ia32 && *-*-darwin* } } } } */
++/* { dg-final { scan-assembler "jmp\[ \t\]*_?__x86_indirect_thunk_(r|e)ax" } } */
++/* { dg-final { scan-assembler {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler {call[ \t]*\.?LIND} } } */
+ /* { dg-final { scan-assembler {\tpause} } } */
+ /* { dg-final { scan-assembler {\tlfence} } } */
+Index: gcc/testsuite/gcc.target/i386/ret-thunk-24.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/ret-thunk-24.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/ret-thunk-24.c	(.../branches/gcc-8-branch)
+@@ -6,10 +6,12 @@
+ struct s gs = { 100 + 200i };
+ struct s __attribute__((noinline)) foo (void) { return gs; }
+ 
+-/* { dg-final { scan-assembler-times "popl\[\\t \]*%ecx" 1 } } */
+-/* { dg-final { scan-assembler "lea\[l\]?\[\\t \]*4\\(%esp\\), %esp" } } */
+-/* { dg-final { scan-assembler-not "jmp\[ \t\]*__x86_return_thunk_ecx" } } */
+-/* { dg-final { scan-assembler "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler "call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler-times "popl\[\\t \]*%ecx" 1 { target { ! *-*-darwin* } } } } */
++/* { dg-final { scan-assembler "lea\[l\]?\[\\t \]*4\\(%esp\\), %esp" { target { ! *-*-darwin* } } } } */
++/* { dg-final { scan-assembler-not "jmp\[ \t\]*_?__x86_return_thunk_ecx" { target { ! *-*-darwin* } } } } */
++/* { dg-final { scan-assembler {call[ \t]*___x86.get_pc_thunk.cx} { target { *-*-darwin* } } } } */
++/* { dg-final { scan-assembler-not {jmp[ \t]*___x86_return_thunk} { target { *-*-darwin* } } } } */
++/* { dg-final { scan-assembler {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler {call[ \t]*\.?LIND} } } */
+ /* { dg-final { scan-assembler {\tpause} } } */
+ /* { dg-final { scan-assembler {\tlfence} } } */
+Index: gcc/testsuite/gcc.target/i386/ret-thunk-8.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/ret-thunk-8.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/ret-thunk-8.c	(.../branches/gcc-8-branch)
+@@ -8,7 +8,7 @@
+ {
+ }
+ 
+-/* { dg-final { scan-assembler-not "jmp\[ \t\]*__x86_return_thunk" } } */
++/* { dg-final { scan-assembler-not "jmp\[ \t\]*_?__x86_return_thunk" } } */
+ /* { dg-final { scan-assembler-not {\t(lfence|pause)} } } */
+-/* { dg-final { scan-assembler-not "jmp\[ \t\]*\.LIND" } } */
+-/* { dg-final { scan-assembler-not "call\[ \t\]*\.LIND" } } */
++/* { dg-final { scan-assembler-not {jmp[ \t]*\.?LIND} } } */
++/* { dg-final { scan-assembler-not {call[ \t]*\.?LIND} } } */
+Index: gcc/testsuite/gcc.target/i386/pr55116-2.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr55116-2.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr55116-2.c	(.../branches/gcc-8-branch)
+@@ -1,4 +1,5 @@
+ /* { dg-do compile { target { ! ia32 } } } */
++/* { dg-require-effective-target maybe_x32 } */
+ /* { dg-options "-O2 -mx32 -maddress-mode=long" } */
+ 
+ typedef struct rtx_def *rtx;
+Index: gcc/testsuite/lib/scanasm.exp
+===================================================================
+--- a/src/gcc/testsuite/lib/scanasm.exp	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/lib/scanasm.exp	(.../branches/gcc-8-branch)
+@@ -504,7 +504,10 @@
+ 	}
+     }
+ 
+-    if { [istarget hppa*-*-*] } {
++    if { [istarget hppa*-*-linux*] } {
++	set pattern [format {%s:\n\t.PROC\n\t.CALLINFO.*\n\t.ENTRY\n.L.*:\n(\t.file[^\t]*)*\t[^:]+:%d(:[0-9]+)?\n} \
++                     $symbol $line]
++    } elseif { [istarget hppa*-*-*] } {
+ 	set pattern [format {\t;[^:]+:%d(:[0-9]+)?\n(\t[^\t]+\n)+%s:\n\t.PROC} \
+                      $line $symbol]
+     } elseif { [istarget mips*-*-*] } {
 Index: gcc/testsuite/gfortran.dg/transfer_simplify_12.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/transfer_simplify_12.f90	(.../tags/gcc_8_3_0_release)
@@ -15826,6 +17848,59 @@ Index: gcc/testsuite/gfortran.dg/binding_label_tests_30.f90
 +
 +subroutine bar() bind(C,name="foo") ! { dg-error "is already being used as a SUBROUTINE" }
 +end subroutine bar
+Index: gcc/testsuite/gfortran.dg/class_70.f03
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/class_70.f03	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/class_70.f03	(.../branches/gcc-8-branch)
+@@ -0,0 +1,38 @@
++! { dg-do run }
++!
++! Test the fix for PR57284 - [OOP] ICE with find_array_spec for polymorphic
++! arrays. Once thw ICE was fixed, work was needed to fix a segfault while
++! determining the size of 'z'.
++!
++! Contributed by Lorenz Huedepohl  <bugs@stellardeath.org>
++!
++module testmod
++  type type_t
++    integer :: idx
++  end type type_t
++  type type_u
++     type(type_t), allocatable :: cmp(:)
++  end type
++contains
++  function foo(a, b) result(add)
++    class(type_t), intent(in) :: a(:), b(size(a))
++    type(type_t) :: add(size(a))
++    add%idx = a%idx + b%idx
++  end function
++end module testmod
++program p
++  use testmod
++  class(type_t), allocatable, dimension(:) :: x, y, z
++  class(type_u), allocatable :: w
++  allocate (x, y, source = [type_t (1), type_t(2)])
++  z = foo (x, y)
++  if (any (z%idx .ne. [2, 4])) stop 1
++
++! Try something a bit more complicated than the original.
++
++  allocate (w)
++  allocate (w%cmp, source = [type_t (2), type_t(3)])
++  z = foo (w%cmp, y)
++  if (any (z%idx .ne. [3, 5])) stop 2
++  deallocate (w, x, y, z)
++end program
+Index: gcc/testsuite/gfortran.dg/transpose_optimization_2.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/transpose_optimization_2.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/transpose_optimization_2.f90	(.../branches/gcc-8-branch)
+@@ -61,4 +61,4 @@
+ ! The check below for temporaries gave 14 and 33 for "parm" and "atmp".
+ !
+ ! { dg-final { scan-tree-dump-times "parm" 72 "original" } }
+-! { dg-final { scan-tree-dump-times "atmp" 12 "original" } }
++! { dg-final { scan-tree-dump-times "atmp" 13 "original" } }
 Index: gcc/testsuite/gfortran.dg/external_procedures_4.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/external_procedures_4.f90	(.../tags/gcc_8_3_0_release)
@@ -15947,6 +18022,52 @@ Index: gcc/testsuite/gfortran.dg/dtio_34.f90
 +   type(t) :: foo
 +   print "(dt)", foo ! { dg-output " Hello World!" }
 +end program
+Index: gcc/testsuite/gfortran.dg/associate_48.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/associate_48.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/associate_48.f90	(.../branches/gcc-8-branch)
+@@ -0,0 +1,41 @@
++! { dg=do run }
++!
++! Test the fix for PR90498.
++!
++! Contributed by Vladimir Fuka  <vladimir.fuka@gmail.com>
++!
++  type field_names_a
++    class(*), pointer :: var(:) =>null()
++  end type
++
++  type(field_names_a),pointer :: a(:)
++  allocate (a(2))
++
++  allocate (a(1)%var(2), source = ["hello"," vlad"])
++  allocate (a(2)%var(2), source = ["HELLO"," VLAD"])
++  call s(a)
++  deallocate (a(1)%var)
++  deallocate (a(2)%var)
++  deallocate (a)
++contains
++  subroutine s(a)
++
++    type(field_names_a) :: a(:)
++
++    select type (var => a(1)%var)
++      type is (character(*))
++        if (any (var .ne. ["hello"," vlad"])) stop 1
++      class default
++        stop
++    end select
++
++    associate (var => a(2)%var)
++      select type (var)
++        type is (character(*))
++          if (any (var .ne. ["HELLO"," VLAD"])) stop 2
++        class default
++          stop
++      end select
++    end associate
++  end
++end
 Index: gcc/testsuite/gfortran.dg/coarray_data_1.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/coarray_data_1.f90	(.../tags/gcc_8_3_0_release)
@@ -16014,6 +18135,16 @@ Index: gcc/testsuite/gfortran.dg/pr89492.f90
 +  print *, size(transfer([1],[bug4()]))         ! { dg-error "shall not have storage size 0" }
 +  print *, transfer(transfer([1],[bug4()]),[1]) ! { dg-error "shall not have storage size 0" }
 +end program bug4a
+Index: gcc/testsuite/gfortran.dg/assign_10.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/assign_10.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/assign_10.f90	(.../branches/gcc-8-branch)
+@@ -24,4 +24,4 @@
+ ! Note that it is the kind conversion that generates the temp.
+ !
+ ! { dg-final { scan-tree-dump-times "parm" 20 "original" } }
+-! { dg-final { scan-tree-dump-times "atmp" 18 "original" } }
++! { dg-final { scan-tree-dump-times "atmp" 20 "original" } }
 Index: gcc/testsuite/gfortran.dg/coarray_allocate_11.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/coarray_allocate_11.f90	(.../tags/gcc_8_3_0_release)
@@ -18269,7 +20400,138 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,904 @@
+@@ -1,3 +1,1035 @@
++2019-06-11  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/90810
++	* g++.dg/ext/vector37.C: New test.
++
++2019-06-10  Paul Thomas  <pault@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/90498
++	* gfortran.dg/associate_48.f90 : New test.
++
++2019-06-09  Paul Thomas  <pault@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/57284
++	* gfortran.dg/assign_10.f90: Bump up counts of "atmp".
++	* gfortran.dg/transpose_optimization_2.f90: Ditto
++
++2019-06-09  Paul Thomas  <pault@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/57284
++	* gfortran.dg/class_70.f03
++
++2019-06-07  John David Anglin  <danglin@gcc.gnu.org>
++
++	* lib/scanasm.exp (dg-function-on-line): Add pattern for hppa*-*-linux*.
++
++2019-06-07  Iain Sandoe  <iain@sandoe.co.uk>
++
++	PR target/82920
++	* gcc.target/i386/indirect-thunk-bnd-1.c: Adjust scan-asms for Darwin,
++	do not use -fno-pic on Darwin.
++	* gcc.target/i386/indirect-thunk-bnd-2.c: Likewise.
++	* gcc.target/i386/ret-thunk-25.c: Skip for Darwin, which has a
++	different ABI for returning this category of complex value.
++
++2019-06-07  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backport from mainline.
++	2019-05-15  Iain Sandoe  <iain@sandoe.co.uk>
++
++	PR target/82920
++	* g++.dg/cet-notrack-1.C: Adjust scan assembler for Darwin.
++	* gcc.target/i386/cet-notrack-5a.c: Likewise.
++	* gcc.target/i386/cet-notrack-5b.c: Likewise.
++	* gcc.target/i386/cet-notrack-6b.c: Likewise.
++	* gcc.target/i386/cet-notrack-icf-1.c: Likewise.
++	* gcc.target/i386/cet-notrack-icf-2.c: Likewise.
++	* gcc.target/i386/cet-notrack-icf-3.c: Likewise.
++	* gcc.target/i386/cet-notrack-icf-4.c: Likewise.
++	* gcc.target/i386/cet-sjlj-3.c: Likewise.
++	* gcc.target/i386/cet-sjlj-5.c: Likewise.
++
++2019-06-07  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backport from mainline.
++	2019-05-14  Iain Sandoe  <iain@sandoe.co.uk>
++
++	PR target/82920
++	* gcc.target/i386/cet-sjlj-6b.c: Require effective target x32.
++	* gcc.target/i386/pr52146.c: Likewise.
++	* gcc.target/i386/pr52698.c: Likewise.
++	* gcc.target/i386/pr52857-1.c: Likewise.
++	* gcc.target/i386/pr52857-2.c: Likewise.
++	* gcc.target/i386/pr52876.c: Likewise.
++	* gcc.target/i386/pr53698.c: Likewise.
++	* gcc.target/i386/pr54157.c: Likewise.
++	* gcc.target/i386/pr55049-1.c: Likewise.
++	* gcc.target/i386/pr55093.c: Likewise.
++	* gcc.target/i386/pr55116-1.c: Likewise.
++	* gcc.target/i386/pr55116-2.c: Likewise.
++	* gcc.target/i386/pr55597.c: Likewise.
++	* gcc.target/i386/pr59929.c: Likewise.
++	* gcc.target/i386/pr66470.c: Likewise.
++
++2019-06-07  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backport from mainline.
++	2019-05-12  Iain Sandoe  <iain@sandoe.co.uk>
++	    Dominique d'Humieres  <dominiq@gcc.gnu.org>
++
++	PR target/82920
++	* gcc.target/i386/indirect-thunk-1.c: Adjust scan-asms for Darwin,
++	do not use -fno-pic on Darwin.
++	* gcc.target/i386/indirect-thunk-2.c: Likewise.
++	* gcc.target/i386/indirect-thunk-3.c: Likewise.
++	* gcc.target/i386/indirect-thunk-4.c: Likewise.
++	* gcc.target/i386/indirect-thunk-7.c: Likewise.
++	* gcc.target/i386/indirect-thunk-attr-1.c: Likewise.
++	* gcc.target/i386/indirect-thunk-attr-2.c: Likewise.
++	* gcc.target/i386/indirect-thunk-attr-3.c: Likewise.
++	* gcc.target/i386/indirect-thunk-attr-4.c: Likewise.
++	* gcc.target/i386/indirect-thunk-attr-5.c: Likewise.
++	* gcc.target/i386/indirect-thunk-attr-6.c: Likewise.
++	* gcc.target/i386/indirect-thunk-attr-7.c: Likewise.
++	* gcc.target/i386/indirect-thunk-attr-8.c: Likewise.
++	* gcc.target/i386/indirect-thunk-extern-1.c: Likewise.
++	* gcc.target/i386/indirect-thunk-extern-2.c: Likewise.
++	* gcc.target/i386/indirect-thunk-extern-3.c: Likewise.
++	* gcc.target/i386/indirect-thunk-extern-4.c: Likewise.
++	* gcc.target/i386/indirect-thunk-extern-7.c: Likewise.
++	* gcc.target/i386/indirect-thunk-inline-1.c: Likewise.
++	* gcc.target/i386/indirect-thunk-inline-2.c: Likewise.
++	* gcc.target/i386/indirect-thunk-inline-3.c: Likewise.
++	* gcc.target/i386/indirect-thunk-inline-4.c: Likewise.
++	* gcc.target/i386/indirect-thunk-inline-7.c: Likewise.
++	* gcc.target/i386/indirect-thunk-register-1.c: Likewise.
++	* gcc.target/i386/indirect-thunk-register-2.c: Likewise.
++	* gcc.target/i386/indirect-thunk-register-3.c: Likewise.
++	* gcc.target/i386/indirect-thunk-register-4.c: Likewise.
++	* gcc.target/i386/ret-thunk-1.c: Likewise.
++	* gcc.target/i386/ret-thunk-10.c: Likewise.
++	* gcc.target/i386/ret-thunk-11.c: Likewise.
++	* gcc.target/i386/ret-thunk-12.c: Likewise.
++	* gcc.target/i386/ret-thunk-13.c: Likewise.
++	* gcc.target/i386/ret-thunk-14.c: Likewise.
++	* gcc.target/i386/ret-thunk-15.c: Likewise.
++	* gcc.target/i386/ret-thunk-16.c: Likewise.
++	* gcc.target/i386/ret-thunk-2.c: Likewise.
++	* gcc.target/i386/ret-thunk-22.c: Likewise.
++	* gcc.target/i386/ret-thunk-23.c: Likewise.
++	* gcc.target/i386/ret-thunk-24.c: Likewise.
++	* gcc.target/i386/ret-thunk-3.c: Likewise.
++	* gcc.target/i386/ret-thunk-4.c: Likewise.
++	* gcc.target/i386/ret-thunk-5.c: Likewise.
++	* gcc.target/i386/ret-thunk-6.c: Likewise.
++	* gcc.target/i386/ret-thunk-7.c: Likewise.
++	* gcc.target/i386/ret-thunk-8.c: Likewise.
++	* gcc.target/i386/ret-thunk-9.c: Likewise.
++
 +2019-05-28  Eric Botcazou  <ebotcazou@adacore.com>
 +
 +	* gnat.dg/opt79.ad[sb]: New test.
@@ -19760,6 +22022,19 @@ Index: gcc/testsuite/g++.dg/ipa/pr89693.C
 +
 +  return 0;
 +}
+Index: gcc/testsuite/g++.dg/cet-notrack-1.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cet-notrack-1.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/cet-notrack-1.C	(.../branches/gcc-8-branch)
+@@ -1,7 +1,7 @@
+ /* { dg-do compile { target i?86-*-* x86_64-*-* } } */
+ /* { dg-options "-fcf-protection" } */
+ /* { dg-final { scan-assembler "endbr32|endbr64" } } */
+-/* { dg-final { scan-assembler-times "\tcall\[ \t]+puts" 2 } } */
++/* { dg-final { scan-assembler-times "\tcall\[ \t]+_?puts" 2 } } */
+ /* { dg-final { scan-assembler-times "notrack call\[ \t]+" 1 } } */
+ #include <stdio.h>
+ 
 Index: gcc/testsuite/g++.dg/cpp1y/var-templ61.C
 ===================================================================
 --- a/src/gcc/testsuite/g++.dg/cpp1y/var-templ61.C	(.../tags/gcc_8_3_0_release)
@@ -20197,6 +22472,40 @@ Index: gcc/testsuite/g++.dg/ext/asm17.C
 +{
 +  A a0, a1;
 +  __asm volatile ("" : "+rm" (a0), "+rm" (a1));
++}
+Index: gcc/testsuite/g++.dg/ext/vector37.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/ext/vector37.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/ext/vector37.C	(.../branches/gcc-8-branch)
+@@ -0,0 +1,29 @@
++// PR c++/90810
++// { dg-do run }
++
++void
++foo (float x, float y)
++{
++  typedef float __attribute__ ((__vector_size__ (4 * sizeof (float)), __may_alias__)) V;
++  const V a = { x, x, x, x }, b = { y, y, y, y };
++  const V c = a / b;
++  if (c[0] != 6.0f || c[1] != 6.0f || c[2] != 6.0f || c[3] != 6.0f)
++    __builtin_abort ();
++}
++
++void
++bar (float y)
++{
++  typedef float __attribute__ ((__vector_size__ (4 * sizeof (float)), __may_alias__)) V;
++  const V a = { 7.0f, 8.0f, 9.0f, 10.0f }, b = { 1.0f, 2.0f, 3.0f, y };
++  const V c = a / b;
++  if (c[0] != 7.0f || c[1] != 4.0f || c[2] != 3.0f || c[3] != 5.0f)
++    __builtin_abort ();
++}
++
++int
++main ()
++{
++  foo (12.0f, 2.0f);
++  bar (2.0f);
 +}
 Index: gcc/testsuite/g++.dg/gomp/pr89796.C
 ===================================================================
@@ -20818,6 +23127,20 @@ Index: gcc/cp/init.c
  	      /* We could skip vfields and fields of types with
  		 user-defined constructors, but I think that won't improve
  		 performance at all; it should be simpler in general just
+@@ -2269,8 +2278,11 @@
+ 		  || TREE_CODE (init) == STRING_CST)))
+ 	break;
+       /* Don't return a CONSTRUCTOR for a variable with partial run-time
+-	 initialization, since it doesn't represent the entire value.  */
+-      if (TREE_CODE (init) == CONSTRUCTOR
++	 initialization, since it doesn't represent the entire value.
++	 Similarly for VECTOR_CSTs created by cp_folding those
++	 CONSTRUCTORs.  */
++      if ((TREE_CODE (init) == CONSTRUCTOR
++	   || TREE_CODE (init) == VECTOR_CST)
+ 	  && !DECL_INITIALIZED_BY_CONSTANT_EXPRESSION_P (decl))
+ 	break;
+       /* If the variable has a dynamic initializer, don't use its
 Index: gcc/cp/class.c
 ===================================================================
 --- a/src/gcc/cp/class.c	(.../tags/gcc_8_3_0_release)
@@ -20903,7 +23226,13 @@ Index: gcc/cp/ChangeLog
 ===================================================================
 --- a/src/gcc/cp/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/cp/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,181 @@
+@@ -1,3 +1,187 @@
++2019-06-11  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/90810
++	* init.c (constant_value_1): Handle VECTOR_CST DECL_INITIAL for
++	!DECL_INITIALIZED_BY_CONSTANT_EXPRESSION_P decls like CONSTRUCTOR.
++
 +2019-05-22  Eric Botcazou  <ebotcazou@adacore.com>
 +
 +	Backport from mainline
@@ -22832,6 +25161,14 @@ Index: gcc/fortran/interface.c
  	  return false;
  	}
  
+@@ -3655,6 +3657,7 @@
+ 	gfc_warning (OPT_Wimplicit_procedure,
+ 		     "Procedure %qs called at %L is not explicitly declared",
+ 		     sym->name, where);
++      gfc_find_proc_namespace (sym->ns)->implicit_interface_calls = 1;
+     }
+ 
+   if (sym->attr.if_source == IFSRC_UNKNOWN)
 Index: gcc/fortran/trans-expr.c
 ===================================================================
 --- a/src/gcc/fortran/trans-expr.c	(.../tags/gcc_8_3_0_release)
@@ -22889,7 +25226,55 @@ Index: gcc/fortran/trans-array.c
 ===================================================================
 --- a/src/gcc/fortran/trans-array.c	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/fortran/trans-array.c	(.../branches/gcc-8-branch)
-@@ -2652,6 +2652,9 @@
+@@ -1164,6 +1164,7 @@
+   tree nelem;
+   tree cond;
+   tree or_expr;
++  tree elemsize;
+   tree class_expr = NULL_TREE;
+   int n, dim, tmp_dim;
+   int total_dim = 0;
+@@ -1329,10 +1330,15 @@
+ 	}
+     }
+ 
++  if (class_expr == NULL_TREE)
++    elemsize = fold_convert (gfc_array_index_type,
++			     TYPE_SIZE_UNIT (gfc_get_element_type (type)));
++  else
++    elemsize = gfc_class_vtab_size_get (class_expr);
++
+   /* Get the size of the array.  */
+   if (size && !callee_alloc)
+     {
+-      tree elemsize;
+       /* If or_expr is true, then the extent in at least one
+ 	 dimension is zero and the size is set to zero.  */
+       size = fold_build3_loc (input_location, COND_EXPR, gfc_array_index_type,
+@@ -1339,11 +1345,6 @@
+ 			      or_expr, gfc_index_zero_node, size);
+ 
+       nelem = size;
+-      if (class_expr == NULL_TREE)
+-	elemsize = fold_convert (gfc_array_index_type,
+-			TYPE_SIZE_UNIT (gfc_get_element_type (type)));
+-      else
+-	elemsize = gfc_class_vtab_size_get (class_expr);
+ 
+       size = fold_build2_loc (input_location, MULT_EXPR, gfc_array_index_type,
+ 			      size, elemsize);
+@@ -1354,6 +1355,10 @@
+       size = NULL_TREE;
+     }
+ 
++  /* Set the span.  */
++  tmp = fold_convert (gfc_array_index_type, elemsize);
++  gfc_conv_descriptor_span_set (pre, desc, tmp);
++
+   gfc_trans_allocate_array_storage (pre, post, info, size, nelem, initial,
+ 				    dynamic, dealloc);
+ 
+@@ -2652,6 +2657,9 @@
    if (ss_info->type != GFC_SS_REFERENCE)
      return false;
  
@@ -22899,7 +25284,26 @@ Index: gcc/fortran/trans-array.c
    /* If the actual argument can be absent (in other words, it can
       be a NULL reference), don't try to evaluate it; pass instead
       the reference directly.  */
-@@ -10350,6 +10353,8 @@
+@@ -9527,9 +9535,15 @@
+   if (sym->ts.type == BT_CLASS
+       && !sym->attr.associate_var
+       && CLASS_DATA (sym)->attr.allocatable
+-      && expr->ref && expr->ref->type == REF_COMPONENT
+-      && strcmp (expr->ref->u.c.component->name, "_data") == 0
+-      && expr->ref->next == NULL)
++      && expr->ref
++      && ((expr->ref->type == REF_ARRAY && expr->ref->u.ar.type == AR_FULL
++	   && expr->ref->next == NULL)
++	  || (expr->ref->type == REF_COMPONENT
++	      && strcmp (expr->ref->u.c.component->name, "_data") == 0
++	      && (expr->ref->next == NULL
++		  || (expr->ref->next->type == REF_ARRAY
++		      && expr->ref->next->u.ar.type == AR_FULL
++		      && expr->ref->next->next == NULL)))))
+     return true;
+ 
+   /* An allocatable variable.  */
+@@ -10350,6 +10364,8 @@
  {
    gfc_ref *ref;
  
@@ -23117,7 +25521,17 @@ Index: gcc/fortran/gfortran.h
  }
  gfc_component;
  
-@@ -1883,6 +1884,7 @@
+@@ -1856,6 +1857,9 @@
+ 
+   /* Set to 1 for !$ACC ROUTINE namespaces.  */
+   unsigned oacc_routine:1;
++
++  /* Set to 1 if there are any calls to procedures with implicit interface.  */
++  unsigned implicit_interface_calls:1;
+ }
+ gfc_namespace;
+ 
+@@ -1883,6 +1887,7 @@
    enum gfc_symbol_type type;
  
    int defined, used;
@@ -23125,7 +25539,7 @@ Index: gcc/fortran/gfortran.h
    locus where;
    gfc_namespace *ns;
  }
-@@ -3059,7 +3061,7 @@
+@@ -3059,7 +3064,7 @@
  void gfc_free_dt_list (void);
  
  
@@ -23134,7 +25548,7 @@ Index: gcc/fortran/gfortran.h
  gfc_gsymbol *gfc_find_gsymbol (gfc_gsymbol *, const char *);
  gfc_gsymbol *gfc_find_case_gsymbol (gfc_gsymbol *, const char *);
  
-@@ -3426,7 +3428,7 @@
+@@ -3426,7 +3431,7 @@
  bool gfc_is_class_container_ref (gfc_expr *e);
  gfc_expr *gfc_class_initializer (gfc_typespec *, gfc_expr *);
  unsigned int gfc_hash_value (gfc_symbol *);
@@ -23143,11 +25557,88 @@ Index: gcc/fortran/gfortran.h
  bool gfc_build_class_symbol (gfc_typespec *, symbol_attribute *,
  			     gfc_array_spec **);
  gfc_symbol *gfc_find_derived_vtab (gfc_symbol *);
+Index: gcc/fortran/lang.opt
+===================================================================
+--- a/src/gcc/fortran/lang.opt	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/fortran/lang.opt	(.../branches/gcc-8-branch)
+@@ -742,6 +742,13 @@
+ Fortran Var(flag_sign_zero) Init(1)
+ Apply negative sign to zero values.
+ 
++ftail-call-workaround
++Fortran Alias(ftail-call-workaround=,1,0)
++
++ftail-call-workaround=
++Fortran RejectNegative Joined UInteger IntegerRange(0, 2) Var(flag_tail_call_workaround) Init(1)
++Disallow tail call optimization when a calling routine may have omitted character lengths.
++
+ funderscoring
+ Fortran Var(flag_underscoring) Init(1)
+ Append underscores to externally visible names.
 Index: gcc/fortran/ChangeLog
 ===================================================================
 --- a/src/gcc/fortran/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/fortran/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,254 @@
+@@ -1,3 +1,313 @@
++2019-06-10  Paul Thomas  <pault@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/90498
++	* trans-stmt.c (trans_associate_var) Do not use the saved
++	descriptor if the expression is a COMPONENT_REF.
++
++2019-06-09  Paul Thomas  <pault@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/57284
++	* resolve.c (find_array_spec): If this is a class expression
++	and the symbol and component array specs are the same, this is
++	not an error.
++	*trans-intrinsic.c (gfc_conv_intrinsic_size): If a class symbol
++	argument, has no namespace, it has come from the interface
++	mapping and the _data component must be accessed directly.
++
++2019-05-30  Marek Polacek  <polacek@redhat.com>
++
++	* lang.opt (ftail-call-workaround): Fix a typo.
++
++2019-05-30  Jakub Jelinek  <jakub@redhat.com>
++
++	* lang.opt (ftail-call-workaround=): Fix a typo - lenghts to lengths.
++
++2019-05-29  Jakub Jelinek  <jakub@redhat.com>
++
++	PR fortran/90329
++	Backported from mainline
++	2019-05-29  Jakub Jelinek  <jakub@redhat.com>
++
++	PR fortran/90329
++	* lang.opt (fbroken-callers): Remove.
++	(ftail-call-workaround, ftail-call-workaround=): New options.
++	* gfortran.h (struct gfc_namespace): Add implicit_interface_calls.
++	* interface.c (gfc_procedure_use): Set implicit_interface_calls
++	for calls to implicit interface procedures.
++	* trans-decl.c (create_function_arglist): Use flag_tail_call_workaround
++	instead of flag_broken_callers.  If it is not 2, also require
++	sym->ns->implicit_interface_calls.
++	* invoke.texi (fbroken-callers): Remove documentation.
++	(ftail-call-workaround, ftail-call-workaround=): Document.
++
++	2019-05-19  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/90329
++	* invoke.texi: Document -fbroken-callers.
++	* lang.opt: Add -fbroken-callers.
++	* trans-decl.c (create_function_arglist): Only set
++	DECL_HIDDEN_STRING_LENGTH if flag_broken_callers is set.
++
++	2019-05-16  Jakub Jelinek  <jakub@redhat.com>
++
++	PR fortran/90329
++	* trans-decl.c (create_function_arglist): Set
++	DECL_HIDDEN_STRING_LENGTH on hidden string length PARM_DECLs if
++	len is constant.
++
 +2019-04-30  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from mainline
@@ -23406,7 +25897,17 @@ Index: gcc/fortran/trans-stmt.c
 ===================================================================
 --- a/src/gcc/fortran/trans-stmt.c	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/fortran/trans-stmt.c	(.../branches/gcc-8-branch)
-@@ -6606,7 +6606,7 @@
+@@ -1842,7 +1842,8 @@
+ 	    {
+ 	      if (e->symtree
+ 		  && DECL_LANG_SPECIFIC (e->symtree->n.sym->backend_decl)
+-		 && GFC_DECL_SAVED_DESCRIPTOR (e->symtree->n.sym->backend_decl))
++		  && GFC_DECL_SAVED_DESCRIPTOR (e->symtree->n.sym->backend_decl)
++		  && TREE_CODE (target_expr) != COMPONENT_REF)
+ 		/* Use the original class descriptor stored in the saved
+ 		   descriptor to get the target_expr.  */
+ 		target_expr =
+@@ -6606,7 +6607,7 @@
  	  /* Use class_init_assign to initialize expr.  */
  	  gfc_code *ini;
  	  ini = gfc_get_code (EXEC_INIT_ASSIGN);
@@ -23722,7 +26223,31 @@ Index: gcc/fortran/resolve.c
        if (sym->attr.function && !gfc_compare_types (&sym->ts, &def_sym->ts))
  	{
  	  gfc_error ("Return type mismatch of function %qs at %L (%s/%s)",
-@@ -4881,6 +4880,7 @@
+@@ -4633,9 +4632,13 @@
+   gfc_array_spec *as;
+   gfc_component *c;
+   gfc_ref *ref;
++  bool class_as = false;
+ 
+   if (e->symtree->n.sym->ts.type == BT_CLASS)
+-    as = CLASS_DATA (e->symtree->n.sym)->as;
++    {
++      as = CLASS_DATA (e->symtree->n.sym)->as;
++      class_as = true;
++    }
+   else
+     as = e->symtree->n.sym->as;
+ 
+@@ -4654,7 +4657,7 @@
+ 	c = ref->u.c.component;
+ 	if (c->attr.dimension)
+ 	  {
+-	    if (as != NULL)
++	    if (as != NULL && !(class_as && as == c->as))
+ 	      gfc_internal_error ("find_array_spec(): unused as(1)");
+ 	    as = c->as;
+ 	  }
+@@ -4881,6 +4884,7 @@
    gfc_ref *char_ref;
    gfc_expr *start, *end;
    gfc_typespec *ts = NULL;
@@ -23730,7 +26255,7 @@ Index: gcc/fortran/resolve.c
  
    for (char_ref = e->ref; char_ref; char_ref = char_ref->next)
      {
-@@ -4932,12 +4932,26 @@
+@@ -4932,12 +4936,26 @@
        return;
      }
  
@@ -23762,7 +26287,7 @@ Index: gcc/fortran/resolve.c
    /* F2008, 6.4.1:  Both the starting point and the ending point shall
       be within the range 1, 2, ..., n unless the starting point exceeds
       the ending point, in which case the substring has length zero.  */
-@@ -5615,11 +5629,14 @@
+@@ -5615,11 +5633,14 @@
  
  
  /* Checks to see that the correct symbol has been host associated.
@@ -23782,7 +26307,7 @@ Index: gcc/fortran/resolve.c
  static bool
  check_host_association (gfc_expr *e)
  {
-@@ -5709,6 +5726,26 @@
+@@ -5709,6 +5730,26 @@
  	  gfc_resolve_expr (e);
  	  sym->refs++;
  	}
@@ -23809,7 +26334,7 @@ Index: gcc/fortran/resolve.c
      }
    /* This might have changed!  */
    return e->expr_type == EXPR_FUNCTION;
-@@ -7640,13 +7677,54 @@
+@@ -7640,13 +7681,54 @@
  
    if (codimension)
      for (i = ar->dimen; i < ar->dimen + ar->codimen; i++)
@@ -23870,7 +26395,7 @@ Index: gcc/fortran/resolve.c
    for (i = 0; i < ar->dimen; i++)
      {
        if (ar->type == AR_ELEMENT || ar->type == AR_FULL)
-@@ -11011,6 +11089,9 @@
+@@ -11011,6 +11093,9 @@
    if (!gfc_check_dependency ((*code)->expr1, (*code)->expr2, 1))
      return false;
  
@@ -23880,7 +26405,7 @@ Index: gcc/fortran/resolve.c
    tmp_expr = get_temp_from_expr ((*code)->expr1, ns);
    tmp_expr->where = (*code)->loc;
  
-@@ -11647,7 +11728,7 @@
+@@ -11647,7 +11732,7 @@
  	  && (gsym->type == GSYM_FUNCTION || gsym->type == GSYM_SUBROUTINE)))
      {
        if (!gsym)
@@ -23970,7 +26495,25 @@ Index: gcc/fortran/trans-decl.c
    fndecl = build_decl (input_location,
  		       FUNCTION_DECL, name, type);
  
-@@ -5384,6 +5397,33 @@
+@@ -2500,6 +2513,17 @@
+ 	  TREE_READONLY (length) = 1;
+ 	  gfc_finish_decl (length);
+ 
++	  /* Marking the length DECL_HIDDEN_STRING_LENGTH will lead
++	     to tail calls being disabled.  Only do that if we
++	     potentially have broken callers.  */
++	  if (flag_tail_call_workaround
++	      && f->sym->ts.u.cl
++	      && f->sym->ts.u.cl->length
++	      && f->sym->ts.u.cl->length->expr_type == EXPR_CONSTANT
++	      && (flag_tail_call_workaround == 2
++		  || f->sym->ns->implicit_interface_calls))
++	    DECL_HIDDEN_STRING_LENGTH (length) = 1;
++
+ 	  /* Remember the passed value.  */
+           if (!f->sym->ts.u.cl ||  f->sym->ts.u.cl->passed_length)
+             {
+@@ -5384,6 +5408,33 @@
    /* Handle "static" initializer.  */
    if (sym->value)
      {
@@ -24342,6 +26885,56 @@ Index: gcc/fortran/check.c
    if (size != NULL)
      {
        if (!type_check (size, 2, BT_INTEGER))
+Index: gcc/fortran/trans-intrinsic.c
+===================================================================
+--- a/src/gcc/fortran/trans-intrinsic.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/fortran/trans-intrinsic.c	(.../branches/gcc-8-branch)
+@@ -6820,6 +6820,8 @@
+   tree fncall0;
+   tree fncall1;
+   gfc_se argse;
++  gfc_expr *e;
++  gfc_symbol *sym = NULL;
+ 
+   gfc_init_se (&argse, NULL);
+   actual = expr->value.function.actual;
+@@ -6827,15 +6829,34 @@
+   if (actual->expr->ts.type == BT_CLASS)
+     gfc_add_class_array_ref (actual->expr);
+ 
++  e = actual->expr;
++
++  /* These are emerging from the interface mapping, when a class valued
++     function appears as the rhs in a realloc on assign statement, where
++     the size of the result is that of one of the actual arguments.  */
++  if (e->expr_type == EXPR_VARIABLE
++      && e->symtree->n.sym->ns == NULL /* This is distinctive!  */
++      && e->symtree->n.sym->ts.type == BT_CLASS
++      && e->ref && e->ref->type == REF_COMPONENT
++      && strcmp (e->ref->u.c.component->name, "_data") == 0)
++    sym = e->symtree->n.sym;
++
+   argse.data_not_needed = 1;
+-  if (gfc_is_class_array_function (actual->expr))
++  if (gfc_is_class_array_function (e))
+     {
+       /* For functions that return a class array conv_expr_descriptor is not
+ 	 able to get the descriptor right.  Therefore this special case.  */
+-      gfc_conv_expr_reference (&argse, actual->expr);
++      gfc_conv_expr_reference (&argse, e);
+       argse.expr = gfc_build_addr_expr (NULL_TREE,
+ 					gfc_class_data_get (argse.expr));
+     }
++  else if (sym && sym->backend_decl)
++    {
++      gcc_assert (GFC_CLASS_TYPE_P (TREE_TYPE (sym->backend_decl)));
++      argse.expr = sym->backend_decl;
++      argse.expr = gfc_build_addr_expr (NULL_TREE,
++					gfc_class_data_get (argse.expr));
++    }
+   else
+     {
+       argse.want_pointer = 1;
 Index: gcc/fortran/simplify.c
 ===================================================================
 --- a/src/gcc/fortran/simplify.c	(.../tags/gcc_8_3_0_release)
@@ -24576,6 +27169,39 @@ Index: gcc/lra-constraints.c
  		    }
  		  /* We should invalidate potential inheritance or
  		     splitting for the current insn usages to the next
+Index: gcc/calls.c
+===================================================================
+--- a/src/gcc/calls.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/calls.c	(.../branches/gcc-8-branch)
+@@ -3754,6 +3754,28 @@
+       || dbg_cnt (tail_call) == false)
+     try_tail_call = 0;
+ 
++  /* Workaround buggy C/C++ wrappers around Fortran routines with
++     character(len=constant) arguments if the hidden string length arguments
++     are passed on the stack; if the callers forget to pass those arguments,
++     attempting to tail call in such routines leads to stack corruption.
++     Avoid tail calls in functions where at least one such hidden string
++     length argument is passed (partially or fully) on the stack in the
++     caller and the callee needs to pass any arguments on the stack.
++     See PR90329.  */
++  if (try_tail_call && maybe_ne (args_size.constant, 0))
++    for (tree arg = DECL_ARGUMENTS (current_function_decl);
++	 arg; arg = DECL_CHAIN (arg))
++      if (DECL_HIDDEN_STRING_LENGTH (arg) && DECL_INCOMING_RTL (arg))
++	{
++	  subrtx_iterator::array_type array;
++	  FOR_EACH_SUBRTX (iter, array, DECL_INCOMING_RTL (arg), NONCONST)
++	    if (MEM_P (*iter))
++	      {
++		try_tail_call = 0;
++		break;
++	      }
++	}
++
+   /* If the user has marked the function as requiring tail-call
+      optimization, attempt it.  */
+   if (must_tail_call)
 Index: gcc/multiple_target.c
 ===================================================================
 --- a/src/gcc/multiple_target.c	(.../tags/gcc_8_3_0_release)
@@ -25005,6 +27631,49 @@ Index: gcc/tree-sra.c
  	    }
  	  else
  	    {
+Index: gcc/tree-predcom.c
+===================================================================
+--- a/src/gcc/tree-predcom.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/tree-predcom.c	(.../branches/gcc-8-branch)
+@@ -1712,7 +1712,7 @@
+ 
+   gcc_assert (!chain->has_max_use_after);
+ 
+-  /* If loop iterates for unknown times or fewer times than chain->lenght,
++  /* If loop iterates for unknown times or fewer times than chain->length,
+      we still need to setup root variable and propagate it with PHI node.  */
+   tree niters = number_of_latch_executions (loop);
+   if (TREE_CODE (niters) != INTEGER_CST
+Index: gcc/tree-streamer-out.c
+===================================================================
+--- a/src/gcc/tree-streamer-out.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/tree-streamer-out.c	(.../branches/gcc-8-branch)
+@@ -212,7 +212,7 @@
+       bp_pack_var_len_unsigned (bp, EH_LANDING_PAD_NR (expr));
+     }
+ 
+-  if (TREE_CODE (expr) == FIELD_DECL)
++  else if (TREE_CODE (expr) == FIELD_DECL)
+     {
+       bp_pack_value (bp, DECL_PACKED (expr), 1);
+       bp_pack_value (bp, DECL_NONADDRESSABLE_P (expr), 1);
+@@ -220,12 +220,15 @@
+       bp_pack_value (bp, expr->decl_common.off_align, 8);
+     }
+ 
+-  if (VAR_P (expr))
++  else if (VAR_P (expr))
+     {
+       bp_pack_value (bp, DECL_HAS_DEBUG_EXPR_P (expr), 1);
+       bp_pack_value (bp, DECL_NONLOCAL_FRAME (expr), 1);
+     }
+ 
++  else if (TREE_CODE (expr) == PARM_DECL)
++    bp_pack_value (bp, DECL_HIDDEN_STRING_LENGTH (expr), 1);
++
+   if (TREE_CODE (expr) == RESULT_DECL
+       || TREE_CODE (expr) == PARM_DECL
+       || VAR_P (expr))
 Index: gcc/varasm.c
 ===================================================================
 --- a/src/gcc/varasm.c	(.../tags/gcc_8_3_0_release)
@@ -25365,6 +28034,36 @@ Index: gcc/omp-simd-clone.c
        gsi = gsi_start_bb (bb);
        while (!gsi_end_p (gsi))
  	{
+Index: gcc/tree-streamer-in.c
+===================================================================
+--- a/src/gcc/tree-streamer-in.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/tree-streamer-in.c	(.../branches/gcc-8-branch)
+@@ -252,7 +252,7 @@
+       LABEL_DECL_UID (expr) = -1;
+     }
+ 
+-  if (TREE_CODE (expr) == FIELD_DECL)
++  else if (TREE_CODE (expr) == FIELD_DECL)
+     {
+       DECL_PACKED (expr) = (unsigned) bp_unpack_value (bp, 1);
+       DECL_NONADDRESSABLE_P (expr) = (unsigned) bp_unpack_value (bp, 1);
+@@ -260,12 +260,15 @@
+       expr->decl_common.off_align = bp_unpack_value (bp, 8);
+     }
+ 
+-  if (VAR_P (expr))
++  else if (VAR_P (expr))
+     {
+       DECL_HAS_DEBUG_EXPR_P (expr) = (unsigned) bp_unpack_value (bp, 1);
+       DECL_NONLOCAL_FRAME (expr) = (unsigned) bp_unpack_value (bp, 1);
+     }
+ 
++  else if (TREE_CODE (expr) == PARM_DECL)
++    DECL_HIDDEN_STRING_LENGTH (expr) = (unsigned) bp_unpack_value (bp, 1);
++
+   if (TREE_CODE (expr) == RESULT_DECL
+       || TREE_CODE (expr) == PARM_DECL
+       || VAR_P (expr))
 Index: gcc/vr-values.c
 ===================================================================
 --- a/src/gcc/vr-values.c	(.../tags/gcc_8_3_0_release)
@@ -25417,6 +28116,18 @@ Index: gcc/tree-ssa-structalias.c
  	      varinfo_t escaped = get_varinfo (find (escaped_id));
  	      if (bitmap_bit_p (escaped->solution, restrict_var->id))
  		escaped_p = true;
+Index: gcc/tree-core.h
+===================================================================
+--- a/src/gcc/tree-core.h	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/tree-core.h	(.../branches/gcc-8-branch)
+@@ -1644,6 +1644,7 @@
+   /* In a VAR_DECL and PARM_DECL, this is DECL_READ_P.  */
+   unsigned decl_read_flag : 1;
+   /* In a VAR_DECL or RESULT_DECL, this is DECL_NONSHAREABLE.  */
++  /* In a PARM_DECL, this is DECL_HIDDEN_STRING_LENGTH.  */
+   unsigned decl_nonshareable_flag : 1;
+ 
+   /* DECL_OFFSET_ALIGN, used only for FIELD_DECLs.  */
 Index: gcc/tree-cfg.c
 ===================================================================
 --- a/src/gcc/tree-cfg.c	(.../tags/gcc_8_3_0_release)
@@ -25457,6 +28168,19 @@ Index: gcc/tree-ssa-reassoc.c
  	break;
        loc = gimple_location (stmt);
        switch (code)
+Index: gcc/config/nvptx/nvptx.c
+===================================================================
+--- a/src/gcc/config/nvptx/nvptx.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/nvptx/nvptx.c	(.../branches/gcc-8-branch)
+@@ -1377,7 +1377,7 @@
+       fputs (";\n", file);
+       if (!CONST_INT_P (size) || UINTVAL (align) > GET_MODE_SIZE (DImode))
+ 	fprintf (file,
+-		 "\t\tand.u%d %%r%d, %%r%d, -" HOST_WIDE_INT_PRINT_DEC ";\n",
++		 "\t\tand.b%d %%r%d, %%r%d, -" HOST_WIDE_INT_PRINT_DEC ";\n",
+ 		 bits, regno, regno, UINTVAL (align));
+     }
+   if (cfun->machine->has_softstack)
 Index: gcc/config/alpha/alpha.h
 ===================================================================
 --- a/src/gcc/config/alpha/alpha.h	(.../tags/gcc_8_3_0_release)
@@ -26142,6 +28866,20 @@ Index: gcc/config/i386/sse.md
    [(set_attr "type" "ssemov")
     (set_attr "prefix" "evex")
     (set_attr "mode" "<sseinsnmode>")])
+Index: gcc/config/i386/darwin.h
+===================================================================
+--- a/src/gcc/config/i386/darwin.h	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/i386/darwin.h	(.../branches/gcc-8-branch)
+@@ -130,7 +130,8 @@
+ #undef CC1_SPEC
+ #define CC1_SPEC "%(cc1_cpu) \
+   %{!mkernel:%{!static:%{!mdynamic-no-pic:-fPIC}}} \
+-  %{g: %{!fno-eliminate-unused-debug-symbols: -feliminate-unused-debug-symbols }} " \
++  %{g: %{!fno-eliminate-unused-debug-symbols: -feliminate-unused-debug-symbols }} \
++  %{mx32:%eDarwin is not an mx32 platform}" \
+   DARWIN_CC1_SPEC
+ 
+ #undef ASM_SPEC
 Index: gcc/config/i386/i386.c
 ===================================================================
 --- a/src/gcc/config/i386/i386.c	(.../tags/gcc_8_3_0_release)
@@ -26374,7 +29112,154 @@ Index: gcc/config/i386/i386.c
        tmp = gen_rtx_fmt_ee (code, mode, if_true, if_false);
      }
  
-@@ -32923,6 +32844,7 @@
+@@ -28757,6 +28678,25 @@
+   return false;
+ }
+ 
++/* Helper to output the jmp/call.  */
++static void
++ix86_output_jmp_thunk_or_indirect (const char *thunk_name,
++				   enum indirect_thunk_prefix need_prefix,
++				   const int regno)
++{
++  if (thunk_name != NULL)
++    {
++      if (need_prefix == indirect_thunk_prefix_bnd)
++	fprintf (asm_out_file, "\tbnd jmp\t");
++      else
++	fprintf (asm_out_file, "\tjmp\t");
++      assemble_name (asm_out_file, thunk_name);
++      putc ('\n', asm_out_file);
++    }
++  else
++    output_indirect_thunk (need_prefix, regno);
++}
++
+ /* Output indirect branch via a call and return thunk.  CALL_OP is a
+    register which contains the branch target.  XASM is the assembly
+    template for CALL_OP.  Branch is a tail call if SIBCALL_P is true.
+@@ -28798,25 +28738,17 @@
+     thunk_name = NULL;
+ 
+   if (sibcall_p)
+-    {
+-      if (thunk_name != NULL)
+-	{
+-	  if (need_prefix == indirect_thunk_prefix_bnd)
+-	    fprintf (asm_out_file, "\tbnd jmp\t%s\n", thunk_name);
+-	  else
+-	    fprintf (asm_out_file, "\tjmp\t%s\n", thunk_name);
+-	}
+-      else
+-	output_indirect_thunk (need_prefix, regno);
+-    }
++    ix86_output_jmp_thunk_or_indirect (thunk_name, need_prefix, regno);
+   else
+     {
+       if (thunk_name != NULL)
+ 	{
+ 	  if (need_prefix == indirect_thunk_prefix_bnd)
+-	    fprintf (asm_out_file, "\tbnd call\t%s\n", thunk_name);
++	    fprintf (asm_out_file, "\tbnd call\t");
+ 	  else
+-	    fprintf (asm_out_file, "\tcall\t%s\n", thunk_name);
++	    fprintf (asm_out_file, "\tcall\t");
++	  assemble_name (asm_out_file, thunk_name);
++	  putc ('\n', asm_out_file);
+ 	  return;
+ 	}
+ 
+@@ -28840,15 +28772,7 @@
+ 
+       ASM_OUTPUT_INTERNAL_LABEL (asm_out_file, indirectlabel1);
+ 
+-      if (thunk_name != NULL)
+-	{
+-	  if (need_prefix == indirect_thunk_prefix_bnd)
+-	    fprintf (asm_out_file, "\tbnd jmp\t%s\n", thunk_name);
+-	  else
+-	    fprintf (asm_out_file, "\tjmp\t%s\n", thunk_name);
+-	}
+-      else
+-	output_indirect_thunk (need_prefix, regno);
++      ix86_output_jmp_thunk_or_indirect (thunk_name, need_prefix, regno);
+ 
+       ASM_OUTPUT_INTERNAL_LABEL (asm_out_file, indirectlabel2);
+ 
+@@ -28913,15 +28837,7 @@
+   if (sibcall_p)
+     {
+       output_asm_insn (push_buf, &call_op);
+-      if (thunk_name != NULL)
+-	{
+-	  if (need_prefix == indirect_thunk_prefix_bnd)
+-	    fprintf (asm_out_file, "\tbnd jmp\t%s\n", thunk_name);
+-	  else
+-	    fprintf (asm_out_file, "\tjmp\t%s\n", thunk_name);
+-	}
+-      else
+-	output_indirect_thunk (need_prefix, regno);
++      ix86_output_jmp_thunk_or_indirect (thunk_name, need_prefix, regno);
+     }
+   else
+     {
+@@ -28980,15 +28896,7 @@
+ 
+       output_asm_insn (push_buf, &call_op);
+ 
+-      if (thunk_name != NULL)
+-	{
+-	  if (need_prefix == indirect_thunk_prefix_bnd)
+-	    fprintf (asm_out_file, "\tbnd jmp\t%s\n", thunk_name);
+-	  else
+-	    fprintf (asm_out_file, "\tjmp\t%s\n", thunk_name);
+-	}
+-      else
+-	output_indirect_thunk (need_prefix, regno);
++      ix86_output_jmp_thunk_or_indirect (thunk_name, need_prefix, regno);
+ 
+       ASM_OUTPUT_INTERNAL_LABEL (asm_out_file, indirectlabel2);
+ 
+@@ -29057,13 +28965,15 @@
+ 	  if (need_prefix == indirect_thunk_prefix_bnd)
+ 	    {
+ 	      indirect_return_bnd_needed |= need_thunk;
+-	      fprintf (asm_out_file, "\tbnd jmp\t%s\n", thunk_name);
++	      fprintf (asm_out_file, "\tbnd jmp\t");
+ 	    }
+ 	  else
+ 	    {
+ 	      indirect_return_needed |= need_thunk;
+-	      fprintf (asm_out_file, "\tjmp\t%s\n", thunk_name);
++	      fprintf (asm_out_file, "\tjmp\t");
+ 	    }
++	  assemble_name (asm_out_file, thunk_name);
++	  putc ('\n', asm_out_file);
+ 	}
+       else
+ 	output_indirect_thunk (need_prefix, INVALID_REGNUM);
+@@ -29104,7 +29014,7 @@
+ 		  indirect_return_via_cx_bnd = true;
+ 		  indirect_thunks_bnd_used |= 1 << CX_REG;
+ 		}
+-	      fprintf (asm_out_file, "\tbnd jmp\t%s\n", thunk_name);
++	      fprintf (asm_out_file, "\tbnd jmp\t");
+ 	    }
+ 	  else
+ 	    {
+@@ -29113,8 +29023,10 @@
+ 		  indirect_return_via_cx = true;
+ 		  indirect_thunks_used |= 1 << CX_REG;
+ 		}
+-	      fprintf (asm_out_file, "\tjmp\t%s\n", thunk_name);
++	      fprintf (asm_out_file, "\tjmp\t");
+ 	    }
++	  assemble_name (asm_out_file, thunk_name);
++	  putc ('\n', asm_out_file);
+ 	}
+       else
+ 	output_indirect_thunk (need_prefix, regno);
+@@ -32923,6 +32835,7 @@
      }
    /* Build result decl and add to function_decl. */
    t = build_decl (UNKNOWN_LOCATION, RESULT_DECL, NULL_TREE, ptr_type_node);
@@ -26382,7 +29267,7 @@ Index: gcc/config/i386/i386.c
    DECL_ARTIFICIAL (t) = 1;
    DECL_IGNORED_P (t) = 1;
    DECL_RESULT (decl) = t;
-@@ -39641,7 +39563,7 @@
+@@ -39641,7 +39554,7 @@
  static bool
  use_rsqrt_p ()
  {
@@ -26391,7 +29276,7 @@ Index: gcc/config/i386/i386.c
  	  && flag_finite_math_only
  	  && !flag_trapping_math
  	  && flag_unsafe_math_optimizations);
-@@ -45705,8 +45627,10 @@
+@@ -45705,8 +45618,10 @@
            x2 -= 1;
       Compensate.  Ceil:
          if (x2 < x)
@@ -26404,7 +29289,7 @@ Index: gcc/config/i386/i386.c
     */
    machine_mode mode = GET_MODE (operand0);
    rtx xa, TWO52, tmp, one, res, mask;
-@@ -45732,17 +45656,16 @@
+@@ -45732,17 +45647,16 @@
    /* xa = copysign (xa, operand1) */
    ix86_sse_copysign_to_positive (xa, xa, res, mask);
  
@@ -26427,7 +29312,7 @@ Index: gcc/config/i386/i386.c
    emit_move_insn (res, tmp);
  
    emit_label (label);
-@@ -50999,7 +50922,7 @@
+@@ -50999,7 +50913,7 @@
       there is no adddf3 pattern (since x87 floating point only has
       XFmode operations) so the default hook implementation gets this
       wrong.  */
@@ -26436,7 +29321,7 @@ Index: gcc/config/i386/i386.c
  }
  
  /* Implement TARGET_ATOMIC_ASSIGN_EXPAND_FENV.  */
-@@ -51007,7 +50930,7 @@
+@@ -51007,7 +50921,7 @@
  static void
  ix86_atomic_assign_expand_fenv (tree *hold, tree *clear, tree *update)
  {
@@ -26445,7 +29330,7 @@ Index: gcc/config/i386/i386.c
      return;
    tree exceptions_var = create_tmp_var_raw (integer_type_node);
    if (TARGET_80387)
-@@ -51042,7 +50965,7 @@
+@@ -51042,7 +50956,7 @@
        tree update_fldenv = build_call_expr (fldenv, 1, fenv_addr);
        *update = build2 (COMPOUND_EXPR, void_type_node, *update, update_fldenv);
      }
@@ -26454,7 +29339,7 @@ Index: gcc/config/i386/i386.c
      {
        tree mxcsr_orig_var = create_tmp_var_raw (unsigned_type_node);
        tree mxcsr_mod_var = create_tmp_var_raw (unsigned_type_node);
-@@ -51399,7 +51322,7 @@
+@@ -51399,7 +51313,7 @@
  	  return FLT_EVAL_METHOD_PROMOTE_TO_FLOAT;
  	else if (!TARGET_MIX_SSE_I387)
  	  {
@@ -27603,11 +30488,122 @@ Index: gcc/config/pa/pa.md
  		 (match_operand:DI 2 "uint32_operand" "f")))]
    "TARGET_PA_11 && ! TARGET_DISABLE_FPREGS && ! TARGET_SOFT_FLOAT && TARGET_64BIT"
    "xmpyu %1,%2R,%0"
+Index: gcc/config/pa/pa-protos.h
+===================================================================
+--- a/src/gcc/config/pa/pa-protos.h	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/pa/pa-protos.h	(.../branches/gcc-8-branch)
+@@ -108,5 +108,6 @@
+ extern void pa_hpux_asm_output_external (FILE *, tree, const char *);
+ extern HOST_WIDE_INT pa_initial_elimination_offset (int, int);
+ extern HOST_WIDE_INT pa_function_arg_size (machine_mode, const_tree);
++extern void pa_output_function_label (FILE *);
+ 
+ extern const int pa_magic_milli[];
 Index: gcc/config/pa/pa.c
 ===================================================================
 --- a/src/gcc/config/pa/pa.c	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/config/pa/pa.c	(.../branches/gcc-8-branch)
-@@ -10039,10 +10039,11 @@
+@@ -118,7 +118,8 @@
+ static rtx pa_function_value (const_tree, const_tree, bool);
+ static rtx pa_libcall_value (machine_mode, const_rtx);
+ static bool pa_function_value_regno_p (const unsigned int);
+-static void pa_output_function_prologue (FILE *);
++static void pa_output_function_prologue (FILE *) ATTRIBUTE_UNUSED;
++static void pa_linux_output_function_prologue (FILE *) ATTRIBUTE_UNUSED;
+ static void update_total_code_bytes (unsigned int);
+ static void pa_output_function_epilogue (FILE *);
+ static int pa_adjust_cost (rtx_insn *, int, rtx_insn *, int, unsigned int);
+@@ -263,8 +264,6 @@
+ #undef TARGET_ASM_INTEGER
+ #define TARGET_ASM_INTEGER pa_assemble_integer
+ 
+-#undef TARGET_ASM_FUNCTION_PROLOGUE
+-#define TARGET_ASM_FUNCTION_PROLOGUE pa_output_function_prologue
+ #undef TARGET_ASM_FUNCTION_EPILOGUE
+ #define TARGET_ASM_FUNCTION_EPILOGUE pa_output_function_epilogue
+ 
+@@ -3842,16 +3841,10 @@
+ 	  & ~(PREFERRED_STACK_BOUNDARY / BITS_PER_UNIT - 1));
+ }
+ 
+-/* On HP-PA, move-double insns between fpu and cpu need an 8-byte block
+-   of memory.  If any fpu reg is used in the function, we allocate
+-   such a block here, at the bottom of the frame, just in case it's needed.
++/* Output function label, and associated .PROC and .CALLINFO statements.  */
+ 
+-   If this function is a leaf procedure, then we may choose not
+-   to do a "save" insn.  The decision about whether or not
+-   to do this is made in regclass.c.  */
+-
+-static void
+-pa_output_function_prologue (FILE *file)
++void
++pa_output_function_label (FILE *file)
+ {
+   /* The function's label and associated .PROC must never be
+      separated and must be output *after* any profiling declarations
+@@ -3897,10 +3890,25 @@
+     fprintf (file, ",ENTRY_FR=%d", fr_saved + 11);
+ 
+   fputs ("\n\t.ENTRY\n", file);
++}
+ 
++/* Output function prologue.  */
++
++static void
++pa_output_function_prologue (FILE *file)
++{
++  pa_output_function_label (file);
+   remove_useless_addtr_insns (0);
+ }
+ 
++/* The label is output by ASM_DECLARE_FUNCTION_NAME on linux.  */
++
++static void
++pa_linux_output_function_prologue (FILE *file ATTRIBUTE_UNUSED)
++{
++  remove_useless_addtr_insns (0);
++}
++
+ void
+ pa_expand_prologue (void)
+ {
+@@ -4569,10 +4577,6 @@
+ void
+ hppa_profile_hook (int label_no)
+ {
+-  /* We use SImode for the address of the function in both 32 and
+-     64-bit code to avoid having to provide DImode versions of the
+-     lcla2 and load_offset_label_address insn patterns.  */
+-  rtx reg = gen_reg_rtx (SImode);
+   rtx_code_label *label_rtx = gen_label_rtx ();
+   int reg_parm_stack_space = REG_PARM_STACK_SPACE (NULL_TREE);
+   rtx arg_bytes, begin_label_rtx, mcount, sym;
+@@ -4604,18 +4608,13 @@
+   if (!use_mcount_pcrel_call)
+     {
+       /* The address of the function is loaded into %r25 with an instruction-
+-	 relative sequence that avoids the use of relocations.  The sequence
+-	 is split so that the load_offset_label_address instruction can
+-	 occupy the delay slot of the call to _mcount.  */
++	 relative sequence that avoids the use of relocations.  We use SImode
++	 for the address of the function in both 32 and 64-bit code to avoid
++	 having to provide DImode versions of the lcla2 pattern.  */
+       if (TARGET_PA_20)
+-	emit_insn (gen_lcla2 (reg, label_rtx));
++	emit_insn (gen_lcla2 (gen_rtx_REG (SImode, 25), label_rtx));
+       else
+-	emit_insn (gen_lcla1 (reg, label_rtx));
+-
+-      emit_insn (gen_load_offset_label_address (gen_rtx_REG (SImode, 25), 
+-						reg,
+-						begin_label_rtx,
+-						label_rtx));
++	emit_insn (gen_lcla1 (gen_rtx_REG (SImode, 25), label_rtx));
+     }
+ 
+   if (!NO_DEFERRED_PROFILE_COUNTERS)
+@@ -10039,10 +10038,11 @@
    /* There is no way to load QImode or HImode values directly from memory
       to a FP register.  SImode loads to the FP registers are not zero
       extended.  On the 64-bit target, this conflicts with the definition
@@ -27622,6 +30618,45 @@ Index: gcc/config/pa/pa.c
  
    /* TARGET_HARD_REGNO_MODE_OK places modes with sizes larger than a word
       in specific sets of registers.  Thus, we cannot allow changing
+Index: gcc/config/pa/pa-linux.h
+===================================================================
+--- a/src/gcc/config/pa/pa-linux.h	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/pa/pa-linux.h	(.../branches/gcc-8-branch)
+@@ -101,7 +101,7 @@
+ 
+ /* FIXME: Hacked from the <elfos.h> one so that we avoid multiple
+    labels in a function declaration (since pa.c seems determined to do
+-   it differently)  */
++   it differently).  */
+ 
+ #undef ASM_DECLARE_FUNCTION_NAME
+ #define ASM_DECLARE_FUNCTION_NAME(FILE, NAME, DECL)		\
+@@ -109,9 +109,14 @@
+     {								\
+       ASM_OUTPUT_TYPE_DIRECTIVE (FILE, NAME, "function");	\
+       ASM_DECLARE_RESULT (FILE, DECL_RESULT (DECL));		\
++      pa_output_function_label (FILE);				\
+     }								\
+   while (0)
+ 
++/* Output function prologue for linux.  */
++#undef TARGET_ASM_FUNCTION_PROLOGUE
++#define TARGET_ASM_FUNCTION_PROLOGUE pa_linux_output_function_prologue
++
+ /* As well as globalizing the label, we need to encode the label
+    to ensure a plabel is generated in an indirect call.  */
+ 
+Index: gcc/config/pa/pa.h
+===================================================================
+--- a/src/gcc/config/pa/pa.h	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/pa/pa.h	(.../branches/gcc-8-branch)
+@@ -1302,3 +1302,6 @@
+   (flag_pic ? (TARGET_HPUX ? 198164 : 221312) : 240000)
+ 
+ #define NEED_INDICATE_EXEC_STACK 0
++
++/* Output default function prologue for hpux.  */
++#define TARGET_ASM_FUNCTION_PROLOGUE pa_output_function_prologue
 Index: gcc/config/mips/mips.c
 ===================================================================
 --- a/src/gcc/config/mips/mips.c	(.../tags/gcc_8_3_0_release)
@@ -28095,6 +31130,19 @@ Index: gcc/convert.c
          {
  	  tree newexpr = build_call_expr (fn, 1, CALL_EXPR_ARG (s_expr, 0));
  	  return convert_to_integer_1 (type, newexpr, dofold);
+Index: gcc/lto-streamer.h
+===================================================================
+--- a/src/gcc/lto-streamer.h	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/lto-streamer.h	(.../branches/gcc-8-branch)
+@@ -121,7 +121,7 @@
+      form followed by the data for the string.  */
+ 
+ #define LTO_major_version 7
+-#define LTO_minor_version 1
++#define LTO_minor_version 2
+ 
+ typedef unsigned char	lto_decl_flags_t;
+ 
 Index: libgfortran/ChangeLog
 ===================================================================
 --- a/src/libgfortran/ChangeLog	(.../tags/gcc_8_3_0_release)
@@ -28211,6 +31259,172 @@ Index: libcpp/ChangeLog
  2019-02-22  Release Manager
  
  	* GCC 8.3.0 released.
+Index: fixincludes/ChangeLog
+===================================================================
+--- a/src/fixincludes/ChangeLog	(.../tags/gcc_8_3_0_release)
++++ b/src/fixincludes/ChangeLog	(.../branches/gcc-8-branch)
+@@ -1,3 +1,23 @@
++2019-06-01  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backport from mainline.
++	2019-05-11  Iain Sandoe  <iain@sandoe.co.uk>
++
++	PR bootstrap/89864
++	* inclhack.def (darwin_ucred__Atomic): Do not supply test_text
++	for wrap fixes.
++	* fixincl.x: Regenerated.
++
++	Backport from mainline.
++	2019-04-18  Erik Schnetter  <schnetter@gmail.com>
++		    Jakub Jelinek  <jakub@redhat.com>
++		    Iain Sandoe  <iain@sandoe.co.uk>
++
++	PR bootstrap/89864
++	* inclhack.def (darwin_ucred__Atomic): New, work around _Atomic keyword
++	use in headers included by C++.
++	* fixincl.x: Regenerated.
++
+ 2019-02-22  Release Manager
+ 
+ 	* GCC 8.3.0 released.
+Index: fixincludes/fixincl.x
+===================================================================
+--- a/src/fixincludes/fixincl.x	(.../tags/gcc_8_3_0_release)
++++ b/src/fixincludes/fixincl.x	(.../branches/gcc-8-branch)
+@@ -2,11 +2,11 @@
+  *
+  * DO NOT EDIT THIS FILE   (fixincl.x)
+  *
+- * It has been AutoGen-ed  February 22, 2018 at 03:46:51 PM by AutoGen 5.18
++ * It has been AutoGen-ed  May 30, 2019 at 01:23:39 AM by AutoGen 5.17.4
+  * From the definitions    inclhack.def
+  * and the template file   fixincl
+  */
+-/* DO NOT SVN-MERGE THIS FILE, EITHER Thu Feb 22 15:46:51 UTC 2018
++/* DO NOT SVN-MERGE THIS FILE, EITHER Thu May 30 01:23:39 BST 2019
+  *
+  * You must regenerate it.  Use the ./genfixes script.
+  *
+@@ -15,7 +15,7 @@
+  * certain ANSI-incompatible system header files which are fixed to work
+  * correctly with ANSI C and placed in a directory that GNU C will search.
+  *
+- * This file contains 249 fixup descriptions.
++ * This file contains 250 fixup descriptions.
+  *
+  * See README for more information.
+  *
+@@ -3222,6 +3222,48 @@
+ 
+ /* * * * * * * * * * * * * * * * * * * * * * * * * *
+  *
++ *  Description of Darwin_Ucred__Atomic fix
++ */
++tSCC zDarwin_Ucred__AtomicName[] =
++     "darwin_ucred__Atomic";
++
++/*
++ *  File name selection pattern
++ */
++tSCC zDarwin_Ucred__AtomicList[] =
++  "sys/ucred.h\0";
++/*
++ *  Machine/OS name selection pattern
++ */
++tSCC* apzDarwin_Ucred__AtomicMachs[] = {
++        "*-*-darwin*",
++        (const char*)NULL };
++
++/*
++ *  content selection pattern - do fix if pattern found
++ */
++tSCC zDarwin_Ucred__AtomicSelect0[] =
++       "_Atomic";
++
++#define    DARWIN_UCRED__ATOMIC_TEST_CT  1
++static tTestDesc aDarwin_Ucred__AtomicTests[] = {
++  { TT_EGREP,    zDarwin_Ucred__AtomicSelect0, (regex_t*)NULL }, };
++
++/*
++ *  Fix Command Arguments for Darwin_Ucred__Atomic
++ */
++static const char* apzDarwin_Ucred__AtomicPatch[] = {
++    "wrap",
++    "#if (__STDC_VERSION__ < 201112L) || defined(__cplusplus)\n\
++# define _Atomic volatile\n\
++#endif\n",
++    "#if (__STDC_VERSION__ < 201112L) || defined(__cplusplus)\n\
++# undef _Atomic\n\
++#endif\n",
++    (char*)NULL };
++
++/* * * * * * * * * * * * * * * * * * * * * * * * * *
++ *
+  *  Description of Dec_Intern_Asm fix
+  */
+ tSCC zDec_Intern_AsmName[] =
+@@ -10099,9 +10141,9 @@
+  *
+  *  List of all fixes
+  */
+-#define REGEX_COUNT          287
++#define REGEX_COUNT          288
+ #define MACH_LIST_SIZE_LIMIT 187
+-#define FIX_COUNT            249
++#define FIX_COUNT            250
+ 
+ /*
+  *  Enumerate the fixes
+@@ -10183,6 +10225,7 @@
+     DARWIN_STDINT_5_FIXIDX,
+     DARWIN_STDINT_6_FIXIDX,
+     DARWIN_STDINT_7_FIXIDX,
++    DARWIN_UCRED__ATOMIC_FIXIDX,
+     DEC_INTERN_ASM_FIXIDX,
+     DJGPP_WCHAR_H_FIXIDX,
+     ECD_CURSOR_FIXIDX,
+@@ -10739,6 +10782,11 @@
+      DARWIN_STDINT_7_TEST_CT, FD_MACH_ONLY | FD_SUBROUTINE,
+      aDarwin_Stdint_7Tests,   apzDarwin_Stdint_7Patch, 0 },
+ 
++  {  zDarwin_Ucred__AtomicName,    zDarwin_Ucred__AtomicList,
++     apzDarwin_Ucred__AtomicMachs,
++     DARWIN_UCRED__ATOMIC_TEST_CT, FD_MACH_ONLY | FD_SUBROUTINE,
++     aDarwin_Ucred__AtomicTests,   apzDarwin_Ucred__AtomicPatch, 0 },
++
+   {  zDec_Intern_AsmName,    zDec_Intern_AsmList,
+      apzDec_Intern_AsmMachs,
+      DEC_INTERN_ASM_TEST_CT, FD_MACH_ONLY,
+Index: fixincludes/inclhack.def
+===================================================================
+--- a/src/fixincludes/inclhack.def	(.../tags/gcc_8_3_0_release)
++++ b/src/fixincludes/inclhack.def	(.../branches/gcc-8-branch)
+@@ -1592,6 +1592,25 @@
+ 		"#define UINTMAX_C(v) (v ## ULL)";
+ };
+ 
++/*  The SDK included with XCode 10.2 has the file <sys/ucred.h> that uses the
++    C11 _Atomic keyword (exposing it to C++ code).  The work-around here follows
++    the header in declaring the entity volatile when _Atomic is not available.
++*/
++fix = {
++    hackname  = darwin_ucred__Atomic;
++    mach      = "*-*-darwin*";
++    files     = sys/ucred.h;
++    select    = "_Atomic";
++    c_fix     = wrap;
++    c_fix_arg = "#if (__STDC_VERSION__ < 201112L) || defined(__cplusplus)\n"
++		"# define _Atomic volatile\n"
++		"#endif\n";
++    c_fix_arg = "#if (__STDC_VERSION__ < 201112L) || defined(__cplusplus)\n"
++		"# undef _Atomic\n"
++		"#endif\n";
++    test_text = ""; /* Don't provide this for wrap fixes.  */
++};
++
+ /*
+  *  Fix <c_asm.h> on Digital UNIX V4.0:
+  *  It contains a prototype for a DEC C internal asm() function,
 Index: .
 ===================================================================
 --- a/src/.	(.../tags/gcc_8_3_0_release)
