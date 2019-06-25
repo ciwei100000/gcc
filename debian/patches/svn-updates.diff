@@ -1,10 +1,10 @@
-# DP: updates from the 8 branch upto 20190612 (r272183).
+# DP: updates from the 8 branch upto 20190625 (r272643).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Wed Jun 12 16:00:09 CEST 2019
-Wed Jun 12 14:00:09 UTC 2019 (revision 272183)
+Tue Jun 25 12:46:51 CEST 2019
+Tue Jun 25 10:46:51 UTC 2019 (revision 272643)
 EOF
 }
 
@@ -4907,7 +4907,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-8-branch)
 @@ -1 +1 @@
 -20190222
-+20190612
++20190625
 Index: gcc/tree-ssa-loop-ch.c
 ===================================================================
 --- a/src/gcc/tree-ssa-loop-ch.c	(.../tags/gcc_8_3_0_release)
@@ -5532,7 +5532,22 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,1062 @@
+@@ -1,3 +1,1077 @@
++2019-06-16  Jeff Law  <law@redhat.com>
++
++	Backport from mainline
++	2019-06-16  Prachi Godbole  <prachi.godbole@imgtec.com>
++		    Robert Suchanek  <robert.suchanek@mips.com>
++	* config/mips/mips.c (mips_expand_builtin_insn): Swap the 1st
++	and 3rd operands of the fmadd/fmsub/maddv builtin.
++
++2019-06-16  John David Anglin  <danglin@gcc.gnu.org>
++
++	PR middle-end/64242
++	* config/pa/pa.md (nonlocal_goto): Restore frame pointer last.  Add
++	frame clobbers and schedule block.
++	(builtin_longjmp): Likewise.
++
 +2019-06-11  Jakub Jelinek  <jakub@redhat.com>
 +
 +	PR target/90811
@@ -6595,7 +6610,7 @@ Index: gcc/ChangeLog
  2019-02-22  Release Manager
  
  	* GCC 8.3.0 released.
-@@ -568,7 +1631,7 @@
+@@ -568,7 +1646,7 @@
  
  	Backport from mainline
  	2018-11-20  Richard Biener  <rguenther@suse.de>
@@ -15144,6 +15159,112 @@ Index: gcc/testsuite/gcc.target/mips/dwarfregtable-4.c
 +/* { dg-options "-mabi=32 -mfp64 -modd-spreg" } */
 +
 +#include "dwarfregtable.h"
+Index: gcc/testsuite/gcc.target/mips/msa-fmadd.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/mips/msa-fmadd.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/mips/msa-fmadd.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,101 @@
++/* { dg-do compile } */
++/* { dg-options "-mfp64 -mhard-float -mmsa -EL -flax-vector-conversions" } */
++/* { dg-skip-if "uses global registers" { *-*-* } { "-O0" } { "" } } */
++
++typedef int v4i32 __attribute__ ((vector_size(16)));
++typedef float v4f32 __attribute__ ((vector_size(16)));
++typedef double v2f64 __attribute__ ((vector_size(16)));
++
++/* Test that MSA FMADD-like intrinsics do not use first operand for multiplication.  */
++
++register v4i32 a __asm__("$f20");
++register v4i32 b __asm__("$f22");
++register v4f32 c __asm__("$f24");
++register v4f32 d __asm__("$f26");
++register v2f64 e __asm__("$f28");
++register v2f64 f __asm__("$f30");
++
++void
++maddv_b_msa (void)
++{
++  a = __builtin_msa_maddv_b (a, b, b);
++}
++/* { dg-final { scan-assembler "maddv\\\.b\t\\\$w20,\\\$w22,\\\$w22" } }  */
++
++void
++maddv_h_msa (void)
++{
++  a = __builtin_msa_maddv_h (a, b, b);
++}
++/* { dg-final { scan-assembler "maddv\\\.h\t\\\$w20,\\\$w22,\\\$w22" } }  */
++
++void
++maddv_w_msa (void)
++{
++  a = __builtin_msa_maddv_w (a, b, b);
++}
++/* { dg-final { scan-assembler "maddv\\\.w\t\\\$w20,\\\$w22,\\\$w22" } }  */
++
++void
++maddv_d_msa (void)
++{
++  a = __builtin_msa_maddv_d (a, b, b);
++}
++/* { dg-final { scan-assembler "maddv\\\.d\t\\\$w20,\\\$w22,\\\$w22" } }  */
++
++void
++msubv_b_msa (void)
++{
++  a = __builtin_msa_msubv_b (a, b, b);
++}
++/* { dg-final { scan-assembler "msubv\\\.b\t\\\$w20,\\\$w22,\\\$w22" } }  */
++
++void
++msubv_h_msa (void)
++{
++  a = __builtin_msa_msubv_h (a, b, b);
++}
++/* { dg-final { scan-assembler "msubv\\\.h\t\\\$w20,\\\$w22,\\\$w22" } }  */
++
++void
++msubv_w_msa (void)
++{
++  a = __builtin_msa_msubv_w (a, b, b);
++}
++/* { dg-final { scan-assembler "msubv\\\.w\t\\\$w20,\\\$w22,\\\$w22" } }  */
++
++void
++msubv_d_msa (void)
++{
++  a = __builtin_msa_msubv_d (a, b, b);
++}
++/* { dg-final { scan-assembler "msubv\\\.d\t\\\$w20,\\\$w22,\\\$w22" } }  */
++
++void
++fmadd_w_msa (void)
++{
++  c = __builtin_msa_fmadd_w (c, d, d);
++}
++/* { dg-final { scan-assembler "fmadd\\\.w\t\\\$w24,\\\$w26,\\\$w26" } }  */
++
++void
++fmadd_d_msa (void)
++{
++  e = __builtin_msa_fmadd_d (e, f, f);
++}
++/* { dg-final { scan-assembler "fmadd\\\.d\t\\\$w28,\\\$w30,\\\$w30" } }  */
++
++void
++fmsub_w_msa (void)
++{
++  c = __builtin_msa_fmsub_w (c, d, d);
++}
++/* { dg-final { scan-assembler "fmsub\\\.w\t\\\$w24,\\\$w26,\\\$w26" } }  */
++
++void
++fmsub_d_msa (void)
++{
++  e = __builtin_msa_fmsub_d (e, f, f);
++}
++/* { dg-final { scan-assembler "fmsub\\\.d\t\\\$w28,\\\$w30,\\\$w30" } }  */
++
 Index: gcc/testsuite/gcc.target/mips/dwarfregtable-1.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/mips/dwarfregtable-1.c	(.../tags/gcc_8_3_0_release)
@@ -18084,6 +18205,46 @@ Index: gcc/testsuite/gfortran.dg/coarray_data_1.f90
 +   if (any (a /= 0.0)) stop 1
 +   if (any (b /= reshape([1234, 2345, 3456, 4567],[2,2]))) stop 2
 +end
+Index: gcc/testsuite/gfortran.dg/deferred_character_33.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/deferred_character_33.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/deferred_character_33.f90	(.../branches/gcc-8-branch)
+@@ -0,0 +1,35 @@
++! { dg-do run }
++! { dg-additional-sources deferred_character_33a.f90 }
++! PR fortran/90744 - this used to pass a wrong length
++! to an external function without a prototype.
++! Original test case by Tomáš Trnka.
++module StringModule
++   implicit none
++
++contains
++   function getstr()
++      character(:), allocatable :: getstr
++
++      getstr = 'OK'
++   end function
++end module
++module TestModule
++   use StringModule
++   implicit none
++
++contains
++   subroutine DoTest()
++      if (.false.) then
++         call convrs('A',getstr())
++      else
++         call convrs('B',getstr())
++      end if
++   end subroutine
++end module
++program external_char_length
++   use TestModule
++
++   implicit none
++
++   call DoTest()
++end program
 Index: gcc/testsuite/gfortran.dg/transfer_check_5.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/transfer_check_5.f90	(.../tags/gcc_8_3_0_release)
@@ -18135,6 +18296,30 @@ Index: gcc/testsuite/gfortran.dg/pr89492.f90
 +  print *, size(transfer([1],[bug4()]))         ! { dg-error "shall not have storage size 0" }
 +  print *, transfer(transfer([1],[bug4()]),[1]) ! { dg-error "shall not have storage size 0" }
 +end program bug4a
+Index: gcc/testsuite/gfortran.dg/external_procedure_4.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/external_procedure_4.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/external_procedure_4.f90	(.../branches/gcc-8-branch)
+@@ -0,0 +1,19 @@
++! { dg-do compile }
++! PR fortran/90937 - this used to cause an ICE.
++! Original test case by Toon Moene.
++subroutine lfidiff
++
++   implicit none
++
++   contains 
++
++      subroutine grlfi(cdnom)
++
++         character(len=*) cdnom(:)
++         character(len=len(cdnom)) clnoma
++
++         call lficas(clnoma)
++
++      end subroutine grlfi
++
++end subroutine lfidiff
 Index: gcc/testsuite/gfortran.dg/assign_10.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/assign_10.f90	(.../tags/gcc_8_3_0_release)
@@ -18145,6 +18330,20 @@ Index: gcc/testsuite/gfortran.dg/assign_10.f90
  ! { dg-final { scan-tree-dump-times "parm" 20 "original" } }
 -! { dg-final { scan-tree-dump-times "atmp" 18 "original" } }
 +! { dg-final { scan-tree-dump-times "atmp" 20 "original" } }
+Index: gcc/testsuite/gfortran.dg/deferred_character_33a.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/deferred_character_33a.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/deferred_character_33a.f90	(.../branches/gcc-8-branch)
+@@ -0,0 +1,9 @@
++! { dg-do compile }
++subroutine convrs(quanty,fromto)
++   implicit none
++
++   character(*), intent(in) :: quanty,fromto
++
++   if (len(fromto) /= 2) stop 1
++   if (fromto /= 'OK') stop 2
++end subroutine
 Index: gcc/testsuite/gfortran.dg/coarray_allocate_11.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/coarray_allocate_11.f90	(.../tags/gcc_8_3_0_release)
@@ -20400,7 +20599,27 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,1035 @@
+@@ -1,3 +1,1055 @@
++2019-06-21  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/90937
++	* gfortran.dg/external_procedure_4.f90: New test.
++
++2019-06-16  Jeff Law  <law@redhat.com>
++
++	Backported from mainline
++	2019-05-31  Dragan Mladjenovic  <dmladjenovic@wavecomp.com>
++	* gcc.target/mips/msa-fmadd.c: New.
++
++2019-06-12  Thomas Koenig  <tkoenig@gcc.gnu.org>
++	Tomáš Trnka  <trnka@scm.com>
++
++	Backport from trunk
++	PR fortran/90744
++	* gfortran.dg/deferred_character_33.f90: New test.
++	* gfortran.dg/deferred_character_33a.f90: New test.
++
 +2019-06-11  Jakub Jelinek  <jakub@redhat.com>
 +
 +	PR c++/90810
@@ -24651,7 +24870,15 @@ Index: gcc/ada/ChangeLog
 ===================================================================
 --- a/src/gcc/ada/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/ada/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,33 @@
+@@ -1,3 +1,41 @@
++2019-06-17  Arnaud Charlet  <charlet@adacore.com>
++
++PR ada/80590
++
++	* exp_ch9.adb (Expand_N_Delay_Relative_Statement): Swap the two
++	conditions to avoid a unnecessary exception propagation in the default
++	case.
++
 +2019-05-28  Eric Botcazou  <ebotcazou@adacore.com>
 +
 +	* gcc-interface/trans.c (walk_nesting_tree): New static function.
@@ -24779,6 +25006,36 @@ Index: gcc/ada/gcc-interface/trans.c
        if (TYPE_IS_DUMMY_P (gnu_actual_type))
  	gcc_assert (is_true_formal_parm && DECL_BY_REF_P (gnu_formal));
        else if (suppress_type_conversion
+Index: gcc/ada/exp_ch9.adb
+===================================================================
+--- a/src/gcc/ada/exp_ch9.adb	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/ada/exp_ch9.adb	(.../branches/gcc-8-branch)
+@@ -8144,18 +8144,17 @@
+       Proc : Entity_Id;
+ 
+    begin
+-      --  Try to use System.Relative_Delays.Delay_For only if available. This
+-      --  is the implementation used on restricted platforms when Ada.Calendar
+-      --  is not available.
++      --  Try to use Ada.Calendar.Delays.Delay_For if available.
+ 
+-      if RTE_Available (RO_RD_Delay_For) then
+-         Proc := RTE (RO_RD_Delay_For);
++      if RTE_Available (RO_CA_Delay_For) then
++         Proc := RTE (RO_CA_Delay_For);
+ 
+-      --  Otherwise, use Ada.Calendar.Delays.Delay_For and emit an error
+-      --  message if not available.
++      --  Otherwise, use System.Relative_Delays.Delay_For and emit an error
++      --  message if not available. This is the implementation used on
++      --  restricted platforms when Ada.Calendar is not available.
+ 
+       else
+-         Proc := RTE (RO_CA_Delay_For);
++         Proc := RTE (RO_RD_Delay_For);
+       end if;
+ 
+       Rewrite (N,
 Index: gcc/ada/osint.adb
 ===================================================================
 --- a/src/gcc/ada/osint.adb	(.../tags/gcc_8_3_0_release)
@@ -25579,7 +25836,24 @@ Index: gcc/fortran/ChangeLog
 ===================================================================
 --- a/src/gcc/fortran/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/fortran/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,313 @@
+@@ -1,3 +1,330 @@
++2019-06-21  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/90937
++	* trans-types.c (get_formal_from_actual_arglist): Get symbol from
++	current namespace so it will be freed later.  If symbol is of type
++	character, get an empty character length.
++
++2019-06-12  Thomas Koenig  <tkoenig@gcc.gnu.org>
++	Tomáš Trnka  <trnka@scm.com>
++
++	Backport from trunk
++	PR fortran/90744
++	* trans-types.c (get_formal_from_actual_arglist): Unset typespec
++	flags which make no sense for procedures without explicit
++	interface.
++
 +2019-06-10  Paul Thomas  <pault@gcc.gnu.org>
 +
 +	Backport from trunk
@@ -25971,7 +26245,7 @@ Index: gcc/fortran/trans-types.c
  	  spec[spec_len++] = '.';
  	else if (f->sym->attr.intent == INTENT_IN)
  	  spec[spec_len++] = 'r';
-@@ -2991,9 +2996,57 @@
+@@ -2991,9 +2996,64 @@
    return build_type_attribute_variant (fntype, tmp);
  }
  
@@ -25997,7 +26271,7 @@ Index: gcc/fortran/trans-types.c
 +      if (a->expr)
 +	{
 +	  snprintf (name, GFC_MAX_SYMBOL_LEN, "_formal_%d", var_num ++);
-+	  gfc_get_symbol (name, NULL, &s);
++	  gfc_get_symbol (name, gfc_current_ns, &s);
 +	  if (a->expr->ts.type == BT_PROCEDURE)
 +	    {
 +	      s->attr.flavor = FL_PROCEDURE;
@@ -26005,6 +26279,13 @@ Index: gcc/fortran/trans-types.c
 +	  else
 +	    {
 +	      s->ts = a->expr->ts;
++
++	      if (s->ts.type == BT_CHARACTER)
++		  s->ts.u.cl = gfc_get_charlen ();
++
++	      s->ts.deferred = 0;
++	      s->ts.is_iso_c = 0;
++	      s->ts.is_c_interop = 0;
 +	      s->attr.flavor = FL_VARIABLE;
 +	      if (a->expr->rank > 0)
 +		{
@@ -26030,7 +26311,7 @@ Index: gcc/fortran/trans-types.c
  {
    tree type;
    vec<tree, va_gc> *typelist = NULL;
-@@ -3051,6 +3104,10 @@
+@@ -3051,6 +3111,10 @@
  	    vec_safe_push (typelist, build_pointer_type(gfc_charlen_type_node));
  	}
      }
@@ -30488,6 +30769,79 @@ Index: gcc/config/pa/pa.md
  		 (match_operand:DI 2 "uint32_operand" "f")))]
    "TARGET_PA_11 && ! TARGET_DISABLE_FPREGS && ! TARGET_SOFT_FLOAT && TARGET_64BIT"
    "xmpyu %1,%2R,%0"
+@@ -6904,21 +6904,24 @@
+   rtx stack = operands[2];
+   rtx fp = operands[3];
+ 
+-  lab = copy_to_reg (lab);
+-
+   emit_clobber (gen_rtx_MEM (BLKmode, gen_rtx_SCRATCH (VOIDmode)));
+   emit_clobber (gen_rtx_MEM (BLKmode, hard_frame_pointer_rtx));
+ 
+-  /* Restore the frame pointer.  The virtual_stack_vars_rtx is saved
+-     instead of the hard_frame_pointer_rtx in the save area.  As a
+-     result, an extra instruction is needed to adjust for the offset
++  lab = copy_to_reg (lab);
++
++  /* Restore the stack and frame pointers.  The virtual_stack_vars_rtx
++     is saved instead of the hard_frame_pointer_rtx in the save area.
++     As a result, an extra instruction is needed to adjust for the offset
+      of the virtual stack variables and the hard frame pointer.  */
+-  if (GET_CODE (fp) != REG)
+-    fp = force_reg (Pmode, fp);
++  fp = copy_to_reg (fp);
++  emit_stack_restore (SAVE_NONLOCAL, stack);
++
++  /* Ensure the frame pointer move is not optimized.  */
++  emit_insn (gen_blockage ());
++  emit_clobber (hard_frame_pointer_rtx);
++  emit_clobber (frame_pointer_rtx);
+   emit_move_insn (hard_frame_pointer_rtx, plus_constant (Pmode, fp, -8));
+ 
+-  emit_stack_restore (SAVE_NONLOCAL, stack);
+-
+   emit_use (hard_frame_pointer_rtx);
+   emit_use (stack_pointer_rtx);
+ 
+@@ -8695,23 +8698,26 @@
+   emit_clobber (gen_rtx_MEM (BLKmode, gen_rtx_SCRATCH (VOIDmode)));
+   emit_clobber (gen_rtx_MEM (BLKmode, hard_frame_pointer_rtx));
+ 
+-  /* Restore the frame pointer.  The virtual_stack_vars_rtx is saved
+-     instead of the hard_frame_pointer_rtx in the save area.  We need
+-     to adjust for the offset between these two values.  */
+-  if (GET_CODE (fp) != REG)
+-    fp = force_reg (Pmode, fp);
++  /* Load the label we are jumping through into r1 so that we know
++     where to look for it when we get back to setjmp's function for
++     restoring the gp.  */
++  emit_move_insn (pv, lab);
++
++  /* Restore the stack and frame pointers.  The virtual_stack_vars_rtx
++     is saved instead of the hard_frame_pointer_rtx in the save area.
++     We need to adjust for the offset between these two values.  */
++  fp = copy_to_reg (fp);
++  emit_stack_restore (SAVE_NONLOCAL, stack);
++
++  /* Ensure the frame pointer move is not optimized.  */
++  emit_insn (gen_blockage ());
++  emit_clobber (hard_frame_pointer_rtx);
++  emit_clobber (frame_pointer_rtx);
+   emit_move_insn (hard_frame_pointer_rtx, plus_constant (Pmode, fp, -8));
+ 
+-  /* This bit is the same as expand_builtin_longjmp.  */
+-  emit_stack_restore (SAVE_NONLOCAL, stack);
+   emit_use (hard_frame_pointer_rtx);
+   emit_use (stack_pointer_rtx);
+ 
+-  /* Load the label we are jumping through into r1 so that we know
+-     where to look for it when we get back to setjmp's function for
+-     restoring the gp.  */
+-  emit_move_insn (pv, lab);
+-
+   /* Prevent the insns above from being scheduled into the delay slot
+      of the interspace jump because the space register could change.  */
+   emit_insn (gen_blockage ());
 Index: gcc/config/pa/pa-protos.h
 ===================================================================
 --- a/src/gcc/config/pa/pa-protos.h	(.../tags/gcc_8_3_0_release)
@@ -30670,6 +31024,26 @@ Index: gcc/config/mips/mips.c
      mode = SImode;
  
    return mode;
+@@ -16788,6 +16788,19 @@
+       std::swap (ops[1], ops[2]);
+       break;
+ 
++    case CODE_FOR_msa_maddv_b:
++    case CODE_FOR_msa_maddv_h:
++    case CODE_FOR_msa_maddv_w:
++    case CODE_FOR_msa_maddv_d:
++    case CODE_FOR_msa_fmadd_w:
++    case CODE_FOR_msa_fmadd_d:
++    case CODE_FOR_msa_fmsub_w:
++    case CODE_FOR_msa_fmsub_d:
++      /* fma(a, b, c) results into (a * b + c), however builtin_msa_fmadd expects
++	 it to be (a + b * c).  Swap the 1st and 3rd operands.  */
++      std::swap (ops[1], ops[3]);
++      break;
++
+     case CODE_FOR_msa_slli_b:
+     case CODE_FOR_msa_slli_h:
+     case CODE_FOR_msa_slli_w:
 Index: gcc/dce.c
 ===================================================================
 --- a/src/gcc/dce.c	(.../tags/gcc_8_3_0_release)
