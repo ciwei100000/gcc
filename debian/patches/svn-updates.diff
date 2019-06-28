@@ -1,10 +1,10 @@
-# DP: updates from the 7 branch upto 20190624 (r272623).
+# DP: updates from the 7 branch upto 20190628 (r272781).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Mon Jun 24 19:22:29 CEST 2019
-Mon Jun 24 17:22:29 UTC 2019 (revision 272623)
+Fri Jun 28 11:57:14 CEST 2019
+Fri Jun 28 09:57:14 UTC 2019 (revision 272781)
 EOF
 }
 
@@ -1075,6 +1075,97 @@ Index: libstdc++-v3/src/Makefile.in
  XMLLINT = @XMLLINT@
  XSLTPROC = @XSLTPROC@
  XSL_STYLE_DIR = @XSL_STYLE_DIR@
+Index: libstdc++-v3/src/filesystem/path.cc
+===================================================================
+--- a/src/libstdc++-v3/src/filesystem/path.cc	(.../tags/gcc_7_4_0_release)
++++ b/src/libstdc++-v3/src/filesystem/path.cc	(.../branches/gcc-7-branch)
+@@ -333,6 +333,28 @@
+   if (_M_pathname.empty())
+     return;
+ 
++  {
++    // Approximate count of components, to reserve space in _M_cmpts vector:
++    int count = 1;
++    bool saw_sep_last = _S_is_dir_sep(_M_pathname[0]);
++    bool saw_non_sep = !saw_sep_last;
++    for (value_type c : _M_pathname)
++      {
++       if (_S_is_dir_sep(c))
++         saw_sep_last = true;
++       else if (saw_sep_last)
++         {
++           ++count;
++           saw_sep_last = false;
++           saw_non_sep = true;
++         }
++      }
++    if (saw_non_sep && saw_sep_last)
++      ++count; // empty filename after trailing slash
++    if (count > 1)
++      _M_cmpts.reserve(count);
++  }
++
+   size_t pos = 0;
+   const size_t len = _M_pathname.size();
+ 
+@@ -355,9 +377,13 @@
+ 	      pos = 3;
+ 	      while (pos < len && !_S_is_dir_sep(_M_pathname[pos]))
+ 		++pos;
++	      if (pos == len)
++		{
++		  _M_type = _Type::_Root_name;
++		  return;
++		}
+ 	      _M_add_root_name(pos);
+-	      if (pos < len) // also got root directory
+-		_M_add_root_dir(pos);
++	      _M_add_root_dir(pos);
+ 	    }
+ 	  else
+ 	    {
+@@ -366,6 +392,11 @@
+ 	      _M_add_root_dir(0);
+ 	    }
+ 	}
++      else if (len == 1) // got root directory only
++	{
++	  _M_type = _Type::_Root_dir;
++	  return;
++	}
+       else // got root directory
+ 	_M_add_root_dir(0);
+       ++pos;
+@@ -374,6 +405,11 @@
+   else if (len > 1 && _M_pathname[1] == L':')
+     {
+       // got disk designator
++      if (len == 2)
++	{
++	  _M_type = _Type::_Root_name;
++	  return;
++	}
+       _M_add_root_name(2);
+       if (len > 2 && _S_is_dir_sep(_M_pathname[2]))
+ 	_M_add_root_dir(2);
+@@ -380,6 +416,17 @@
+       pos = 2;
+     }
+ #endif
++  else
++    {
++      size_t n = 1;
++      for (; n < _M_pathname.size() && !_S_is_dir_sep(_M_pathname[n]); ++n)
++	{ }
++      if (n == _M_pathname.size())
++	{
++	  _M_type = _Type::_Filename;
++	  return;
++	}
++    }
+ 
+   size_t back = pos;
+   while (pos < len)
 Index: libstdc++-v3/src/filesystem/Makefile.in
 ===================================================================
 --- a/src/libstdc++-v3/src/filesystem/Makefile.in	(.../tags/gcc_7_4_0_release)
@@ -1466,6 +1557,29 @@ Index: libstdc++-v3/include/experimental/any
    // @} group any
  _GLIBCXX_END_NAMESPACE_VERSION
  } // namespace fundamentals_v1
+Index: libstdc++-v3/include/experimental/bits/fs_path.h
+===================================================================
+--- a/src/libstdc++-v3/include/experimental/bits/fs_path.h	(.../tags/gcc_7_4_0_release)
++++ b/src/libstdc++-v3/include/experimental/bits/fs_path.h	(.../branches/gcc-7-branch)
+@@ -182,7 +182,8 @@
+     path(path&& __p) noexcept
+     : _M_pathname(std::move(__p._M_pathname)), _M_type(__p._M_type)
+     {
+-      _M_split_cmpts();
++      if (_M_type == _Type::_Multi)
++	_M_split_cmpts();
+       __p.clear();
+     }
+ 
+@@ -456,7 +457,7 @@
+ 	return _S_convert_loc(__tmp.data(), __tmp.data()+__tmp.size(), __loc);
+       }
+ 
+-    bool _S_is_dir_sep(value_type __ch)
++    static bool _S_is_dir_sep(value_type __ch)
+     {
+ #ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
+       return __ch == L'/' || __ch == preferred_separator;
 Index: libstdc++-v3/include/bits/stl_uninitialized.h
 ===================================================================
 --- a/src/libstdc++-v3/include/bits/stl_uninitialized.h	(.../tags/gcc_7_4_0_release)
@@ -1546,7 +1660,21 @@ Index: libstdc++-v3/ChangeLog
 ===================================================================
 --- a/src/libstdc++-v3/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/libstdc++-v3/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,159 @@
+@@ -1,3 +1,173 @@
++2019-06-26  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backport from mainline
++	2019-05-28  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/90634
++	* include/experimental/bits/fs_path.h (path::path(path&&)): Only call
++	_M_split_cmpts() for a path with multiple components.
++	(path::_S_is_dir_sep()): Add missing 'static' keyword to function.
++	* src/filesystem/path.cc (path::_M_split_cmpts()): Count number of
++	components and reserve space in vector. Return early when there is
++	only one component.
++	* testsuite/experimental/filesystem/path/construct/90634.cc: New test.
++
 +2019-05-23  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	Backport from mainline
@@ -1982,6 +2110,86 @@ Index: libstdc++-v3/testsuite/experimental/any/misc/any_cast_neg.cc
 -  any_cast<int&>(y); // { dg-error "qualifiers" "" { target { *-*-* } } 357 }
 +  any_cast<int&>(y); // { dg-error "qualifiers" "" { target { *-*-* } } 0 }
  }
+Index: libstdc++-v3/testsuite/experimental/filesystem/path/construct/90634.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/experimental/filesystem/path/construct/90634.cc	(.../tags/gcc_7_4_0_release)
++++ b/src/libstdc++-v3/testsuite/experimental/filesystem/path/construct/90634.cc	(.../branches/gcc-7-branch)
+@@ -0,0 +1,75 @@
++// Copyright (C) 2019 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-options "-DUSE_FILESYSTEM_TS -lstdc++fs" }
++// { dg-do run { target c++11 } }
++// { dg-require-filesystem-ts "" }
++
++#include <experimental/filesystem>
++#include <cstdlib>
++#include <testsuite_hooks.h>
++
++std::size_t bytes_allocated = 0;
++
++void* operator new(std::size_t n)
++{
++  bytes_allocated += n;
++  return std::malloc(n);
++}
++
++void operator delete(void* p) noexcept { std::free(p); }
++#if __cpp_sized_deallocation
++void operator delete(void* p, std::size_t) noexcept { std::free(p); }
++#endif
++
++void
++test01()
++{
++#ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
++  std::wstring s0;
++  std::wstring s1 = L"/";
++  std::wstring s2 = L"file";
++  std::wstring s3 = L"C:";
++  std::wstring s4 = L"\\";
++#else
++  std::string s0;
++  std::string s1 = "/";
++  std::string s2 = "file";
++  std::string s3 = "C:";
++  std::string s4 = "\\";
++#endif
++
++  using std::experimental::filesystem::path;
++
++  bytes_allocated = 0;
++  path p0 = std::move(s0);
++  VERIFY( bytes_allocated == 0 );
++  path p1 = std::move(s1);
++  VERIFY( bytes_allocated == 0 );
++  path p2 = std::move(s2);
++  VERIFY( bytes_allocated == 0 );
++  path p3 = std::move(s3);
++  VERIFY( bytes_allocated == 0 );
++  path p4 = std::move(s4);
++  VERIFY( bytes_allocated == 0 );
++}
++
++int
++main()
++{
++  test01();
++}
 Index: libstdc++-v3/testsuite/17_intro/headers/c++2014/all_attributes.cc
 ===================================================================
 --- a/src/libstdc++-v3/testsuite/17_intro/headers/c++2014/all_attributes.cc	(.../tags/gcc_7_4_0_release)
@@ -2614,7 +2822,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-7-branch)
 @@ -1 +1 @@
 -20181206
-+20190624
++20190628
 Index: gcc/lra.c
 ===================================================================
 --- a/src/gcc/lra.c	(.../tags/gcc_7_4_0_release)
@@ -2660,7 +2868,15 @@ Index: gcc/ipa-cp.c
  }
  
  /* Free information about strongly connected components and the arrays in
-@@ -2819,12 +2819,19 @@
+@@ -1072,7 +1072,6 @@
+   if (TREE_CODE_CLASS (code) == tcc_binary)
+     {
+       tree type = TREE_TYPE (operand);
+-      gcc_assert (INTEGRAL_TYPE_P (type));
+       widest_int o_value, o_mask;
+       get_value_and_mask (operand, &o_value, &o_mask);
+ 
+@@ -2819,12 +2818,19 @@
    estimate_ipcp_clone_size_and_time (node, known_csts, known_contexts,
  				     known_aggs_ptrs, &size, &time,
  				     &hints);
@@ -2841,7 +3057,15 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,820 @@
+@@ -1,3 +1,828 @@
++2019-06-27  Martin Jambor  <mjambor@suse.cz>
++
++	Backport from mainline
++	2019-06-25  Martin Jambor  <mjambor@suse.cz>
++
++	PR ipa/90939
++	* ipa-cp.c (ipcp_bits_lattice::meet_with): Remove assert.
++
 +2019-06-16  John David Anglin  <danglin@gcc.gnu.org>
 +
 +	PR middle-end/64242
@@ -3662,7 +3886,7 @@ Index: gcc/ChangeLog
  2018-12-06  Release Manager
  
  	* GCC 7.4.0 released.
-@@ -19,13 +840,13 @@
+@@ -19,13 +848,13 @@
  	* gcc/dwarf2out.c (FUNC_SECOND_SECT_LABEL): New.
  	(dwarf2out_switch_text_section): Generate a local label for the second
  	function sub-section and apply it as the second FDE start label.
