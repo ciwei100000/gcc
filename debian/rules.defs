@@ -328,6 +328,12 @@ ifneq ($(trunk_build),yes)
     with_lto_build := yes
   endif
 
+  # FIXME: newer binutils needed?
+  ifneq (,$(filter $(distrelease),precise trusty xenial))
+    with_bootstrap :=
+    with_lto_build :=
+  endif
+
 endif
 
 ifneq ($(findstring gccdebug, $(DEB_BUILD_OPTIONS)),)
@@ -695,6 +701,10 @@ ifneq (,$(filter $(DEB_TARGET_ARCH),$(nvptx_archs)))
   offload_targets += nvptx-none
   with_offload_nvptx := yes
 endif
+ifneq (,$(filter $(distrelease),lucid precise))
+  offload_targets :=
+  with_offload_nvptx :=
+endif
 ifneq (,$(findstring build-cross, $(build_type)))
   with_offload_nvptx := disabled for cross builds
 endif
@@ -784,7 +794,7 @@ endif
 ifneq (,$(findstring gccgo,$(PKGSOURCE)))
   with_ada :=
 endif
-ifneq (,$(filter $(distrelease),lucid))
+ifneq (,$(filter $(distrelease),lucid precise))
   with_ada :=
 endif
 with_ada := $(call envfilt, ada, , , $(with_ada))
@@ -800,7 +810,7 @@ endif
 
 ifneq ($(with_separate_gnat),yes)
   ifeq ($(with_ada),yes)
-    ifneq (,$(filter $(distrelease),squeeze lucid))
+    ifneq (,$(filter $(distrelease),squeeze lucid precise))
       with_ada :=
     endif
   endif

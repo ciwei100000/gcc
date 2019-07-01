@@ -274,9 +274,11 @@ automake_files = $(addprefix ./, $(filter-out none, \
 	  $(shell lsdiff --no-filename $(foreach patch,$(debian_patches),$(patchdir)/$(patch).diff) \
 	    | sed -rn '/Makefile\.(am|in)$$/s:[^/]+/src/:src/:p' | sort -u)))
 
-autoconf_version = 2.64
+autoconf_version = 2.69
 # FIXME should have a separate 2.69 package
-autoconf_version =
+ifeq (,$(filter $(distrelease),lucid precise))
+  autoconf_version =
+endif
 ifeq ($(trunk_build),yes)
   # The actual version depends on the build-dependencies set by
   # variable AUTO_BUILD_DEP in rules.conf.  Here, we assume the

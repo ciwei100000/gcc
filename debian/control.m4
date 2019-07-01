@@ -81,7 +81,7 @@ Build-Depends: DEBHELPER_BUILD_DEP DPKG_BUILD_DEP GCC_MULTILIB_BUILD_DEP
   BINUTILS_BUILD_DEP,
   gperf (>= 3.0.1), bison (>= 1:2.3), flex, gettext,
   gdb`'NT [!riscv64], OFFLOAD_BUILD_DEP
-  texinfo (>= 4.3), locales-all, sharutils,
+  texinfo (>= 4.3), LOCALES, sharutils,
   procps, FORTRAN_BUILD_DEP GNAT_BUILD_DEP GO_BUILD_DEP GDC_BUILD_DEP
   ISL_BUILD_DEP MPC_BUILD_DEP MPFR_BUILD_DEP GMP_BUILD_DEP PHOBOS_BUILD_DEP
   CHECK_BUILD_DEP coreutils (>= 2.26) | realpath (>= 1.9.12), chrpath, lsb-release, quilt,
@@ -5528,7 +5528,7 @@ Package: gcc`'PV-source
 Multi-Arch: foreign
 Architecture: all
 Priority: PRI(optional)
-Depends: make, autoconf2.64, quilt, patchutils, sharutils, gawk, lsb-release,
+Depends: make, quilt, patchutils, sharutils, gawk, lsb-release, AUTO_BUILD_DEP
   ${misc:Depends}
 Description: Source of the GNU Compiler Collection
  This package contains the sources and patches which are needed to
