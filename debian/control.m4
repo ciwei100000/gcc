@@ -63,10 +63,10 @@ ifdef(`TARGET',`dnl cross
 Build-Depends: DEBHELPER_BUILD_DEP DPKG_BUILD_DEP
   LIBC_BUILD_DEP, LIBC_BIARCH_BUILD_DEP
   kfreebsd-kernel-headers (>= 0.84) [kfreebsd-any], linux-libc-dev [m68k],
-  dwz, LIBUNWIND_BUILD_DEP LIBATOMIC_OPS_BUILD_DEP AUTO_BUILD_DEP
+  gawk, DWZ, LIBUNWIND_BUILD_DEP LIBATOMIC_OPS_BUILD_DEP AUTO_BUILD_DEP
   SOURCE_BUILD_DEP CROSS_BUILD_DEP
   ISL_BUILD_DEP MPC_BUILD_DEP MPFR_BUILD_DEP GMP_BUILD_DEP,
-  zlib1g-dev, gawk, lzma, xz-utils, patchutils,
+  zlib1g-dev, lzma, xz-utils, patchutils,
   pkg-config, libgc-dev,
   zlib1g-dev, SDT_BUILD_DEP
   bison (>= 1:2.3), flex, coreutils (>= 2.26) | realpath (>= 1.9.12), lsb-release, quilt
@@ -75,8 +75,8 @@ Build-Depends: DEBHELPER_BUILD_DEP DPKG_BUILD_DEP GCC_MULTILIB_BUILD_DEP
   LIBC_BUILD_DEP, LIBC_BIARCH_BUILD_DEP LIBC_DBG_DEP
   kfreebsd-kernel-headers (>= 0.84) [kfreebsd-any], linux-libc-dev [m68k],
   AUTO_BUILD_DEP BASE_BUILD_DEP
-  dwz, libunwind8-dev [ia64], libatomic-ops-dev [ia64],
-  gawk, lzma, xz-utils, patchutils,
+  gawk, DWZ, libunwind8-dev [ia64], libatomic-ops-dev [ia64],
+  lzma, xz-utils, patchutils,
   zlib1g-dev, SDT_BUILD_DEP
   BINUTILS_BUILD_DEP,
   gperf (>= 3.0.1), bison (>= 1:2.3), flex, gettext,

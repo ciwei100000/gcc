@@ -60,11 +60,13 @@ endif
 DEB_BUILD_ARCH		?= $(call vafilt,$(DPKG_VARS),DEB_BUILD_ARCH)
 DEB_BUILD_GNU_TYPE	?= $(call vafilt,$(DPKG_VARS),DEB_BUILD_GNU_TYPE)
 DEB_BUILD_MULTIARCH	?= $(call vafilt,$(DPKG_VARS),DEB_BUILD_MULTIARCH)
+DEB_BUILD_ARCH_BITS	?= $(call vafilt,$(DPKG_VARS),DEB_BUILD_ARCH_BITS)
 DEB_HOST_ARCH		?= $(call vafilt,$(DPKG_VARS),DEB_HOST_ARCH)
 DEB_HOST_GNU_CPU	?= $(call vafilt,$(DPKG_VARS),DEB_HOST_GNU_CPU)
 DEB_HOST_GNU_SYSTEM	?= $(call vafilt,$(DPKG_VARS),DEB_HOST_GNU_SYSTEM)
 DEB_HOST_GNU_TYPE	?= $(call vafilt,$(DPKG_VARS),DEB_HOST_GNU_TYPE)
 DEB_HOST_MULTIARCH	?= $(call vafilt,$(DPKG_VARS),DEB_HOST_MULTIARCH)
+DEB_HOST_ARCH_BITS	?= $(call vafilt,$(DPKG_VARS),DEB_HOST_ARCH_BITS)
 
 ifeq ($(derivative),Ubuntu)
   ifeq (,$(filter $(distrelease),dapper hardy lucid precise quantal raring saucy trusty))
@@ -318,7 +320,7 @@ endif
 ifneq ($(trunk_build),yes)
   ifeq ($(build_type),build-native)
     ifeq (,$(DEB_STAGE))
-      ifeq (,$(filter $(distrelease),wheezy jessie stretch precise trusty xenial))
+      ifeq (,$(filter $(distrelease),wheezy jessie stretch precise trusty xenial bionic))
         ifneq (,$(filter $(DEB_HOST_ARCH), amd64 i386 armhf arm64 ppc64el s390x))
           with_bootstrap := profiled
         endif
@@ -341,6 +343,15 @@ ifneq ($(trunk_build),yes)
     with_lto_build :=
   endif
 
+endif
+
+ifeq ($(with_lto_build),yes)
+  # FIXME: Debian #931319
+  with_dwz :=
+else ifneq (,$(filter $(distrelease),jessie stretch precise trusty xenial))
+  with_dwz :=
+else
+  with_dwz := yes
 endif
 
 # -------------------------------------------------------------------
