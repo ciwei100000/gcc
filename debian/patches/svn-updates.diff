@@ -1,10 +1,10 @@
-# DP: updates from the 8 branch upto 20190625 (r272643).
+# DP: updates from the 8 branch upto 20190702 (r272936).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Tue Jun 25 12:46:51 CEST 2019
-Tue Jun 25 10:46:51 UTC 2019 (revision 272643)
+Tue Jul  2 15:19:23 CEST 2019
+Tue Jul  2 13:19:23 UTC 2019 (revision 272936)
 EOF
 }
 
@@ -4907,7 +4907,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-8-branch)
 @@ -1 +1 @@
 -20190222
-+20190625
++20190702
 Index: gcc/tree-ssa-loop-ch.c
 ===================================================================
 --- a/src/gcc/tree-ssa-loop-ch.c	(.../tags/gcc_8_3_0_release)
@@ -5010,7 +5010,15 @@ Index: gcc/ipa-cp.c
 ===================================================================
 --- a/src/gcc/ipa-cp.c	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/ipa-cp.c	(.../branches/gcc-8-branch)
-@@ -2852,12 +2852,19 @@
+@@ -1082,7 +1082,6 @@
+   if (TREE_CODE_CLASS (code) == tcc_binary)
+     {
+       tree type = TREE_TYPE (operand);
+-      gcc_assert (INTEGRAL_TYPE_P (type));
+       widest_int o_value, o_mask;
+       get_value_and_mask (operand, &o_value, &o_mask);
+ 
+@@ -2852,12 +2851,19 @@
    base_time -= time;
    if (base_time > 65535)
      base_time = 65535;
@@ -5079,6 +5087,30 @@ Index: gcc/rtlanal.c
      {
        offset1 = crtl->outgoing_args_size + get_frame_size ();
  #if !STACK_GROWS_DOWNWARD
+Index: gcc/configure
+===================================================================
+--- a/src/gcc/configure	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/configure	(.../branches/gcc-8-branch)
+@@ -22799,17 +22799,13 @@
+ 	#
+ 	# ld: Software Generation Utilities - Solaris Link Editors: 5.11-1.1701:onnv-ab196087-6931056-03/25/10
+ 	#
+-	# In Solaris 11.4, this was changed to
+-	#
+-	# ld: Solaris ELF Utilities: 11.4-1.3123
+-	#
+ 	# ld and ld.so.1 are guaranteed to be updated in lockstep, so ld version
+ 	# numbers can be used in ld.so.1 feature checks even if a different
+ 	# linker is configured.
+ 	ld_ver=`$gcc_cv_ld -V 2>&1`
+-	if echo "$ld_ver" | $EGREP 'Solaris Link Editors|Solaris ELF Utilities' > /dev/null; then
++	if echo "$ld_ver" | grep 'Solaris Link Editors' > /dev/null; then
+ 	  ld_vers=`echo $ld_ver | sed -n \
+-	    -e 's,^.*: \(5\|1[0-9]\)\.[0-9][0-9]*-\([0-9]\.[0-9][0-9]*\).*$,\2,p'`
++	    -e 's,^.*: 5\.[0-9][0-9]*-\([0-9]\.[0-9][0-9]*\).*$,\1,p'`
+ 	  ld_vers_major=`expr "$ld_vers" : '\([0-9]*\)'`
+ 	  ld_vers_minor=`expr "$ld_vers" : '[0-9]*\.\([0-9]*\)'`
+ 	fi
 Index: gcc/builtins.c
 ===================================================================
 --- a/src/gcc/builtins.c	(.../tags/gcc_8_3_0_release)
@@ -5532,7 +5564,33 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,1077 @@
+@@ -1,3 +1,1103 @@
++2019-06-28  Jeff Law  <law@redhat.com>
++
++	Backport from mainline
++	2019-06-21  Jeff Law  <law@redhat.com>
++
++	PR tree-optimization/90949
++	* tree-ssa-copy.c (fini_copy_prop): Use reset_flow_sensitive_info.
++	* tree-ssanames.c (reset_flow_sensitive_info): Reset non-null state.
++
++2019-06-26  Martin Jambor  <mjambor@suse.cz>
++
++	Backport from mainline
++	2019-06-25  Martin Jambor  <mjambor@suse.cz>
++
++	PR ipa/90939
++	* ipa-cp.c (ipcp_bits_lattice::meet_with): Remove assert.
++
++2019-06-26  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
++
++	Backport from mainline
++	2019-06-17  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
++
++	* configure.ac (ld_vers) <*-*-solaris2*>: Remove support for
++	alternative Solaris 11.4 format.
++	* configure: Regenerate.
++
 +2019-06-16  Jeff Law  <law@redhat.com>
 +
 +	Backport from mainline
@@ -6610,7 +6668,7 @@ Index: gcc/ChangeLog
  2019-02-22  Release Manager
  
  	* GCC 8.3.0 released.
-@@ -568,7 +1646,7 @@
+@@ -568,7 +1672,7 @@
  
  	Backport from mainline
  	2018-11-20  Richard Biener  <rguenther@suse.de>
@@ -19025,6 +19083,53 @@ Index: gcc/testsuite/gcc.c-torture/execute/20190228-1.c
 +
 +  return 0;
 +}
+Index: gcc/testsuite/gcc.c-torture/execute/pr90949.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.c-torture/execute/pr90949.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.c-torture/execute/pr90949.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,42 @@
++void __attribute__ ((noipa, noinline)) my_puts (const char *str) { }
++
++void __attribute__ ((noipa, noinline)) my_free (void *p) { }
++
++
++struct Node
++{
++  struct Node *child;
++};
++
++struct Node space[2] = { };
++
++struct Node * __attribute__ ((noipa, noinline)) my_malloc (int bytes)
++{
++  return &space[0];
++}
++
++void
++walk (struct Node *module, int cleanup)
++{
++  if (module == 0)
++    {
++      return;
++    }
++  if (!cleanup)
++    {
++      my_puts ("No cleanup");
++    }
++  walk (module->child, cleanup);
++  if (cleanup)
++    {
++      my_free (module);
++    }
++}
++
++int
++main ()
++{
++  struct Node *node = my_malloc (sizeof (struct Node));
++  node->child = 0;
++  walk (node, 1);
++}
 Index: gcc/testsuite/gcc.c-torture/compile/pr89703-2.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.c-torture/compile/pr89703-2.c	(.../tags/gcc_8_3_0_release)
@@ -19512,6 +19617,67 @@ Index: gcc/testsuite/gnat.dg/opt77_pkg.ads
 +  procedure Proc (S : String; N : in out Natural; To_Add : out Boolean);
 +
 +end Opt77_Pkg;
+Index: gcc/testsuite/gnat.dg/specs/array5_pkg2-g.ads
+===================================================================
+--- a/src/gcc/testsuite/gnat.dg/specs/array5_pkg2-g.ads	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gnat.dg/specs/array5_pkg2-g.ads	(.../branches/gcc-8-branch)
+@@ -0,0 +1,13 @@
++with System.Address_To_Access_Conversions;
++
++generic
++
++  type T is new Root with private;
++
++package Array5_Pkg2.G is
++
++  package Ptr is new System.Address_To_Access_Conversions (T);
++
++  Data : Ptr.Object_Pointer;
++
++end Array5_Pkg2.G;
+Index: gcc/testsuite/gnat.dg/specs/array5_pkg2.ads
+===================================================================
+--- a/src/gcc/testsuite/gnat.dg/specs/array5_pkg2.ads	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gnat.dg/specs/array5_pkg2.ads	(.../branches/gcc-8-branch)
+@@ -0,0 +1,5 @@
++package Array5_Pkg2 is
++
++  type Root is tagged null record;
++
++end Array5_Pkg2;
+Index: gcc/testsuite/gnat.dg/specs/array5.ads
+===================================================================
+--- a/src/gcc/testsuite/gnat.dg/specs/array5.ads	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gnat.dg/specs/array5.ads	(.../branches/gcc-8-branch)
+@@ -0,0 +1,9 @@
++-- { dg-do compile }
++
++with Array5_Pkg1; use Array5_Pkg1;
++
++package Array5 is
++
++  C : constant Integer := Arr'Last;
++
++end Array5;
+Index: gcc/testsuite/gnat.dg/specs/array5_pkg1.ads
+===================================================================
+--- a/src/gcc/testsuite/gnat.dg/specs/array5_pkg1.ads	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gnat.dg/specs/array5_pkg1.ads	(.../branches/gcc-8-branch)
+@@ -0,0 +1,14 @@
++with Array5_Pkg2; use Array5_Pkg2;
++with Array5_Pkg2.G;
++
++package Array5_Pkg1 is
++
++  type Derived is new Root with record
++    N : Integer;
++  end record;
++
++  package My_G is new Array5_Pkg2.G (Derived);
++
++  type Arr is array (1 .. My_G.Data.N) of Integer;
++
++end Array5_Pkg1;
 Index: gcc/testsuite/gnat.dg/specs/array4.ads
 ===================================================================
 --- a/src/gcc/testsuite/gnat.dg/specs/array4.ads	(.../tags/gcc_8_3_0_release)
@@ -20599,7 +20765,22 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,1055 @@
+@@ -1,3 +1,1070 @@
++2019-06-29  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* gnat.dg/specs/array5.ads: New test.
++	* gnat.dg/specs/array5_pkg1.ads: New helper.
++	* gnat.dg/specs/array5_pkg2.ads: Likewise.
++	* gnat.dg/specs/array5_pkg2-g.ads: Likewise.
++
++2019-06-21  Jeff Law  <law@redhat.com>
++
++	Backport fom mainline
++	2019-06-21  Jeff Law  <law@redhat.com>
++
++        PR tree-optimization/90949
++	* gcc.c-torture/execute/pr90949.c: New test.
++
 +2019-06-21  Thomas Koenig  <tkoenig@gcc.gnu.org>
 +
 +	Backport from trunk
@@ -24870,11 +25051,32 @@ Index: gcc/ada/ChangeLog
 ===================================================================
 --- a/src/gcc/ada/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/ada/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,41 @@
+@@ -1,3 +1,62 @@
++2019-06-29  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* gcc-interface/decl.c (gnat_to_gnu_entity): Beep up comment on SAVED,
++	and tweak comment on the assertion about the scopes of Itypes.  Do not
++	skip the regular processing for Itypes that are E_Record_Subtype with
++	a Cloned_Subtype.  Get the Cloned_Subtype for every E_Record_Subtype
++	if the type is dummy and hasn't got its own freeze node.
++	<E_Record_Subtype>: Save again the DECL of the Cloned_Subtype, if any.
++	<E_Access_Subtype>: Save again the DECL of the equivalent type.
++	(Gigi_Equivalent_Type) <E_Access_Subtype>: New case.
++
++2019-06-29  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* gcc-interface/trans.c (mark_visited_r): Set TYPE_SIZES_GIMPLIFIED on
++	the main variant of a type, if any.
++
++2019-06-29  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* gcc-interface/decl.c (set_nonaliased_component_on_array_type): Add
++	missing guard for the presence of TYPE_CANONICAL.
++	(set_reverse_storage_order_on_array_type): Likewise.
++
 +2019-06-17  Arnaud Charlet  <charlet@adacore.com>
 +
-+PR ada/80590
-+
++	PR ada/80590
 +	* exp_ch9.adb (Expand_N_Delay_Relative_Statement): Swap the two
 +	conditions to avoid a unnecessary exception propagation in the default
 +	case.
@@ -24952,6 +25154,146 @@ Index: gcc/ada/gcc-interface/Makefile.in
  
  install-gnatlib: ../stamp-gnatlib-$(RTSDIR) install-gcc-specs
  	$(RMDIR) $(DESTDIR)$(ADA_RTL_OBJ_DIR)
+Index: gcc/ada/gcc-interface/decl.c
+===================================================================
+--- a/src/gcc/ada/gcc-interface/decl.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/ada/gcc-interface/decl.c	(.../branches/gcc-8-branch)
+@@ -295,7 +295,10 @@
+   tree gnu_size = NULL_TREE;
+   /* Contains the GCC name to be used for the GCC node.  */
+   tree gnu_entity_name;
+-  /* True if we have already saved gnu_decl as a GNAT association.  */
++  /* True if we have already saved gnu_decl as a GNAT association.  This can
++     also be used to purposely avoid making such an association but this use
++     case ought not to be applied to types because it can break the deferral
++     mechanism implemented for access types.  */
+   bool saved = false;
+   /* True if we incremented defer_incomplete_level.  */
+   bool this_deferred = false;
+@@ -312,14 +315,11 @@
+ 
+   /* Since a use of an Itype is a definition, process it as such if it is in
+      the main unit, except for E_Access_Subtype because it's actually a use
+-     of its base type, and for E_Record_Subtype with cloned subtype because
+-     it's actually a use of the cloned subtype, see below.  */
++     of its base type, see below.  */
+   if (!definition
+       && is_type
+       && Is_Itype (gnat_entity)
+-      && !(kind == E_Access_Subtype
+-	   || (kind == E_Record_Subtype
+-	       && Present (Cloned_Subtype (gnat_entity))))
++      && Ekind (gnat_entity) != E_Access_Subtype
+       && !present_gnu_tree (gnat_entity)
+       && In_Extended_Main_Code_Unit (gnat_entity))
+     {
+@@ -362,7 +362,7 @@
+ 	}
+ 
+       /* This abort means the Itype has an incorrect scope, i.e. that its
+-	 scope does not correspond to the subprogram it is declared in.  */
++	 scope does not correspond to the subprogram it is first used in.  */
+       gcc_unreachable ();
+     }
+ 
+@@ -371,7 +371,9 @@
+      In that case, we will abort below when we try to save a new GCC tree
+      for this object.  We also need to handle the case of getting a dummy
+      type when a Full_View exists but be careful so as not to trigger its
+-     premature elaboration.  */
++     premature elaboration.  Likewise for a cloned subtype without its own
++     freeze node, which typically happens when a generic gets instantiated
++     on an incomplete or private type.  */
+   if ((!definition || (is_type && imported_p))
+       && present_gnu_tree (gnat_entity))
+     {
+@@ -385,11 +387,27 @@
+ 	      || No (Freeze_Node (Full_View (gnat_entity)))))
+ 	{
+ 	  gnu_decl
+-	    = gnat_to_gnu_entity (Full_View (gnat_entity), NULL_TREE, false);
++	    = gnat_to_gnu_entity (Full_View (gnat_entity), NULL_TREE,
++				  false);
+ 	  save_gnu_tree (gnat_entity, NULL_TREE, false);
+ 	  save_gnu_tree (gnat_entity, gnu_decl, false);
+ 	}
+ 
++      if (TREE_CODE (gnu_decl) == TYPE_DECL
++	  && TYPE_IS_DUMMY_P (TREE_TYPE (gnu_decl))
++	  && Ekind (gnat_entity) == E_Record_Subtype
++	  && No (Freeze_Node (gnat_entity))
++	  && Present (Cloned_Subtype (gnat_entity))
++	  && (present_gnu_tree (Cloned_Subtype (gnat_entity))
++	      || No (Freeze_Node (Cloned_Subtype (gnat_entity)))))
++	{
++	  gnu_decl
++	    = gnat_to_gnu_entity (Cloned_Subtype (gnat_entity), NULL_TREE,
++				  false);
++	  save_gnu_tree (gnat_entity, NULL_TREE, false);
++	  save_gnu_tree (gnat_entity, gnu_decl, false);
++	}
++
+       return gnu_decl;
+     }
+ 
+@@ -3367,13 +3385,13 @@
+     case E_Record_Subtype:
+       /* If Cloned_Subtype is Present it means this record subtype has
+ 	 identical layout to that type or subtype and we should use
+-	 that GCC type for this one.  The front end guarantees that
++	 that GCC type for this one.  The front-end guarantees that
+ 	 the component list is shared.  */
+       if (Present (Cloned_Subtype (gnat_entity)))
+ 	{
+ 	  gnu_decl = gnat_to_gnu_entity (Cloned_Subtype (gnat_entity),
+ 					 NULL_TREE, false);
+-	  saved = true;
++	  maybe_present = true;
+ 	  break;
+ 	}
+ 
+@@ -3787,8 +3805,8 @@
+     case E_Access_Subtype:
+       /* We treat this as identical to its base type; any constraint is
+ 	 meaningful only to the front-end.  */
+-      gnu_decl = gnat_to_gnu_entity (Etype (gnat_entity), NULL_TREE, false);
+-      saved = true;
++      gnu_decl = gnat_to_gnu_entity (gnat_equiv_type, NULL_TREE, false);
++      maybe_present = true;
+ 
+       /* The designated subtype must be elaborated as well, if it does
+ 	 not have its own freeze node.  But designated subtypes created
+@@ -4974,6 +4992,10 @@
+ 	gnat_equiv = Equivalent_Type (gnat_entity);
+       break;
+ 
++    case E_Access_Subtype:
++      gnat_equiv = Etype (gnat_entity);
++      break;
++
+     case E_Class_Wide_Type:
+       gnat_equiv = Root_Type (gnat_entity);
+       break;
+@@ -6065,7 +6087,8 @@
+ set_nonaliased_component_on_array_type (tree type)
+ {
+   TYPE_NONALIASED_COMPONENT (type) = 1;
+-  TYPE_NONALIASED_COMPONENT (TYPE_CANONICAL (type)) = 1;
++  if (TYPE_CANONICAL (type))
++    TYPE_NONALIASED_COMPONENT (TYPE_CANONICAL (type)) = 1;
+ }
+ 
+ /* Set TYPE_REVERSE_STORAGE_ORDER on an array type built by means of
+@@ -6075,7 +6098,8 @@
+ set_reverse_storage_order_on_array_type (tree type)
+ {
+   TYPE_REVERSE_STORAGE_ORDER (type) = 1;
+-  TYPE_REVERSE_STORAGE_ORDER (TYPE_CANONICAL (type)) = 1;
++  if (TYPE_CANONICAL (type))
++    TYPE_REVERSE_STORAGE_ORDER (TYPE_CANONICAL (type)) = 1;
+ }
+ 
+ /* Return true if DISCR1 and DISCR2 represent the same discriminant.  */
 Index: gcc/ada/gcc-interface/trans.c
 ===================================================================
 --- a/src/gcc/ada/gcc-interface/trans.c	(.../tags/gcc_8_3_0_release)
@@ -25006,6 +25348,17 @@ Index: gcc/ada/gcc-interface/trans.c
        if (TYPE_IS_DUMMY_P (gnu_actual_type))
  	gcc_assert (is_true_formal_parm && DECL_BY_REF_P (gnu_formal));
        else if (suppress_type_conversion
+@@ -8167,8 +8177,9 @@
+   else if (!TYPE_IS_DUMMY_P (t))
+     TREE_VISITED (t) = 1;
+ 
++  /* The test in gimplify_type_sizes is on the main variant.  */
+   if (TYPE_P (t))
+-    TYPE_SIZES_GIMPLIFIED (t) = 1;
++    TYPE_SIZES_GIMPLIFIED (TYPE_MAIN_VARIANT (t)) = 1;
+ 
+   return NULL_TREE;
+ }
 Index: gcc/ada/exp_ch9.adb
 ===================================================================
 --- a/src/gcc/ada/exp_ch9.adb	(.../tags/gcc_8_3_0_release)
@@ -27265,6 +27618,30 @@ Index: gcc/fortran/simplify.c
    mpz_mul_ui (result->value.integer, result->value.integer, BITS_PER_UNIT);
  
    return range_check (result, "STORAGE_SIZE");
+Index: gcc/configure.ac
+===================================================================
+--- a/src/gcc/configure.ac	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/configure.ac	(.../branches/gcc-8-branch)
+@@ -2595,17 +2595,13 @@
+ 	#
+ 	# ld: Software Generation Utilities - Solaris Link Editors: 5.11-1.1701:onnv-ab196087-6931056-03/25/10
+ 	#
+-	# In Solaris 11.4, this was changed to
+-	#
+-	# ld: Solaris ELF Utilities: 11.4-1.3123
+-	#
+ 	# ld and ld.so.1 are guaranteed to be updated in lockstep, so ld version
+ 	# numbers can be used in ld.so.1 feature checks even if a different
+ 	# linker is configured.
+ 	ld_ver=`$gcc_cv_ld -V 2>&1`
+-	if echo "$ld_ver" | $EGREP 'Solaris Link Editors|Solaris ELF Utilities' > /dev/null; then
++	if echo "$ld_ver" | grep 'Solaris Link Editors' > /dev/null; then
+ 	  ld_vers=`echo $ld_ver | sed -n \
+-	    -e 's,^.*: \(5\|1[0-9]\)\.[0-9][0-9]*-\([0-9]\.[0-9][0-9]*\).*$,\2,p'`
++	    -e 's,^.*: 5\.[0-9][0-9]*-\([0-9]\.[0-9][0-9]*\).*$,\1,p'`
+ 	  ld_vers_major=`expr "$ld_vers" : '\([0-9]*\)'`
+ 	  ld_vers_minor=`expr "$ld_vers" : '[0-9]*\.\([0-9]*\)'`
+ 	fi
 Index: gcc/loop-unroll.c
 ===================================================================
 --- a/src/gcc/loop-unroll.c	(.../tags/gcc_8_3_0_release)
@@ -27955,6 +28332,29 @@ Index: gcc/tree-streamer-out.c
    if (TREE_CODE (expr) == RESULT_DECL
        || TREE_CODE (expr) == PARM_DECL
        || VAR_P (expr))
+Index: gcc/tree-ssa-copy.c
+===================================================================
+--- a/src/gcc/tree-ssa-copy.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/tree-ssa-copy.c	(.../branches/gcc-8-branch)
+@@ -545,13 +545,12 @@
+ 	      duplicate_ssa_name_ptr_info (copy_of[i].value,
+ 					   SSA_NAME_PTR_INFO (var));
+ 	      /* Points-to information is cfg insensitive,
+-		 but alignment info might be cfg sensitive, if it
+-		 e.g. is derived from VRP derived non-zero bits.
+-		 So, do not copy alignment info if the two SSA_NAMEs
+-		 aren't defined in the same basic block.  */
++		 but [E]VRP might record context sensitive alignment
++		 info, non-nullness, etc.  So reset context sensitive
++		 info if the two SSA_NAMEs aren't defined in the same
++		 basic block.  */
+ 	      if (var_bb != copy_of_bb)
+-		mark_ptr_info_alignment_unknown
+-				(SSA_NAME_PTR_INFO (copy_of[i].value));
++		reset_flow_sensitive_info (copy_of[i].value);
+ 	    }
+ 	  else if (!POINTER_TYPE_P (TREE_TYPE (var))
+ 		   && SSA_NAME_RANGE_INFO (var)
 Index: gcc/varasm.c
 ===================================================================
 --- a/src/gcc/varasm.c	(.../tags/gcc_8_3_0_release)
@@ -31427,6 +31827,24 @@ Index: gcc/params.def
  /*
  
  Local variables:
+Index: gcc/tree-ssanames.c
+===================================================================
+--- a/src/gcc/tree-ssanames.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/tree-ssanames.c	(.../branches/gcc-8-branch)
+@@ -788,7 +788,12 @@
+     {
+       /* points-to info is not flow-sensitive.  */
+       if (SSA_NAME_PTR_INFO (name))
+-	mark_ptr_info_alignment_unknown (SSA_NAME_PTR_INFO (name));
++	{
++	  /* [E]VRP can derive context sensitive alignment info and
++	     non-nullness properties.  We must reset both.  */
++	  mark_ptr_info_alignment_unknown (SSA_NAME_PTR_INFO (name));
++	  SSA_NAME_PTR_INFO (name)->pt.null = 1;
++	}
+     }
+   else
+     SSA_NAME_RANGE_INFO (name) = NULL;
 Index: gcc/convert.c
 ===================================================================
 --- a/src/gcc/convert.c	(.../tags/gcc_8_3_0_release)
