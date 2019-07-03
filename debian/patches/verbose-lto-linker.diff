@@ -1,0 +1,73 @@
+# DP: Emit some stderr output while doing the LTO Links
+
+--- a/src/gcc/lock-and-run.sh
++++ b/src/gcc/lock-and-run.sh
+@@ -1,7 +1,8 @@
+-#! /bin/sh
++#! /bin/bash
+ # Shell-based mutex using mkdir.
+ 
+ lockdir="$1" prog="$2"; shift 2 || exit 1
++cmd=$(echo $prog "$@" | sed 's,^[^ ]*/,,;s, .*\( -o [^ ]*\) .*,\1,')
+ 
+ # Remember when we started trying to acquire the lock.
+ count=0
+@@ -18,10 +19,10 @@ until mkdir "$lockdir" 2>/dev/null; do
+ 	    count=1
+ 	# Steal the lock after 5 minutes.
+ 	elif [ $count = 300 ]; then
+-	    echo removing stale $lockdir >&2
++	    echo "removing stale $lockdir ($cmd)" >&2
+ 	    rm -r "$lockdir"
+ 	else
+-	    echo waiting to acquire $lockdir >&2
++	    echo "waiting to acquire $lockdir ($cmd)" >&2
+ 	fi
+     fi
+     sleep 1
+@@ -29,6 +30,44 @@ until mkdir "$lockdir" 2>/dev/null; do
+ done
+ 
+ echo $prog "$@"
+-$prog "$@"
++$prog "$@" &
++pid=$!
++
++count=0
++max_count=$((3 * 60 * 60))
++
++while true; do
++    status=$(jobs -l | sed -n "/ $pid /s/^.* $pid //p")
++    case "$status" in
++    Running*)
++	: echo >&2 "running ..."
++	;;
++    Exit*)
++	: echo >&2 "exit ..."
++	rv=$(echo $status | awk '{print $2}')
++	break
++	;;
++    Done*)
++	rv=0
++	break
++	;;
++    *)
++	echo >&2 "$(basename $0): PID $pid ($cmd): unknown: $status"
++	rv=48
++	break
++    esac
++    sleep 2
++    count=$(($count + 6))
++    if [ "$(($count % 300))" -eq 0 ]; then
++	echo >&2 "$(basename $0): PID $pid ($cmd) running for $count seconds"
++    fi
++    if [ $count -ge $max_count ]; then
++	echo >&2 "$(basename $0): PID $pid ($cmd) timeout after $count seconds"
++	kill -1 $pid
++	rv=47
++    fi
++done
++echo >&2 "$(basename $0): PID $pid ($cmd) finished after $count seconds"
+ 
+ # The trap runs on exit.
++exit $rv
