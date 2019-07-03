@@ -321,7 +321,7 @@ ifneq ($(trunk_build),yes)
   ifeq ($(build_type),build-native)
     ifeq (,$(DEB_STAGE))
       ifeq (,$(filter $(distrelease),wheezy jessie stretch precise trusty xenial bionic))
-        ifneq (,$(filter $(DEB_HOST_ARCH), amd64 i386 armhf arm64 ppc64el s390x))
+        ifneq (,$(filter $(DEB_HOST_ARCH), amd64 i386 armhf arm64 powerpc ppc64 ppc64el s390x))
           with_bootstrap := profiled
         endif
       endif
@@ -335,14 +335,22 @@ ifneq ($(trunk_build),yes)
   # Enable LTO only for 64bit builds
   ifeq ($(DEB_BUILD_ARCH_BITS)-$(DEB_HOST_ARCH_BITS),64-64)
     with_lto_build := yes
+    # times out on the buildds ...
+    ifneq (,$(filter $(DEB_HOST_ARCH), arm64))
+      with_lto_build :=
+    endif
   endif
+  with_lto_build := yes
 
   # FIXME: newer binutils needed?
   ifneq (,$(filter $(distrelease),precise trusty xenial))
     with_bootstrap :=
     with_lto_build :=
   endif
+endif
 
+ifneq ($(findstring nolto, $(DEB_BUILD_OPTIONS)),)
+  with_lto_build :=
 endif
 
 ifeq ($(with_lto_build),yes)
@@ -1545,7 +1553,7 @@ ifneq (,$(filter $(DEB_HOST_ARCH), hppa mips))
     with_check := disabled for $(DEB_HOST_ARCH), testsuite timeouts with expect
   endif
 endif
-#with_check := disabled for this upload
+with_check := disabled for this upload
 
 # not a dependency on all archs, but if available, use it for the testsuite
 ifneq (,$(wildcard /usr/bin/localedef))
