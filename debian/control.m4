@@ -5468,7 +5468,7 @@ Description: Documentation for the GNU compilers (gcc, gobjc, g++)
 
 ifenabled(`olnvptx',`
 Package: gcc`'PV-offload-nvptx
-Architecture: amd64
+Architecture: amd64 ppc64el
 ifdef(`TARGET',`Multi-Arch: foreign
 ')dnl
 Priority: optional
@@ -5483,7 +5483,7 @@ Description: GCC offloading compiler to NVPTX
 
 ifenabled(`libgompnvptx',`
 Package: libgomp-plugin-nvptx`'GOMP_SO
-Architecture: amd64
+Architecture: amd64 ppc64el
 Multi-Arch: same
 Section: libs
 Depends: BASEDEP, libgomp`'GOMP_SO`'LS, ${shlibs:Depends}, ${misc:Depends}

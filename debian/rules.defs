@@ -328,15 +328,17 @@ ifneq ($(trunk_build),yes)
   # Enable LTO only for 64bit builds
   ifeq ($(DEB_BUILD_ARCH_BITS)-$(DEB_HOST_ARCH_BITS),64-64)
     with_lto_build := yes
-    # times out on the buildds ...
-    ifneq (,$(filter $(DEB_HOST_ARCH), arm64))
-      with_lto_build :=
-    endif
   endif
   with_lto_build := yes
 
+  # FIXME: hppa has issues with parsing the jobs output.
+  #   # FIXME: m68k and sh4 running on simulators, don't care ...
+  ifneq (,$(filter $(DEB_HOST_ARCH), hppa m68k sh4))
+    with_lto_build :=
+  endif
+
   # FIXME: newer binutils needed?
-  ifneq (,$(filter $(distrelease),precise trusty xenial))
+  ifneq (,$(filter $(distrelease),stretch precise trusty xenial bionic))
     with_bootstrap :=
     with_lto_build :=
   endif
