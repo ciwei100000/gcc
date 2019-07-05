@@ -1303,6 +1303,8 @@ $(configure_jit_stamp): $(build_stamp)
 	touch $(configure_jit_stamp)
 
 $(build_jit_stamp): $(configure_jit_stamp)
+	( \
+	  set +e; \
 	  $(SET_PATH) \
 	  $(SET_SHELL) \
 	  $(SET_LOCPATH) \
@@ -1310,7 +1312,21 @@ $(build_jit_stamp): $(configure_jit_stamp)
 	  biarch_multidir_names=none \
 		$(MAKE) -C $(builddir_jit) \
 		$(call pass_vars, BOOT_CFLAGS       BOOT_LDFLAGS \
-		                  CFLAGS_FOR_TARGET LDFLAGS_FOR_TARGET)
+		                  CFLAGS_FOR_TARGET LDFLAGS_FOR_TARGET) \
+		; \
+	  echo $$? > status; \
+	) 2>&1 | tee jit-protocol
+
+	s=`cat status`; rm -f status; \
+	if [ $$s -ne 0 ] && [ -z "$$NO_CONFIG_LOG_DUMP$$NO_CONFIG_LOG_DUMPS" ]; then \
+	  for log in $$(find $(builddir_jit) -name config.log); do \
+	    case "$$log" in */build/build-*|*/stage1-*|*/prev-*) continue; esac; \
+	    echo LOGFILE START $$log; \
+	    cat $$log; \
+	    echo LOGFILE END $$log; \
+	  done; \
+	fi; \
+	test $$s -eq 0
 
 ifeq ($(with_check),yes)
   # FIXME: #782444
@@ -1368,6 +1384,8 @@ $(build_nvptx_stamp): $(configure_nvptx_stamp) \
     $(if $(filter yes, $(with_hppa64)), $(build_hppa64_stamp))
 	ln -sf ../$(nl_nvptx_srcdir)/newlib $(srcdir)/newlib
 
+	( \
+	  set +e; \
 	  $(SET_PATH) \
 	  $(SET_SHELL) \
 	  $(SET_LOCPATH) \
@@ -1375,7 +1393,21 @@ $(build_nvptx_stamp): $(configure_nvptx_stamp) \
 	  biarch_multidir_names=none \
 		$(MAKE) -C $(builddir_nvptx) \
 		$(call pass_vars, BOOT_CFLAGS       BOOT_LDFLAGS \
-		                  CFLAGS_FOR_TARGET)
+		                  CFLAGS_FOR_TARGET) \
+		; \
+	  echo $$? > status; \
+	) 2>&1 | tee nvptx-protocol
+
+	s=`cat status`; rm -f status; \
+	if [ $$s -ne 0 ] && [ -z "$$NO_CONFIG_LOG_DUMP$$NO_CONFIG_LOG_DUMPS" ]; then \
+	  for log in $$(find $(builddir_nvptx) -name config.log); do \
+	    case "$$log" in */build/build-*|*/stage1-*|*/prev-*) continue; esac; \
+	    echo LOGFILE START $$log; \
+	    cat $$log; \
+	    echo LOGFILE END $$log; \
+	  done; \
+	fi; \
+	test $$s -eq 0
 
 ifeq ($(with_check),yes)
 #	-$(MAKE) -C $(builddir_nvptx)/gcc check-jit \
