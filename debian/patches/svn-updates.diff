@@ -1,10 +1,10 @@
-# DP: updates from the 8 branch upto 20190702 (r272936).
+# DP: updates from the 8 branch upto 20190704 (r273090).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Tue Jul  2 15:19:23 CEST 2019
-Tue Jul  2 13:19:23 UTC 2019 (revision 272936)
+Thu Jul  4 19:08:12 CEST 2019
+Thu Jul  4 17:08:12 UTC 2019 (revision 273090)
 EOF
 }
 
@@ -4907,7 +4907,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-8-branch)
 @@ -1 +1 @@
 -20190222
-+20190702
++20190704
 Index: gcc/tree-ssa-loop-ch.c
 ===================================================================
 --- a/src/gcc/tree-ssa-loop-ch.c	(.../tags/gcc_8_3_0_release)
@@ -5564,7 +5564,16 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,1103 @@
+@@ -1,3 +1,1112 @@
++2019-07-04  Martin Liska  <mliska@suse.cz>
++
++	Backport from mainline
++	2019-07-03  Martin Liska  <mliska@suse.cz>
++
++	PR middle-end/90899
++	* multiple_target.c (create_dispatcher_calls): Add to comdat
++	group only if set for ifunc.
++
 +2019-06-28  Jeff Law  <law@redhat.com>
 +
 +	Backport from mainline
@@ -6668,7 +6677,7 @@ Index: gcc/ChangeLog
  2019-02-22  Release Manager
  
  	* GCC 8.3.0 released.
-@@ -568,7 +1672,7 @@
+@@ -568,7 +1681,7 @@
  
  	Backport from mainline
  	2018-11-20  Richard Biener  <rguenther@suse.de>
@@ -15217,13 +15226,13 @@ Index: gcc/testsuite/gcc.target/mips/dwarfregtable-4.c
 +/* { dg-options "-mabi=32 -mfp64 -modd-spreg" } */
 +
 +#include "dwarfregtable.h"
-Index: gcc/testsuite/gcc.target/mips/msa-fmadd.c
+Index: gcc/testsuite/gcc.target/mips/msa-fmadd-o32.c
 ===================================================================
---- a/src/gcc/testsuite/gcc.target/mips/msa-fmadd.c	(.../tags/gcc_8_3_0_release)
-+++ b/src/gcc/testsuite/gcc.target/mips/msa-fmadd.c	(.../branches/gcc-8-branch)
+--- a/src/gcc/testsuite/gcc.target/mips/msa-fmadd-o32.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/mips/msa-fmadd-o32.c	(.../branches/gcc-8-branch)
 @@ -0,0 +1,101 @@
 +/* { dg-do compile } */
-+/* { dg-options "-mfp64 -mhard-float -mmsa -EL -flax-vector-conversions" } */
++/* { dg-options "-mabi=32 -mfp64 -mhard-float -mmsa -EL -flax-vector-conversions" } */
 +/* { dg-skip-if "uses global registers" { *-*-* } { "-O0" } { "" } } */
 +
 +typedef int v4i32 __attribute__ ((vector_size(16)));
@@ -15322,6 +15331,112 @@ Index: gcc/testsuite/gcc.target/mips/msa-fmadd.c
 +  e = __builtin_msa_fmsub_d (e, f, f);
 +}
 +/* { dg-final { scan-assembler "fmsub\\\.d\t\\\$w28,\\\$w30,\\\$w30" } }  */
++
+Index: gcc/testsuite/gcc.target/mips/msa-fmadd-n64.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/mips/msa-fmadd-n64.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/mips/msa-fmadd-n64.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,101 @@
++/* { dg-do compile } */
++/* { dg-options "-mabi=64 -mfp64 -mhard-float -mmsa -EL -flax-vector-conversions" } */
++/* { dg-skip-if "uses global registers" { *-*-* } { "-O0" } { "" } } */
++
++typedef int v4i32 __attribute__ ((vector_size(16)));
++typedef float v4f32 __attribute__ ((vector_size(16)));
++typedef double v2f64 __attribute__ ((vector_size(16)));
++
++/* Test that MSA FMADD-like intrinsics do not use first operand for multiplication.  */
++
++register v4i32 a __asm__("$f24");
++register v4i32 b __asm__("$f25");
++register v4f32 c __asm__("$f26");
++register v4f32 d __asm__("$f27");
++register v2f64 e __asm__("$f28");
++register v2f64 f __asm__("$f29");
++
++void
++maddv_b_msa (void)
++{
++  a = __builtin_msa_maddv_b (a, b, b);
++}
++/* { dg-final { scan-assembler "maddv\\\.b\t\\\$w24,\\\$w25,\\\$w25" } }  */
++
++void
++maddv_h_msa (void)
++{
++  a = __builtin_msa_maddv_h (a, b, b);
++}
++/* { dg-final { scan-assembler "maddv\\\.h\t\\\$w24,\\\$w25,\\\$w25" } }  */
++
++void
++maddv_w_msa (void)
++{
++  a = __builtin_msa_maddv_w (a, b, b);
++}
++/* { dg-final { scan-assembler "maddv\\\.w\t\\\$w24,\\\$w25,\\\$w25" } }  */
++
++void
++maddv_d_msa (void)
++{
++  a = __builtin_msa_maddv_d (a, b, b);
++}
++/* { dg-final { scan-assembler "maddv\\\.d\t\\\$w24,\\\$w25,\\\$w25" } }  */
++
++void
++msubv_b_msa (void)
++{
++  a = __builtin_msa_msubv_b (a, b, b);
++}
++/* { dg-final { scan-assembler "msubv\\\.b\t\\\$w24,\\\$w25,\\\$w25" } }  */
++
++void
++msubv_h_msa (void)
++{
++  a = __builtin_msa_msubv_h (a, b, b);
++}
++/* { dg-final { scan-assembler "msubv\\\.h\t\\\$w24,\\\$w25,\\\$w25" } }  */
++
++void
++msubv_w_msa (void)
++{
++  a = __builtin_msa_msubv_w (a, b, b);
++}
++/* { dg-final { scan-assembler "msubv\\\.w\t\\\$w24,\\\$w25,\\\$w25" } }  */
++
++void
++msubv_d_msa (void)
++{
++  a = __builtin_msa_msubv_d (a, b, b);
++}
++/* { dg-final { scan-assembler "msubv\\\.d\t\\\$w24,\\\$w25,\\\$w25" } }  */
++
++void
++fmadd_w_msa (void)
++{
++  c = __builtin_msa_fmadd_w (c, d, d);
++}
++/* { dg-final { scan-assembler "fmadd\\\.w\t\\\$w26,\\\$w27,\\\$w27" } }  */
++
++void
++fmadd_d_msa (void)
++{
++  e = __builtin_msa_fmadd_d (e, f, f);
++}
++/* { dg-final { scan-assembler "fmadd\\\.d\t\\\$w28,\\\$w29,\\\$w29" } }  */
++
++void
++fmsub_w_msa (void)
++{
++  c = __builtin_msa_fmsub_w (c, d, d);
++}
++/* { dg-final { scan-assembler "fmsub\\\.w\t\\\$w26,\\\$w27,\\\$w27" } }  */
++
++void
++fmsub_d_msa (void)
++{
++  e = __builtin_msa_fmsub_d (e, f, f);
++}
++/* { dg-final { scan-assembler "fmsub\\\.d\t\\\$w28,\\\$w29,\\\$w29" } }  */
 +
 Index: gcc/testsuite/gcc.target/mips/dwarfregtable-1.c
 ===================================================================
@@ -17181,6 +17296,17 @@ Index: gcc/testsuite/gcc.target/i386/cet-sjlj-6b.c
  /* { dg-options "-O -maddress-mode=long -fcf-protection -mx32" } */
  /* { dg-final { scan-assembler-times "endbr64" 2 } } */
  /* { dg-final { scan-assembler-times "movq\t.*buf\\+16" 1 } } */
+Index: gcc/testsuite/gcc.target/i386/pr90899.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr90899.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr90899.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,6 @@
++/* PR middle-end/90899 */
++/* { dg-do compile } */
++/* { dg-require-ifunc "" } */
++
++__attribute__ ((target_clones ("default", "arch=slm"))) static int f () { return 0; }
++__attribute__ ((alias ("f"))) __typeof (f) g;
 Index: gcc/testsuite/gcc.target/i386/pr89523-2.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/pr89523-2.c	(.../tags/gcc_8_3_0_release)
@@ -20765,7 +20891,22 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,1070 @@
+@@ -1,3 +1,1085 @@
++2019-07-04  Chenghua Xu  <paul.hua.gm@gmail.com>
++
++	Backported from mainline.
++	* gcc.target/mips/mips-fmadd.c: Rename to ...
++	* gcc.target/mips/mips-fmadd-o32.c: ... Here; add abi=32.
++	* gcc.target/mips/mips-fmadd-n64.c: New.
++
++2019-07-04  Martin Liska  <mliska@suse.cz>
++
++	Backport from mainline
++	2019-07-03  Martin Liska  <mliska@suse.cz>
++
++	PR middle-end/90899
++	* gcc.target/i386/pr90899.c: New test.
++
 +2019-06-29  Eric Botcazou  <ebotcazou@adacore.com>
 +
 +	* gnat.dg/specs/array5.ads: New test.
@@ -27884,7 +28025,7 @@ Index: gcc/multiple_target.c
  
    /* We need to remember NEXT_CALLER as it could be modified in the loop.  */
    for (cgraph_edge *e = node->callers; e ; e = e->next_caller)
-@@ -146,13 +152,11 @@
+@@ -146,15 +152,14 @@
  		}
  
  	      symtab_node *source = ref->referring;
@@ -27896,9 +28037,13 @@ Index: gcc/multiple_target.c
  	      symtab_node *source = ref->referring;
 -	      ref->remove_reference ();
  	      source->create_reference (inode, IPA_REF_ALIAS);
- 	      source->add_to_same_comdat_group (inode);
+-	      source->add_to_same_comdat_group (inode);
++	      if (inode->get_comdat_group ())
++		source->add_to_same_comdat_group (inode);
  	    }
-@@ -294,7 +298,8 @@
+ 	  else
+ 	    gcc_unreachable ();
+@@ -294,7 +299,8 @@
  /*  Creates target clone of NODE.  */
  
  static cgraph_node *
@@ -27908,7 +28053,7 @@ Index: gcc/multiple_target.c
  {
    cgraph_node *new_node;
  
-@@ -303,7 +308,9 @@
+@@ -303,7 +309,9 @@
        new_node = node->create_version_clone_with_body (vNULL, NULL,
      						       NULL, false,
  						       NULL, NULL,
@@ -27919,7 +28064,7 @@ Index: gcc/multiple_target.c
        new_node->force_output = true;
      }
    else
-@@ -310,6 +317,7 @@
+@@ -310,6 +318,7 @@
      {
        tree new_decl = copy_node (node->decl);
        new_node = cgraph_node::get_create (new_decl);
@@ -27927,7 +28072,7 @@ Index: gcc/multiple_target.c
        /* Generate a new name for the new version.  */
        symtab->change_decl_assembler_name (new_node->decl,
  					  clone_function_name (node->decl,
-@@ -399,22 +407,16 @@
+@@ -399,22 +408,16 @@
  
        create_new_asm_name (attr, suffix);
        /* Create new target clone.  */
@@ -27957,7 +28102,7 @@ Index: gcc/multiple_target.c
        decl2_v = new_node->function_version ();
        if (decl2_v != NULL)
          continue;
-@@ -441,13 +443,7 @@
+@@ -441,13 +444,7 @@
  				    DECL_ATTRIBUTES (node->decl));
    DECL_ATTRIBUTES (node->decl) = attributes;
    node->local.local = false;
