@@ -14,6 +14,46 @@ Author: Nicolas Boulenguez <nicolas@debian.org>
  
     subtype int            is Interfaces.C.int;
     subtype char           is Interfaces.C.char;
+@@ -441,31 +440,25 @@ package System.OS_Interface is
+    PTHREAD_PRIO_PROTECT : constant := 2;
+    PTHREAD_PRIO_INHERIT : constant := 1;
+ 
++   --  GNU/kFreeBSD does not support Thread Priority Protection or Thread
++   --  Priority Inheritance and lacks some pthread_mutexattr_* functions.
++   --  Replace them with dummy versions.
++
+    function pthread_mutexattr_setprotocol
+      (attr     : access pthread_mutexattr_t;
+-      protocol : int) return int;
+-   pragma Import
+-      (C, pthread_mutexattr_setprotocol, "pthread_mutexattr_setprotocol");
++      protocol : int) return int is (0);
+ 
+    function pthread_mutexattr_getprotocol
+      (attr     : access pthread_mutexattr_t;
+-      protocol : access int) return int;
+-   pragma Import
+-     (C, pthread_mutexattr_getprotocol, "pthread_mutexattr_getprotocol");
++     protocol : access int) return int is (0);
+ 
+    function pthread_mutexattr_setprioceiling
+      (attr     : access pthread_mutexattr_t;
+-      prioceiling : int) return int;
+-   pragma Import
+-     (C, pthread_mutexattr_setprioceiling,
+-      "pthread_mutexattr_setprioceiling");
++      prioceiling : int) return int is (0);
+ 
+    function pthread_mutexattr_getprioceiling
+      (attr     : access pthread_mutexattr_t;
+-      prioceiling : access int) return int;
+-   pragma Import
+-     (C, pthread_mutexattr_getprioceiling,
+-      "pthread_mutexattr_getprioceiling");
++      prioceiling : access int) return int is (0);
+ 
+    type struct_sched_param is record
+       sched_priority : int;  --  scheduling priority
 --- a/src/gcc/ada/gsocket.h
 +++ b/src/gcc/ada/gsocket.h
 @@ -253,6 +253,7 @@
