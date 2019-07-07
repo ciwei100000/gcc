@@ -339,8 +339,11 @@ ifneq ($(trunk_build),yes)
   with_lto_build := yes
 
   # FIXME: hppa has issues with parsing the jobs output.
-  # FIXME: m68k and sh4 running on simulators, don't care ...
-  ifneq (,$(filter $(DEB_HOST_ARCH), hppa m68k sh4))
+  # FIXME: m68k, riscv64 and sh4 running on simulators, don't care ...
+  # FIXME: buildds not powerful ebough: mips*, sparc64
+  # FIXME: just let it build, takes too long: hurd-i386
+  # FIXME: not yet tried to build: alpha
+  ifneq (,$(filter $(DEB_HOST_ARCH), alpha hppa m68k mips mipsel mips64el riscv64 sh4 sparc64 hurd-i386))
     with_lto_build :=
   endif
 
@@ -353,6 +356,12 @@ endif
 
 ifneq ($(findstring nolto, $(DEB_BUILD_OPTIONS)),)
   with_lto_build :=
+endif
+
+ifneq ($(findstring nopgo, $(DEB_BUILD_OPTIONS)),)
+  ifeq ($(with_bootstrap),profiled)
+    with_bootstrap :=
+  endif
 endif
 
 ifeq ($(with_lto_build),yes)
