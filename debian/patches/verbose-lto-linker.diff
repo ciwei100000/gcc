@@ -1,5 +1,7 @@
 # DP: Emit some stderr output while doing the LTO Links
 
+Index: b/src/gcc/lock-and-run.sh
+===================================================================
 --- a/src/gcc/lock-and-run.sh
 +++ b/src/gcc/lock-and-run.sh
 @@ -1,7 +1,8 @@
@@ -12,7 +14,7 @@
  
  # Remember when we started trying to acquire the lock.
  count=0
-@@ -11,24 +12,64 @@ trap 'rm -r "$lockdir" lock-stamp.$$' 0
+@@ -11,24 +12,72 @@ trap 'rm -r "$lockdir" lock-stamp.$$' 0
  
  until mkdir "$lockdir" 2>/dev/null; do
      # Say something periodically so the user knows what's up.
@@ -52,18 +54,26 @@
 +
 +while true; do
 +    status=$(jobs -l | sed -n "/ $pid /s/^.* $pid //p")
-+    case "$status" in
-+    Running*)
++    case "x$status" in
++    xRunning*)
 +	: echo >&2 "running ..."
 +	;;
-+    Exit*)
++    xExit*)
 +	: echo >&2 "exit ..."
 +	rv=$(echo $status | awk '{print $2}')
 +	break
 +	;;
-+    Done*)
++    xDone*)
 +	rv=0
 +	break
++	;;
++    x)
++	: echo >&2 "??? ..."
++	pstatus=$(ps $pid)
++	if [ "$?" -ne 0 ]; then
++	    rv=0
++	    break
++	fi
 +	;;
 +    *)
 +	echo >&2 "$(basename $0): PID $pid ($cmd): unknown: $status"
