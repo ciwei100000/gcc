@@ -41,7 +41,8 @@ build: pre-build control
 build-arch: pre-build control
 	$(MAKE) $(NJOBS) -f debian/rules2 $@
 build-indep: pre-build control
-	$(MAKE) $(NJOBS) -f debian/rules2 $@
+	DEB_BUILD_OPTIONS="$(DEB_BUILD_OPTIONS) nostrap nohppa64 nonvptx nocheck nopgo nolto" \
+	    $(MAKE) $(NJOBS) -f debian/rules2 $@
 
 check: $(check_stamp)
 $(check_stamp): $(build_stamp)
@@ -66,8 +67,12 @@ install:
 html-docs doxygen-docs update-doxygen-docs update-ada-files xxx:
 	$(MAKE) -f debian/rules2 $@
 
-binary-indep binary-arch binary:
+binary-arch binary:
 	$(MAKE) -f debian/rules2 $@
+
+binary-indep:
+	DEB_BUILD_OPTIONS="$(DEB_BUILD_OPTIONS) nostrap nohppa64 nonvptx nocheck nopgo nolto" \
+	    $(MAKE) -f debian/rules2 $@
 
 source diff:
 	@echo >&2 'source and diff are obsolete - use dpkg-source -b'; false

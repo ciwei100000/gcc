@@ -733,6 +733,9 @@ endif
 ifeq ($(single_package),yes)
   with_offload_nvptx := disabled for snapshot builds
 endif
+ifneq ($(findstring nonvptx, $(DEB_BUILD_OPTIONS)),)
+  with_offload_nvptx := disabled by DEB_BUILD_OPTIONS
+endif
 with_offload_nvptx := $(call envfilt, nvptx, , , $(with_offload_nvptx))
 
 #with_offload_nvptx := not yet built for GCC 9
@@ -1483,6 +1486,9 @@ else
   endif
   ifeq ($(hppa64_no_snap)-$(trunk_build),yes-yes)
     with_hppa64 := disabled for snapshot build
+  endif
+  ifneq ($(findstring nohppa64, $(DEB_BUILD_OPTIONS)),)
+    with_hppa64 := disabled by DEB_BUILD_OPTIONS
   endif
   with_hppa64 := $(call envfilt, hppa64, , , $(with_hppa64))
 
