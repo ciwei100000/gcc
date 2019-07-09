@@ -1,10 +1,10 @@
-# DP: updates from the 8 branch upto 20190704 (r273090).
+# DP: updates from the 8 branch upto 20190709 (r273305).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Thu Jul  4 19:08:12 CEST 2019
-Thu Jul  4 17:08:12 UTC 2019 (revision 273090)
+Tue Jul  9 15:26:27 CEST 2019
+Tue Jul  9 13:26:27 UTC 2019 (revision 273305)
 EOF
 }
 
@@ -4907,7 +4907,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-8-branch)
 @@ -1 +1 @@
 -20190222
-+20190704
++20190709
 Index: gcc/tree-ssa-loop-ch.c
 ===================================================================
 --- a/src/gcc/tree-ssa-loop-ch.c	(.../tags/gcc_8_3_0_release)
@@ -18030,6 +18030,101 @@ Index: gcc/testsuite/gfortran.dg/allocate_with_mold_3.f90
 +type(array_data) :: foo
 +call foo%push(42)
 +end
+Index: gcc/testsuite/gfortran.dg/pointer_array_11.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pointer_array_11.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pointer_array_11.f90	(.../branches/gcc-8-branch)
+@@ -0,0 +1,90 @@
++! { dg-do run }
++!
++! Test the fix for PR91077 - both the original test and that in comment #4 of the PR.
++!
++! Contribute by Ygal Klein  <ygalklein@gmail.com>
++!
++program test
++  implicit none
++  call original
++  call comment_4
++contains
++  subroutine original
++    integer, parameter :: length = 9
++    real(8), dimension(2) :: a, b
++    integer :: i
++    type point
++       real(8) :: x
++    end type point
++
++    type stored
++       type(point), dimension(:), allocatable :: np
++    end type stored
++    type(stored), dimension(:), pointer :: std =>null()
++    allocate(std(1))
++    allocate(std(1)%np(length))
++    std(1)%np(1)%x = 0.3d0
++    std(1)%np(2)%x = 0.3555d0
++    std(1)%np(3)%x = 0.26782d0
++    std(1)%np(4)%x = 0d0
++    std(1)%np(5)%x = 1.555d0
++    std(1)%np(6)%x = 7.3d0
++    std(1)%np(7)%x = 7.8d0
++    std(1)%np(8)%x = 6.3d0
++    std(1)%np(9)%x = 5.5d0
++!    do i = 1, 2
++!       write(*, "('std(1)%np(',i1,')%x = ',1e22.14)") i, std(1)%np(i)%x
++!    end do
++!    do i = 1, 2
++!       write(*, "('std(1)%np(1:',i1,') = ',9e22.14)") i, std(1)%np(1:i)%x
++!    end do
++    a = std(1)%np(1:2)%x
++    b = [std(1)%np(1)%x, std(1)%np(2)%x]
++!    print *,a
++!    print *,b
++    if (allocated (std(1)%np)) deallocate (std(1)%np)
++    if (associated (std)) deallocate (std)
++    if (norm2(a - b) .gt. 1d-3) stop 1
++  end subroutine
++
++  subroutine comment_4
++    integer, parameter :: length = 2
++    real(8), dimension(length) :: a, b
++    integer :: i
++
++    type point
++       real(8) :: x
++    end type point
++
++    type points
++       type(point), dimension(:), pointer :: np=>null()
++    end type points
++
++    type stored
++       integer :: l
++       type(points), pointer :: nfpoint=>null()
++    end type stored
++
++    type(stored), dimension(:), pointer :: std=>null()
++
++
++    allocate(std(1))
++    allocate(std(1)%nfpoint)
++    allocate(std(1)%nfpoint%np(length))
++    std(1)%nfpoint%np(1)%x = 0.3d0
++    std(1)%nfpoint%np(2)%x = 0.3555d0
++
++!    do i = 1, length
++!       write(*, "('std(1)%nfpoint%np(',i1,')%x = ',1e22.14)") i, std(1)%nfpoint%np(i)%x
++!    end do
++!    do i = 1, length
++!       write(*, "('std(1)%nfpoint%np(1:',i1,')%x = ',2e22.14)") i, std(1)%nfpoint%np(1:i)%x
++!    end do
++    a = std(1)%nfpoint%np(1:2)%x
++    b = [std(1)%nfpoint%np(1)%x, std(1)%nfpoint%np(2)%x]
++    if (associated (std(1)%nfpoint%np)) deallocate (std(1)%nfpoint%np)
++    if (associated (std(1)%nfpoint)) deallocate (std(1)%nfpoint)
++    if (associated (std)) deallocate (std)
++    if (norm2(a - b) .gt. 1d-3) stop 2
++    end subroutine
++end program test
 Index: gcc/testsuite/gfortran.dg/c_ptr_tests_19.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/c_ptr_tests_19.f90	(.../tags/gcc_8_3_0_release)
@@ -20891,7 +20986,13 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,1085 @@
+@@ -1,3 +1,1091 @@
++2019-07-07  Paul Thomas  <pault@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/91077
++	* gfortran.dg/pointer_array_11.f90 : New test.
++
 +2019-07-04  Chenghua Xu  <paul.hua.gm@gmail.com>
 +
 +	Backported from mainline.
@@ -26035,7 +26136,20 @@ Index: gcc/fortran/trans-array.c
    /* If the actual argument can be absent (in other words, it can
       be a NULL reference), don't try to evaluate it; pass instead
       the reference directly.  */
-@@ -9527,9 +9535,15 @@
+@@ -3414,10 +3422,8 @@
+   if (build_class_array_ref (se, base, index))
+     return;
+ 
+-  if (expr && ((is_subref_array (expr)
+-		&& GFC_DESCRIPTOR_TYPE_P (TREE_TYPE (info->descriptor)))
+-	       || (expr->ts.deferred && (expr->expr_type == EXPR_VARIABLE
+-					 || expr->expr_type == EXPR_FUNCTION))))
++  if (expr && (expr->ts.deferred && (expr->expr_type == EXPR_VARIABLE
++				     || expr->expr_type == EXPR_FUNCTION)))
+     decl = expr->symtree->n.sym->backend_decl;
+ 
+   /* A pointer array component can be detected from its field decl. Fix
+@@ -9527,9 +9533,15 @@
    if (sym->ts.type == BT_CLASS
        && !sym->attr.associate_var
        && CLASS_DATA (sym)->attr.allocatable
@@ -26054,7 +26168,7 @@ Index: gcc/fortran/trans-array.c
      return true;
  
    /* An allocatable variable.  */
-@@ -10350,6 +10364,8 @@
+@@ -10350,6 +10362,8 @@
  {
    gfc_ref *ref;
  
@@ -26330,7 +26444,14 @@ Index: gcc/fortran/ChangeLog
 ===================================================================
 --- a/src/gcc/fortran/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/fortran/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,330 @@
+@@ -1,3 +1,337 @@
++2019-07-07  Paul Thomas  <pault@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/91077
++	* trans-array.c (gfc_conv_scalarized_array_ref) Delete code
++	that gave symbol backend decl for subref arrays.
++
 +2019-06-21  Thomas Koenig  <tkoenig@gcc.gnu.org>
 +
 +	Backport from trunk
