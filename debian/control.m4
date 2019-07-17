@@ -4778,7 +4778,8 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
 Section: libdevel
 Priority: optional
 Depends: BASELDEP, lib64gphobos`'PHOBOS_V`'LS (>= ${gdc:Version}),
-  libdevdep(gcc`'PV-dev,64), ifdef(`TARGET',`',`lib64z1-dev,') ${shlibs:Depends}, ${misc:Depends}
+  libdevdep(gcc`'PV-dev,64), ifdef(`TARGET',`',`lib64z1-dev [!mips !mipsel !mipsn32 !mipsn32el !mipsr6 !mipsr6el !mipsn32r6 !mipsn32r6el],')
+  ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
 Description: Phobos D standard library (64bit development files)
  This is the Phobos standard library that comes with the D2 compiler.
@@ -4791,7 +4792,8 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
 Section: libdevel
 Priority: optional
 Depends: BASELDEP, lib32gphobos`'PHOBOS_V`'LS (>= ${gdc:Version}),
-  libdevdep(gcc`'PV-dev,32), ifdef(`TARGET',`',`lib32z1-dev,') ${shlibs:Depends}, ${misc:Depends}
+  libdevdep(gcc`'PV-dev,32), ifdef(`TARGET',`',`lib32z1-dev [!mipsn32 !mipsn32el !mips64 !mips64el !mipsn32r6 !mipsn32r6el !mips64r6 !mips64r6el],')
+  ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
 Description: Phobos D standard library (32bit development files)
  This is the Phobos standard library that comes with the D2 compiler.
@@ -4805,7 +4807,8 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
 Section: libdevel
 Priority: optional
 Depends: BASELDEP, libn32gphobos`'PHOBOS_V`'LS (>= ${gdc:Version}),
-  libdevdep(gcc`'PV-dev,n32), ifdef(`TARGET',`',`libn32z1-dev,') ${shlibs:Depends}, ${misc:Depends}
+  libdevdep(gcc`'PV-dev,n32), ifdef(`TARGET',`',`libn32z1-dev [!mips !mipsel !mips64 !mips64el !mipsr6 !mipsr6el !mips64r6 !mips64r6el],')
+  ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
 Description: Phobos D standard library (n32 development files)
  This is the Phobos standard library that comes with the D2 compiler.
