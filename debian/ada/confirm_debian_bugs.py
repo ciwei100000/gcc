@@ -16,7 +16,7 @@ os.environ ['LC_ALL'] = 'C'
 same_gcc_base_version = True
 
 # The current version.
-new_version = "8"
+new_version = "9"
 
 for line in subprocess.check_output (("dpkg", "--status", "gnat-" + new_version)).decode ().split ("\n"):
     if line.startswith ("Version: "):
@@ -141,7 +141,7 @@ end pak5;
 check_reports_an_error_but_should_not (
     bug = 246187,
     make = ("gnatmake", "test_43"),
-    regex = "Error detected at system.ads:156:5",
+    regex = "Error detected at test_43.ads:11:4",
     sources = (
         ("test_43.ads", """package Test_43 is
   type T1 is private;
@@ -659,7 +659,7 @@ end Test_128;
 check_reports_an_error_but_should_not (
     bug = 279893,
     make = ("gnatmake", "test_129"),
-    regex = """^gcc-[0-9.]+ -c test_129\.ads
+    regex = """gcc-[0-9.]+ -c test_129\.ads
 test_129\.ads:1.:49: designated type of actual does not match that of formal "T2"
 test_129\.ads:1.:49: instantiation abandoned
 gnatmake: "test_129\.ads" compilation error$""",
@@ -936,6 +936,25 @@ begin
                        & String (Ada.Locales.Language));
 end Main;
 """),))
+
+check_produces_a_faulty_executable (
+    bug = 894225,
+    make = ("gnatmake", "main"),
+    trigger = "main",
+    sources = (
+        ("main.adb",
+         """with Ada.Directories, Ada.Text_IO;
+procedure Main is
+begin
+   Ada.Text_IO.Put_Line (Ada.Directories.Containing_Directory ("/a/b/"));
+   Ada.Text_IO.Put_Line (Ada.Directories.Containing_Directory ("a/b/"));
+   Ada.Text_IO.Put_Line (Ada.Directories.Containing_Directory ("b/"));
+end Main;
+"""),
+    ),
+    regex = """^/a/b
+a/b
+b$""")
 
 try:
     os.rmdir (workspace)
