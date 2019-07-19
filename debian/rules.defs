@@ -1186,6 +1186,36 @@ ifeq ($(with_objcxx),yes)
   enabled_languages += obj-c++
 endif
 
+# Modula-2 -------------------
+m2_no_cross := yes
+m2_no_cross := no
+
+ifneq ($(with_base_only),yes)
+  ifneq ($(separate_lang),yes)
+    with_m2 := yes
+  endif
+endif
+ifeq ($(m2_no_cross)-$(DEB_CROSS),yes-yes)
+  with_m2 := disabled for cross compiler package
+endif
+ifeq ($(DEB_STAGE)-$(filter libgm2, $(with_rtlibs)),rtlibs-)
+  with_m2 := disabled for rtlibs stage
+endif
+
+with_m2 := $(call envfilt, m2, , , $(with_m2))
+with_m2 := disabled by default
+
+# Build all packages needed for Modula-2 development
+ifeq ($(with_m2),yes)
+  ifeq ($(with_dev),yes)
+    with_m2dev := yes
+  endif
+  ifeq ($(with_common_libs),yes)
+    with_libgm2 := yes
+  endif
+  enabled_languages += gm2
+endif
+
 # -------------------------------------------------------------------
 # other config
 
@@ -1715,6 +1745,10 @@ define gen_biarch
         biarch_multidir_names += libphobos
       endif
     endif
+    # FIXME: it now builds, but installs everything into the same $libdir
+    #ifeq ($(with_m2),yes)
+    #  biarch_multidir_names += libgm2
+    #endif
     ifneq (,$$(findstring 32,$1))
       TARGET64_MACHINE := $$(strip $$(subst $$(DEB_TARGET_GNU_CPU),$$(biarch_cpu), \
 				$$(TARGET_ALIAS)))
@@ -1949,6 +1983,12 @@ ifeq ($(with_offload_nvptx),yes)
   nl_nvptx_tarpath	:= $(firstword $(wildcard newlib-*.tar.* /usr/src/gcc-$(BASE_VERSION)/newlib-*.tar.*))
   nl_nvptx_tarball	:= $(notdir $(nl_nvptx_tarpath))
   nl_nvptx_srcdir	:= $(patsubst %.tar.xz,%,$(patsubst %.tar.lzma,%,$(patsubst %.tar.gz,%,$(nl_nvptx_tarball:.tar.bz2=))))
+endif
+
+ifeq ($(with_m2),yes)
+  m2_tarpath	:= $(firstword $(wildcard gm2-*.tar.* /usr/src/gcc-$(BASE_VERSION)/gm2-*.tar.*))
+  m2_tarball	:= $(notdir $(m2_tarpath))
+  m2_srcdir	:= $(patsubst %.tar.xz,%,$(patsubst %.tar.lzma,%,$(patsubst %.tar.gz,%,$(m2_tarball:.tar.bz2=))))
 endif
 
 # NOTE: This is not yet used. when building gdc or gnat using the

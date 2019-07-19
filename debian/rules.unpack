@@ -7,6 +7,9 @@ tarballs = $(gcc_tarball)
 ifeq ($(with_offload_nvptx),yes)
   tarballs += $(nl_nvptx_tarball)
 endif
+ifeq ($(with_m2),yes)
+  tarballs += $(m2_tarball)
+endif
 
 unpack_stamps = $(foreach i,$(tarballs),$(unpack_stamp)-$(i))
 
@@ -178,4 +181,16 @@ $(unpack_stamp)-$(nl_nvptx_tarball): $(nl_nvptx_tarpath) $(unpack_stamp)-$(gcc_t
 	: # rm -rf $(nl_nvptx_srcdir)
 	tar -x -f $(nl_nvptx_tarpath)
 	echo "$(nl_nvptx_tarball) unpacked." > $@
+endif
+
+# ---------------------------------------------------------------------------
+ifneq (,$(m2_tarball))
+$(unpack_stamp)-$(m2_tarball): $(m2_tarpath) $(unpack_stamp)-$(gcc_tarball)
+	: # unpack gm2 tarball
+	mkdir -p $(stampdir)
+	: # rm -rf $(m2_srcdir)
+	tar -x -f $(m2_tarpath)
+	(cd gm2 && tar cf - gcc libgm2) | (cd src && tar xf -)
+	rm -rf gm2
+	echo "$(m2_tarball) unpacked." > $@
 endif

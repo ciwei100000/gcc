@@ -82,7 +82,7 @@ Build-Depends: DEBHELPER_BUILD_DEP DPKG_BUILD_DEP GCC_MULTILIB_BUILD_DEP
   gperf (>= 3.0.1), bison (>= 1:2.3), flex, gettext,
   gdb`'NT [!riscv64], OFFLOAD_BUILD_DEP
   texinfo (>= 4.3), LOCALES, sharutils,
-  procps, FORTRAN_BUILD_DEP GNAT_BUILD_DEP GO_BUILD_DEP GDC_BUILD_DEP
+  procps, FORTRAN_BUILD_DEP GNAT_BUILD_DEP GO_BUILD_DEP GDC_BUILD_DEP GM2_BUILD_DEP
   ISL_BUILD_DEP MPC_BUILD_DEP MPFR_BUILD_DEP GMP_BUILD_DEP PHOBOS_BUILD_DEP
   CHECK_BUILD_DEP coreutils (>= 2.26) | realpath (>= 1.9.12), chrpath, lsb-release, quilt,
   pkg-config, libgc-dev,
@@ -5052,6 +5052,285 @@ Description: Phobos D standard library (debug symbols)
 ')`'dnl armml
 ')`'dnl libphobos
 ')`'dnl d
+
+ifenabled(`m2 ',`
+Package: gm2`'PV`'TS
+Architecture: any
+ifdef(`TARGET',`Multi-Arch: foreign
+')dnl
+Priority: optional
+Depends: SOFTBASEDEP, g++`'PV`'TS (>= ${gcc:SoftVersion}), libidevdep(gm2`'PV-dev,,=), ${shlibs:Depends}, ${misc:Depends}
+ifdef(`TARGET',`',`Provides: gm2, m2-compiler
+')dnl
+BUILT_USING`'dnl
+Description: GNU Modula-2 compiler`'ifdef(`TARGET',` (cross compiler for TARGET architecture)', `')
+ This is the GNU Modula-2 compiler, which compiles Modula-2 on platforms
+ supported by gcc.  It uses the gcc backend to generate optimised code.
+
+ifenabled(`multigm2lib',`
+Package: gm2`'PV-multilib`'TS
+Architecture: any
+ifdef(`TARGET',`Multi-Arch: foreign
+')dnl
+Priority: optional
+Depends: SOFTBASEDEP, gm2`'PV`'TS (= ${gcc:Version}), gcc`'PV-multilib`'TS (= ${gcc:Version}), ${dep:libgm2biarchdev}${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: GNU Modula-2 compiler (multilib support)`'ifdef(`TARGET',` (cross compiler for TARGET architecture)', `')
+ This is the GNU Modula-2 compiler, which compiles Modula-2 on platforms supported by gcc.
+ It uses the gcc backend to generate optimised code.
+ .
+ This is a dependency package, depending on development packages
+ for the non-default multilib architecture(s).
+')`'dnl multigm2lib
+
+ifenabled(`libdevgm2',`
+Package: libgm2`'PV-dev`'LS
+TARGET_PACKAGE`'dnl
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
+ifdef(`MULTIARCH', `Multi-Arch: same
+')`'dnl
+Section: libdevel
+Priority: optional
+Depends: BASELDEP, libgm2`'-GM2_V`'LS (>= ${gm2:Version}),
+  libpth-dev, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: GNU Modula-2 standard library
+ This is the Modula-2 standard library that comes with the gm2 compiler.
+
+ifenabled(`multigm2lib',`
+Package: lib64gm2`'PV-dev`'LS
+TARGET_PACKAGE`'dnl
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
+Section: libdevel
+Priority: optional
+Depends: BASELDEP, lib64gm2`'-GM2_V`'LS (>= ${gm2:Version}),
+  libdevdep(gcc`'PV-dev,64), ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: GNU Modula-2 standard library (64bit development files)
+ This is the GNU Modula-2 standard library that comes with the gm2 compiler.
+
+Package: lib32gm2`'PV-dev`'LS
+TARGET_PACKAGE`'dnl
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
+Section: libdevel
+Priority: optional
+Depends: BASELDEP, lib32gm2`'-GM2_V`'LS (>= ${gm2:Version}),
+  libdevdep(gcc`'PV-dev,32), ifdef(`TARGET',`',`lib32z1-dev,') ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: GNU Modula-2 standard library (32bit development files)
+ This is the GNU Modula-2 standard library that comes with the gm2 compiler.
+
+ifenabled(`libdevn32gm2',`
+Package: libn32gm2`'PV-dev`'LS
+TARGET_PACKAGE`'dnl
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
+Section: libdevel
+Priority: optional
+Depends: BASELDEP, libn32gm2`'-GM2_V`'LS (>= ${gm2:Version}),
+  libdevdep(gcc`'PV-dev,n32), ifdef(`TARGET',`',`libn32z1-dev,') ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: GNU Modula-2 standard library (n32 development files)
+ This is the GNU Modula-2 standard library that comes with the gm2 compiler.
+')`'dnl libn32gm2
+
+ifenabled(`libdevx32gm2',`
+Package: libx32gm2`'PV-dev`'LS
+TARGET_PACKAGE`'dnl
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
+Section: libdevel
+Priority: optional
+Depends: BASELDEP, libx32gm2`'-GM2_V`'LS (>= ${gm2:Version}),
+  libdevdep(gcc`'PV-dev,x32), ifdef(`TARGET',`',`${dep:libx32z},') ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: GNU Modula-2 standard library (x32 development files)
+ This is the GNU Modula-2 standard library that comes with the gm2 compiler.
+')`'dnl libx32gm2
+
+ifenabled(`armml',`
+Package: libhfgm2`'PV-dev`'LS
+TARGET_PACKAGE`'dnl
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
+Section: libdevel
+Priority: optional
+Depends: BASELDEP, libhfgm2`'-GM2_V`'LS (>= ${gm2:Version}),
+  libdevdep(gcc`'PV-dev,hf), ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: GNU Modula-2 standard library (hard float ABI development files)
+ This is the GNU Modula-2 standard library that comes with the gm2 compiler.
+
+Package: libsfgm2`'PV-dev`'LS
+TARGET_PACKAGE`'dnl
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
+Section: libdevel
+Priority: optional
+Depends: BASELDEP, libsfgm2`'-GM2_V`'LS (>= ${gm2:Version}),
+  libdevdep(gcc`'PV-dev,sf), ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: GNU Modula-2 standard library (soft float ABI development files)
+ This is the GNU Modula-2 standard library that comes with the gm2 compiler.
+')`'dnl armml
+')`'dnl multigm2lib
+')`'dnl libdevgm2
+
+ifenabled(`libgm2',`
+Package: libgm2`'-GM2_V`'LS
+TARGET_PACKAGE`'dnl
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
+ifdef(`MULTIARCH', `Multi-Arch: same
+')`'dnl
+Priority: optional
+Depends: BASELDEP, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: GNU Modula-2 standard library (runtime library)
+ This is the GNU Modula-2 standard library that comes with the gm2 compiler.
+
+Package: libgm2`'-GM2_V-dbg`'LS
+TARGET_PACKAGE`'dnl
+Section: debug
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
+ifdef(`MULTIARCH', `Multi-Arch: same
+')`'dnl
+Priority: optional
+Depends: BASELDEP, libgm2`'-GM2_V`'LS (= ${gm2:Version}), ${misc:Depends}
+Replaces: libgm268-dbg`'LS
+BUILT_USING`'dnl
+Description: GNU Modula-2 standard library (debug symbols)
+ This is the GNU Modula-2 standard library that comes with the gm2 compiler.
+
+ifenabled(`multigm2lib',`
+Package: lib64gm2`'-GM2_V`'LS
+TARGET_PACKAGE`'dnl
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
+Priority: optional
+Depends: BASELDEP, ${shlibs:Depends}, ${misc:Depends}
+Replaces: lib64gm268`'LS
+BUILT_USING`'dnl
+Description: GNU Modula-2 standard library (runtime library)
+ This is the GNU Modula-2 standard library that comes with the gm2 compiler.
+
+Package: lib64gm2`'-GM2_V-dbg`'LS
+TARGET_PACKAGE`'dnl
+Section: debug
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
+Priority: optional
+Depends: BASELDEP, lib64gm2`'-GM2_V`'LS (= ${gm2:Version}), ${misc:Depends}
+Replaces: lib64gm268-dbg`'LS
+BUILT_USING`'dnl
+Description: GNU Modula-2 standard library (debug symbols)
+ This is the GNU Modula-2 standard library that comes with the gm2 compiler.
+
+Package: lib32gm2`'-GM2_V`'LS
+TARGET_PACKAGE`'dnl
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
+Priority: optional
+Depends: BASELDEP, ${shlibs:Depends}, ${misc:Depends}
+Replaces: lib32gm268`'LS
+BUILT_USING`'dnl
+Description: GNU Modula-2 standard library (runtime library)
+ This is the GNU Modula-2 standard library that comes with the gm2 compiler.
+
+Package: lib32gm2`'-GM2_V-dbg`'LS
+TARGET_PACKAGE`'dnl
+Section: debug
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
+Priority: optional
+Depends: BASELDEP, lib32gm2`'-GM2_V`'LS (= ${gm2:Version}), ${misc:Depends}
+Replaces: lib32gm268-dbg`'LS
+BUILT_USING`'dnl
+Description: GNU Modula-2 standard library (debug symbols)
+ This is the GNU Modula-2 standard library that comes with the gm2 compiler.
+
+ifenabled(`libn32gm2',`
+Package: libn32gm2`'-GM2_V`'LS
+TARGET_PACKAGE`'dnl
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
+Priority: optional
+Depends: BASELDEP, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: GNU Modula-2 standard library (runtime library)
+ This is the GNU Modula-2 standard library that comes with the gm2 compiler.
+
+Package: libn32gm2`'-GM2_V-dbg`'LS
+TARGET_PACKAGE`'dnl
+Section: debug
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
+Priority: optional
+Depends: BASELDEP, libn32gm2`'-GM2_V`'LS (= ${gm2:Version}), ${misc:Depends}
+BUILT_USING`'dnl
+Description: GNU Modula-2 standard library (debug symbols)
+ This is the GNU Modula-2 standard library that comes with the gm2 compiler.
+')`'dnl libn32gm2
+
+ifenabled(`libx32gm2',`
+Package: libx32gm2`'-GM2_V`'LS
+TARGET_PACKAGE`'dnl
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
+Priority: optional
+Depends: BASELDEP, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: GNU Modula-2 standard library (runtime library)
+ This is the GNU Modula-2 standard library that comes with the gm2 compiler.
+
+Package: libx32gm2`'-GM2_V-dbg`'LS
+TARGET_PACKAGE`'dnl
+Section: debug
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
+Priority: optional
+Depends: BASELDEP, libx32gm2`'-GM2_V`'LS (= ${gm2:Version}), ${misc:Depends}
+BUILT_USING`'dnl
+Description: GNU Modula-2 standard library (debug symbols)
+ This is the GNU Modula-2 standard library that comes with the gm2 compiler.
+')`'dnl libx32gm2
+
+ifenabled(`armml',`
+Package: libhfgm2`'-GM2_V`'LS
+TARGET_PACKAGE`'dnl
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
+Priority: optional
+Depends: BASELDEP, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: GNU Modula-2 standard library (runtime library)
+ This is the GNU Modula-2 standard library that comes with the gm2 compiler.
+
+Package: libhfgm2`'-GM2_V-dbg`'LS
+TARGET_PACKAGE`'dnl
+Section: debug
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
+Priority: optional
+Depends: BASELDEP, libhfgm2`'-GM2_V`'LS (= ${gm2:Version}), ${misc:Depends}
+BUILT_USING`'dnl
+Description: GNU Modula-2 standard library (debug symbols)
+ This is the GNU Modula-2 standard library that comes with the gm2 compiler.
+
+Package: libsfgm2`'-GM2_V`'LS
+TARGET_PACKAGE`'dnl
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
+Priority: optional
+Depends: BASELDEP, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: GNU Modula-2 standard library (runtime library)
+ This is the GNU Modula-2 standard library that comes with the gm2 compiler.
+
+Package: libsfgm2`'-GM2_V-dbg`'LS
+TARGET_PACKAGE`'dnl
+Section: debug
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
+Priority: optional
+Depends: BASELDEP, libsfgm2`'-GM2_V`'LS (= ${gm2:Version}), ${misc:Depends}
+BUILT_USING`'dnl
+Description: GNU Modula-2 standard library (debug symbols)
+ This is the GNU Modula-2 standard library that comes with the gm2 compiler.
+')`'dnl armml
+')`'dnl multigm2lib
+')`'dnl libgm2
+')`'dnl m2
 
 ifenabled(`brig',`
 ifenabled(`brigdev',`
