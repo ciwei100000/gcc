@@ -5092,7 +5092,7 @@ ifdef(`MULTIARCH', `Multi-Arch: same
 Section: libdevel
 Priority: optional
 Depends: BASELDEP, libgm2`'-GM2_V`'LS (>= ${gm2:Version}),
-  libpth-dev, ${shlibs:Depends}, ${misc:Depends}
+  ifdef(`TARGET',`',`libpth-dev, ')${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
 Description: GNU Modula-2 standard library
  This is the Modula-2 standard library that comes with the gm2 compiler.
@@ -5810,7 +5810,7 @@ Package: gcc`'PV-source
 Multi-Arch: foreign
 Architecture: all
 Priority: PRI(optional)
-Depends: make, quilt, patchutils, sharutils, gawk, lsb-release, AUTO_BUILD_DEP
+Depends: make, quilt, patchutils, sharutils, gawk, lsb-release, AUTO_BUILD_DEP GM2_BUILD_DEP
   ${misc:Depends}
 Description: Source of the GNU Compiler Collection
  This package contains the sources and patches which are needed to

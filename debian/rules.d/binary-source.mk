@@ -39,6 +39,7 @@ endif
 	  | tar -x -C $(d_source)/usr/src/gcc$(pkg_ver)  -f -
 	# FIXME: Remove generated files
 	find $(d_source)/usr/src/gcc$(pkg_ver) -name '*.debhelper.log' -o -name .svn | xargs rm -rf
+	rm -f $(d_source)/usr/src/gcc$(pkg_ver)/debian/patches/series
 
 	touch $(d_source)/usr/src/gcc$(pkg_ver)/debian/rules.parameters
 

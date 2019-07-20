@@ -64,14 +64,6 @@ d_gm2_m		= debian/$(p_gm2_m)
 d_libgm2	= debian/$(p_libgm2)
 d_libgm2dev	= debian/$(p_libgm2dev)
 
-#ifeq ($(DEB_CROSS),yes)
-#  gm2_include_dir := $(gcc_lib_dir)/include/d
-#else
-#  gm2_include_dir := $(PF)/include/d/$(BASE_VERSION)
-#endif
-## FIXME: always here?
-#gm2_include_dir := $(gcc_lib_dir)/include/d
-
 dirs_gm2 = \
 	$(PF)/bin \
 	$(PF)/share/man/man1 \
@@ -172,6 +164,11 @@ define __do_libgm2
 		$(usr_lib$(2))/libmin.so.* \
 		$(usr_lib$(2))/libulm.so.*
 
+	$(if $(filter $(build_type), build-cross cross-build-cross), \
+	  $(dh_compat2) dh_movefiles -p$(p_l) \
+		$(usr_lib$(2))/libpth.so.* \
+	)
+
 	debian/dh_doclink -p$(p_l) $(p_lbase)
 	debian/dh_doclink -p$(p_d) $(p_lbase)
 
@@ -225,6 +222,10 @@ define __do_libgm2_dev
 	$(call install_gm2_lib,liblog,$(GM2_SONAME),$(2),$(p_l),m2/log)
 	$(call install_gm2_lib,libmin,$(GM2_SONAME),$(2),$(p_l),m2/min)
 	$(call install_gm2_lib,libulm,$(GM2_SONAME),$(2),$(p_l),m2/ulm)
+
+	$(if $(filter $(build_type), build-cross cross-build-cross), \
+	  $(call install_gcc_lib,libpth,0,$(2),$(p_l))
+	)
 
 	$(if $(2),,
 	$(dh_compat2) dh_movefiles -p$(p_l) \
