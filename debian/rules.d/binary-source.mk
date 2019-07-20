@@ -15,8 +15,8 @@ $(binary_stamp)-gcc-source: $(install_stamp)
 	dh_installchangelogs -p$(p_source)
 
 	dh_install -p$(p_source) $(gcc_tarball) usr/src/gcc$(pkg_ver)
-ifneq (,$(gdc_tarball))
-	dh_install -p$(p_source) $(gdc_tarball) usr/src/gcc$(pkg_ver)
+ifneq (,$(m2_tarball))
+	dh_install -p$(p_source) $(m2_tarball) usr/src/gcc$(pkg_ver)
 endif
 	tar cf - $$(find './debian' -mindepth 1 \( \
 		-name .svn -prune -o \
