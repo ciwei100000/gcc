@@ -3,8 +3,8 @@
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Wed Jul 17 20:48:05 CEST 2019
-Wed Jul 17 18:48:05 UTC 2019 (revision 273554)
+Tue Aug 13 13:01:35 CEST 2019
+Tue Aug 13 11:01:35 UTC 2019 (revision 274376)
 EOF
 }
 
@@ -12,3 +12,1162 @@ LANG=C svn diff svn://gcc.gnu.org/svn/gcc/tags/gcc_9_2_0_release svn://gcc.gnu.o
 	| sed -r 's,^--- (\S+)\t(\S+)(.*)$,--- a/src/\1\t\2,;s,^\+\+\+ (\S+)\t(\S+)(.*)$,+++ b/src/\1\t\2,' \
 	| awk '/^Index:.*\.(class|texi)/ {skip=1; next} /^Index:/ { skip=0 } skip==0'
 
+Index: libgomp/ChangeLog
+===================================================================
+--- a/src/libgomp/ChangeLog	(.../tags/gcc_9_2_0_release)
++++ b/src/libgomp/ChangeLog	(.../branches/gcc-9-branch)
+@@ -1,3 +1,10 @@
++2019-08-13  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/91422
++	* testsuite/libgomp.oacc-fortran/routine-7.f90: Correct array
++	dimension.
++
+ 2019-08-12  Release Manager
+ 
+ 	* GCC 9.2.0 released.
+Index: libgomp/testsuite/libgomp.oacc-fortran/routine-7.f90
+===================================================================
+--- a/src/libgomp/testsuite/libgomp.oacc-fortran/routine-7.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/libgomp/testsuite/libgomp.oacc-fortran/routine-7.f90	(.../branches/gcc-9-branch)
+@@ -109,7 +109,7 @@
+ 
+ subroutine seq (a)
+   !$acc routine seq
+-  integer, intent (inout) :: a(M)
++  integer, intent (inout) :: a(N)
+   integer :: i
+ 
+   do i = 1, N
+Index: gcc/DATESTAMP
+===================================================================
+--- a/src/gcc/DATESTAMP	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/DATESTAMP	(.../branches/gcc-9-branch)
+@@ -1 +1 @@
+-20190812
++20190813
+Index: gcc/tree.c
+===================================================================
+--- a/src/gcc/tree.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/tree.c	(.../branches/gcc-9-branch)
+@@ -5514,8 +5514,7 @@
+ 	  free_lang_data_in_binfo (TYPE_BINFO (type));
+ 	  /* We need to preserve link to bases and virtual table for all
+ 	     polymorphic types to make devirtualization machinery working.  */
+-	  if (!BINFO_VTABLE (TYPE_BINFO (type))
+-	      || !flag_devirtualize)
++	  if (!BINFO_VTABLE (TYPE_BINFO (type)))
+ 	    TYPE_BINFO (type) = NULL;
+ 	}
+     }
+Index: gcc/ChangeLog
+===================================================================
+--- a/src/gcc/ChangeLog	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/ChangeLog	(.../branches/gcc-9-branch)
+@@ -1,3 +1,31 @@
++2019-08-12  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2019-08-12  Richard Biener  <rguenther@suse.de>
++
++	PR lto/91375
++	* tree.c (free_lang_data_in_type): Do not free TYPE_BINFO dependent on
++	flag_devirtualize.
++
++	2019-08-12  Richard Biener  <rguenther@suse.de>
++
++	PR driver/91130
++	* lto-wrapper.c (get_options_from_collect_gcc_options): Remove
++	lang_mask option, always use CL_DRIVER.
++	(find_and_merge_options): Adjust.
++	(run_gcc): Likewise.
++
++	2019-08-07  Richard Earnshaw  <rearnsha@arm.com>
++
++	PR driver/91130
++	* lto-wrapper.c (find_and_merge_options): Use CL_DRIVER when
++	processing COLLECT_GCC_OPTIONS.
++	(run_gcc): Likewise.
++
++2019-08-12  Jakub Jelinek  <jakub@redhat.com>
++
++	* BASE-VER: Set to 9.2.1.
++
+ 2019-08-12  Release Manager
+ 
+ 	* GCC 9.2.0 released.
+Index: gcc/testsuite/gfortran.dg/do_subscript_3.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/do_subscript_3.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/do_subscript_3.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,22 @@
++! { dg-do compile }
++! PR fortran/91424
++! Check that only one warning is issued inside blocks, and that
++! warnings are also issued for contained subroutines.
++
++program main
++  real :: a(5)
++  block
++    integer :: j
++    do j=0, 5  ! { dg-warning "out of bounds" }
++       a(j) = 2. ! { dg-warning "out of bounds" }
++    end do
++  end block
++  call x
++contains
++  subroutine x
++    integer :: i
++    do i=1,6 ! { dg-warning "out of bounds" }
++       a(i) = 2.  ! { dg-warning "out of bounds" }
++    end do
++  end subroutine x
++end program main
+Index: gcc/testsuite/gfortran.dg/pr91359_2.f
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr91359_2.f	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr91359_2.f	(.../branches/gcc-9-branch)
+@@ -0,0 +1,17 @@
++! { dg-do run }
++! PR fortran/91359
++! Orginal code contributed by Brian T. Carcich <briantcarcich at gmail dot com>
++!
++      logical function zero() result(a)
++         goto 2
++1        return
++2        a = .false.
++         if (.not.a) goto 1
++         return
++      end
++
++      program test_zero
++         logical zero
++         if (zero()) stop 'FAIL:  zero() returned .TRUE.'
++         stop 'OKAY:  zero() returned .FALSE.'
++      end
+Index: gcc/testsuite/gfortran.dg/pr70754.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr70754.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr70754.f90	(.../branches/gcc-9-branch)
+@@ -18,12 +18,13 @@
+     integer (ii4), dimension(40,40) :: c
+     integer  i, j
+ 
+-    do i=1,20
+-      b(i,j) = 123 * a(i,j) + 34 * a(i,j+1) &
+-             + 34 * a(i,j-1) + a(i+1,j+1) &
+-             + a(i+1,j-1) + a(i-1,j+1) &
+-             + a(i-1,j-1)
+-      c(i,j) = 123
++    j = 10
++    do i=11,30
++       b(i,j) = 123 * a(i,j) + 34 * a(i,j+1) &
++            + 34 * a(i,j-1) + a(i+1,j+1) &
++            + a(i+1,j-1) + a(i-1,j+1) &
++            + a(i-1,j-1)
++       c(i,j) = 123
+     end do
+ 
+     where ((xyz(:,:,2) /= 0) .and. (c /= 0))
+Index: gcc/testsuite/gfortran.dg/allocated_2.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/allocated_2.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/allocated_2.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,16 @@
++! { dg-do compile }
++program foo
++
++   implicit none
++
++   integer, allocatable :: x
++   integer, allocatable :: a(:)
++
++   logical a1, a2
++
++   a1 = allocated(scalar=a)   ! { dg-error "Scalar entity required" }
++   a2 = allocated(array=x)    ! { dg-error "Array entity required" }
++   a1 = allocated(scalar=x, array=a)   ! { dg-error "Too many arguments" }
++   a1 = allocated(array=a, scalar=x)   ! { dg-error "Too many arguments" }
++
++end program foo
+Index: gcc/testsuite/gfortran.dg/do_subscript_4.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/do_subscript_4.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/do_subscript_4.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,11 @@
++! { dg-do compile }
++! PR 91424 - this used to warn although the DO loop is zero trip.
++program main
++  implicit none
++  integer :: i
++  real :: a(2)
++  do i=1,3,-1
++     a(i) = 2.
++  end do
++  print *,a
++end program main
+Index: gcc/testsuite/gfortran.dg/pr91359_1.f
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr91359_1.f	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr91359_1.f	(.../branches/gcc-9-branch)
+@@ -0,0 +1,17 @@
++! { dg-do run }
++! PR fortran/91359
++! Orginal code contributed by Brian T. Carcich <briantcarcich at gmail dot com>
++!
++      logical function zero()
++         goto 2
++1        return
++2        zero = .false.
++         if (.not.zero) goto 1
++         return
++      end
++
++      program test_zero
++         logical zero
++         if (zero()) stop 'FAIL:  zero() returned .TRUE.'
++         stop 'OKAY:  zero() returned .FALSE.'
++      end
+Index: gcc/testsuite/gfortran.dg/allocated_1.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/allocated_1.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/allocated_1.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,24 @@
++! { dg-do run }
++program foo
++
++   implicit none
++
++   integer, allocatable :: x
++   integer, allocatable :: a(:)
++
++   logical a1, a2
++
++   a1 = allocated(scalar=x)
++   if (a1 .neqv. .false.) stop 1
++   a2 = allocated(array=a)
++   if (a2 .neqv. .false.) stop 2
++
++   allocate(x)
++   allocate(a(2))
++
++   a1 = allocated(scalar=x)
++   if (a1 .neqv. .true.) stop 3
++   a2 = allocated(array=a)
++   if (a2 .neqv. .true.) stop 4
++
++end program foo
+Index: gcc/testsuite/ChangeLog
+===================================================================
+--- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-9-branch)
+@@ -1,3 +1,33 @@
++2019-08-13  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/91424
++	* gfortran.dg/do_subscript_3.f90: New test.
++	* gfortran.dg/do_subscript_4.f90: New test.
++	* gfortran.dg/pr70754.f90: Use indices that to not overflow.
++
++2019-08-12  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91359
++	* gfortran.dg/pr91359_1.f: New test.
++	* gfortran.dg/pr91359_2.f: Ditto.
++
++2019-08-12  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/42546
++	* gfortran.dg/allocated_1.f90: New test.
++	* gfortran.dg/allocated_2.f90: Ditto.
++
++2019-08-02  Tom Honermann  <tom@honermann.net>
++
++	PR c++/88095
++	* g++.dg/cpp2a/udlit-class-nttp-ctad.C: New test.
++	* g++.dg/cpp2a/udlit-class-nttp-ctad-neg.C: New test.
++	* g++.dg/cpp2a/udlit-class-nttp-ctad-neg2.C: New test.
++	* g++.dg/cpp2a/udlit-class-nttp.C: New test.
++	* g++.dg/cpp2a/udlit-class-nttp-neg.C: New test.
++	* g++.dg/cpp2a/udlit-class-nttp-neg2.C: New test.
++
+ 2019-08-12  Release Manager
+ 
+ 	* GCC 9.2.0 released.
+Index: gcc/testsuite/g++.dg/cpp0x/lambda/lambda-variadic9.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp0x/lambda/lambda-variadic9.C	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp0x/lambda/lambda-variadic9.C	(.../branches/gcc-9-branch)
+@@ -0,0 +1,16 @@
++// PR c++/90538
++// { dg-do compile { target c++11 } }
++
++template <class... Ts>
++void f(Ts... ts)
++{
++  [=]{
++    f(ts...);
++    f(ts...);
++  }();
++}
++
++void g()
++{
++  f(1);
++}
+Index: gcc/testsuite/g++.dg/cpp0x/range-for19.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp0x/range-for19.C	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp0x/range-for19.C	(.../branches/gcc-9-branch)
+@@ -5,6 +5,6 @@
+ int main()
+ {
+   auto a;        // { dg-error "no initializer" }
+-  for(auto i: a) // { dg-error "deduce" }
++  for(auto i: a)
+     ;
+ }
+Index: gcc/testsuite/g++.dg/cpp1y/lambda-init16.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp1y/lambda-init16.C	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp1y/lambda-init16.C	(.../branches/gcc-9-branch)
+@@ -3,7 +3,7 @@
+ 
+ template < class T = int > void f (T)
+ {
+-  auto g = [&a = f] () {};  // { dg-error "invalid initialization" }
++  auto g = [&a = f] () {};  // { dg-error "auto" }
+ }
+ 
+ int main ()
+Index: gcc/testsuite/g++.dg/cpp1y/auto-fn56.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp1y/auto-fn56.C	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp1y/auto-fn56.C	(.../branches/gcc-9-branch)
+@@ -0,0 +1,19 @@
++// PR c++/91378
++// { dg-do compile { target c++14 } }
++
++struct B
++{
++  int i;
++};
++
++struct C
++{
++  template <class T> static auto
++  g(B b) noexcept(noexcept(b.i)) { }
++};
++
++template <class T>
++void h(T t)
++{
++  C::g<int>({});
++}
+Index: gcc/testsuite/g++.dg/cpp2a/udlit-class-nttp-neg2.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp2a/udlit-class-nttp-neg2.C	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp2a/udlit-class-nttp-neg2.C	(.../branches/gcc-9-branch)
+@@ -0,0 +1,13 @@
++// PR c++/88095
++// Test class non-type template parameters for literal operator templates.
++// Validate that non-literal class types are rejected.
++// { dg-do compile { target c++2a } }
++
++struct non_literal_class {
++  constexpr non_literal_class(...) { }
++  ~non_literal_class() {}
++  // auto operator<=> (const non_literal_fixed_string&) = default;
++};
++
++template <non_literal_class> // { dg-error "11:is not a valid type for a template non-type parameter because it is not literal" }
++int operator"" _udl();       // { dg-error "literal operator template .int operator\"\"_udl\\(\\). has invalid parameter list" }
+Index: gcc/testsuite/g++.dg/cpp2a/udlit-class-nttp-ctad.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp2a/udlit-class-nttp-ctad.C	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp2a/udlit-class-nttp-ctad.C	(.../branches/gcc-9-branch)
+@@ -0,0 +1,24 @@
++// PR c++/88095
++// Test class non-type template parameters for literal operator templates.
++// Validate support for class template argument deduction.
++// { dg-do compile { target c++2a } }
++
++namespace std {
++using size_t = decltype(sizeof(int));
++}
++
++template <typename CharT, std::size_t N>
++struct fixed_string {
++  constexpr static std::size_t length = N;
++  constexpr fixed_string(...) { }
++  // auto operator<=> (const fixed_string&) = default;
++};
++template <typename CharT, std::size_t N>
++fixed_string(const CharT (&str)[N]) -> fixed_string<CharT, N>;
++
++template <fixed_string fs>
++constexpr std::size_t operator"" _udl() {
++  return decltype(fs)::length;
++}
++
++static_assert("test"_udl == 5);
+Index: gcc/testsuite/g++.dg/cpp2a/udlit-class-nttp.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp2a/udlit-class-nttp.C	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp2a/udlit-class-nttp.C	(.../branches/gcc-9-branch)
+@@ -0,0 +1,16 @@
++// PR c++/88095
++// Test class non-type template parameters for literal operator templates.
++// Validate basic support.
++// { dg-do compile { target c++2a } }
++
++struct literal_class {
++  constexpr literal_class(...) { }
++  // auto operator<=> (const fixed_string&) = default;
++};
++
++template <literal_class>
++constexpr int operator"" _udl() {
++  return 1;
++}
++
++static_assert("test"_udl == 1);
+Index: gcc/testsuite/g++.dg/cpp2a/udlit-class-nttp-ctad-neg2.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp2a/udlit-class-nttp-ctad-neg2.C	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp2a/udlit-class-nttp-ctad-neg2.C	(.../branches/gcc-9-branch)
+@@ -0,0 +1,20 @@
++// PR c++/88095
++// Test class non-type template parameters for literal operator templates.
++// Validate rejection of class template parameter packs.
++// { dg-do compile { target c++2a } }
++
++namespace std {
++using size_t = decltype(sizeof(int));
++}
++
++template <typename CharT, std::size_t N>
++struct fixed_string {
++  constexpr static std::size_t length = N;
++  constexpr fixed_string(...) { }
++  // auto operator<=> (const fixed_string&) = default;
++};
++template <typename CharT, std::size_t N>
++fixed_string(const CharT (&str)[N]) -> fixed_string<CharT, N>;
++
++template <fixed_string...>
++int operator"" _udl();     // { dg-error "literal operator template .int operator\"\"_udl\\(\\). has invalid parameter list" }
+Index: gcc/testsuite/g++.dg/cpp2a/udlit-class-nttp-neg.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp2a/udlit-class-nttp-neg.C	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp2a/udlit-class-nttp-neg.C	(.../branches/gcc-9-branch)
+@@ -0,0 +1,12 @@
++// PR c++/88095
++// Test class non-type template parameters for literal operator templates.
++// Validate that parameter packs are rejected.
++// { dg-do compile { target c++2a } }
++
++struct literal_class {
++  constexpr literal_class(...) { }
++  // auto operator<=> (const fixed_string&) = default;
++};
++
++template <literal_class...>
++int operator"" _udl();      // { dg-error "literal operator template .int operator\"\"_udl\\(\\). has invalid parameter list" }
+Index: gcc/testsuite/g++.dg/cpp2a/udlit-class-nttp-ctad-neg.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp2a/udlit-class-nttp-ctad-neg.C	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp2a/udlit-class-nttp-ctad-neg.C	(.../branches/gcc-9-branch)
+@@ -0,0 +1,24 @@
++// PR c++/88095
++// Test class non-type template parameters for literal operator templates.
++// Validate handling of failed class template argument deduction.
++// { dg-do compile { target c++2a } }
++
++namespace std {
++using size_t = decltype(sizeof(int));
++}
++
++template <typename CharT, std::size_t N>
++struct fixed_string {
++  constexpr static std::size_t length = N;
++  constexpr fixed_string(...) { }
++  // auto operator<=> (const fixed_string&) = default;
++};
++// Missing deduction guide.
++
++template <fixed_string fs>
++constexpr std::size_t operator"" _udl() {
++  return decltype(fs)::length;
++}
++
++static_assert("test"_udl == 5); // { dg-error "15:no matching function for call to" }
++                                // { dg-error "15:class template argument deduction failed" "" { target *-*-* } .-1 }
+Index: gcc/cp/ChangeLog
+===================================================================
+--- a/src/gcc/cp/ChangeLog	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/cp/ChangeLog	(.../branches/gcc-9-branch)
+@@ -1,3 +1,26 @@
++2019-08-12  Tom Honermann  <tom@honermann.net>
++
++	* parser.c (cp_parser_template_declaration_after_parameters): Enable
++	class template argument deduction for non-type template parameters
++	in literal operator templates.
++
++2019-08-12  Jason Merrill  <jason@redhat.com>
++
++	PR c++/91378 - ICE with noexcept and auto return type.
++	* pt.c (maybe_instantiate_noexcept): push_to_top_level.
++
++	PR c++/90538 - multiple expansions of capture packs
++	* cp-tree.h (DECLTYPE_FOR_INIT_CAPTURE): Remove.
++	* lambda.c (add_capture): Copy parameter packs from init.
++	(lambda_capture_field_type): Always use auto for init-capture.
++	* pt.c (uses_parameter_packs): Return tree.
++	(tsubst) [DECLTYPE_TYPE]: Remove init-capture handling.
++	(gen_elem_of_pack_expansion_instantiation): Don't push
++	local_specialization_stack.
++	(prepend_one_capture): New.
++	(tsubst_lambda_expr): Use it.  Don't touch local_specializations.
++	(do_auto_deduction): Avoid redundant error.
++
+ 2019-08-12  Release Manager
+ 
+ 	* GCC 9.2.0 released.
+Index: gcc/cp/pt.c
+===================================================================
+--- a/src/gcc/cp/pt.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/cp/pt.c	(.../branches/gcc-9-branch)
+@@ -3875,7 +3875,7 @@
+ }
+ 
+ /* Determines if the expression or type T uses any parameter packs.  */
+-bool
++tree
+ uses_parameter_packs (tree t)
+ {
+   tree parameter_packs = NULL_TREE;
+@@ -3885,7 +3885,7 @@
+   ppd.type_pack_expansion_p = false;
+   cp_walk_tree (&t, &find_parameter_packs_r, &ppd, ppd.visited);
+   delete ppd.visited;
+-  return parameter_packs != NULL_TREE;
++  return parameter_packs;
+ }
+ 
+ /* Turn ARG, which may be an expression, type, or a TREE_LIST
+@@ -11757,10 +11757,6 @@
+       ARGUMENT_PACK_SELECT_INDEX (aps) = index;
+     }
+ 
+-  // Any local specialization bindings arising from this substitution
+-  // cannot be reused for a different INDEX.
+-  local_specialization_stack lss (lss_copy);
+-
+   /* Substitute into the PATTERN with the (possibly altered)
+      arguments.  */
+   if (pattern == in_decl)
+@@ -15130,24 +15126,12 @@
+ 				      /*function_p*/false,
+ 				      /*integral_constant_expression*/false);
+ 
+-	if (DECLTYPE_FOR_INIT_CAPTURE (t))
+-	  {
+-	    if (type == NULL_TREE)
+-	      {
+-		if (complain & tf_error)
+-		  error ("empty initializer in lambda init-capture");
+-		type = error_mark_node;
+-	      }
+-	    else if (TREE_CODE (type) == TREE_LIST)
+-	      type = build_x_compound_expr_from_list (type, ELK_INIT, complain);
+-	  }
+-
+ 	--cp_unevaluated_operand;
+ 	--c_inhibit_evaluation_warnings;
+ 
+ 	if (DECLTYPE_FOR_LAMBDA_CAPTURE (t))
+ 	  type = lambda_capture_field_type (type,
+-					    DECLTYPE_FOR_INIT_CAPTURE (t),
++					    false /*explicit_init*/,
+ 					    DECLTYPE_FOR_REF_CAPTURE (t));
+ 	else if (DECLTYPE_FOR_LAMBDA_PROXY (t))
+ 	  type = lambda_proxy_type (type);
+@@ -18014,6 +17998,33 @@
+   return t;
+ }
+ 
++/* Subroutine of tsubst_lambda_expr: add the FIELD/INIT capture pair to the
++   LAMBDA_EXPR_CAPTURE_LIST passed in LIST.  Do deduction for a previously
++   dependent init-capture.  */
++
++static void
++prepend_one_capture (tree field, tree init, tree &list,
++		     tsubst_flags_t complain)
++{
++  if (tree auto_node = type_uses_auto (TREE_TYPE (field)))
++    {
++      tree type = NULL_TREE;
++      if (!init)
++	{
++	  if (complain & tf_error)
++	    error ("empty initializer in lambda init-capture");
++	  init = error_mark_node;
++	}
++      else if (TREE_CODE (init) == TREE_LIST)
++	init = build_x_compound_expr_from_list (init, ELK_INIT, complain);
++      if (!type)
++	type = do_auto_deduction (TREE_TYPE (field), init, auto_node, complain);
++      TREE_TYPE (field) = type;
++      cp_apply_type_quals_to_decl (cp_type_quals (type), field);
++    }
++  list = tree_cons (field, init, list);
++}
++
+ /* T is a LAMBDA_EXPR.  Generate a new LAMBDA_EXPR for the current
+    instantiation context.  Instantiating a pack expansion containing a lambda
+    might result in multiple lambdas all based on the same lambda in the
+@@ -18025,17 +18036,8 @@
+   tree oldfn = lambda_function (t);
+   in_decl = oldfn;
+ 
+-  /* If we have already specialized this lambda expr, reuse it.  See
+-     PR c++/87322.  */
+-  if (local_specializations)
+-    if (tree r = retrieve_local_specialization (t))
+-      return r;
+-
+   tree r = build_lambda_expr ();
+ 
+-  if (local_specializations)
+-    register_local_specialization (r, t);
+-
+   LAMBDA_EXPR_LOCATION (r)
+     = LAMBDA_EXPR_LOCATION (t);
+   LAMBDA_EXPR_DEFAULT_CAPTURE_MODE (r)
+@@ -18088,15 +18090,15 @@
+ 	  gcc_assert (TREE_CODE (init) == TREE_VEC
+ 		      && TREE_VEC_LENGTH (init) == len);
+ 	  for (int i = 0; i < len; ++i)
+-	    LAMBDA_EXPR_CAPTURE_LIST (r)
+-	      = tree_cons (TREE_VEC_ELT (field, i),
+-			   TREE_VEC_ELT (init, i),
+-			   LAMBDA_EXPR_CAPTURE_LIST (r));
++	    prepend_one_capture (TREE_VEC_ELT (field, i),
++				 TREE_VEC_ELT (init, i),
++				 LAMBDA_EXPR_CAPTURE_LIST (r),
++				 complain);
+ 	}
+       else
+ 	{
+-	  LAMBDA_EXPR_CAPTURE_LIST (r)
+-	    = tree_cons (field, init, LAMBDA_EXPR_CAPTURE_LIST (r));
++	  prepend_one_capture (field, init, LAMBDA_EXPR_CAPTURE_LIST (r),
++			       complain);
+ 
+ 	  if (id_equal (DECL_NAME (field), "__this"))
+ 	    LAMBDA_EXPR_THIS_CAPTURE (r) = field;
+@@ -24321,12 +24323,11 @@
+ 	}
+       else if (push_tinst_level (fn))
+ 	{
++	  push_to_top_level ();
+ 	  push_access_scope (fn);
+ 	  push_deferring_access_checks (dk_no_deferred);
+ 	  input_location = DECL_SOURCE_LOCATION (fn);
+ 
+-	  tree save_ccp = current_class_ptr;
+-	  tree save_ccr = current_class_ref;
+ 	  /* If needed, set current_class_ptr for the benefit of
+ 	     tsubst_copy/PARM_DECL.  */
+ 	  tree tdecl = DECL_TEMPLATE_RESULT (DECL_TI_TEMPLATE (fn));
+@@ -24352,9 +24353,6 @@
+ 					/*function_p=*/false,
+ 					/*i_c_e_p=*/true);
+ 
+-	  current_class_ptr = save_ccp;
+-	  current_class_ref = save_ccr;
+-
+ 	  /* Build up the noexcept-specification.  */
+ 	  spec = build_noexcept_spec (noex, tf_warning_or_error);
+ 
+@@ -24364,6 +24362,7 @@
+ 	  pop_deferring_access_checks ();
+ 	  pop_access_scope (fn);
+ 	  pop_tinst_level ();
++	  pop_from_top_level ();
+ 	}
+       else
+ 	spec = noexcept_false_spec;
+@@ -27615,6 +27614,9 @@
+     }
+   else
+     {
++      if (error_operand_p (init))
++	return error_mark_node;
++
+       tree parms = build_tree_list (NULL_TREE, type);
+       tree tparms;
+ 
+Index: gcc/cp/parser.c
+===================================================================
+--- a/src/gcc/cp/parser.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/cp/parser.c	(.../branches/gcc-9-branch)
+@@ -27911,7 +27911,10 @@
+ 	    {
+ 	      tree parm_list = TREE_VEC_ELT (parameter_list, 0);
+ 	      tree parm = INNERMOST_TEMPLATE_PARMS (parm_list);
+-	      if (CLASS_TYPE_P (TREE_TYPE (parm)))
++	      if (TREE_CODE (parm) != PARM_DECL)
++		ok = false;
++	      else if (MAYBE_CLASS_TYPE_P (TREE_TYPE (parm))
++		       && !TEMPLATE_PARM_PARAMETER_PACK (DECL_INITIAL (parm)))
+ 		/* OK, C++20 string literal operator template.  We don't need
+ 		   to warn in lower dialects here because we will have already
+ 		   warned about the template parameter.  */;
+@@ -27925,7 +27928,7 @@
+ 	      tree type = INNERMOST_TEMPLATE_PARMS (parm_type);
+ 	      tree parm_list = TREE_VEC_ELT (parameter_list, 1);
+ 	      tree parm = INNERMOST_TEMPLATE_PARMS (parm_list);
+-	      if (parm == error_mark_node
++	      if (TREE_CODE (parm) != PARM_DECL
+ 		  || TREE_TYPE (parm) != TREE_TYPE (type)
+ 		  || !TEMPLATE_PARM_PARAMETER_PACK (DECL_INITIAL (parm)))
+ 		ok = false;
+Index: gcc/cp/lambda.c
+===================================================================
+--- a/src/gcc/cp/lambda.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/cp/lambda.c	(.../branches/gcc-9-branch)
+@@ -220,17 +220,8 @@
+   tree type;
+   bool is_this = is_this_parameter (tree_strip_nop_conversions (expr));
+ 
+-  if (!is_this && type_dependent_expression_p (expr))
++  if (!is_this && explicit_init_p)
+     {
+-      type = cxx_make_type (DECLTYPE_TYPE);
+-      DECLTYPE_TYPE_EXPR (type) = expr;
+-      DECLTYPE_FOR_LAMBDA_CAPTURE (type) = true;
+-      DECLTYPE_FOR_INIT_CAPTURE (type) = explicit_init_p;
+-      DECLTYPE_FOR_REF_CAPTURE (type) = by_reference_p;
+-      SET_TYPE_STRUCTURAL_EQUALITY (type);
+-    }
+-  else if (!is_this && explicit_init_p)
+-    {
+       tree auto_node = make_auto ();
+       
+       type = auto_node;
+@@ -240,6 +231,14 @@
+ 	type = build_reference_type (type);
+       type = do_auto_deduction (type, expr, auto_node);
+     }
++  else if (!is_this && type_dependent_expression_p (expr))
++    {
++      type = cxx_make_type (DECLTYPE_TYPE);
++      DECLTYPE_TYPE_EXPR (type) = expr;
++      DECLTYPE_FOR_LAMBDA_CAPTURE (type) = true;
++      DECLTYPE_FOR_REF_CAPTURE (type) = by_reference_p;
++      SET_TYPE_STRUCTURAL_EQUALITY (type);
++    }
+   else
+     {
+       type = non_reference (unlowered_expr_type (expr));
+@@ -602,7 +601,16 @@
+   name = get_identifier (buf);
+ 
+   if (variadic)
+-    type = make_pack_expansion (type);
++    {
++      type = make_pack_expansion (type);
++      if (explicit_init_p)
++	/* With an explicit initializer 'type' is auto, which isn't really a
++	   parameter pack in this context.  We will want as many fields as we
++	   have elements in the expansion of the initializer, so use its packs
++	   instead.  */
++	PACK_EXPANSION_PARAMETER_PACKS (type)
++	  = uses_parameter_packs (initializer);
++    }
+ 
+   /* Make member variable.  */
+   member = build_decl (input_location, FIELD_DECL, name, type);
+Index: gcc/cp/cp-tree.h
+===================================================================
+--- a/src/gcc/cp/cp-tree.h	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/cp/cp-tree.h	(.../branches/gcc-9-branch)
+@@ -423,7 +423,6 @@
+       LAMBDA_EXPR_MUTABLE_P (in LAMBDA_EXPR)
+       DECL_FINAL_P (in FUNCTION_DECL)
+       QUALIFIED_NAME_IS_TEMPLATE (in SCOPE_REF)
+-      DECLTYPE_FOR_INIT_CAPTURE (in DECLTYPE_TYPE)
+       CONSTRUCTOR_IS_DEPENDENT (in CONSTRUCTOR)
+       TINFO_USED_TEMPLATE_ID (in TEMPLATE_INFO)
+       PACK_EXPANSION_SIZEOF_P (in *_PACK_EXPANSION)
+@@ -4471,12 +4470,10 @@
+   (DECLTYPE_TYPE_CHECK (NODE))->type_common.string_flag
+ 
+ /* These flags indicate that we want different semantics from normal
+-   decltype: lambda capture just drops references, init capture
+-   uses auto semantics, lambda proxies look through implicit dereference.  */
++   decltype: lambda capture just drops references,
++   lambda proxies look through implicit dereference.  */
+ #define DECLTYPE_FOR_LAMBDA_CAPTURE(NODE) \
+   TREE_LANG_FLAG_0 (DECLTYPE_TYPE_CHECK (NODE))
+-#define DECLTYPE_FOR_INIT_CAPTURE(NODE) \
+-  TREE_LANG_FLAG_1 (DECLTYPE_TYPE_CHECK (NODE))
+ #define DECLTYPE_FOR_LAMBDA_PROXY(NODE) \
+   TREE_LANG_FLAG_2 (DECLTYPE_TYPE_CHECK (NODE))
+ #define DECLTYPE_FOR_REF_CAPTURE(NODE) \
+@@ -6779,7 +6776,7 @@
+ extern tree instantiate_decl			(tree, bool, bool);
+ extern int comp_template_parms			(const_tree, const_tree);
+ extern bool builtin_pack_fn_p			(tree);
+-extern bool uses_parameter_packs                (tree);
++extern tree uses_parameter_packs                (tree);
+ extern bool template_parameter_pack_p           (const_tree);
+ extern bool function_parameter_pack_p		(const_tree);
+ extern bool function_parameter_expanded_from_pack_p (tree, tree);
+Index: gcc/lto-wrapper.c
+===================================================================
+--- a/src/gcc/lto-wrapper.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/lto-wrapper.c	(.../branches/gcc-9-branch)
+@@ -128,12 +128,11 @@
+ #define DUMPBASE_SUFFIX ".ltrans18446744073709551615"
+ 
+ /* Create decoded options from the COLLECT_GCC and COLLECT_GCC_OPTIONS
+-   environment according to LANG_MASK.  */
++   environment.  */
+ 
+ static void
+ get_options_from_collect_gcc_options (const char *collect_gcc,
+ 				      const char *collect_gcc_options,
+-				      unsigned int lang_mask,
+ 				      struct cl_decoded_option **decoded_options,
+ 				      unsigned int *decoded_options_count)
+ {
+@@ -175,8 +174,7 @@
+   argc = obstack_object_size (&argv_obstack) / sizeof (void *) - 1;
+   argv = XOBFINISH (&argv_obstack, const char **);
+ 
+-  decode_cmdline_options_to_array (argc, (const char **)argv,
+-				   lang_mask,
++  decode_cmdline_options_to_array (argc, (const char **)argv, CL_DRIVER,
+ 				   decoded_options, decoded_options_count);
+   obstack_free (&argv_obstack, NULL);
+ }
+@@ -1008,8 +1006,7 @@
+     {
+       struct cl_decoded_option *f2decoded_options;
+       unsigned int f2decoded_options_count;
+-      get_options_from_collect_gcc_options (collect_gcc,
+-					    fopts, CL_LANG_ALL,
++      get_options_from_collect_gcc_options (collect_gcc, fopts,
+ 					    &f2decoded_options,
+ 					    &f2decoded_options_count);
+       if (!fdecoded_options)
+@@ -1150,7 +1147,6 @@
+     fatal_error (input_location,
+ 		 "environment variable COLLECT_GCC_OPTIONS must be set");
+   get_options_from_collect_gcc_options (collect_gcc, collect_gcc_options,
+-					CL_LANG_ALL,
+ 					&decoded_options,
+ 					&decoded_options_count);
+ 
+Index: gcc/fortran/intrinsic.c
+===================================================================
+--- a/src/gcc/fortran/intrinsic.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/fortran/intrinsic.c	(.../branches/gcc-9-branch)
+@@ -4180,6 +4180,40 @@
+   if (f == NULL && a == NULL)	/* No arguments */
+     return true;
+ 
++  /* ALLOCATED has two mutually exclusive keywords, but only one
++     can be present at time and neither is optional. */
++  if (strcmp (name, "allocated") == 0 && a->name)
++    {
++      if (strcmp (a->name, "scalar") == 0)
++	{
++          if (a->next)
++	    goto whoops;
++	  if (a->expr->rank != 0)
++	    {
++	      gfc_error ("Scalar entity required at %L", &a->expr->where);
++	      return false;
++	    }
++          return true;
++	}
++      else if (strcmp (a->name, "array") == 0)
++	{
++          if (a->next)
++	    goto whoops;
++	  if (a->expr->rank == 0)
++	    {
++	      gfc_error ("Array entity required at %L", &a->expr->where);
++	      return false;
++	    }
++          return true;
++	}
++      else
++	{
++	  gfc_error ("Invalid keyword %qs in %qs intrinsic function at %L",
++		     a->name, name, &a->expr->where);
++	  return false;
++	}
++    }
++
+   for (;;)
+     {		/* Put the nonkeyword arguments in a 1:1 correspondence */
+       if (f == NULL)
+@@ -4199,6 +4233,7 @@
+   if (a == NULL)
+     goto do_sort;
+ 
++whoops:
+   gfc_error ("Too many arguments in call to %qs at %L", name, where);
+   return false;
+ 
+Index: gcc/fortran/ChangeLog
+===================================================================
+--- a/src/gcc/fortran/ChangeLog	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/fortran/ChangeLog	(.../branches/gcc-9-branch)
+@@ -1,3 +1,23 @@
++2019-08-13  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/91424
++	* frontend-passes.c (do_subscript): Do not warn for an
++	expression a second time.  Do not warn about a zero-trip loop.
++	(doloop_warn): Also look at contained namespaces.
++
++2019-08-12  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91359
++	* trans-decl.c (gfc_generate_return): Ensure something is returned
++	from a function.
++
++2019-08-12  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/42546
++	* check.c(gfc_check_allocated): Add comment pointing to ...
++ 	* intrinsic.c(sort_actual): ... the checking done here.
++
+ 2019-08-12  Release Manager
+ 
+ 	* GCC 9.2.0 released.
+Index: gcc/fortran/frontend-passes.c
+===================================================================
+--- a/src/gcc/fortran/frontend-passes.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/fortran/frontend-passes.c	(.../branches/gcc-9-branch)
+@@ -2557,6 +2557,12 @@
+   if (in_assoc_list)
+     return 0;
+ 
++  /* We already warned about this.  */
++  if (v->do_not_warn)
++    return 0;
++
++  v->do_not_warn = 1;
++
+   for (ref = v->ref; ref; ref = ref->next)
+     {
+       if (ref->type == REF_ARRAY && ref->u.ar.type == AR_ELEMENT)
+@@ -2609,7 +2615,6 @@
+ 	      else
+ 		have_do_start = false;
+ 
+-
+ 	      if (dl->ext.iterator->end->expr_type == EXPR_CONSTANT)
+ 		{
+ 		  have_do_end = true;
+@@ -2621,6 +2626,17 @@
+ 	      if (!have_do_start && !have_do_end)
+ 		return 0;
+ 
++	      /* No warning inside a zero-trip loop.  */
++	      if (have_do_start && have_do_end)
++		{
++		  int sgn, cmp;
++
++		  sgn = mpz_cmp_ui (do_step, 0);
++		  cmp = mpz_cmp (do_end, do_start);
++		  if ((sgn > 0 && cmp < 0) || (sgn < 0 && cmp > 0))
++		    break;
++		}
++
+ 	      /* May have to correct the end value if the step does not equal
+ 		 one.  */
+ 	      if (have_do_start && have_do_end && mpz_cmp_ui (do_step, 1) != 0)
+@@ -2762,6 +2778,12 @@
+ doloop_warn (gfc_namespace *ns)
+ {
+   gfc_code_walker (&ns->code, doloop_code, do_function, NULL);
++
++  for (ns = ns->contained; ns; ns = ns->sibling)
++    {
++      if (ns->code == NULL || ns->code->op != EXEC_BLOCK)
++	doloop_warn (ns);
++    }
+ }
+ 
+ /* This selction deals with inlining calls to MATMUL.  */
+Index: gcc/fortran/trans-decl.c
+===================================================================
+--- a/src/gcc/fortran/trans-decl.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/fortran/trans-decl.c	(.../branches/gcc-9-branch)
+@@ -6440,6 +6440,20 @@
+ 				    TREE_TYPE (result), DECL_RESULT (fndecl),
+ 				    result);
+ 	}
++      else
++	{
++	  /* If the function does not have a result variable, result is
++	     NULL_TREE, and a 'return' is generated without a variable.
++	     The following generates a 'return __result_XXX' where XXX is
++	     the function name.  */
++	  if (sym == sym->result && sym->attr.function)
++	    {
++	      result = gfc_get_fake_result_decl (sym, 0);
++	      result = fold_build2_loc (input_location, MODIFY_EXPR,
++					TREE_TYPE (result),
++					DECL_RESULT (fndecl), result);
++	    }
++	}
+     }
+ 
+   return build1_v (RETURN_EXPR, result);
+Index: gcc/fortran/check.c
+===================================================================
+--- a/src/gcc/fortran/check.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/fortran/check.c	(.../branches/gcc-9-branch)
+@@ -924,6 +924,10 @@
+ }
+ 
+ 
++/* Limited checking for ALLOCATED intrinsic.  Additional checking
++   is performed in intrinsic.c(sort_actual), because ALLOCATED
++   has two mutually exclusive non-optional arguments.  */
++
+ bool
+ gfc_check_allocated (gfc_expr *array)
+ {
+Index: gcc/BASE-VER
+===================================================================
+--- a/src/gcc/BASE-VER	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/BASE-VER	(.../branches/gcc-9-branch)
+@@ -1 +1 @@
+-9.2.0
++9.2.1
+Index: libgfortran/intrinsics/random.c
+===================================================================
+--- a/src/libgfortran/intrinsics/random.c	(.../tags/gcc_9_2_0_release)
++++ b/src/libgfortran/intrinsics/random.c	(.../branches/gcc-9-branch)
+@@ -275,31 +275,20 @@
+ }
+ 
+ 
+-/* Super-simple LCG generator used in getosrandom () if /dev/urandom
+-   doesn't exist.  */
++/* Splitmix64 recommended by xorshift author for initializing.  After
++   getting one uint64_t value from the OS, this is used to fill in the
++   rest of the state.  */
+ 
+-#define M 2147483647 /* 2^31 - 1 (A large prime number) */
+-#define A 16807      /* Prime root of M, passes statistical tests and produces a full cycle */
+-#define Q 127773 /* M / A (To avoid overflow on A * seed) */
+-#define R 2836   /* M % A (To avoid overflow on A * seed) */
+-
+-__attribute__((unused)) static uint32_t
+-lcg_parkmiller(uint32_t seed)
++static uint64_t
++splitmix64 (uint64_t x)
+ {
+-    uint32_t hi = seed / Q;
+-    uint32_t lo = seed % Q;
+-    int32_t test = A * lo - R * hi;
+-    if (test <= 0)
+-        test += M;
+-    return test;
++  uint64_t z = (x += 0x9e3779b97f4a7c15);
++  z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9;
++  z = (z ^ (z >> 27)) * 0x94d049bb133111eb;
++  return z ^ (z >> 31);
+ }
+ 
+-#undef M
+-#undef A
+-#undef Q
+-#undef R
+ 
+-
+ /* Get some random bytes from the operating system in order to seed
+    the PRNG.  */
+ 
+@@ -315,7 +304,7 @@
+ #else
+ #ifdef HAVE_GETENTROPY
+   if (getentropy (buf, buflen) == 0)
+-    return 0;
++    return buflen;
+ #endif
+   int flags = O_RDONLY;
+ #ifdef O_CLOEXEC
+@@ -328,7 +317,7 @@
+       close (fd);
+       return res;
+     }
+-  uint32_t seed = 1234567890;
++  uint64_t seed = 0x047f7684e9fc949dULL;
+   time_t secs;
+   long usecs;
+   if (gf_gettime (&secs, &usecs) == 0)
+@@ -340,13 +329,9 @@
+   pid_t pid = getpid();
+   seed ^= pid;
+ #endif
+-  uint32_t* ub = buf;
+-  for (size_t i = 0; i < buflen / sizeof (uint32_t); i++)
+-    {
+-      ub[i] = seed;
+-      seed = lcg_parkmiller (seed);
+-    }
+-  return buflen;
++  size_t size = buflen < sizeof (uint64_t) ? buflen : sizeof (uint64_t);
++  memcpy (buf, &seed, size);
++  return size;
+ #endif /* __MINGW64_VERSION_MAJOR  */
+ }
+ 
+@@ -361,7 +346,13 @@
+     __gthread_mutex_lock (&random_lock);
+   if (!master_init)
+     {
+-      getosrandom (master_state, sizeof (master_state));
++      uint64_t os_seed;
++      getosrandom (&os_seed, sizeof (os_seed));
++      for (uint64_t i = 0; i < sizeof (master_state) / sizeof (uint64_t); i++)
++	{
++	  os_seed = splitmix64 (os_seed);
++	  master_state[i] = os_seed;
++	}
+       njumps = 0;
+       master_init = true;
+     }
+Index: libgfortran/ChangeLog
+===================================================================
+--- a/src/libgfortran/ChangeLog	(.../tags/gcc_9_2_0_release)
++++ b/src/libgfortran/ChangeLog	(.../branches/gcc-9-branch)
+@@ -1,3 +1,13 @@
++2019-08-13  Janne Blomqvist  <jb@gcc.gnu.org>
++
++	Partial backport from trunk
++	PR fortran/91414
++	* intrinsics/random.c (lcg_parkmiller): Replace with splitmix64.
++	(splitmix64): New function.
++	(getosrandom): Fix return value, simplify.
++	(init_rand_state): Use getosrandom only to get 8 bytes, splitmix64
++	to fill rest of state.
++
+ 2019-08-12  Release Manager
+ 
+ 	* GCC 9.2.0 released.
