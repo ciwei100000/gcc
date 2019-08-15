@@ -1,10 +1,10 @@
-# DP: updates from the 9 branch upto 20190717 (r273554).
+# DP: updates from the 9 branch upto 20190815 (r274526).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Tue Aug 13 15:42:54 CEST 2019
-Tue Aug 13 13:42:54 UTC 2019 (revision 274380)
+Thu Aug 15 13:09:17 CEST 2019
+Thu Aug 15 11:09:17 UTC 2019 (revision 274526)
 EOF
 }
 
@@ -79,7 +79,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-9-branch)
 @@ -1 +1 @@
 -20190812
-+20190813
++20190815
 Index: gcc/tree.c
 ===================================================================
 --- a/src/gcc/tree.c	(.../tags/gcc_9_2_0_release)
@@ -94,11 +94,117 @@ Index: gcc/tree.c
  	    TYPE_BINFO (type) = NULL;
  	}
      }
+@@ -11357,6 +11356,73 @@
+     }
+ }
+ 
++/* Given an initializer INIT for a TYPE, return true if INIT is zero
++   so that it can be replaced by value initialization.  This function
++   distinguishes betwen empty strings as initializers for arrays and
++   for pointers (which make it return false).  */
++
++bool
++type_initializer_zero_p (tree type, tree init)
++{
++  if (type  == error_mark_node || init == error_mark_node)
++    return false;
++
++  STRIP_NOPS (init);
++
++  if (POINTER_TYPE_P (type))
++    return TREE_CODE (init) != STRING_CST && initializer_zerop (init);
++
++  if (TREE_CODE (init) != CONSTRUCTOR)
++    return initializer_zerop (init);
++
++  if (TREE_CODE (type) == ARRAY_TYPE)
++    {
++      tree elt_type = TREE_TYPE (type);
++      elt_type = TYPE_MAIN_VARIANT (elt_type);
++      if (elt_type == char_type_node)
++	return initializer_zerop (init);
++
++      tree elt_init;
++      unsigned HOST_WIDE_INT i;
++      FOR_EACH_CONSTRUCTOR_VALUE (CONSTRUCTOR_ELTS (init), i, elt_init)
++	if (!type_initializer_zero_p (elt_type, elt_init))
++	  return false;
++      return true;
++    }
++
++  if (TREE_CODE (type) != RECORD_TYPE)
++    return initializer_zerop (init);
++
++  tree fld = TYPE_FIELDS (type);
++
++  tree fld_init;
++  unsigned HOST_WIDE_INT i;
++  FOR_EACH_CONSTRUCTOR_VALUE (CONSTRUCTOR_ELTS (init), i, fld_init)
++    {
++      /* Advance to the next member, skipping over everything that
++	 canot be initialized (including unnamed bit-fields).  */
++      while (TREE_CODE (fld) != FIELD_DECL
++	     || DECL_ARTIFICIAL (fld)
++	     || (DECL_BIT_FIELD (fld) && !DECL_NAME (fld)))
++	{
++	  fld = DECL_CHAIN (fld);
++	  if (!fld)
++	    return true;
++	  continue;
++	}
++
++      tree fldtype = TREE_TYPE (fld);
++      if (!type_initializer_zero_p (fldtype, fld_init))
++	return false;
++
++      fld = DECL_CHAIN (fld);
++      if (!fld)
++	break;
++    }
++
++  return true;
++}
++
+ /* Check if vector VEC consists of all the equal elements and
+    that the number of elements corresponds to the type of VEC.
+    The function returns first element of the vector
+Index: gcc/tree.h
+===================================================================
+--- a/src/gcc/tree.h	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/tree.h	(.../branches/gcc-9-branch)
+@@ -4525,6 +4525,12 @@
+ extern bool initializer_zerop (const_tree, bool * = NULL);
+ extern bool initializer_each_zero_or_onep (const_tree);
+ 
++/* Analogous to initializer_zerop but also examines the type for
++   which the initializer is being used.  Unlike initializer_zerop,
++   considers empty strings to be zero initializers for arrays and
++   non-zero for pointers.  */
++extern bool type_initializer_zero_p (tree, tree);
++
+ extern wide_int vector_cst_int_elt (const_tree, unsigned int);
+ extern tree vector_cst_elt (const_tree, unsigned int);
+ 
 Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,31 @@
+@@ -1,3 +1,46 @@
++2019-08-14  Martin Sebor  <msebor@redhat.com>
++
++	Backport from mainline
++
++	2019-08-01  Martin Sebor  <msebor@redhat.com>
++
++	PR c++/90947
++	* tree.c (type_initializer_zero_p): Define.
++	* tree.h (type_initializer_zero_p): New function.
++
++	2019-08-05  Martin Sebor  <msebor@redhat.com>
++
++	* doc/extend.texi (Common Variable Attributes): Document alias
++	attribute.
++
 +2019-08-12  Richard Biener  <rguenther@suse.de>
 +
 +	Backport from mainline
@@ -179,6 +285,34 @@ Index: gcc/testsuite/gfortran.dg/pr91359_2.f
 +         if (zero()) stop 'FAIL:  zero() returned .TRUE.'
 +         stop 'OKAY:  zero() returned .FALSE.'
 +      end
+Index: gcc/testsuite/gfortran.dg/unlimited_polymorphic_28.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/unlimited_polymorphic_28.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/unlimited_polymorphic_28.f90	(.../branches/gcc-9-branch)
+@@ -21,7 +21,7 @@
+ 
+   type,abstract,extends(c_base) :: c_derived
+   contains
+-    procedure :: f_base => f_derived ! { dg-error "Type mismatch in function result \\(CLASS\\(\\*\\)/CLASS\\(c_base\\)\\)" }
++    procedure :: f_base => f_derived ! { dg-error "Type mismatch in function result" }
+   end type c_derived
+ 
+ contains
+Index: gcc/testsuite/gfortran.dg/deferred_character_34.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/deferred_character_34.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/deferred_character_34.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,10 @@
++! { dg-do run }
++! PR fortran/90561
++! This used to ICE.
++! Original test case by Gerhard Steinmetz.
++program p
++   character(:), allocatable :: z(:)
++   z = [character(2):: 'ab', 'xy']
++   z = z(2)
++   if (any(z /= 'xy')) stop 1
++end
 Index: gcc/testsuite/gfortran.dg/pr70754.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr70754.f90	(.../tags/gcc_9_2_0_release)
@@ -203,6 +337,117 @@ Index: gcc/testsuite/gfortran.dg/pr70754.f90
      end do
  
      where ((xyz(:,:,2) /= 0) .and. (c /= 0))
+Index: gcc/testsuite/gfortran.dg/pr87993.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr87993.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr87993.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,8 @@
++! { dg-do run }
++! Code contributed by Gerhard Steinmetz <gscfq at t-online dot de>
++program p
++   integer, parameter :: a(2) = 1
++   integer, parameter :: b = a%kind
++   if (any(a /= 1)) stop 1
++   if (b /= kind(a)) stop 2
++end
+Index: gcc/testsuite/gfortran.dg/pr88072.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr88072.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr88072.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,30 @@
++! { dg-do compile }
++! PR fortran/88072
++! Original code contributed by Andrew Wood <andrew at fluidgravity dot co.uk>
++module m1
++
++   implicit none
++
++   type, abstract, public :: t1
++      integer, dimension(:), allocatable :: i
++      contains
++         procedure(f1), deferred :: f
++   end type t1
++
++   type, extends(t1), public :: t2 ! { dg-error "must be ABSTRACT because" }
++      contains
++         procedure :: f => f2    ! { dg-error "mismatch for the overriding" }
++   end type t2
++
++   abstract interface
++      function f1(this)          ! { dg-error "must be dummy, allocatable or" }
++         import
++         class(t1) :: this
++         class(t1) :: f1
++      end function f1
++   end interface
++   contains
++      type(t2) function f2(this)
++         class(t2) :: this
++      end function f2
++end module m1
+Index: gcc/testsuite/gfortran.dg/do_subscript_5.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/do_subscript_5.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/do_subscript_5.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,20 @@
++! { dg-do compile }
++! { dg-additional-options "-Wdo-subscript" }
++! PR 90563 - this used to be rejected, wrongly
++! Original test case by Tobias Neumann
++program test
++      implicit none
++      integer, parameter :: swap(4) = [2,1,3,4]
++      real :: p(20)
++      integer :: j
++
++      p = 0.0
++
++      ! The following warnings are actually bogus, but we are not yet
++      ! clever enough to suppress them.
++      do j=1,6 ! { dg-warning "out of bounds" }
++          if (j<5) then
++              p(j) = p(swap(j)) ! { dg-warning "out of bounds" }
++          endif
++      enddo
++end program
+Index: gcc/testsuite/gfortran.dg/pr89647.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr89647.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr89647.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,33 @@
++! { dg-do compile }
++! Code contributed by Ian Harvey  <ian_harvey at bigpond dot com>
++  MODULE m1
++    IMPLICIT NONE
++    PUBLIC :: False
++    PUBLIC :: True
++  CONTAINS
++    FUNCTION False() RESULT(b)
++      LOGICAL :: b
++      b = .FALSE.
++    END FUNCTION False
++    
++    FUNCTION True() RESULT(b)
++      LOGICAL :: b
++      b = .TRUE.
++    END FUNCTION True
++  END MODULE m1
++
++  MODULE m2
++    USE m1
++    IMPLICIT NONE
++    TYPE, ABSTRACT :: t_parent
++    CONTAINS
++      PROCEDURE(False), DEFERRED, NOPASS :: Binding
++    END TYPE t_parent
++  CONTAINS
++    SUBROUTINE s
++      TYPE, EXTENDS(t_parent) :: t_extension
++      CONTAINS
++        PROCEDURE, NOPASS :: Binding => True
++      END TYPE t_extension
++    END SUBROUTINE s
++  END MODULE m2
 Index: gcc/testsuite/gfortran.dg/allocated_2.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/allocated_2.f90	(.../tags/gcc_9_2_0_release)
@@ -224,6 +469,22 @@ Index: gcc/testsuite/gfortran.dg/allocated_2.f90
 +   a1 = allocated(array=a, scalar=x)   ! { dg-error "Too many arguments" }
 +
 +end program foo
+Index: gcc/testsuite/gfortran.dg/pr87991.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr87991.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr87991.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,11 @@
++! { dg-do compile }
++! { dg-options "-w" }
++! PR fortran/87991
++program p
++   type t
++      character(:), pointer :: c
++   end type
++   type(t) :: x
++   allocate (character(3) :: x%c)
++   data x%c /'abc'/   ! { dg-error "has the pointer attribute" }
++end
 Index: gcc/testsuite/gfortran.dg/do_subscript_4.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/do_subscript_4.f90	(.../tags/gcc_9_2_0_release)
@@ -295,7 +556,60 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,33 @@
+@@ -1,3 +1,86 @@
++2019-08-14  Martin Sebor  <msebor@redhat.com>
++
++	Backport from mainline
++
++	2019-08-01  Martin Sebor  <msebor@redhat.com>
++
++	PR c++/90947
++	* c-c++-common/array-1.c: New test.
++	* g++.dg/abi/mangle73.C: New test.
++	* g++.dg/cpp2a/nontype-class23.C: New test.
++	* g++.dg/init/array53.C: New test.
++
++2019-08-14  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR c++/91436
++	* g++.dg/lookup/missing-std-include-5.C: Limit test to C++14 and up.
++	* g++.dg/lookup/missing-std-include-6.C: Don't check make_unique in
++	test that runs for C++11.
++	* g++.dg/lookup/missing-std-include-8.C: Check make_unique here.
++
++2019-08-13  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/87991
++	* gfortran.dg/pr87991.f90: New test.
++
++2013-08-13  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/90563
++	* gfortran.dg/do_subsript_5.f90: New test.
++
++2019-08-13  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/88072
++	* gfortran.dg/pr88072.f90: New test.
++	* gfortran.dg/unlimited_polymorphic_28.f90: Fix error message.
++
++2019-08-13  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/90561
++	* gfortran.dg/deferred_character_34.f90: New test.
++
++2019-08-13  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/89647
++	* gfortran.dg/pr89647.f90: New test.
++
++2019-08-13  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/87993
++	* gfortran.dg/pr87993.f90: New test.
++
 +2019-08-13  Thomas Koenig  <tkoenig@gcc.gnu.org>
 +
 +	Backport from trunk
@@ -329,6 +643,54 @@ Index: gcc/testsuite/ChangeLog
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
+Index: gcc/testsuite/g++.dg/lookup/missing-std-include-8.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/lookup/missing-std-include-8.C	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/g++.dg/lookup/missing-std-include-8.C	(.../branches/gcc-9-branch)
+@@ -13,6 +13,15 @@
+   // { dg-error "expected primary-expression before '\\)' token" "" { target *-*-* } .-3 }
+ }
+ 
++template<class T>
++void test_make_unique ()
++{
++  std::make_unique<T>(); // { dg-error "'make_unique' is not a member of 'std'" }
++  // { dg-message "'std::make_unique' is only available from C\\+\\+14 onwards" "" { target *-*-* } .-1 }
++  // { dg-error "expected primary-expression before '>' token" "" { target *-*-* } .-2 }
++  // { dg-error "expected primary-expression before '\\)' token" "" { target *-*-* } .-3 }
++}
++
+ void test_array ()
+ {
+   std::array a; // { dg-error "'array' is not a member of 'std'" }
+Index: gcc/testsuite/g++.dg/lookup/missing-std-include-5.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/lookup/missing-std-include-5.C	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/g++.dg/lookup/missing-std-include-5.C	(.../branches/gcc-9-branch)
+@@ -1,2 +1,3 @@
++// { dg-do compile { target c++14 } }
+ using namespace std::complex_literals; // { dg-error "" }
+ // { dg-message "#include <complex>" "" { target *-*-* } .-1 }
+Index: gcc/testsuite/g++.dg/lookup/missing-std-include-6.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/lookup/missing-std-include-6.C	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/g++.dg/lookup/missing-std-include-6.C	(.../branches/gcc-9-branch)
+@@ -11,15 +11,6 @@
+   // { dg-error "expected primary-expression before '\\)' token" "" { target *-*-* } .-3 }
+ }
+ 
+-template<class T>
+-void test_make_unique ()
+-{
+-  auto p = std::make_unique<T>(); // { dg-error "'make_unique' is not a member of 'std'" }
+-  // { dg-message "'#include <memory>'" "" { target *-*-* } .-1 }
+-  // { dg-error "expected primary-expression before '>' token" "" { target *-*-* } .-2 }
+-  // { dg-error "expected primary-expression before '\\)' token" "" { target *-*-* } .-3 }
+-}
+-
+ std::shared_ptr<int> test_shared_ptr; // { dg-error "'shared_ptr' in namespace 'std' does not name a template type" }
+ // { dg-message "'#include <memory>'" "" { target *-*-* } .-1 }
+ 
 Index: gcc/testsuite/g++.dg/cpp0x/lambda/lambda-variadic9.C
 ===================================================================
 --- a/src/gcc/testsuite/g++.dg/cpp0x/lambda/lambda-variadic9.C	(.../tags/gcc_9_2_0_release)
@@ -509,6 +871,113 @@ Index: gcc/testsuite/g++.dg/cpp2a/udlit-class-nttp-neg.C
 +
 +template <literal_class...>
 +int operator"" _udl();      // { dg-error "literal operator template .int operator\"\"_udl\\(\\). has invalid parameter list" }
+Index: gcc/testsuite/g++.dg/cpp2a/nontype-class23.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp2a/nontype-class23.C	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp2a/nontype-class23.C	(.../branches/gcc-9-branch)
+@@ -0,0 +1,102 @@
++// PR c++/90947 - Simple lookup table of array of strings is miscompiled
++// Test to verify that the same specializations on non-type template
++// parameters of class types are in fact treated as the same.  Unlike
++// nontype-class15.C which involves only one-dimensional arrays this
++// test involves arrays of arrays and arrays of structs.
++// { dg-do compile { target c++2a } }
++
++struct AA3
++{
++  const char a[2][2][2];
++};
++
++template <AA3> struct BAA3 { };
++
++// Redeclare the same variable using different initialization forms
++// of the same constant to verify that they are in fact all recognized
++// as the same.
++extern BAA3<AA3{{{ "", "" }, { "", "" }}}>       baa3;
++extern BAA3<AA3{{{ "", "" }, { "", { 0, 0 } }}}> baa3;
++extern BAA3<AA3{{{ "", "" }, { "", { 0 } }}}>    baa3;
++extern BAA3<AA3{{{ "", "" }, { "", {} }}}>       baa3;
++extern BAA3<AA3{{{ "", "" }, { "" }}}>           baa3;
++extern BAA3<AA3{{{ "", "" }, { { 0, 0 } }}}>     baa3;
++extern BAA3<AA3{{{ "", "" }, { { 0 } }}}>        baa3;
++extern BAA3<AA3{{{ "", "" }, { {} }}}>           baa3;
++extern BAA3<AA3{{{ "", "" }, { }}}>              baa3;
++extern BAA3<AA3{{{ "", "" }}}>                   baa3;
++extern BAA3<AA3{{{ "", { 0, 0 } }}}>             baa3;
++extern BAA3<AA3{{{ "", { 0 } }}}>                baa3;
++extern BAA3<AA3{{{ "", {} }}}>                   baa3;
++extern BAA3<AA3{{{ "" }}}>                       baa3;
++extern BAA3<AA3{{{ { 0, 0 } }}}>                 baa3;
++extern BAA3<AA3{{{ { 0 } }}}>                    baa3;
++extern BAA3<AA3{{{ {} }}}>                       baa3;
++extern BAA3<AA3{{{ }}}>                          baa3;
++extern BAA3<AA3{{ }}>                            baa3;
++extern BAA3<AA3{ }>                              baa3;
++
++extern BAA3<AA3{{{ "", "" }, { "", "1" }}}>        baa3_1;
++extern BAA3<AA3{{{ "", "" }, { "", { '1', 0 } }}}> baa3_1;
++extern BAA3<AA3{{{ "", "" }, { "", { '1' } }}}>    baa3_1;
++
++extern BAA3<AA3{{{ "", "" }, { "1", {} }}}>        baa3_2;
++extern BAA3<AA3{{{ "", "" }, { "1" }}}>            baa3_2;
++extern BAA3<AA3{{{ "", "" }, { { '1', 0 } }}}>     baa3_2;
++extern BAA3<AA3{{{ "", "" }, { { '1' } }}}>        baa3_2;
++
++extern BAA3<AA3{{{ "", "1" }}}>                    baa3_3;
++extern BAA3<AA3{{{ "", { '1', 0 } }}}>             baa3_3;
++extern BAA3<AA3{{{ "", { '1' } }}}>                baa3_3;
++
++extern BAA3<AA3{{{ "1" }}}>                        baa3_4;
++extern BAA3<AA3{{{ { '1', 0 } }}}>                 baa3_4;
++extern BAA3<AA3{{{ { '1' } }}}>                    baa3_4;
++
++struct AS2
++{
++  struct S { const char a[2], *p; } a[2];
++};
++
++template <AS2> struct BAS2 { };
++
++extern BAS2<AS2{{{ "", 0 }, { "", 0 }}}> bas2;
++extern BAS2<AS2{{{ "", 0 }, { {}, 0 }}}> bas2;
++extern BAS2<AS2{{{ "", 0 }, { "" }}}>    bas2;
++extern BAS2<AS2{{{ "", 0 }, { {} }}}>    bas2;
++extern BAS2<AS2{{{ "", 0 }, { }}}>       bas2;
++extern BAS2<AS2{{{ "", 0 }}}>            bas2;
++extern BAS2<AS2{{{ {}, 0 }}}>            bas2;
++extern BAS2<AS2{{{ "" }}}>               bas2;
++extern BAS2<AS2{{{ {} }}}>               bas2;
++extern BAS2<AS2{{{ }}}>                  bas2;
++extern BAS2<AS2{{ }}>                    bas2;
++extern BAS2<AS2{ }>                      bas2;
++
++struct AS2_2
++{
++  struct S { const char a[2], *p; } a[2][2];
++};
++
++template <AS2_2> struct BAS2_2 { };
++
++extern BAS2_2<AS2_2{{{{ "", 0 }, { "", 0 } }, { { "", 0 }, { "", 0 }}}}> b2_2;
++extern BAS2_2<AS2_2{{{{ "", 0 }, { "", 0 } }, { { "", 0 }, { "" }}}}>    b2_2;
++extern BAS2_2<AS2_2{{{{ "", 0 }, { "", 0 } }, { { "", 0 }, { {} }}}}>    b2_2;
++extern BAS2_2<AS2_2{{{{ "", 0 }, { "", 0 } }, { { "", 0 }, { }}}}>       b2_2;
++extern BAS2_2<AS2_2{{{{ "", 0 }, { "", 0 } }, { { "", 0 } }}}>           b2_2;
++extern BAS2_2<AS2_2{{{{ "", 0 }, { "", 0 } }, { { "" } }}}>              b2_2;
++extern BAS2_2<AS2_2{{{{ "", 0 }, { "", 0 } }, { { {} } }}}>              b2_2;
++extern BAS2_2<AS2_2{{{{ "", 0 }, { "", 0 } }, { { }}}}>                  b2_2;
++extern BAS2_2<AS2_2{{{{ "", 0 }, { "", 0 } }, { }}}>                     b2_2;
++extern BAS2_2<AS2_2{{{{ "", 0 }, { "", 0 }}}}>                           b2_2;
++extern BAS2_2<AS2_2{{{{ "", 0 }, { "" }}}}>                              b2_2;
++extern BAS2_2<AS2_2{{{{ "", 0 }, { {} }}}}>                              b2_2;
++extern BAS2_2<AS2_2{{{{ "", 0 }, { }}}}>                                 b2_2;
++extern BAS2_2<AS2_2{{{{ "", 0 }}}}>                                      b2_2;
++extern BAS2_2<AS2_2{{{{ "" }}}}>                                         b2_2;
++extern BAS2_2<AS2_2{{{{ {} }}}}>                                         b2_2;
++extern BAS2_2<AS2_2{{{{ }}}}>                                            b2_2;
++extern BAS2_2<AS2_2{{{ }}}>                                              b2_2;
++extern BAS2_2<AS2_2{{ }}>                                                b2_2;
++extern BAS2_2<AS2_2{ }>                                                  b2_2;
 Index: gcc/testsuite/g++.dg/cpp2a/udlit-class-nttp-ctad-neg.C
 ===================================================================
 --- a/src/gcc/testsuite/g++.dg/cpp2a/udlit-class-nttp-ctad-neg.C	(.../tags/gcc_9_2_0_release)
@@ -538,11 +1007,433 @@ Index: gcc/testsuite/g++.dg/cpp2a/udlit-class-nttp-ctad-neg.C
 +
 +static_assert("test"_udl == 5); // { dg-error "15:no matching function for call to" }
 +                                // { dg-error "15:class template argument deduction failed" "" { target *-*-* } .-1 }
+Index: gcc/testsuite/g++.dg/abi/mangle73.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/abi/mangle73.C	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/g++.dg/abi/mangle73.C	(.../branches/gcc-9-branch)
+@@ -0,0 +1,96 @@
++// { dg-do compile { target c++2a } }
++
++struct A
++{
++  char a[2][2];
++};
++
++template <A> struct B { };
++
++typedef B<A{ { { 0, 0 }, { 0, 0 } } }> AZZZZ;
++typedef B<A{ { { 0, 0 }, { 0 } } }>    AZZZ_;
++typedef B<A{ { { 0, 0 } } }>           AZZ__;
++typedef B<A{ { { 0 } } }>              AZ___;
++typedef B<A{ { { } } }>                A____;
++
++typedef B<A{ { { "" }, { "" } } }>     AS_S_;
++typedef B<A{ { { "" }, { 0, 0 } } }>   AS_ZZ;
++typedef B<A{ { { "" }, { 0 } } }>      AS_Z_;
++typedef B<A{ { { "" } } }>             AS___;
++
++
++// Verify that the types mangle the same.
++void a_zzzz (AZZZZ) { }
++// { dg-final { scan-assembler "_Z6a_zzzz1BIXtl1AEEE" } }
++
++void a_zzz_ (AZZZ_) { }
++// { dg-final { scan-assembler "_Z6a_zzz_1BIXtl1AEEE" } }
++
++void a_zz__ (AZZ__) { }
++// { dg-final { scan-assembler "_Z6a_zz__1BIXtl1AEEE" } }
++
++void a_z___ (AZ___) { }
++// { dg-final { scan-assembler "_Z6a_z___1BIXtl1AEEE" } }
++
++void a_____ (A____) { }
++// { dg-final { scan-assembler "_Z6a_____1BIXtl1AEEE" } }
++
++void a_s_s_ (AS_S_) { }
++// { dg-final { scan-assembler "_Z6a_s_s_1BIXtl1AEEE" } }
++
++void a_s_zz (AS_ZZ) { }
++// { dg-final { scan-assembler "_Z6a_s_zz1BIXtl1AEEE" } }
++
++void a_s_z_ (AS_Z_) { }
++// { dg-final { scan-assembler "_Z6a_s_z_1BIXtl1AEEE" } }
++
++void a_s___ (AS___) { }
++// { dg-final { scan-assembler "_Z6a_s___1BIXtl1AEEE" } }
++
++
++struct C
++{
++  struct { const char a[2][2], *p; } a[2];
++};
++
++template <C> struct D { };
++
++typedef D<C{{{{{ 0, 0 }, { 0, 0 }}, 0 }, {{{ 0, 0 }, { 0, 0 }}, 0 }}}> DZZZZZZZZZZ;
++typedef D<C{{{{{ 0, 0 }, { 0, 0 }}, 0 }, {{{ 0, 0 }, { 0, 0 }}}}}> DZZZZZZZZZ_;
++typedef D<C{{{{{ 0, 0 }, { 0, 0 }}, 0 }, {{{ 0, 0 }, { 0 }}}}}>    DZZZZZZZZ__;
++typedef D<C{{{{{ 0, 0 }, { 0, 0 }}, 0 }, {{{ 0, 0 } }}}}>          DZZZZZZZ___;
++typedef D<C{{{{{ 0, 0 }, { 0, 0 }}, 0 }, {{{ 0 } }}}}>             DZZZZZZ____;
++typedef D<C{{{{{ 0, 0 }, { 0, 0 }}, 0 }}}>                         DZZZZZ_____;
++typedef D<C{{{{{ 0, 0 }, { 0, 0 }}}}}>                             DZZZZ______;
++typedef D<C{{{{{ 0, 0 }, { 0 }}}}}>                                DZZZ_______;
++typedef D<C{{{{{ 0, 0 }}}}}>                                       DZZ________;
++typedef D<C{{{{{ 0 }}}}}>                                          DZ_________;
++typedef D<C{ }>                                                    D__________;
++
++typedef D<C{{{{{ "" }, { "" }}, 0 }, {{{ "" }, { "" }}, 0 }}}>     DS_S_ZS_S_Z;
++
++void d_zzzzzzzzzz (DZZZZZZZZZZ) { }
++// { dg-final { scan-assembler "_Z12d_zzzzzzzzzz1DIXtl1CEEE" } }
++void d_zzzzzzzzz_ (DZZZZZZZZZ_) { }
++// { dg-final { scan-assembler "_Z12d_zzzzzzzzz_1DIXtl1CEEE" } }
++void d_zzzzzzzz__ (DZZZZZZZZ__) { }
++// { dg-final { scan-assembler "_Z12d_zzzzzzzz__1DIXtl1CEEE" } }
++void d_zzzzzzz___ (DZZZZZZZ___) { }
++// { dg-final { scan-assembler "_Z12d_zzzzzzz___1DIXtl1CEEE" } }
++void d_zzzzzz____ (DZZZZZZ____) { }
++// { dg-final { scan-assembler "_Z12d_zzzzzz____1DIXtl1CEEE" } }
++void d_zzzzz_____ (DZZZZZ_____) { }
++// { dg-final { scan-assembler "_Z12d_zzzzz_____1DIXtl1CEEE" } }
++void d_zzzz______ (DZZZZ______) { }
++// { dg-final { scan-assembler "_Z12d_zzzz______1DIXtl1CEEE" } }
++void d_zzz_______ (DZZZ_______) { }
++// { dg-final { scan-assembler "_Z12d_zzz_______1DIXtl1CEEE" } }
++void d_zz________ (DZZ________) { }
++// { dg-final { scan-assembler "_Z12d_zz________1DIXtl1CEEE" } }
++void d_z_________ (DZ_________) { }
++// { dg-final { scan-assembler "_Z12d_z_________1DIXtl1CEEE" } }
++void d___________ (D__________) { }
++// { dg-final { scan-assembler "_Z12d___________1DIXtl1CEEE" } }
++
++void d_s_s_zs_s_z (DS_S_ZS_S_Z) { }
++// { dg-final { scan-assembler "_Z12d_s_s_zs_s_z1DIXtl1CEEE" } }
+Index: gcc/testsuite/g++.dg/init/array53.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/init/array53.C	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/g++.dg/init/array53.C	(.../branches/gcc-9-branch)
+@@ -0,0 +1,33 @@
++// PR c++/90947 - Simple lookup table of array of strings is miscompiled
++// Verify that initializers for arrays of elements of a class type with
++// "unusual" data members are correctly recognized as non-zero.
++// { dg-do compile }
++// { dg-options "-O1 -fdump-tree-optimized" }
++
++struct S
++{
++  const char *p;
++  static int i;
++  enum { e };
++  typedef int X;
++  int: 1, b:1;
++  union {
++    int c;
++  };
++  const char *q;
++};
++
++void f (void)
++{
++  const struct S a[2] =
++    {
++     { /* .p = */ "", /* .b = */ 0, /* .c = */ 0, /* .q = */ "" },
++     { /* .p = */ "", /* .b = */ 0, /* .c = */ 0, /* .q = */ "" }
++    };
++
++  if (!a[0].p || *a[0].p || !a[0].q || *a[0].q
++      || !a[1].p || *a[1].p || !a[1].q || *a[1].q)
++    __builtin_abort ();
++}
++
++// { dg-final { scan-tree-dump-not "abort" "optimized" } }
+Index: gcc/testsuite/c-c++-common/array-1.c
+===================================================================
+--- a/src/gcc/testsuite/c-c++-common/array-1.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/c-c++-common/array-1.c	(.../branches/gcc-9-branch)
+@@ -0,0 +1,247 @@
++// PR c++/90947 - Simple lookup table of array of strings is miscompiled
++// { dg-do compile }
++// { dg-options "-O1 -fdump-tree-optimized" }
++
++#define assert(expr) ((expr) ? (void)0 : __builtin_abort ())
++
++void pr90947 (void)
++{
++  int vecsize = 4;
++  int index = 0;
++  static const char *a[4][4] =
++    {
++     { ".x", ".y", ".z", ".w" },
++     { ".xy", ".yz", ".zw", 0 },
++     { ".xyz", ".yzw", 0, 0 },
++     { "", 0, 0, 0 },
++    };
++
++  assert (vecsize >= 1 && vecsize <= 4);
++  assert (index >= 0 && index < 4);
++  assert (a[vecsize - 1][index]);
++}
++
++void f_a1_1 (void)
++{
++  {
++    const char* a[1][1] = { { 0 } };
++    assert (0 == a[0][0]);
++  }
++  {
++    const char* a[1][1] = { { "" } };
++    assert ('\0' == *a[0][0]);
++  }
++}
++
++void f_a2_1 (void)
++{
++  {
++    const char* a[2][1] = { { "" }, { "" } };
++    assert ('\0' == *a[0][0] && '\0' == *a[1][0]);
++  }
++  {
++    const char* a[2][1] = { { 0 }, { "" } };
++    assert (0 == a[0][0] && '\0' == *a[1][0]);
++  }
++  {
++    const char* a[2][1] = { { }, { "" } };
++    assert (0 == a[0][0] && '\0' == *a[1][0]);
++  }
++}
++
++void f_a2_2 (void)
++{
++  {
++    const char* a[2][2] = { { "", "" }, { "", "" } };
++    assert ('\0' == *a[0][0] && '\0' == *a[0][1]);
++    assert ('\0' == *a[1][0] && '\0' == *a[1][1]);
++  }
++  {
++    const char* a[2][2] = { { "", "" }, { "", 0 } };
++    assert ('\0' == *a[0][0] && '\0' == *a[0][1]);
++    assert ('\0' == *a[1][0] && 0 == a[1][1]);
++  }
++  {
++    const char* a[2][2] = { { "", "" }, { "" } };
++    assert ('\0' == *a[0][0] && '\0' == *a[0][1]);
++    assert ('\0' == *a[1][0] && 0 == a[1][1]);
++  }
++  {
++    const char* a[2][2] = { { "", "" }, { 0, "" } };
++    assert ('\0' == *a[0][0] && '\0' == *a[0][1]);
++    assert (0 == a[1][0] && '\0' == *a[1][1]);
++  }
++  {
++    const char* a[2][2] = { { "", 0 }, { 0, "" } };
++    assert ('\0' == *a[0][0] && 0 == a[0][1]);
++    assert (0 == a[1][0] && '\0' == *a[1][1]);
++  }
++  {
++    const char* a[2][2] = { { 0, 0 }, { 0, "" } };
++    assert (0 == a[0][0] && 0 == a[0][1]);
++    assert (0 == a[1][0] && '\0' == *a[1][1]);
++  }
++  {
++    const char* a[2][2] = { { 0 }, { 0, "" } };
++    assert (0 == a[0][0] && 0 == a[0][1]);
++    assert (0 == a[1][0] && '\0' == *a[1][1]);
++  }
++  {
++    const char* a[2][2] = { { }, { 0, "" } };
++    assert (0 == a[0][0] && 0 == a[0][1]);
++    assert (0 == a[1][0] && '\0' == *a[1][1]);
++  }
++}
++
++void f_a2_2_2 (void)
++{
++  {
++    const char* a[2][2][2] =
++      { { { "", "" }, { "", "" } }, { { "", "" }, { "", "" } } };
++
++    assert ('\0' == *a[0][0][0] && '\0' == *a[0][0][1]);
++    assert ('\0' == *a[0][1][0] && '\0' == *a[0][1][1]);
++    assert ('\0' == *a[1][0][0] && '\0' == *a[1][0][1]);
++    assert ('\0' == *a[1][1][0] && '\0' == *a[1][1][1]);
++  }
++
++  {
++    const char* a[2][2][2] =
++      { { { "", "" }, { "", "" } }, { { "", "" }, { 0, "" } } };
++
++    assert ('\0' == *a[0][0][0] && '\0' == *a[0][0][1]);
++    assert ('\0' == *a[0][1][0] && '\0' == *a[0][1][1]);
++    assert ('\0' == *a[1][0][0] && '\0' == *a[1][0][1]);
++    assert (0 == a[1][1][0] && '\0' == *a[1][1][1]);
++  }
++
++  {
++    const char* a[2][2][2] =
++      { { { "", "" }, { "", "" } }, { { 0, 0 }, { 0, "" } } };
++
++    assert ('\0' == *a[0][0][0] && '\0' == *a[0][0][1]);
++    assert ('\0' == *a[0][1][0] && '\0' == *a[0][1][1]);
++    assert (0 == a[1][0][0] && 0 == a[1][0][1]);
++    assert (0 == a[1][1][0] && '\0' == *a[1][1][1]);
++  }
++
++  {
++    const char* a[2][2][2] =
++      { { { "", "" }, { 0, 0 } }, { { 0, 0 }, { 0, "" } } };
++
++    assert ('\0' == *a[0][0][0] && '\0' == *a[0][0][1]);
++    assert (0 == a[0][1][0] && 0 == a[0][1][1]);
++    assert (0 == a[1][0][0] && 0 == a[1][0][1]);
++    assert (0 == a[1][1][0] && '\0' == *a[1][1][1]);
++  }
++
++  {
++    const char* a[2][2][2] =
++      { { { 0, 0 }, { 0, 0 } }, { { 0, 0 }, { 0, "" } } };
++
++    assert (0 == a[0][0][0] && 0 == a[0][0][1]);
++    assert (0 == a[0][1][0] && 0 == a[0][1][1]);
++    assert (0 == a[1][0][0] && 0 == a[1][0][1]);
++    assert (0 == a[1][1][0] && '\0' == *a[1][1][1]);
++  }
++
++  {
++    const char* a[2][2][2] =
++      { { { }, { } }, { { }, { 0, "" } } };
++
++    assert (0 == a[0][0][0] && 0 == a[0][0][1]);
++    assert (0 == a[0][1][0] && 0 == a[0][1][1]);
++    assert (0 == a[1][0][0] && 0 == a[1][0][1]);
++    assert (0 == a[1][1][0] && '\0' == *a[1][1][1]);
++  }
++}
++
++void f_sa2_2_2 (void)
++{
++  struct S { const char a[2], *s, c; };
++
++  {
++    const struct S a[2][2][2] = {
++      { },
++      {
++        { { }, { "", "" } },
++        { }
++      }
++    };
++
++    assert ('\0' == *a[0][0][0].a && 0 == a[0][0][0].s && 0 == a[0][0][0].c);
++    assert ('\0' == *a[0][0][1].a && 0 == a[0][0][1].s && 0 == a[0][0][1].c);
++    assert ('\0' == *a[0][1][0].a && 0 == a[0][1][0].s && 0 == a[0][1][0].c);
++    assert ('\0' == *a[0][1][1].a && 0 == a[0][1][1].s && 0 == a[0][1][1].c);
++
++    assert ('\0' == *a[1][0][0].a && 0 == a[1][0][0].s && 0 == a[1][0][0].c);
++    assert ('\0' == *a[1][0][1].a && '\0' == *a[1][0][1].s && 0 == a[1][0][1].c);
++    assert ('\0' == *a[1][1][0].a && 0 == a[1][1][0].s && 0 == a[1][1][0].c);
++    assert ('\0' == *a[1][1][1].a && 0 == a[1][1][1].s && 0 == a[1][1][1].c);
++  }
++
++  {
++    const struct S a[2][2][2] = {
++      { },
++      {
++        { { } },
++        { { "", "" } }
++      }
++    };
++
++    assert ('\0' == *a[0][0][0].a && 0 == a[0][0][0].s);
++    assert ('\0' == *a[0][0][1].a && 0 == a[0][0][1].s);
++    assert ('\0' == *a[0][1][0].a && 0 == a[0][1][0].s);
++    assert ('\0' == *a[0][1][1].a && 0 == a[0][1][1].s);
++
++    assert ('\0' == *a[1][0][0].a && 0 == a[1][0][0].s);
++    assert ('\0' == *a[1][0][1].a && 0 == a[1][0][1].s);
++    assert ('\0' == *a[1][1][0].a && '\0' == *a[1][1][0].s);
++    assert ('\0' == *a[1][1][1].a && 0 == a[1][1][1].s);
++  }
++
++  {
++    const struct S a[2][2][2] = {
++      { },
++      {
++        { { }, { } },
++        { { }, { "", "", 0 } }
++      }
++    };
++
++    assert ('\0' == *a[0][0][0].a && 0 == a[0][0][0].s);
++    assert ('\0' == *a[0][0][1].a && 0 == a[0][0][1].s);
++    assert ('\0' == *a[0][1][0].a && 0 == a[0][1][0].s);
++    assert ('\0' == *a[0][1][1].a && 0 == a[0][1][1].s);
++
++    assert ('\0' == *a[1][0][0].a && 0 == a[1][0][0].s);
++    assert ('\0' == *a[1][0][1].a && 0 == a[1][0][1].s);
++    assert ('\0' == *a[1][1][0].a && 0 == a[1][1][0].s);
++    assert ('\0' == *a[1][1][1].a && '\0' == *a[1][1][1].s);
++  }
++
++  {
++    const struct S a[2][2][2] = {
++      {
++       { { { 0 }, 0, 0 }, { { 0 } , 0, 0 } },
++       { { { 0 }, 0, 0 }, { { 0 } , 0, 0 } },
++      },
++      {
++       { { { 0 }, 0, 0 }, { { 0 } , 0, 0 } },
++       { { }, { "", "", 0 } }
++      }
++    };
++
++    assert ('\0' == *a[0][0][0].a && 0 == a[0][0][0].s);
++    assert ('\0' == *a[0][0][1].a && 0 == a[0][0][1].s);
++    assert ('\0' == *a[0][1][0].a && 0 == a[0][1][0].s);
++    assert ('\0' == *a[0][1][1].a && 0 == a[0][1][1].s);
++
++    assert ('\0' == *a[1][0][0].a && 0 == a[1][0][0].s);
++    assert ('\0' == *a[1][0][1].a && 0 == a[1][0][1].s);
++    assert ('\0' == *a[1][1][0].a && 0 == a[1][1][0].s);
++    assert ('\0' == *a[1][1][1].a && '\0' == *a[1][1][1].s);
++  }
++}
++
++// { dg-final { scan-tree-dump-not "abort" "optimized" } }
+Index: gcc/cp/decl.c
+===================================================================
+--- a/src/gcc/cp/decl.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/cp/decl.c	(.../branches/gcc-9-branch)
+@@ -5836,9 +5836,10 @@
+       /* Pointers initialized to strings must be treated as non-zero
+ 	 even if the string is empty.  */
+       tree init_type = TREE_TYPE (elt_init);
+-      if ((POINTER_TYPE_P (elt_type) != POINTER_TYPE_P (init_type))
+-	  || !initializer_zerop (elt_init))
++      if ((POINTER_TYPE_P (elt_type) != POINTER_TYPE_P (init_type)))
+ 	last_nonzero = index;
++      else if (!type_initializer_zero_p (elt_type, elt_init))
++	last_nonzero = index;
+ 
+       /* This can happen with an invalid initializer (c++/54501).  */
+       if (d->cur == old_cur && !sized_array_p)
 Index: gcc/cp/ChangeLog
 ===================================================================
 --- a/src/gcc/cp/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/cp/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,26 @@
+@@ -1,3 +1,40 @@
++2019-08-14  Martin Sebor  <msebor@redhat.com>
++
++	2019-08-01  Martin Sebor  <msebor@redhat.com>
++
++	PR c++/90947
++	* decl.c (reshape_init_array_1): Avoid truncating initializer
++	lists containing string literals.
++
++2019-08-14  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR c++/91436
++	* name-lookup.c (get_std_name_hint): Fix min_dialect field for
++	complex_literals and make_unique entries.
++
 +2019-08-12  Tom Honermann  <tom@honermann.net>
 +
 +	* parser.c (cp_parser_template_declaration_after_parameters): Enable
@@ -569,6 +1460,15 @@ Index: gcc/cp/ChangeLog
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
+@@ -16,7 +53,7 @@
+ 
+ 	Backported from mainline
+ 	2019-08-02  Marek Polacek  <polacek@redhat.com>
+-	
++
+ 	PR c++/91230 - wrong error with __PRETTY_FUNCTION__ and generic lambda.
+ 	* pt.c (value_dependent_expression_p): Consider __PRETTY_FUNCTION__
+ 	inside a template function value-dependent.
 Index: gcc/cp/pt.c
 ===================================================================
 --- a/src/gcc/cp/pt.c	(.../tags/gcc_9_2_0_release)
@@ -861,6 +1761,28 @@ Index: gcc/cp/cp-tree.h
  extern bool template_parameter_pack_p           (const_tree);
  extern bool function_parameter_pack_p		(const_tree);
  extern bool function_parameter_expanded_from_pack_p (tree, tree);
+Index: gcc/cp/name-lookup.c
+===================================================================
+--- a/src/gcc/cp/name-lookup.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/cp/name-lookup.c	(.../branches/gcc-9-branch)
+@@ -5656,7 +5656,7 @@
+     {"bitset", "<bitset>", cxx11},
+     /* <complex>.  */
+     {"complex", "<complex>", cxx98},
+-    {"complex_literals", "<complex>", cxx98},
++    {"complex_literals", "<complex>", cxx14},
+     /* <condition_variable>. */
+     {"condition_variable", "<condition_variable>", cxx11},
+     {"condition_variable_any", "<condition_variable>", cxx11},
+@@ -5718,7 +5718,7 @@
+     {"multimap", "<map>", cxx98},
+     /* <memory>.  */
+     {"make_shared", "<memory>", cxx11},
+-    {"make_unique", "<memory>", cxx11},
++    {"make_unique", "<memory>", cxx14},
+     {"shared_ptr", "<memory>", cxx11},
+     {"unique_ptr", "<memory>", cxx11},
+     {"weak_ptr", "<memory>", cxx11},
 Index: gcc/lto-wrapper.c
 ===================================================================
 --- a/src/gcc/lto-wrapper.c	(.../tags/gcc_9_2_0_release)
@@ -960,11 +1882,64 @@ Index: gcc/fortran/intrinsic.c
    gfc_error ("Too many arguments in call to %qs at %L", name, where);
    return false;
  
+Index: gcc/fortran/trans-expr.c
+===================================================================
+--- a/src/gcc/fortran/trans-expr.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/fortran/trans-expr.c	(.../branches/gcc-9-branch)
+@@ -10603,7 +10603,8 @@
+       if (expr1->ts.deferred
+ 	  && gfc_expr_attr (expr1).allocatable
+ 	  && gfc_check_dependency (expr1, expr2, true))
+-	rse.string_length = gfc_evaluate_now (rse.string_length, &rse.pre);
++	rse.string_length =
++	  gfc_evaluate_now_function_scope (rse.string_length, &rse.pre);
+       string_length = rse.string_length;
+     }
+   else
 Index: gcc/fortran/ChangeLog
 ===================================================================
 --- a/src/gcc/fortran/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/fortran/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,23 @@
+@@ -1,3 +1,62 @@
++2019-08-13  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/87991
++	* resolve.c (check_data_variable): data-stmt-object with pointer
++	attribute requires a data-stmt-value with the target attribute.
++
++2013-08-13  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/90563
++	* frontend-passes.c (insert_index): Suppress errors while
++	simplifying the resulting expression.
++ 
++2019-08-13  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/88072
++	* misc.c (gfc_typename): Do not point to something that ought not to
++	be pointed at.
++
++2019-08-13  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/90561
++	* trans.h (gfc_evaluate_now_function_scope): New function.
++	* trans.c (gfc_evaluate_now_function_scope): New function.
++	* trans-expr.c (gfc_trans_assignment): Use it.
++
++2019-08-13  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/89647
++	resolve.c (resolve_typebound_procedure): Allow host associated
++	procedure to be a binding target.  While here, wrap long line.
++
++2019-08-13  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/87993
++	* expr.c (gfc_simplify_expr): Simplifcation of an array with a kind
++	type inquiry suffix yields a constant expression.
++
 +2019-08-13  Thomas Koenig  <tkoenig@gcc.gnu.org>
 +
 +	Backport from trunk
@@ -988,11 +1963,77 @@ Index: gcc/fortran/ChangeLog
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
+Index: gcc/fortran/expr.c
+===================================================================
+--- a/src/gcc/fortran/expr.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/fortran/expr.c	(.../branches/gcc-9-branch)
+@@ -2220,6 +2220,11 @@
+       if (!simplify_ref_chain (p->ref, type, &p))
+ 	return false;
+ 
++      /* If the following conditions hold, we found something like kind type
++	 inquiry of the form a(2)%kind while simplify the ref chain.  */
++      if (p->expr_type == EXPR_CONSTANT && !p->ref && !p->rank && !p->shape)
++	return true;
++
+       if (!simplify_constructor (p->value.constructor, type))
+ 	return false;
+ 
+Index: gcc/fortran/trans.c
+===================================================================
+--- a/src/gcc/fortran/trans.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/fortran/trans.c	(.../branches/gcc-9-branch)
+@@ -118,7 +118,20 @@
+   return gfc_evaluate_now_loc (input_location, expr, pblock);
+ }
+ 
++/* Like gfc_evaluate_now, but add the created variable to the
++   function scope.  */
+ 
++tree
++gfc_evaluate_now_function_scope (tree expr, stmtblock_t * pblock)
++{
++  tree var;
++  var = gfc_create_var_np (TREE_TYPE (expr), NULL);
++  gfc_add_decl_to_function (var);
++  gfc_add_modify (pblock, var, expr);
++
++  return var;
++}
++
+ /* Build a MODIFY_EXPR node and add it to a given statement block PBLOCK.
+    A MODIFY_EXPR is an assignment:
+    LHS <- RHS.  */
+Index: gcc/fortran/trans.h
+===================================================================
+--- a/src/gcc/fortran/trans.h	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/fortran/trans.h	(.../branches/gcc-9-branch)
+@@ -507,6 +507,7 @@
+ /* If the value is not constant, Create a temporary and copy the value.  */
+ tree gfc_evaluate_now_loc (location_t, tree, stmtblock_t *);
+ tree gfc_evaluate_now (tree, stmtblock_t *);
++tree gfc_evaluate_now_function_scope (tree, stmtblock_t *);
+ 
+ /* Find the appropriate variant of a math intrinsic.  */
+ tree gfc_builtin_decl_for_float_kind (enum built_in_function, int);
 Index: gcc/fortran/frontend-passes.c
 ===================================================================
 --- a/src/gcc/fortran/frontend-passes.c	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/fortran/frontend-passes.c	(.../branches/gcc-9-branch)
-@@ -2557,6 +2557,12 @@
+@@ -2519,7 +2519,12 @@
+   data.sym = sym;
+   mpz_init_set (data.val, val);
+   gfc_expr_walker (&n, callback_insert_index, (void *) &data);
++
++  /* Suppress errors here - we could get errors here such as an
++     out of bounds access for arrays, see PR 90563.  */
++  gfc_push_suppress_errors ();
+   gfc_simplify_expr (n, 0);
++  gfc_pop_suppress_errors ();
+ 
+   if (n->expr_type == EXPR_CONSTANT)
+     {
+@@ -2557,6 +2562,12 @@
    if (in_assoc_list)
      return 0;
  
@@ -1005,7 +2046,7 @@ Index: gcc/fortran/frontend-passes.c
    for (ref = v->ref; ref; ref = ref->next)
      {
        if (ref->type == REF_ARRAY && ref->u.ar.type == AR_ELEMENT)
-@@ -2609,7 +2615,6 @@
+@@ -2609,7 +2620,6 @@
  	      else
  		have_do_start = false;
  
@@ -1013,7 +2054,7 @@ Index: gcc/fortran/frontend-passes.c
  	      if (dl->ext.iterator->end->expr_type == EXPR_CONSTANT)
  		{
  		  have_do_end = true;
-@@ -2621,6 +2626,17 @@
+@@ -2621,6 +2631,17 @@
  	      if (!have_do_start && !have_do_end)
  		return 0;
  
@@ -1031,7 +2072,7 @@ Index: gcc/fortran/frontend-passes.c
  	      /* May have to correct the end value if the step does not equal
  		 one.  */
  	      if (have_do_start && have_do_end && mpz_cmp_ui (do_step, 1) != 0)
-@@ -2762,6 +2778,12 @@
+@@ -2762,6 +2783,12 @@
  doloop_warn (gfc_namespace *ns)
  {
    gfc_code_walker (&ns->code, doloop_code, do_function, NULL);
@@ -1044,6 +2085,96 @@ Index: gcc/fortran/frontend-passes.c
  }
  
  /* This selction deals with inlining calls to MATMUL.  */
+Index: gcc/fortran/resolve.c
+===================================================================
+--- a/src/gcc/fortran/resolve.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/fortran/resolve.c	(.../branches/gcc-9-branch)
+@@ -13539,6 +13539,25 @@
+     }
+   else
+     {
++      /* If proc has not been resolved at this point, proc->name may 
++	 actually be a USE associated entity. See PR fortran/89647. */
++      if (!proc->resolved
++	  && proc->attr.function == 0 && proc->attr.subroutine == 0)
++	{
++	  gfc_symbol *tmp;
++	  gfc_find_symbol (proc->name, gfc_current_ns->parent, 1, &tmp);
++	  if (tmp && tmp->attr.use_assoc)
++	    {
++	      proc->module = tmp->module;
++	      proc->attr.proc = tmp->attr.proc;
++	      proc->attr.function = tmp->attr.function;
++	      proc->attr.subroutine = tmp->attr.subroutine;
++	      proc->attr.use_assoc = tmp->attr.use_assoc;
++	      proc->ts = tmp->ts;
++	      proc->result = tmp->result;
++	    }
++	}
++
+       /* Check for F08:C465.  */
+       if ((!proc->attr.subroutine && !proc->attr.function)
+ 	  || (proc->attr.proc != PROC_MODULE
+@@ -13545,8 +13564,9 @@
+ 	      && proc->attr.if_source != IFSRC_IFBODY)
+ 	  || proc->attr.abstract)
+ 	{
+-	  gfc_error ("%qs must be a module procedure or an external procedure with"
+-		    " an explicit interface at %L", proc->name, &where);
++	  gfc_error ("%qs must be a module procedure or an external "
++		     "procedure with an explicit interface at %L",
++		     proc->name, &where);
+ 	  goto error;
+ 	}
+     }
+@@ -15662,8 +15682,6 @@
+       return false;
+     }
+ 
+-  has_pointer = sym->attr.pointer;
+-
+   if (gfc_is_coindexed (e))
+     {
+       gfc_error ("DATA element %qs at %L cannot have a coindex", sym->name,
+@@ -15671,19 +15689,30 @@
+       return false;
+     }
+ 
++  has_pointer = sym->attr.pointer;
++
+   for (ref = e->ref; ref; ref = ref->next)
+     {
+       if (ref->type == REF_COMPONENT && ref->u.c.component->attr.pointer)
+ 	has_pointer = 1;
+ 
+-      if (has_pointer
+-	    && ref->type == REF_ARRAY
+-	    && ref->u.ar.type != AR_FULL)
+-	  {
+-	    gfc_error ("DATA element %qs at %L is a pointer and so must "
+-			"be a full array", sym->name, where);
+-	    return false;
+-	  }
++      if (has_pointer)
++	{
++	  if (ref->type == REF_ARRAY && ref->u.ar.type != AR_FULL)
++	    {
++	      gfc_error ("DATA element %qs at %L is a pointer and so must "
++			 "be a full array", sym->name, where);
++	      return false;
++	    }
++
++	  if (values.vnode->expr->expr_type == EXPR_CONSTANT)
++	    {
++	      gfc_error ("DATA object near %L has the pointer attribute "
++			 "and the corresponding DATA value is not a valid "
++			 "initial-data-target", where);
++	      return false;
++	    }
++	}
+     }
+ 
+   if (e->rank == 0 || has_pointer)
 Index: gcc/fortran/trans-decl.c
 ===================================================================
 --- a/src/gcc/fortran/trans-decl.c	(.../tags/gcc_9_2_0_release)
@@ -1084,6 +2215,30 @@ Index: gcc/fortran/check.c
  bool
  gfc_check_allocated (gfc_expr *array)
  {
+Index: gcc/fortran/misc.c
+===================================================================
+--- a/src/gcc/fortran/misc.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/fortran/misc.c	(.../branches/gcc-9-branch)
+@@ -125,6 +125,7 @@
+   static char buffer2[GFC_MAX_SYMBOL_LEN + 7];
+   static int flag = 0;
+   char *buffer;
++  gfc_typespec *ts1;
+ 
+   buffer = flag ? buffer1 : buffer2;
+   flag = !flag;
+@@ -156,9 +157,8 @@
+       sprintf (buffer, "TYPE(%s)", ts->u.derived->name);
+       break;
+     case BT_CLASS:
+-      if (ts->u.derived->components)
+-	ts = &ts->u.derived->components->ts;
+-      if (ts->u.derived->attr.unlimited_polymorphic)
++      ts1 = ts->u.derived->components ? &ts->u.derived->components->ts : NULL;
++      if (ts1 && ts1->u.derived && ts1->u.derived->attr.unlimited_polymorphic)
+ 	sprintf (buffer, "CLASS(*)");
+       else
+ 	sprintf (buffer, "CLASS(%s)", ts->u.derived->name);
 Index: gcc/BASE-VER
 ===================================================================
 --- a/src/gcc/BASE-VER	(.../tags/gcc_9_2_0_release)
