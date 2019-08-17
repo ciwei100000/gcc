@@ -1,10 +1,10 @@
-# DP: updates from the 8 branch upto 20190709 (r273305).
+# DP: updates from the 8 branch upto 20190817 (r274599).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Tue Jul  9 15:26:27 CEST 2019
-Tue Jul  9 13:26:27 UTC 2019 (revision 273305)
+Sat Aug 17 10:58:23 CEST 2019
+Sat Aug 17 08:58:23 UTC 2019 (revision 274599)
 EOF
 }
 
@@ -4451,6 +4451,67 @@ Index: include/longlong.h
  
  #define __umulsidi3(u,v) ((UDItype)(USItype)u*(USItype)v)
  #ifdef __ARC_NORM__
+Index: libiberty/simple-object-elf.c
+===================================================================
+--- a/src/libiberty/simple-object-elf.c	(.../tags/gcc_8_3_0_release)
++++ b/src/libiberty/simple-object-elf.c	(.../branches/gcc-8-branch)
+@@ -549,6 +549,14 @@
+       return NULL;
+     }
+ 
++  if (eor->shstrndx == 0)
++    {
++      *errmsg = "invalid ELF shstrndx == 0";
++      *err = 0;
++      XDELETE (eor);
++      return NULL;
++    }
++
+   return (void *) eor;
+ }
+ 
+Index: libiberty/ChangeLog
+===================================================================
+--- a/src/libiberty/ChangeLog	(.../tags/gcc_8_3_0_release)
++++ b/src/libiberty/ChangeLog	(.../branches/gcc-8-branch)
+@@ -1,3 +1,12 @@
++2019-07-25  Richard Biener  <rguenther@suse.de>
++
++	PR lto/90924
++	Backport from mainline
++	2019-07-12  Ren Kimura  <rkx1209dev@gmail.com>
++
++	* simple-object-elf.c (simple_object_elf_match): Check zero value
++	shstrndx.
++
+ 2019-02-22  Release Manager
+ 
+ 	* GCC 8.3.0 released.
+Index: contrib/ChangeLog
+===================================================================
+--- a/src/contrib/ChangeLog	(.../tags/gcc_8_3_0_release)
++++ b/src/contrib/ChangeLog	(.../branches/gcc-8-branch)
+@@ -1,3 +1,7 @@
++2019-08-16  Uros Bizjak  <ubizjak@gmail.com>
++
++	* test_summary: Do not escape "=".
++
+ 2019-02-22  Release Manager
+ 
+ 	* GCC 8.3.0 released.
+Index: contrib/test_summary
+===================================================================
+--- a/src/contrib/test_summary	(.../tags/gcc_8_3_0_release)
++++ b/src/contrib/test_summary	(.../branches/gcc-8-branch)
+@@ -127,7 +127,7 @@
+   if (lang == "") lang = " "$2" "; else lang = " ";
+ }
+ $2 == "version" { save = $0; $1 = ""; $2 = ""; version = $0; gsub(/^ */, "", version); gsub(/\r$/, "", version); $0 = save; }
+-/\===.*Summary/ { print ""; print; blanks=1; }
++/===.*Summary/ { print ""; print; blanks=1; }
+ /tests ===/ || /^(Target|Host|Native)/ || $2 == "version" { print; blanks=1; }
+ /^(XPASS|FAIL|UNRESOLVED|WARNING|ERROR|# of )/ { sub ("\r", ""); print; }
+ /^using:/ { print ""; print; print ""; }
 Index: libatomic/ChangeLog
 ===================================================================
 --- a/src/libatomic/ChangeLog	(.../tags/gcc_8_3_0_release)
@@ -4549,6 +4610,41 @@ Index: libatomic/config/x86/host-config.h
  #endif
  
  #ifdef __x86_64__
+Index: libgcc/ChangeLog
+===================================================================
+--- a/src/libgcc/ChangeLog	(.../tags/gcc_8_3_0_release)
++++ b/src/libgcc/ChangeLog	(.../branches/gcc-8-branch)
+@@ -1,3 +1,10 @@
++2019-08-11  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backport from mainline.
++	2019-05-12  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* config/rs6000/darwin-vecsave.S: Set .machine appropriately.
++
+ 2019-02-22  Release Manager
+ 
+ 	* GCC 8.3.0 released.
+Index: libgcc/config/rs6000/darwin-vecsave.S
+===================================================================
+--- a/src/libgcc/config/rs6000/darwin-vecsave.S	(.../tags/gcc_8_3_0_release)
++++ b/src/libgcc/config/rs6000/darwin-vecsave.S	(.../branches/gcc-8-branch)
+@@ -31,8 +31,14 @@
+    (4 bytes) to do the operation; for Vector regs, 2 instructions are
+    required (8 bytes.).   */
+ 
++/* With some assemblers, we need the correct machine directive to get the
++   right CPU type / subtype in the file header.  */
++#if	__ppc64__
++	.machine ppc64
++#else
+ 	.machine ppc7400
+-.text
++#endif
++	.text
+ 	.align 2
+ 
+ .private_extern saveVEC
 Index: gcc/attribs.c
 ===================================================================
 --- a/src/gcc/attribs.c	(.../tags/gcc_8_3_0_release)
@@ -4567,6 +4663,45 @@ Index: gcc/attribs.c
  	}
  
        if (*no_add_attrs == false)
+Index: gcc/opts-common.c
+===================================================================
+--- a/src/gcc/opts-common.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/opts-common.c	(.../branches/gcc-8-branch)
+@@ -463,7 +463,8 @@
+ 
+   extra_args = 0;
+ 
+-  opt_index = find_opt (argv[0] + 1, lang_mask);
++  const char *opt_value = argv[0] + 1;
++  opt_index = find_opt (opt_value, lang_mask);
+   i = 0;
+   while (opt_index == OPT_SPECIAL_unknown
+ 	 && i < ARRAY_SIZE (option_map))
+@@ -666,7 +667,24 @@
+   /* Check if this is a switch for a different front end.  */
+   if (!option_ok_for_language (option, lang_mask))
+     errors |= CL_ERR_WRONG_LANG;
++  else if (strcmp (option->opt_text, "-Werror=") == 0
++	   && strchr (opt_value, ',') == NULL)
++    {
++      /* Verify that -Werror argument is a valid warning
++	 for a language.  */
++      char *werror_arg = xstrdup (opt_value + 6);
++      werror_arg[0] = 'W';
+ 
++      size_t warning_index = find_opt (werror_arg, lang_mask);
++      if (warning_index != OPT_SPECIAL_unknown)
++	{
++	  const struct cl_option *warning_option
++	    = &cl_options[warning_index];
++	  if (!option_ok_for_language (warning_option, lang_mask))
++	    errors |= CL_ERR_WRONG_LANG;
++	}
++    }
++
+   /* Convert the argument to lowercase if appropriate.  */
+   if (arg && option->cl_tolower)
+     {
 Index: gcc/c-family/ChangeLog
 ===================================================================
 --- a/src/gcc/c-family/ChangeLog	(.../tags/gcc_8_3_0_release)
@@ -4680,7 +4815,16 @@ Index: gcc/c/ChangeLog
 ===================================================================
 --- a/src/gcc/c/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/c/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,26 @@
+@@ -1,3 +1,35 @@
++2019-07-21  Richard Sandiford  <richard.sandiford@arm.com>
++
++	Backport from mainline
++	2019-07-18  Richard Sandiford  <richard.sandiford@arm.com>
++
++	PR c/53633
++	* c-decl.c (finish_function): Check targetm.warn_func_return
++	before issuing a -Wreturn-type warning.
++
 +2019-04-30  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from mainline
@@ -4777,6 +4921,16 @@ Index: gcc/c/c-decl.c
  	      }
  	    type_quals = TYPE_UNQUALIFIED;
  
+@@ -9485,7 +9506,8 @@
+       && !C_FUNCTION_IMPLICIT_INT (fndecl)
+       /* Normally, with -Wreturn-type, flow will complain, but we might
+          optimize out static functions.  */
+-      && !TREE_PUBLIC (fndecl))
++      && !TREE_PUBLIC (fndecl)
++      && targetm.warn_func_return (fndecl))
+     {
+       warning (OPT_Wreturn_type,
+ 	       "no return statement in function returning non-void");
 Index: gcc/cgraph.c
 ===================================================================
 --- a/src/gcc/cgraph.c	(.../tags/gcc_8_3_0_release)
@@ -4907,7 +5061,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-8-branch)
 @@ -1 +1 @@
 -20190222
-+20190709
++20190817
 Index: gcc/tree-ssa-loop-ch.c
 ===================================================================
 --- a/src/gcc/tree-ssa-loop-ch.c	(.../tags/gcc_8_3_0_release)
@@ -4947,6 +5101,31 @@ Index: gcc/tree-ssa-loop-ch.c
  			gimple_set_no_warning (stmt, true);
  		    }
  		}
+Index: gcc/tree-tailcall.c
+===================================================================
+--- a/src/gcc/tree-tailcall.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/tree-tailcall.c	(.../branches/gcc-8-branch)
+@@ -37,6 +37,7 @@
+ #include "tree-into-ssa.h"
+ #include "tree-dfa.h"
+ #include "except.h"
++#include "tree-eh.h"
+ #include "dbgcnt.h"
+ #include "cfgloop.h"
+ #include "common/common-target.h"
+@@ -472,6 +473,12 @@
+       && !auto_var_in_fn_p (ass_var, cfun->decl))
+     return;
+ 
++  /* If the call might throw an exception that wouldn't propagate out of
++     cfun, we can't transform to a tail or sibling call (82081).  */
++  if (stmt_could_throw_p (stmt)
++      && !stmt_can_throw_external (stmt))
++    return;
++
+   /* We found the call, check whether it is suitable.  */
+   tail_recursion = false;
+   func = gimple_call_fndecl (call);
 Index: gcc/tree-ssa-strlen.c
 ===================================================================
 --- a/src/gcc/tree-ssa-strlen.c	(.../tags/gcc_8_3_0_release)
@@ -5291,6 +5470,45 @@ Index: gcc/fold-const.c
        && !flag_sanitize_coverage
        && (code == TRUTH_AND_EXPR
            || code == TRUTH_ANDIF_EXPR
+@@ -13994,13 +14010,13 @@
+ 	    {
+ 	      tree elem0 = VECTOR_CST_ELT (op0, i);
+ 	      tree elem1 = VECTOR_CST_ELT (op1, i);
+-	      tree tmp = fold_relational_const (code, type, elem0, elem1);
++	      tree tmp = fold_relational_const (EQ_EXPR, type, elem0, elem1);
+ 	      if (tmp == NULL_TREE)
+ 		return NULL_TREE;
+ 	      if (integer_zerop (tmp))
+-		return constant_boolean_node (false, type);
++		return constant_boolean_node (code == NE_EXPR, type);
+ 	    }
+-	  return constant_boolean_node (true, type);
++	  return constant_boolean_node (code == EQ_EXPR, type);
+ 	}
+       tree_vector_builder elts;
+       if (!elts.new_binary_operation (type, op0, op1, false))
+@@ -14671,6 +14687,7 @@
+   tree type = build_vector_type (inner_type, 4);
+   tree zero = build_zero_cst (type);
+   tree one = build_one_cst (type);
++  tree index = build_index_vector (type, 0, 1);
+ 
+   /* Verify equality tests that return a scalar boolean result.  */
+   tree res_type = boolean_type_node;
+@@ -14678,6 +14695,13 @@
+   ASSERT_TRUE (integer_nonzerop (fold_build2 (EQ_EXPR, res_type, zero, zero)));
+   ASSERT_TRUE (integer_nonzerop (fold_build2 (NE_EXPR, res_type, zero, one)));
+   ASSERT_FALSE (integer_nonzerop (fold_build2 (NE_EXPR, res_type, one, one)));
++  ASSERT_TRUE (integer_nonzerop (fold_build2 (NE_EXPR, res_type, index, one)));
++  ASSERT_FALSE (integer_nonzerop (fold_build2 (EQ_EXPR, res_type,
++					       index, one)));
++  ASSERT_FALSE (integer_nonzerop (fold_build2 (NE_EXPR, res_type,
++					      index, index)));
++  ASSERT_TRUE (integer_nonzerop (fold_build2 (EQ_EXPR, res_type,
++					      index, index)));
+ }
+ 
+ /* Verify folding of VEC_DUPLICATE_EXPRs.  */
 Index: gcc/gimple-ssa-sprintf.c
 ===================================================================
 --- a/src/gcc/gimple-ssa-sprintf.c	(.../tags/gcc_8_3_0_release)
@@ -5564,7 +5782,125 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,1112 @@
+@@ -1,3 +1,1234 @@
++2019-08-16  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backport from mainline
++	2019-04-21  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* config/rs6000/rs6000.md (group_end_nop): Emit insn register
++	names using operand format, rather than hard-wired.
++	(speculation_barrier): Likewise.
++
++2019-08-14  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backport from mainline
++	2018-08-22 Iain Sandoe <iain@sandoe.co.uk>
++
++	* config/darwin.h (LINK_COMMAND_SPEC_A): Update lto options
++	to match gcc/gcc.c.
++
++2019-08-05  Kito Cheng  <kito.cheng@sifive.com>
++
++	Backport from mainline
++	2019-08-05  Kito Cheng  <kito.cheng@sifive.com>
++
++	* config/riscv/riscv.c (riscv_promote_function_mode): New.
++	(TARGET_PROMOTE_FUNCTION_MODE): Use riscv_promote_function_mode.
++
++2019-08-04  Segher Boessenkool  <segher@kernel.crashing.org>
++
++	Backport from trunk
++	2019-05-02  Segher Boessenkool  <segher@kernel.crashing.org>
++
++	* config/rs6000/rs6000.c (rs6000_dbx_register_number): Return the
++	correct numbers for TFHAR, TFIAR, TEXASR.
++
++2019-07-23  Matthew Beliveau  <mbelivea@redhat.com>
++	
++	Backported from mainline
++	2019-07-16  Jeff Law  <law@redhat.com>
++	
++	PR rtl-optimization/91173
++	* tree-ssa-address.c (addr_for_mem_ref): If the base is an
++	SSA_NAME with a constant value, fold its value into the offset
++	and clear the base before calling gen_addr_rtx.
++	* g++.dg/pr91173.C: New test.
++
++2019-07-23  Richard Biener  <rguenther@suse.de>
++
++	PR debug/91231
++	* lto-streamer-in.c (input_function): Drop inline-entry markers
++	that ended up with an unknown location block.
++
++2019-07-22  Martin Liska  <mliska@suse.cz>
++
++	Backport from mainline
++	2019-07-22  Martin Liska  <mliska@suse.cz>
++
++	PR driver/91172
++	* opts-common.c (decode_cmdline_option): Decode
++	argument of -Werror and check it for a wrong language.
++	* opts-global.c (complain_wrong_lang): Remove such case.
++
++2019-07-21  Richard Sandiford  <richard.sandiford@arm.com>
++
++	Backport from mainline
++	2019-07-10  Richard Sandiford  <richard.sandiford@arm.com>
++
++	* fold-const.c (fold_relational_const): Fix folding of
++	vector-to-scalar NE_EXPRs.
++	(test_vector_folding): Add more tests.
++
++2019-07-19  Jason Merrill  <jason@redhat.com>
++
++	PR c++/82081 - tail call optimization breaks noexcept
++	* tree-tailcall.c (find_tail_calls): Don't turn a call from a
++	nothrow function to a might-throw function into a tail call.
++
++2019-07-16  Wilco Dijkstra  <wdijkstr@arm.com>
++
++	Backport from mainline
++	PR target/89222
++	* config/arm/arm.md (movsi): Use targetm.cannot_force_const_mem
++	to decide when to split off a non-zero offset from a symbol.
++	* config/arm/arm.c (arm_cannot_force_const_mem): Disallow offsets
++	in function symbols.
++
++2019-07-16  Wilco Dijkstra  <wdijkstr@arm.com>
++
++	Backport from mainline
++	2019-02-13  Wilco Dijkstra  <wdijkstr@arm.com>
++	PR target/89190
++	* config/arm/arm.c (ldm_stm_operation_p) Set
++	addr_reg_in_reglist correctly for first register.
++	(load_multiple_sequence): Remove dead base check.
++	(gen_ldm_seq): Correctly set write_back for Thumb-1.
++
++2019-07-15  Andreas Krebbel  <krebbel@linux.ibm.com>
++
++	Backport from mainline
++	2019-07-01  Andreas Krebbel  <krebbel@linux.ibm.com>
++
++	* config/s390/vector.md: Fix shift count operand printing.
++
++2019-07-15  Wilco Dijkstra  <wdijkstr@arm.com>
++
++	Backport from mainline
++	2019-01-23  Bin Cheng  <bin.cheng@arm.com>
++		    Steve Ellcey  <sellcey@marvell.com>
++
++	PR target/85711
++	* recog.c (address_operand): Return false on wrong mode for address.
++	(constrain_operands): Check for mode with 'p' constraint.
++
++2019-07-12  Eric Botcazou  <ebotcazou@adacore.com>
++
++	PR rtl-optimization/91136
++	* df-core.c (ACCESSING REFS): Fix typos in comment.
++	* resource.c (mark_target_live_reg): Add artificial defs that occur at
++	the beginning of the block to the initial set of live registers.
++
 +2019-07-04  Martin Liska  <mliska@suse.cz>
 +
 +	Backport from mainline
@@ -6674,10 +7010,14 @@ Index: gcc/ChangeLog
 +	output reg on add insn.
 +	(<bd>tf_<mode> split): Likewise.  Match predicates with insn.
 +
++2019-02-22  Jakub Jelinek  <jakub@redhat.com>
++
++	* BASE-VER: Set to 8.3.1.
++
  2019-02-22  Release Manager
  
  	* GCC 8.3.0 released.
-@@ -568,7 +1681,7 @@
+@@ -568,7 +1799,7 @@
  
  	Backport from mainline
  	2018-11-20  Richard Biener  <rguenther@suse.de>
@@ -14914,6 +15254,43 @@ Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-19a.c
 +
 +  return 0;
 +}
+Index: gcc/testsuite/gcc.target/arm/pr89222.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/arm/pr89222.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/arm/pr89222.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,32 @@
++/* { dg-do compile } */
++/* { dg-options "-O2" } */
++
++void g (void);
++
++void f1 (int x)
++{
++  if (x != (int) g + 3)
++    return;
++  g();
++}
++
++void (*a2)(void);
++
++void f2 (void)
++{
++  a2 = &g + 3;
++}
++
++typedef void (*__sighandler_t)(int);
++void handler (int);
++
++void f3 (int x)
++{
++  __sighandler_t h = &handler;
++  if (h != (__sighandler_t) 2 && h != (__sighandler_t) 1)
++    h (x);
++}
++
++/* { dg-final { scan-assembler-times {add(?:s)?\tr[0-9]+, r[0-9]+, #3} 2 } } */
++/* { dg-final { scan-assembler-not {.word\tg\+3} } } */
++/* { dg-final { scan-assembler-not {.word\thandler-1} } } */
 Index: gcc/testsuite/gcc.target/arm/f16_f64_conv_no_dp.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/arm/f16_f64_conv_no_dp.c	(.../tags/gcc_8_3_0_release)
@@ -14934,6 +15311,26 @@ Index: gcc/testsuite/gcc.target/arm/f16_f64_conv_no_dp.c
 +double bar (__fp16 a)
 +{
 +  return a;
++}
+Index: gcc/testsuite/gcc.target/arm/pr89190.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/arm/pr89190.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/arm/pr89190.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,15 @@
++/* { dg-do compile } */
++/* { dg-require-effective-target arm_arch_v8m_base_ok } */
++/* { dg-options "-O2" } */
++/* { dg-add-options arm_arch_v8m_base } */
++
++long long a;
++int b, c;
++int d(int e, int f) { return e << f; }
++void g() {
++  long long h;
++  char i = d(b >= 7, 2);
++  c = i == 0 ?: 1 / i;
++  h = c && a ?: c + a;
++  b = h;
 +}
 Index: gcc/testsuite/gcc.target/alpha/pr86984.c
 ===================================================================
@@ -15206,6 +15603,35 @@ Index: gcc/testsuite/gcc.target/s390/zvector/xl-xst-align-2.c
 +
 +/* { dg-final { scan-assembler-times "vl\t%v\[0-9\]*,0\\(%r2\\),3" 4 } } */
 +/* { dg-final { scan-assembler-times "vst\t%v\[0-9\]*,0\\(%r2\\),3" 2 } } */
+Index: gcc/testsuite/gcc.target/s390/vector/vec-shift-2.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/s390/vector/vec-shift-2.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/s390/vector/vec-shift-2.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,24 @@
++/* { dg-do run } */
++/* { dg-options "-O3 -mzarch -march=z13 --save-temps" } */
++
++/* { dg-final { scan-assembler-times "veslf" 1 } } */
++
++typedef __attribute__((vector_size(16))) signed int v4si;
++
++v4si __attribute__((noinline,noclone))
++shift_left_by_scalar (v4si in, int shift_count)
++{
++  return in << (3 + shift_count);
++}
++
++int
++main ()
++{
++  v4si a = { 1, 2, 3, 4 };
++  v4si result = shift_left_by_scalar (a, 1);
++
++  if (result[1] != 32)
++    __builtin_abort ();
++
++  return 0;
++}
 Index: gcc/testsuite/gcc.target/mips/dwarfregtable-3.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/mips/dwarfregtable-3.c	(.../tags/gcc_8_3_0_release)
@@ -15485,6 +15911,48 @@ Index: gcc/testsuite/gcc.target/mips/dwarfregtable-2.c
 +/* { dg-options "-mabi=32 -mfpxx" } */
 +
 +#include "dwarfregtable.h"
+Index: gcc/testsuite/gcc.target/riscv/promote-type-for-libcall.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/riscv/promote-type-for-libcall.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/riscv/promote-type-for-libcall.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,37 @@
++/* { dg-do run } */
++/* { dg-options "-O1 -ftree-slp-vectorize -funroll-loops" } */
++
++#include <stdio.h>
++#include <stdlib.h>
++#define N 4
++volatile float f[N];
++int x[N] __attribute__((aligned(8)));
++int main() {
++  int i;
++  x[0] = -1;
++  x[1] = 2;
++  x[2] = -2;
++  x[3] = 2;
++
++  for (i=0;i<N;++i){
++    f[i] = x[i];
++  }
++
++  if (f[0] != -1.0f) {
++    abort();
++  }
++
++  if (f[1] != 2.0f) {
++    abort();
++  }
++
++  if (f[2] != -2.0f) {
++    abort();
++  }
++
++  if (f[3] != 2.0f) {
++    abort();
++  }
++
++  return 0;
++}
 Index: gcc/testsuite/gcc.target/aarch64/options_set_9.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/aarch64/options_set_9.c	(.../tags/gcc_8_3_0_release)
@@ -18206,6 +18674,49 @@ Index: gcc/testsuite/gfortran.dg/entry_22.f90
 +  entry bar(i)
 +  entry baz(r)
 +end subroutine foo
+Index: gcc/testsuite/gfortran.dg/proc_ptr_51.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/proc_ptr_51.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/proc_ptr_51.f90	(.../branches/gcc-8-branch)
+@@ -0,0 +1,38 @@
++! { dg-do run }
++!
++! Test the fix for PR90786.
++!
++! Contributed by Andrew benson  <abensonca@gmail.com>
++!
++module f
++procedure(c), pointer :: c_
++
++ type :: s
++   integer :: i = 42
++ end type s
++ class(s), pointer :: res, tgt
++
++contains
++
++ function c()
++   implicit none
++   class(s), pointer ::  c
++   c => tgt
++   return
++ end function c
++
++ subroutine fs()
++   implicit none
++   c_ => c  ! This used to ICE
++   return
++ end subroutine fs
++
++end module f
++
++  use f
++  allocate (tgt, source = s(99))
++  call fs()
++  res => c_()
++  if (res%i .ne. 99) stop 1
++  deallocate (tgt)
++end
 Index: gcc/testsuite/gfortran.dg/dependency_53.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/dependency_53.f90	(.../tags/gcc_8_3_0_release)
@@ -18776,6 +19287,31 @@ Index: gcc/testsuite/gfortran.dg/deferred_character_32.f90
 +   if (any (z .ne. ['abcd', 'bcde'])) stop 1
 +   deallocate (z)
 +end
+Index: gcc/testsuite/gfortran.dg/do_subscript_5.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/do_subscript_5.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/do_subscript_5.f90	(.../branches/gcc-8-branch)
+@@ -0,0 +1,20 @@
++! { dg-do compile }
++! { dg-additional-options "-Wdo-subscript" }
++! PR 90563 - this used to be rejected, wrongly
++! Original test case by Tobias Neumann
++program test
++      implicit none
++      integer, parameter :: swap(4) = [2,1,3,4]
++      real :: p(20)
++      integer :: j
++
++      p = 0.0
++
++      ! The following warnings are actually bogus, but we are not yet
++      ! clever enough to suppress them.
++      do j=1,6 ! { dg-warning "out of bounds" }
++          if (j<5) then
++              p(j) = p(swap(j)) ! { dg-warning "out of bounds" }
++          endif
++      enddo
++end program
 Index: gcc/testsuite/gfortran.dg/dg.exp
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/dg.exp	(.../tags/gcc_8_3_0_release)
@@ -19351,6 +19887,19 @@ Index: gcc/testsuite/gcc.c-torture/execute/pr90949.c
 +  node->child = 0;
 +  walk (node, 1);
 +}
+Index: gcc/testsuite/gcc.c-torture/execute/builtins/builtins.exp
+===================================================================
+--- a/src/gcc/testsuite/gcc.c-torture/execute/builtins/builtins.exp	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.c-torture/execute/builtins/builtins.exp	(.../branches/gcc-8-branch)
+@@ -37,7 +37,7 @@
+ torture-init
+ set-torture-options $C_TORTURE_OPTIONS {{}} $LTO_TORTURE_OPTIONS
+ 
+-set additional_flags "-fno-tree-loop-distribute-patterns -fno-tracer"
++set additional_flags "-fno-tree-loop-distribute-patterns -fno-tracer -fno-ipa-ra"
+ if [istarget "powerpc-*-darwin*"] {
+    lappend additional_flags "-Wl,-multiply_defined,suppress"
+ }
 Index: gcc/testsuite/gcc.c-torture/compile/pr89703-2.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.c-torture/compile/pr89703-2.c	(.../tags/gcc_8_3_0_release)
@@ -20986,7 +21535,86 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,1091 @@
+@@ -1,3 +1,1170 @@
++2019-08-15  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backport from mainline.
++	2019-08-14  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR c++/91436
++	* g++.dg/lookup/missing-std-include-5.C: Limit test to C++14 and up.
++	* g++.dg/lookup/missing-std-include-6.C: Don't check make_unique in
++	test that runs for C++11.
++	* g++.dg/lookup/missing-std-include-8.C: Check make_unique here.
++
++2019-08-14  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backport from mainline.
++	2019-05-02  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* g++.dg/ext/instantiate2.C: Remove special-casing for Darwin.
++
++2013-08-13  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/90563
++	* gfortran.dg/do_subscript_5.f90: New test.
++
++2019-08-05  Kito Cheng  <kito.cheng@sifive.com>
++
++	Backport from mainline
++	2019-08-05  Kito Cheng  <kito.cheng@sifive.com>
++
++	* gcc.target/riscv/promote-type-for-libcall.c: New.
++
++2019-08-02  Thomas Koenig  <tkoenig@gcc.gnu.org>
++	Paul Thomas <pault@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/90786
++	PR fortran/90813
++	* gfortran.dg/proc_ptr_51.f90: New test.
++
++2019-07-22  Martin Liska  <mliska@suse.cz>
++
++	Backport from mainline
++	2019-07-22  Martin Liska  <mliska@suse.cz>
++
++	PR driver/91172
++	* gcc.dg/pr91172.c: New test.
++
++2019-07-21  Richard Sandiford  <richard.sandiford@arm.com>
++
++	Backport from mainline
++	2019-07-18  Richard Sandiford  <richard.sandiford@arm.com>
++
++	* c-c++-common/pr53633-2.c: New test.
++
++2019-07-16  Wilco Dijkstra  <wdijkstr@arm.com>
++
++	Backport from mainline
++	PR target/89222
++	* gcc.target/arm/pr89222.c: Add new test.
++
++2019-07-16  Wilco Dijkstra  <wdijkstr@arm.com>
++
++	Backport from mainline
++	2019-02-04  Wilco Dijkstra  <wdijkstr@arm.com>
++	PR target/89190
++	* gcc.target/arm/pr89190.c: New test.
++
++2019-07-15  Andreas Krebbel  <krebbel@linux.ibm.com>
++
++	Backport from mainline
++	2019-07-01  Andreas Krebbel  <krebbel@linux.ibm.com>
++
++	* gcc.target/s390/vector/vec-shift-2.c: New test.
++
++2019-07-12  Wilco Dijkstra  <wdijkstr@arm.com>
++
++	PR testsuite/78529
++	* gcc.c-torture/execute/builtins/builtins.exp: Add -fno-ipa-ra.
++
 +2019-07-07  Paul Thomas  <pault@gcc.gnu.org>
 +
 +	Backport from trunk
@@ -22101,6 +22729,54 @@ Index: gcc/testsuite/g++.dg/ubsan/vptr-14.C
 +  S a;
 +  foo (&a, 0);
 +}
+Index: gcc/testsuite/g++.dg/lookup/missing-std-include-8.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/lookup/missing-std-include-8.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/lookup/missing-std-include-8.C	(.../branches/gcc-8-branch)
+@@ -13,6 +13,15 @@
+   // { dg-error "expected primary-expression before '\\)' token" "" { target *-*-* } .-3 }
+ }
+ 
++template<class T>
++void test_make_unique ()
++{
++  std::make_unique<T>(); // { dg-error "'make_unique' is not a member of 'std'" }
++  // { dg-message "'std::make_unique' is only available from C\\+\\+14 onwards" "" { target *-*-* } .-1 }
++  // { dg-error "expected primary-expression before '>' token" "" { target *-*-* } .-2 }
++  // { dg-error "expected primary-expression before '\\)' token" "" { target *-*-* } .-3 }
++}
++
+ void test_array ()
+ {
+   std::array a; // { dg-error "'array' is not a member of 'std'" }
+Index: gcc/testsuite/g++.dg/lookup/missing-std-include-5.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/lookup/missing-std-include-5.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/lookup/missing-std-include-5.C	(.../branches/gcc-8-branch)
+@@ -1,2 +1,3 @@
++// { dg-do compile { target c++14 } }
+ using namespace std::complex_literals; // { dg-error "" }
+ // { dg-message "#include <complex>" "" { target *-*-* } .-1 }
+Index: gcc/testsuite/g++.dg/lookup/missing-std-include-6.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/lookup/missing-std-include-6.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/lookup/missing-std-include-6.C	(.../branches/gcc-8-branch)
+@@ -11,15 +11,6 @@
+   // { dg-error "expected primary-expression before '\\)' token" "" { target *-*-* } .-3 }
+ }
+ 
+-template<class T>
+-void test_make_unique ()
+-{
+-  auto p = std::make_unique<T>(); // { dg-error "'make_unique' is not a member of 'std'" }
+-  // { dg-message "'#include <memory>'" "" { target *-*-* } .-1 }
+-  // { dg-error "expected primary-expression before '>' token" "" { target *-*-* } .-2 }
+-  // { dg-error "expected primary-expression before '\\)' token" "" { target *-*-* } .-3 }
+-}
+-
+ std::shared_ptr<int> test_shared_ptr; // { dg-error "'shared_ptr' in namespace 'std' does not name a template type" }
+ // { dg-message "'#include <memory>'" "" { target *-*-* } .-1 }
+ 
 Index: gcc/testsuite/g++.dg/warn/conv5.C
 ===================================================================
 --- a/src/gcc/testsuite/g++.dg/warn/conv5.C	(.../tags/gcc_8_3_0_release)
@@ -22234,6 +22910,56 @@ Index: gcc/testsuite/g++.dg/tree-prof/devirt.C
 +/* { dg-final-use-not-autofdo { scan-tree-dump-times "folding virtual function call to virtual unsigned int mozPersonalDictionary::_ZThn16" 1 "tracer" { target { lp64 || llp64 } } } } */
 +/* { dg-final-use-not-autofdo { scan-tree-dump-times "folding virtual function call to virtual unsigned int mozPersonalDictionary::_ZThn8" 1 "tracer" { target ilp32 } } } */
 +/* { dg-final-use-not-autofdo { scan-tree-dump-times "folding virtual function call to virtual unsigned int mozPersonalDictionary::AddRef" 1 "tracer" } } */
+Index: gcc/testsuite/g++.dg/pr91173.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/pr91173.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/pr91173.C	(.../branches/gcc-8-branch)
+@@ -0,0 +1,45 @@
++class a {
++  int b;
++  void *c;
++
++public:
++  bool aa();
++  int &ab() {
++    if (aa()) {
++      void *d(c);
++      return static_cast<int *>(d)[b];
++    }
++    return *(int *)0;
++  }
++};
++typedef enum {E} e;
++class f : public a {
++  int g;
++
++public:
++  int ac() {
++    if (g)
++      return 1;
++    return ac();
++  }
++};
++int *ad;
++struct h {
++  static int ae(e, int *m) {
++    f ag;
++    int *ah;
++    while (!0) {
++      ad = &ag.ab();
++      ah = ad + ag.ac();
++      while (ad < ah)
++        *m = *ad++;
++    }
++  }
++};
++template <class, class>
++void i(int *, int *, int, int *, e n, int *o) {
++  h::ae(n, o);
++}
++int aq, ar, as, at, au;
++void aw() { i<int, bool>(&aq, &ar, as, &at, (e)0, &au); }
++
 Index: gcc/testsuite/g++.dg/asm-qual-3.C
 ===================================================================
 --- a/src/gcc/testsuite/g++.dg/asm-qual-3.C	(.../tags/gcc_8_3_0_release)
@@ -23004,6 +23730,27 @@ Index: gcc/testsuite/g++.dg/cpp1z/class-deduction64.C
 +  template <typename> static int foo();
 +  bool b = foo<int>();
 +};
+Index: gcc/testsuite/g++.dg/cpp1z/class-deduction58.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp1z/class-deduction58.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp1z/class-deduction58.C	(.../branches/gcc-8-branch)
+@@ -0,0 +1,16 @@
++// PR c++/86098
++// { dg-additional-options -std=c++17 }
++
++template <class _Res> class future;
++template <class T> T&& declval();
++
++template<template <class...> class T>
++struct construct_deduced {
++  template <class... AN>
++  using deduced_t = decltype(T{declval<AN>()...});
++  template<class... AN>
++  deduced_t<AN...> operator()(AN&&... an) const;
++};
++
++template<class T>
++future<T> future_from(T singleSender);
 Index: gcc/testsuite/g++.dg/cpp1z/fold-lambda3.C
 ===================================================================
 --- a/src/gcc/testsuite/g++.dg/cpp1z/fold-lambda3.C	(.../tags/gcc_8_3_0_release)
@@ -23075,6 +23822,20 @@ Index: gcc/testsuite/g++.dg/ext/90532.C
 +static_assert( !__is_trivially_constructible(B[], const B[]), "" );
 +static_assert( !__is_trivially_constructible(B[], B(&)[]), "" );
 +static_assert( !__is_trivially_constructible(B[], void), "" );
+Index: gcc/testsuite/g++.dg/ext/instantiate2.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/ext/instantiate2.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/ext/instantiate2.C	(.../branches/gcc-8-branch)
+@@ -8,8 +8,7 @@
+ template <class T> T A<T>::t = 0;
+ static template struct A<int>;
+ 
+-// { dg-final { scan-assembler "\n_?_ZN1AIiE1tE(:|\n|\t)" { target { ! *-*-darwin* } } } }
+-// { dg-final { scan-assembler ".zerofill __DATA,__pu_bss2,__ZN1AIiE1tE" { target *-*-darwin* } } } 
++// { dg-final { scan-assembler "\n_?_ZN1AIiE1tE(:|\n|\t)" } }
+ void test_int() { A<int>::t = 42; }
+ 
+ // { dg-final { scan-assembler-not "\n_?_ZN1AIcE1tE(:|\n|\t)" } }
 Index: gcc/testsuite/g++.dg/ext/asm15.C
 ===================================================================
 --- a/src/gcc/testsuite/g++.dg/ext/asm15.C	(.../tags/gcc_8_3_0_release)
@@ -23224,6 +23985,22 @@ Index: gcc/testsuite/g++.dg/other/pr88568.C
 +foo (int x)
 +{
 +  return S::foo[x];
++}
+Index: gcc/testsuite/g++.dg/tree-ssa/tail-call-1.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/tree-ssa/tail-call-1.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/tree-ssa/tail-call-1.C	(.../branches/gcc-8-branch)
+@@ -0,0 +1,11 @@
++// PR c++/82081
++// { dg-do compile { target c++11 } }
++// { dg-additional-options "-O2 -fdump-tree-optimized" }
++// { dg-final { scan-tree-dump-not "tail call" "optimized" } }
++
++int g(int) ;
++
++int f() noexcept {
++    int i = 42, j = 43;
++    return g(i+j);
 +}
 Index: gcc/testsuite/g++.dg/tree-ssa/pr87008.C
 ===================================================================
@@ -23611,6 +24388,30 @@ Index: gcc/testsuite/c-c++-common/gomp/pr88588.c
 +      a = v;
 +    }
 +}
+Index: gcc/testsuite/c-c++-common/pr53633-2.c
+===================================================================
+--- a/src/gcc/testsuite/c-c++-common/pr53633-2.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/c-c++-common/pr53633-2.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,19 @@
++/* { dg-do compile } */
++/* { dg-require-effective-target naked_functions } */
++/* { dg-options "-O2 -Wall" } */
++/* Check that we do not get warnings about missing return statements
++   or bogus looking noreturn functions.  */
++static int __attribute__((naked))
++foo (void)
++{
++  __asm__ ("");
++}
++
++static int __attribute__((naked,noreturn))
++bar (void)
++{
++  __asm__ ("");
++}
++
++int foo_caller (void) { return foo (); }
++int bar_caller (void) { return bar (); }
 Index: gcc/testsuite/c-c++-common/unroll-6.c
 ===================================================================
 --- a/src/gcc/testsuite/c-c++-common/unroll-6.c	(.../tags/gcc_8_3_0_release)
@@ -23675,7 +24476,19 @@ Index: gcc/cp/typeck.c
  
  static tree cp_build_addr_expr_strict (tree, tsubst_flags_t);
  static tree cp_build_function_call (tree, tree, tsubst_flags_t);
-@@ -2437,6 +2438,12 @@
+@@ -1383,6 +1384,11 @@
+ 	 template parameters set, they can't be equal.  */
+       if (!comp_template_parms_position (t1, t2))
+ 	return false;
++      /* If T1 and T2 don't represent the same class template deduction,
++         they aren't equal.  */
++      if (CLASS_PLACEHOLDER_TEMPLATE (t1)
++	  != CLASS_PLACEHOLDER_TEMPLATE (t2))
++	return false;
+       /* Constrained 'auto's are distinct from parms that don't have the same
+ 	 constraints.  */
+       if (!equivalent_placeholder_constraints (t1, t2))
+@@ -2437,6 +2443,12 @@
        /* A static data member.  */
        result = member;
        mark_exp_read (object);
@@ -23688,7 +24501,7 @@ Index: gcc/cp/typeck.c
        /* If OBJECT has side-effects, they are supposed to occur.  */
        if (TREE_SIDE_EFFECTS (object))
  	result = build2 (COMPOUND_EXPR, TREE_TYPE (result), object, result);
-@@ -5747,18 +5754,17 @@
+@@ -5747,18 +5759,17 @@
      return c_common_truthvalue_conversion (input_location, expr);
  }
  
@@ -23711,7 +24524,7 @@ Index: gcc/cp/typeck.c
    return t;
  }
  
-@@ -7983,8 +7989,6 @@
+@@ -7983,8 +7994,6 @@
  	/* Produce (a ? (b = rhs) : (c = rhs))
  	   except that the RHS goes through a save-expr
  	   so the code to compute it is only emitted once.  */
@@ -23720,7 +24533,7 @@ Index: gcc/cp/typeck.c
  	if (VOID_TYPE_P (TREE_TYPE (rhs)))
  	  {
  	    if (complain & tf_error)
-@@ -7999,13 +8003,21 @@
+@@ -7999,13 +8008,21 @@
  	if (!lvalue_or_else (lhs, lv_assign, complain))
  	  return error_mark_node;
  
@@ -23868,7 +24681,25 @@ Index: gcc/cp/ChangeLog
 ===================================================================
 --- a/src/gcc/cp/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/cp/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,187 @@
+@@ -1,3 +1,205 @@
++2019-08-15  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backport from mainline.
++	2019-08-14  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR c++/91436
++	* name-lookup.c (get_std_name_hint): Fix min_dialect field for
++	complex_literals and make_unique entries.
++
++2019-08-01  Marek Polacek  <polacek@redhat.com>	
++
++	Backported from mainline
++	2018-06-12  Jason Merrill  <jason@redhat.com>
++
++	PR c++/86098 - ICE with template placeholder for TTP.
++	* typeck.c (structural_comptypes) [TEMPLATE_TYPE_PARM]: Check
++	CLASS_PLACEHOLDER_TEMPLATE.
++
 +2019-06-11  Jakub Jelinek  <jakub@redhat.com>
 +
 +	PR c++/90810
@@ -24656,6 +25487,28 @@ Index: gcc/cp/cp-tree.h
  extern void mark_needed				(tree);
  extern bool decl_needed_p			(tree);
  extern void note_vague_linkage_fn		(tree);
+Index: gcc/cp/name-lookup.c
+===================================================================
+--- a/src/gcc/cp/name-lookup.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/cp/name-lookup.c	(.../branches/gcc-8-branch)
+@@ -5509,7 +5509,7 @@
+     {"bitset", "<bitset>", cxx11},
+     /* <complex>.  */
+     {"complex", "<complex>", cxx98},
+-    {"complex_literals", "<complex>", cxx98},
++    {"complex_literals", "<complex>", cxx14},
+     /* <condition_variable>. */
+     {"condition_variable", "<condition_variable>", cxx11},
+     {"condition_variable_any", "<condition_variable>", cxx11},
+@@ -5571,7 +5571,7 @@
+     {"multimap", "<map>", cxx98},
+     /* <memory>.  */
+     {"make_shared", "<memory>", cxx11},
+-    {"make_unique", "<memory>", cxx11},
++    {"make_unique", "<memory>", cxx14},
+     {"shared_ptr", "<memory>", cxx11},
+     {"unique_ptr", "<memory>", cxx11},
+     {"weak_ptr", "<memory>", cxx11},
 Index: gcc/cgraphclones.c
 ===================================================================
 --- a/src/gcc/cgraphclones.c	(.../tags/gcc_8_3_0_release)
@@ -24701,6 +25554,26 @@ Index: gcc/cgraphclones.c
    /* When the old decl was a con-/destructor make sure the clone isn't.  */
    DECL_STATIC_CONSTRUCTOR (new_decl) = 0;
    DECL_STATIC_DESTRUCTOR (new_decl) = 0;
+Index: gcc/df-core.c
+===================================================================
+--- a/src/gcc/df-core.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/df-core.c	(.../branches/gcc-8-branch)
+@@ -298,12 +298,12 @@
+ 
+    Artificial defs and uses occur both at the beginning and ends of blocks.
+ 
+-     For blocks that area at the destination of eh edges, the
++     For blocks that are at the destination of eh edges, the
+      artificial uses and defs occur at the beginning.  The defs relate
+      to the registers specified in EH_RETURN_DATA_REGNO and the uses
+-     relate to the registers specified in ED_USES.  Logically these
++     relate to the registers specified in EH_USES.  Logically these
+      defs and uses should really occur along the eh edge, but there is
+-     no convenient way to do this.  Artificial edges that occur at the
++     no convenient way to do this.  Artificial defs that occur at the
+      beginning of the block have the DF_REF_AT_TOP flag set.
+ 
+      Artificial uses occur at the end of all blocks.  These arise from
 Index: gcc/modulo-sched.c
 ===================================================================
 --- a/src/gcc/modulo-sched.c	(.../tags/gcc_8_3_0_release)
@@ -25289,6 +26162,40 @@ Index: gcc/tree-ssa-loop-ivcanon.c
  
        if (TREE_CODE (niter) != INTEGER_CST)
  	exit = NULL;
+Index: gcc/recog.c
+===================================================================
+--- a/src/gcc/recog.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/recog.c	(.../branches/gcc-8-branch)
+@@ -1070,6 +1070,11 @@
+ int
+ address_operand (rtx op, machine_mode mode)
+ {
++  /* Wrong mode for an address expr.  */
++  if (GET_MODE (op) != VOIDmode
++      && ! SCALAR_INT_MODE_P (GET_MODE (op)))
++    return false;
++
+   return memory_address_p (mode, op);
+ }
+ 
+@@ -2695,10 +2700,13 @@
+ 		/* p is used for address_operands.  When we are called by
+ 		   gen_reload, no one will have checked that the address is
+ 		   strictly valid, i.e., that all pseudos requiring hard regs
+-		   have gotten them.  */
+-		if (strict <= 0
+-		    || (strict_memory_address_p (recog_data.operand_mode[opno],
+-						 op)))
++		   have gotten them.  We also want to make sure we have a
++		   valid mode.  */
++		if ((GET_MODE (op) == VOIDmode
++		     || SCALAR_INT_MODE_P (GET_MODE (op)))
++		    && (strict <= 0
++			|| (strict_memory_address_p
++			     (recog_data.operand_mode[opno], op))))
+ 		  win = 1;
+ 		break;
+ 
 Index: gcc/ada/ChangeLog
 ===================================================================
 --- a/src/gcc/ada/ChangeLog	(.../tags/gcc_8_3_0_release)
@@ -25702,6 +26609,31 @@ Index: gcc/ada/osint.ads
 -   --  avoid function calls every time we want to reset the attributes).
 -
  end Osint;
+Index: gcc/tree-ssa-address.c
+===================================================================
+--- a/src/gcc/tree-ssa-address.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/tree-ssa-address.c	(.../branches/gcc-8-branch)
+@@ -259,6 +259,20 @@
+ 	 ? expand_expr (addr->index, NULL_RTX, pointer_mode, EXPAND_NORMAL)
+ 	 : NULL_RTX);
+ 
++  /* addr->base could be an SSA_NAME that was set to a constant value.  The
++     call to expand_expr may expose that constant.  If so, fold the value
++     into OFF and clear BSE.  Otherwise we may later try to pull a mode from
++     BSE to generate a REG, which won't work with constants because they
++     are modeless.  */
++  if (bse && GET_CODE (bse) == CONST_INT)
++    {
++      if (off)
++	off = simplify_gen_binary (PLUS, pointer_mode, bse, off);
++      else
++	off = bse;
++      gcc_assert (GET_CODE (off) == CONST_INT);
++      bse = NULL_RTX;
++    }
+   gen_addr_rtx (pointer_mode, sym, bse, idx, st, off, &address, NULL, NULL);
+   if (pointer_mode != address_mode)
+     address = convert_memory_address (address_mode, address);
 Index: gcc/common/config/aarch64/aarch64-common.c
 ===================================================================
 --- a/src/gcc/common/config/aarch64/aarch64-common.c	(.../tags/gcc_8_3_0_release)
@@ -25984,6 +26916,25 @@ Index: gcc/tree-ssa-ifcombine.c
  	    return false;
  	  /* Only do this optimization if the inner bb contains only the conditional. */
  	  if (!gsi_one_before_end_p (gsi_start_nondebug_after_labels_bb (inner_cond_bb)))
+Index: gcc/lto-streamer-in.c
+===================================================================
+--- a/src/gcc/lto-streamer-in.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/lto-streamer-in.c	(.../branches/gcc-8-branch)
+@@ -1131,6 +1131,14 @@
+ 		      ? !MAY_HAVE_DEBUG_MARKER_STMTS
+ 		      : !MAY_HAVE_DEBUG_BIND_STMTS))
+ 		remove = true;
++	      /* In case the linemap overflows locations can be dropped
++		 to zero.  Thus do not keep nonsensical inline entry markers
++		 we'd later ICE on.  */
++	      tree block;
++	      if (gimple_debug_inline_entry_p (stmt)
++		  && (block = gimple_block (stmt))
++		  && !inlined_function_outer_scope_p (block))
++		remove = true;
+ 	      if (is_gimple_call (stmt)
+ 		  && gimple_call_internal_p (stmt))
+ 		{
 Index: gcc/fortran/interface.c
 ===================================================================
 --- a/src/gcc/fortran/interface.c	(.../tags/gcc_8_3_0_release)
@@ -26074,6 +27025,69 @@ Index: gcc/fortran/trans-expr.c
    else
      conv_base_obj_fcn_val (se, base_object, expr);
  
+@@ -8385,24 +8389,7 @@
+     }
+ }
+ 
+-/* Indentify class valued proc_pointer assignments.  */
+ 
+-static bool
+-pointer_assignment_is_proc_pointer (gfc_expr * expr1, gfc_expr * expr2)
+-{
+-  gfc_ref * ref;
+-
+-  ref = expr1->ref;
+-  while (ref && ref->next)
+-     ref = ref->next;
+-
+-  return ref && ref->type == REF_COMPONENT
+-      && ref->u.c.component->attr.proc_pointer
+-      && expr2->expr_type == EXPR_VARIABLE
+-      && expr2->symtree->n.sym->attr.flavor == FL_PROCEDURE;
+-}
+-
+-
+ /* Do everything that is needed for a CLASS function expr2.  */
+ 
+ static tree
+@@ -8454,7 +8441,7 @@
+   tree desc;
+   tree tmp;
+   tree expr1_vptr = NULL_TREE;
+-  bool scalar, non_proc_pointer_assign;
++  bool scalar, non_proc_ptr_assign;
+   gfc_ss *ss;
+ 
+   gfc_start_block (&block);
+@@ -8462,7 +8449,9 @@
+   gfc_init_se (&lse, NULL);
+ 
+   /* Usually testing whether this is not a proc pointer assignment.  */
+-  non_proc_pointer_assign = !pointer_assignment_is_proc_pointer (expr1, expr2);
++  non_proc_ptr_assign = !(gfc_expr_attr (expr1).proc_pointer
++			&& expr2->expr_type == EXPR_VARIABLE
++			&& expr2->symtree->n.sym->attr.flavor == FL_PROCEDURE);
+ 
+   /* Check whether the expression is a scalar or not; we cannot use
+      expr1->rank as it can be nonzero for proc pointers.  */
+@@ -8472,7 +8461,7 @@
+     gfc_free_ss_chain (ss);
+ 
+   if (expr1->ts.type == BT_DERIVED && expr2->ts.type == BT_CLASS
+-      && expr2->expr_type != EXPR_FUNCTION && non_proc_pointer_assign)
++      && expr2->expr_type != EXPR_FUNCTION && non_proc_ptr_assign)
+     {
+       gfc_add_data_component (expr2);
+       /* The following is required as gfc_add_data_component doesn't
+@@ -8492,7 +8481,7 @@
+       else
+ 	gfc_conv_expr (&rse, expr2);
+ 
+-      if (non_proc_pointer_assign && expr1->ts.type == BT_CLASS)
++      if (non_proc_ptr_assign && expr1->ts.type == BT_CLASS)
+ 	{
+ 	  trans_class_vptr_len_assignment (&block, expr1, expr2, &rse, NULL,
+ 					   NULL);
 Index: gcc/fortran/trans-array.c
 ===================================================================
 --- a/src/gcc/fortran/trans-array.c	(.../tags/gcc_8_3_0_release)
@@ -26444,7 +27458,34 @@ Index: gcc/fortran/ChangeLog
 ===================================================================
 --- a/src/gcc/fortran/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/fortran/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,337 @@
+@@ -1,3 +1,364 @@
++2013-08-13  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/90563
++	* frontend-passes.c (insert_index): Suppress errors while
++	simplifying the resulting expression.
++
++2019-08-02  Thomas Koenig  <tkoenig@gcc.gnu.org>
++	Paul Thomas <pault@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/90786
++	PR fortran/90813
++	* trans-expr.c (pointer_assignment_is_proc_pointer) Remove as
++	it is very simple and only called from one place.
++	(gfc_trans_pointer_assignment): Rename non_proc_pointer_assign
++	as non_proc_ptr_assign. Assign to it directly, rather than call
++	to above, deleted function and use gfc_expr_attr instead of
++	only checking the reference chain.
++	* trans-decl.c (sym_identifier): New function.
++	(mangled_identifier): New function, doing most of the work
++	of gfc_sym_mangled_identifier.
++	(gfc_sym_mangled_identifier): Use mangled_identifier.  Add mangled
++	identifier to global symbol table.
++	(get_proc_pointer_decl): Use backend decl from global identifier
++	if present.
++
 +2019-07-07  Paul Thomas  <pault@gcc.gnu.org>
 +
 +	Backport from trunk
@@ -26973,6 +28014,23 @@ Index: gcc/fortran/trans-types.h
  
  tree gfc_type_for_size (unsigned, int);
  tree gfc_type_for_mode (machine_mode, int);
+Index: gcc/fortran/frontend-passes.c
+===================================================================
+--- a/src/gcc/fortran/frontend-passes.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/fortran/frontend-passes.c	(.../branches/gcc-8-branch)
+@@ -2461,7 +2461,12 @@
+   data.sym = sym;
+   mpz_init_set (data.val, val);
+   gfc_expr_walker (&n, callback_insert_index, (void *) &data);
++
++  /* Suppress errors here - we could get errors here such as an
++     out of bounds access for arrays, see PR 90563.  */
++  gfc_push_suppress_errors ();
+   gfc_simplify_expr (n, 0);
++  gfc_pop_suppress_errors ();
+ 
+   if (n->expr_type == EXPR_CONSTANT)
+     {
 Index: gcc/fortran/resolve.c
 ===================================================================
 --- a/src/gcc/fortran/resolve.c	(.../tags/gcc_8_3_0_release)
@@ -27337,7 +28395,110 @@ Index: gcc/fortran/trans-decl.c
 ===================================================================
 --- a/src/gcc/fortran/trans-decl.c	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/fortran/trans-decl.c	(.../branches/gcc-8-branch)
-@@ -839,7 +839,7 @@
+@@ -342,39 +342,45 @@
+     }
+ }
+ 
++/* Return the name of an identifier.  */
+ 
++static const char *
++sym_identifier (gfc_symbol *sym)
++{
++  if (sym->attr.is_main_program && strcmp (sym->name, "main") == 0)
++    return "MAIN__";
++  else
++    return sym->name;
++}
++
+ /* Convert a gfc_symbol to an identifier of the same name.  */
+ 
+ static tree
+ gfc_sym_identifier (gfc_symbol * sym)
+ {
+-  if (sym->attr.is_main_program && strcmp (sym->name, "main") == 0)
+-    return (get_identifier ("MAIN__"));
+-  else
+-    return (get_identifier (sym->name));
++  return get_identifier (sym_identifier (sym));
+ }
+ 
++/* Construct mangled name from symbol name.   */
+ 
+-/* Construct mangled name from symbol name.  */
+-
+-static tree
+-gfc_sym_mangled_identifier (gfc_symbol * sym)
++static const char *
++mangled_identifier (gfc_symbol *sym)
+ {
+-  char name[GFC_MAX_MANGLED_SYMBOL_LEN + 1];
+-
++  static char name[GFC_MAX_MANGLED_SYMBOL_LEN + 1];
+   /* Prevent the mangling of identifiers that have an assigned
+      binding label (mainly those that are bind(c)).  */
++
+   if (sym->attr.is_bind_c == 1 && sym->binding_label)
+-    return get_identifier (sym->binding_label);
++    return sym->binding_label;
+ 
+   if (!sym->fn_result_spec)
+     {
+       if (sym->module == NULL)
+-	return gfc_sym_identifier (sym);
++	return sym_identifier (sym);
+       else
+ 	{
+ 	  snprintf (name, sizeof name, "__%s_MOD_%s", sym->module, sym->name);
+-	  return get_identifier (name);
++	  return name;
+ 	}
+     }
+   else
+@@ -389,18 +395,41 @@
+ 		    sym->ns->proc_name->module,
+ 		    sym->ns->proc_name->name,
+ 		    sym->name);
+-	  return get_identifier (name);
++	  return name;
+ 	}
+       else
+ 	{
+ 	  snprintf (name, sizeof name, "__%s_PROC_%s",
+ 		    sym->ns->proc_name->name, sym->name);
+-	  return get_identifier (name);
++	  return name;
+ 	}
+     }
+ }
+ 
++/* Get mangled identifier, adding the symbol to the global table if
++   it is not yet already there.  */
+ 
++static tree
++gfc_sym_mangled_identifier (gfc_symbol * sym)
++{
++  tree result;
++  gfc_gsymbol *gsym;
++  const char *name;
++
++  name = mangled_identifier (sym);
++  result = get_identifier (name);
++
++  gsym = gfc_find_gsymbol (gfc_gsym_root, name);
++  if (gsym == NULL)
++    {
++      gsym = gfc_get_gsymbol (name, false);
++      gsym->ns = sym->ns;
++      gsym->sym_name = sym->name;
++    }
++
++  return result;
++}
++
+ /* Construct mangled function name from symbol name.  */
+ 
+ static tree
+@@ -839,7 +868,7 @@
  	{
  	  if (!gsym)
  	    {
@@ -27346,7 +28507,30 @@ Index: gcc/fortran/trans-decl.c
  	      gsym->type = GSYM_MODULE;
  	      gsym->ns = gfc_get_namespace (NULL, 0);
  	    }
-@@ -1977,7 +1977,7 @@
+@@ -1905,6 +1934,22 @@
+   tree decl;
+   tree attributes;
+ 
++  if (sym->module || sym->fn_result_spec)
++    {
++      const char *name;
++      gfc_gsymbol *gsym;
++
++      name = mangled_identifier (sym);
++      gsym = gfc_find_gsymbol (gfc_gsym_root, name);
++      if (gsym != NULL)
++	{
++	  gfc_symbol *s;
++	  gfc_find_symbol (sym->name, gsym->ns, 0, &s);
++	  if (s && s->backend_decl)
++	    return s->backend_decl;
++	}
++    }
++
+   decl = sym->backend_decl;
+   if (decl)
+     return decl;
+@@ -1977,7 +2022,7 @@
  /* Get a basic decl for an external function.  */
  
  tree
@@ -27355,7 +28539,7 @@ Index: gcc/fortran/trans-decl.c
  {
    tree type;
    tree fndecl;
-@@ -2002,10 +2002,23 @@
+@@ -2002,10 +2047,23 @@
      return get_proc_pointer_decl (sym);
  
    /* See if this is an external procedure from the same file.  If so,
@@ -27382,7 +28566,7 @@ Index: gcc/fortran/trans-decl.c
    if (gsym && !gsym->defined)
      gsym = NULL;
  
-@@ -2150,7 +2163,7 @@
+@@ -2150,7 +2208,7 @@
        mangled_name = gfc_sym_mangled_function_id (sym);
      }
  
@@ -27391,7 +28575,7 @@ Index: gcc/fortran/trans-decl.c
    fndecl = build_decl (input_location,
  		       FUNCTION_DECL, name, type);
  
-@@ -2500,6 +2513,17 @@
+@@ -2500,6 +2558,17 @@
  	  TREE_READONLY (length) = 1;
  	  gfc_finish_decl (length);
  
@@ -27409,7 +28593,7 @@ Index: gcc/fortran/trans-decl.c
  	  /* Remember the passed value.  */
            if (!f->sym->ts.u.cl ||  f->sym->ts.u.cl->passed_length)
              {
-@@ -5384,6 +5408,33 @@
+@@ -5384,6 +5453,33 @@
    /* Handle "static" initializer.  */
    if (sym->value)
      {
@@ -27904,6 +29088,13 @@ Index: gcc/configure.ac
  	  ld_vers_major=`expr "$ld_vers" : '\([0-9]*\)'`
  	  ld_vers_minor=`expr "$ld_vers" : '[0-9]*\.\([0-9]*\)'`
  	fi
+Index: gcc/BASE-VER
+===================================================================
+--- a/src/gcc/BASE-VER	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/BASE-VER	(.../branches/gcc-8-branch)
+@@ -1 +1 @@
+-8.3.0
++8.3.1
 Index: gcc/loop-unroll.c
 ===================================================================
 --- a/src/gcc/loop-unroll.c	(.../tags/gcc_8_3_0_release)
@@ -29030,6 +30221,24 @@ Index: gcc/vr-values.c
  	  BITMAP_FREE (new_vr->equiv);
  	  set_value_range_to_varying (old_vr);
  	  set_value_range_to_varying (new_vr);
+Index: gcc/resource.c
+===================================================================
+--- a/src/gcc/resource.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/resource.c	(.../branches/gcc-8-branch)
+@@ -969,9 +969,13 @@
+     {
+       regset regs_live = DF_LR_IN (BASIC_BLOCK_FOR_FN (cfun, b));
+       rtx_insn *start_insn, *stop_insn;
++      df_ref def;
+ 
+       /* Compute hard regs live at start of block.  */
+       REG_SET_TO_HARD_REG_SET (current_live_regs, regs_live);
++      FOR_EACH_ARTIFICIAL_DEF (def, b)
++	if (DF_REF_FLAGS (def) & DF_REF_AT_TOP)
++	  SET_HARD_REG_BIT (current_live_regs, DF_REF_REGNO (def));
+ 
+       /* Get starting and ending insn, handling the case where each might
+ 	 be a SEQUENCE.  */
 Index: gcc/config.gcc
 ===================================================================
 --- a/src/gcc/config.gcc	(.../tags/gcc_8_3_0_release)
@@ -29047,6 +30256,26 @@ Index: gcc/config.gcc
  	ia64*-*-linux*)
  		;;
  
+Index: gcc/opts-global.c
+===================================================================
+--- a/src/gcc/opts-global.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/opts-global.c	(.../branches/gcc-8-branch)
+@@ -103,10 +103,14 @@
+ 	   text, bad_lang);
+   else if (lang_mask == CL_DRIVER)
+     gcc_unreachable ();
+-  else
++  else if (ok_langs[0] != '\0')
+     /* Eventually this should become a hard error IMO.  */
+     warning (0, "command line option %qs is valid for %s but not for %s",
+ 	     text, ok_langs, bad_lang);
++  else
++    /* Happens for -Werror=warning_name.  */
++    warning (0, "%<-Werror=%> argument %qs is not valid for %s",
++	     text, bad_lang);
+ 
+   free (ok_langs);
+   free (bad_lang);
 Index: gcc/tree-ssa-structalias.c
 ===================================================================
 --- a/src/gcc/tree-ssa-structalias.c	(.../tags/gcc_8_3_0_release)
@@ -29285,6 +30514,19 @@ Index: gcc/config/s390/s390-builtin-types.def
  DEF_OV_TYPE (BT_OV_VOID_UV4SI_LONG_UINTPTR, BT_VOID, BT_UV4SI, BT_LONG, BT_UINTPTR)
  DEF_OV_TYPE (BT_OV_VOID_UV4SI_UINTPTR_UINT, BT_VOID, BT_UV4SI, BT_UINTPTR, BT_UINT)
  DEF_OV_TYPE (BT_OV_VOID_UV4SI_UV4SI_UINTPTR_ULONGLONG, BT_VOID, BT_UV4SI, BT_UV4SI, BT_UINTPTR, BT_ULONGLONG)
+Index: gcc/config/s390/vector.md
+===================================================================
+--- a/src/gcc/config/s390/vector.md	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/s390/vector.md	(.../branches/gcc-8-branch)
+@@ -944,7 +944,7 @@
+ 	(VEC_SHIFTS:VI (match_operand:VI 1 "register_operand"   "v")
+ 		       (match_operand:SI 2 "nonmemory_operand" "an")))]
+   "TARGET_VX"
+-  "<vec_shifts_mnem><bhfgq>\t%v0,%v1,%Y2"
++  "<vec_shifts_mnem><bhfgq>\t%v0,%v1,<addr_style_op_ops>"
+   [(set_attr "op_type" "VRS")])
+ 
+ ; Shift each element by corresponding vector element
 Index: gcc/config/s390/s390.c
 ===================================================================
 --- a/src/gcc/config/s390/s390.c	(.../tags/gcc_8_3_0_release)
@@ -30295,6 +31537,52 @@ Index: gcc/config/i386/i386.c
  	      return FLT_EVAL_METHOD_PROMOTE_TO_LONG_DOUBLE;
  	    else if (TARGET_SSE2)
  	      return FLT_EVAL_METHOD_PROMOTE_TO_FLOAT;
+Index: gcc/config/riscv/riscv.c
+===================================================================
+--- a/src/gcc/config/riscv/riscv.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/riscv/riscv.c	(.../branches/gcc-8-branch)
+@@ -4389,6 +4389,32 @@
+   return align;
+ }
+ 
++/* Implement TARGET_PROMOTE_FUNCTION_MODE.  */
++
++/* This function is equivalent to default_promote_function_mode_always_promote
++   except that it returns a promoted mode even if type is NULL_TREE.  This is
++   needed by libcalls which have no type (only a mode) such as fixed conversion
++   routines that take a signed or unsigned char/short/int argument and convert
++   it to a fixed type.  */
++
++static machine_mode
++riscv_promote_function_mode (const_tree type ATTRIBUTE_UNUSED,
++			     machine_mode mode,
++			     int *punsignedp ATTRIBUTE_UNUSED,
++			     const_tree fntype ATTRIBUTE_UNUSED,
++			     int for_return ATTRIBUTE_UNUSED)
++{
++  int unsignedp;
++
++  if (type != NULL_TREE)
++    return promote_mode (type, mode, punsignedp);
++
++  unsignedp = *punsignedp;
++  PROMOTE_MODE (mode, unsignedp, type);
++  *punsignedp = unsignedp;
++  return mode;
++}
++
+ /* Initialize the GCC target structure.  */
+ #undef TARGET_ASM_ALIGNED_HI_OP
+ #define TARGET_ASM_ALIGNED_HI_OP "\t.half\t"
+@@ -4430,7 +4456,7 @@
+ #define TARGET_EXPAND_BUILTIN_VA_START riscv_va_start
+ 
+ #undef  TARGET_PROMOTE_FUNCTION_MODE
+-#define TARGET_PROMOTE_FUNCTION_MODE default_promote_function_mode_always_promote
++#define TARGET_PROMOTE_FUNCTION_MODE riscv_promote_function_mode
+ 
+ #undef TARGET_RETURN_IN_MEMORY
+ #define TARGET_RETURN_IN_MEMORY riscv_return_in_memory
 Index: gcc/config/aarch64/driver-aarch64.c
 ===================================================================
 --- a/src/gcc/config/aarch64/driver-aarch64.c	(.../tags/gcc_8_3_0_release)
@@ -31052,7 +32340,45 @@ Index: gcc/config/rs6000/rs6000.c
    rs6000_gen_section_name (&xcoff_read_only_section_name,
  			   main_input_filename, ".ro_");
    rs6000_gen_section_name (&xcoff_tls_data_section_name,
-@@ -37840,6 +37872,7 @@
+@@ -36605,11 +36637,21 @@
+ unsigned int
+ rs6000_dbx_register_number (unsigned int regno, unsigned int format)
+ {
+-  /* Except for the above, we use the internal number for non-DWARF
+-     debug information, and also for .eh_frame.  */
++  /* We use the GCC 7 (and before) internal number for non-DWARF debug
++     information, and also for .eh_frame.  */
+   if ((format == 0 && write_symbols != DWARF2_DEBUG) || format == 2)
+-    return regno;
++    {
++      /* Translate the regnos to their numbers in GCC 7 (and before).  */
++      if (regno == TFHAR_REGNO)
++	regno = 114;
++      else if (regno == TFIAR_REGNO)
++	regno = 115;
++      else if (regno == TEXASR_REGNO)
++	regno = 116;
+ 
++      return regno;
++    }
++
+   /* On some platforms, we use the standard DWARF register
+      numbering for .debug_info and .debug_frame.  */
+ #ifdef RS6000_USE_DWARF_NUMBERING
+@@ -36635,6 +36677,12 @@
+     return 356;
+   if (regno == VSCR_REGNO)
+     return 67;
++  if (regno == TFHAR_REGNO)
++    return 228;
++  if (regno == TFIAR_REGNO)
++    return 229;
++  if (regno == TEXASR_REGNO)
++    return 230;
+ #endif
+   return regno;
+ }
+@@ -37840,6 +37888,7 @@
  
    /* Build result decl and add to function_decl.  */
    tree t = build_decl (UNKNOWN_LOCATION, RESULT_DECL, NULL_TREE, ptr_type_node);
@@ -31132,7 +32458,30 @@ Index: gcc/config/rs6000/rs6000.md
 ===================================================================
 --- a/src/gcc/config/rs6000/rs6000.md	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/config/rs6000/rs6000.md	(.../branches/gcc-8-branch)
-@@ -12699,7 +12699,7 @@
+@@ -12594,15 +12594,18 @@
+   [(unspec [(const_int 0)] UNSPEC_GRP_END_NOP)]
+   ""
+ {
+-  if (rs6000_tune == PROCESSOR_POWER6)
+-    return "ori 1,1,0";
+-  return "ori 2,2,0";
++  operands[0] = gen_rtx_REG (Pmode,
++			     rs6000_tune == PROCESSOR_POWER6 ? 1 : 2);
++  return "ori %0,%0,0";
+ })
+ 
+ (define_insn "rs6000_speculation_barrier"
+   [(unspec_volatile:BLK [(const_int 0)] UNSPECV_SPEC_BARRIER)]
+   ""
+-  "ori 31,31,0")
++{
++  operands[0] = gen_rtx_REG (Pmode, 31);
++  return "ori %0,%0,0";
++})
+ 
+ ;; Define the subtract-one-and-jump insns, starting with the template
+ ;; so loop.c knows what to generate.
+@@ -12699,7 +12702,7 @@
  				const0_rtx);
    emit_insn (gen_rtx_SET (operands[3],
  			  gen_rtx_COMPARE (CCmode, operands[1], const1_rtx)));
@@ -31141,7 +32490,7 @@ Index: gcc/config/rs6000/rs6000.md
      emit_insn (gen_add<mode>3 (operands[0], operands[1], constm1_rtx));
    else
      {
-@@ -12768,7 +12768,7 @@
+@@ -12768,7 +12771,7 @@
  		       (const_int 0)]))
  	  (match_operand 4)
  	  (match_operand 5)))
@@ -31150,7 +32499,7 @@ Index: gcc/config/rs6000/rs6000.md
  	(plus:P (match_dup 0)
  		(const_int -1)))
     (clobber (match_scratch:P 7))
-@@ -12801,7 +12801,7 @@
+@@ -12801,7 +12804,7 @@
    else
       emit_insn (gen_cceq_ior_compare_complement (operands[9], andexpr, ctrcmpcc,
  						 operands[8], cccmp, ccin));
@@ -31175,11 +32524,44 @@ Index: gcc/config/rs6000/altivec.h
  #endif
  
  #ifdef __POWER9_VECTOR__
+Index: gcc/config/darwin.h
+===================================================================
+--- a/src/gcc/config/darwin.h	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/darwin.h	(.../branches/gcc-8-branch)
+@@ -178,7 +178,7 @@
+     %(linker)" \
+     LINK_PLUGIN_SPEC \
+     "%{flto*:%<fcompare-debug*} \
+-    %{flto*} \
++     %{flto} %{fno-lto} %{flto=*} \
+     %l " LINK_COMPRESS_DEBUG_SPEC \
+    "%X %{s} %{t} %{Z} %{u*} \
+     %{e*} %{r} \
 Index: gcc/config/arm/arm.c
 ===================================================================
 --- a/src/gcc/config/arm/arm.c	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/config/arm/arm.c	(.../branches/gcc-8-branch)
-@@ -11930,8 +11930,7 @@
+@@ -8879,11 +8879,16 @@
+ arm_cannot_force_const_mem (machine_mode mode ATTRIBUTE_UNUSED, rtx x)
+ {
+   rtx base, offset;
++  split_const (x, &base, &offset);
+ 
+-  if (ARM_OFFSETS_MUST_BE_WITHIN_SECTIONS_P)
++  if (SYMBOL_REF_P (base))
+     {
+-      split_const (x, &base, &offset);
+-      if (GET_CODE (base) == SYMBOL_REF
++      /* Function symbols cannot have an offset due to the Thumb bit.  */
++      if ((SYMBOL_REF_FLAGS (base) & SYMBOL_FLAG_FUNCTION)
++	  && INTVAL (offset) != 0)
++	return true;
++
++      if (ARM_OFFSETS_MUST_BE_WITHIN_SECTIONS_P
+ 	  && !offset_within_block_p (base, INTVAL (offset)))
+ 	return true;
+     }
+@@ -11930,8 +11935,7 @@
    else
      {
        n_elts = 1;
@@ -31189,6 +32571,73 @@ Index: gcc/config/arm/arm.c
      }
  
    innersize = GET_MODE_UNIT_SIZE (mode);
+@@ -13095,6 +13099,9 @@
+   if (load && (REGNO (reg) == SP_REGNUM) && (REGNO (addr) != SP_REGNUM))
+     return false;
+ 
++  if (regno == REGNO (addr))
++    addr_reg_in_reglist = true;
++
+   for (; i < count; i++)
+     {
+       elt = XVECEXP (op, 0, i);
+@@ -13289,7 +13296,6 @@
+   int unsorted_regs[MAX_LDM_STM_OPS];
+   HOST_WIDE_INT unsorted_offsets[MAX_LDM_STM_OPS];
+   int order[MAX_LDM_STM_OPS];
+-  rtx base_reg_rtx = NULL;
+   int base_reg = -1;
+   int i, ldm_case;
+ 
+@@ -13334,7 +13340,6 @@
+ 	  if (i == 0)
+ 	    {
+ 	      base_reg = REGNO (reg);
+-	      base_reg_rtx = reg;
+ 	      if (TARGET_THUMB1 && base_reg > LAST_LO_REGNUM)
+ 		return 0;
+ 	    }
+@@ -13393,10 +13398,6 @@
+       *load_offset = unsorted_offsets[order[0]];
+     }
+ 
+-  if (TARGET_THUMB1
+-      && !peep2_reg_dead_p (nops, base_reg_rtx))
+-    return 0;
+-
+   if (unsorted_offsets[order[0]] == 0)
+     ldm_case = 1; /* ldmia */
+   else if (TARGET_ARM && unsorted_offsets[order[0]] == 4)
+@@ -13772,9 +13773,17 @@
+ 
+   if (TARGET_THUMB1)
+     {
+-      gcc_assert (peep2_reg_dead_p (nops, base_reg_rtx));
+       gcc_assert (ldm_case == 1 || ldm_case == 5);
+-      write_back = TRUE;
++
++      /* Thumb-1 ldm uses writeback except if the base is loaded.  */
++      write_back = true;
++      for (i = 0; i < nops; i++)
++	if (base_reg == regs[i])
++	  write_back = false;
++
++      /* Ensure the base is dead if it is updated.  */
++      if (write_back && !peep2_reg_dead_p (nops, base_reg_rtx))
++	return false;
+     }
+ 
+   if (ldm_case == 5)
+@@ -13782,8 +13791,7 @@
+       rtx newbase = TARGET_THUMB1 ? base_reg_rtx : gen_rtx_REG (SImode, regs[0]);
+       emit_insn (gen_addsi3 (newbase, base_reg_rtx, GEN_INT (offset)));
+       offset = 0;
+-      if (!TARGET_THUMB1)
+-	base_reg_rtx = newbase;
++      base_reg_rtx = newbase;
+     }
+ 
+   for (i = 0; i < nops; i++)
 Index: gcc/config/arm/arm.h
 ===================================================================
 --- a/src/gcc/config/arm/arm.h	(.../tags/gcc_8_3_0_release)
@@ -31402,6 +32851,77 @@ Index: gcc/config/arm/t-rtems
 +MULTILIB_REQUIRED	+= mthumb/mcpu=cortex-m4+nofp
 +MULTILIB_REQUIRED	+= mthumb/mcpu=cortex-m7/mfloat-abi=hard
  MULTILIB_REQUIRED	+= mthumb
+Index: gcc/config/arm/arm.md
+===================================================================
+--- a/src/gcc/config/arm/arm.md	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/arm/arm.md	(.../branches/gcc-8-branch)
+@@ -5976,52 +5976,29 @@
+         }
+     }
+ 
+-  if (ARM_OFFSETS_MUST_BE_WITHIN_SECTIONS_P)
++  split_const (operands[1], &base, &offset);
++  if (INTVAL (offset) != 0
++      && targetm.cannot_force_const_mem (SImode, operands[1]))
+     {
+-      split_const (operands[1], &base, &offset);
+-      if (GET_CODE (base) == SYMBOL_REF
+-	  && !offset_within_block_p (base, INTVAL (offset)))
+-	{
+-	  tmp = can_create_pseudo_p () ? gen_reg_rtx (SImode) : operands[0];
+-	  emit_move_insn (tmp, base);
+-	  emit_insn (gen_addsi3 (operands[0], tmp, offset));
+-	  DONE;
+-	}
++      tmp = can_create_pseudo_p () ? gen_reg_rtx (SImode) : operands[0];
++      emit_move_insn (tmp, base);
++      emit_insn (gen_addsi3 (operands[0], tmp, offset));
++      DONE;
+     }
+ 
++  tmp = can_create_pseudo_p () ? NULL_RTX : operands[0];
++
+   /* Recognize the case where operand[1] is a reference to thread-local
+-     data and load its address to a register.  */
++     data and load its address to a register.  Offsets have been split off
++     already.  */
+   if (arm_tls_referenced_p (operands[1]))
+-    {
+-      rtx tmp = operands[1];
+-      rtx addend = NULL;
+-
+-      if (GET_CODE (tmp) == CONST && GET_CODE (XEXP (tmp, 0)) == PLUS)
+-        {
+-          addend = XEXP (XEXP (tmp, 0), 1);
+-          tmp = XEXP (XEXP (tmp, 0), 0);
+-        }
+-
+-      gcc_assert (GET_CODE (tmp) == SYMBOL_REF);
+-      gcc_assert (SYMBOL_REF_TLS_MODEL (tmp) != 0);
+-
+-      tmp = legitimize_tls_address (tmp,
+-				    !can_create_pseudo_p () ? operands[0] : 0);
+-      if (addend)
+-        {
+-          tmp = gen_rtx_PLUS (SImode, tmp, addend);
+-          tmp = force_operand (tmp, operands[0]);
+-        }
+-      operands[1] = tmp;
+-    }
++    operands[1] = legitimize_tls_address (operands[1], tmp);
+   else if (flag_pic
+ 	   && (CONSTANT_P (operands[1])
+ 	       || symbol_mentioned_p (operands[1])
+ 	       || label_mentioned_p (operands[1])))
+-      operands[1] = legitimize_pic_address (operands[1], SImode,
+-					    (!can_create_pseudo_p ()
+-					     ? operands[0]
+-					     : 0));
++    operands[1] =
++      legitimize_pic_address (operands[1], SImode, tmp);
+   }
+   "
+ )
 Index: gcc/config/pa/pa.md
 ===================================================================
 --- a/src/gcc/config/pa/pa.md	(.../tags/gcc_8_3_0_release)
@@ -32201,11 +33721,107 @@ Index: gcc/lto-streamer.h
  
  typedef unsigned char	lto_decl_flags_t;
  
+Index: libgfortran/intrinsics/random.c
+===================================================================
+--- a/src/libgfortran/intrinsics/random.c	(.../tags/gcc_8_3_0_release)
++++ b/src/libgfortran/intrinsics/random.c	(.../branches/gcc-8-branch)
+@@ -272,31 +272,20 @@
+ }
+ 
+ 
+-/* Super-simple LCG generator used in getosrandom () if /dev/urandom
+-   doesn't exist.  */
++/* Splitmix64 recommended by xorshift author for initializing.  After
++   getting one uint64_t value from the OS, this is used to fill in the
++   rest of the state.  */
+ 
+-#define M 2147483647 /* 2^31 - 1 (A large prime number) */
+-#define A 16807      /* Prime root of M, passes statistical tests and produces a full cycle */
+-#define Q 127773 /* M / A (To avoid overflow on A * seed) */
+-#define R 2836   /* M % A (To avoid overflow on A * seed) */
+-
+-__attribute__((unused)) static uint32_t
+-lcg_parkmiller(uint32_t seed)
++static uint64_t
++splitmix64 (uint64_t x)
+ {
+-    uint32_t hi = seed / Q;
+-    uint32_t lo = seed % Q;
+-    int32_t test = A * lo - R * hi;
+-    if (test <= 0)
+-        test += M;
+-    return test;
++  uint64_t z = (x += 0x9e3779b97f4a7c15);
++  z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9;
++  z = (z ^ (z >> 27)) * 0x94d049bb133111eb;
++  return z ^ (z >> 31);
+ }
+ 
+-#undef M
+-#undef A
+-#undef Q
+-#undef R
+ 
+-
+ /* Get some random bytes from the operating system in order to seed
+    the PRNG.  */
+ 
+@@ -326,7 +315,7 @@
+       close (fd);
+       return res;
+     }
+-  uint32_t seed = 1234567890;
++  uint64_t seed = 0x047f7684e9fc949dULL;
+   time_t secs;
+   long usecs;
+   if (gf_gettime (&secs, &usecs) == 0)
+@@ -338,13 +327,9 @@
+   pid_t pid = getpid();
+   seed ^= pid;
+ #endif
+-  uint32_t* ub = buf;
+-  for (size_t i = 0; i < buflen / sizeof (uint32_t); i++)
+-    {
+-      ub[i] = seed;
+-      seed = lcg_parkmiller (seed);
+-    }
+-  return buflen;
++  size_t size = buflen < sizeof (uint64_t) ? buflen : sizeof (uint64_t);
++  memcpy (buf, &seed, size);
++  return size;
+ #endif /* __MINGW64_VERSION_MAJOR  */
+ }
+ 
+@@ -359,7 +344,13 @@
+     __gthread_mutex_lock (&random_lock);
+   if (!master_init)
+     {
+-      getosrandom (master_state, sizeof (master_state));
++      uint64_t os_seed;
++      getosrandom (&os_seed, sizeof (os_seed));
++      for (uint64_t i = 0; i < sizeof (master_state) / sizeof (uint64_t); i++)
++	{
++	  os_seed = splitmix64 (os_seed);
++	  master_state[i] = os_seed;
++	}
+       njumps = 0;
+       master_init = true;
+     }
 Index: libgfortran/ChangeLog
 ===================================================================
 --- a/src/libgfortran/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/libgfortran/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,18 @@
+@@ -1,3 +1,28 @@
++2019-08-13  Janne Blomqvist  <jb@gcc.gnu.org>
++
++	Partial backport from trunk
++	PR fortran/91414
++	* intrinsics/random.c (lcg_parkmiller): Replace with splitmix64.
++	(splitmix64): New function.
++	(getosrandom): Simplify.
++	(init_rand_state): Use getosrandom only to get 8 bytes, splitmix64
++	to fill rest of state.
++
 +2019-04-16  John David Anglin  <danglin@gcc.gnu.org>
 +
 +	Backport from mainline
