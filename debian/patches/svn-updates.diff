@@ -1,10 +1,10 @@
-# DP: updates from the 9 branch upto 20190815 (r274526).
+# DP: updates from the 9 branch upto 20190817 (r274599).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Thu Aug 15 13:09:17 CEST 2019
-Thu Aug 15 11:09:17 UTC 2019 (revision 274526)
+Sat Aug 17 10:33:43 CEST 2019
+Sat Aug 17 08:33:43 UTC 2019 (revision 274599)
 EOF
 }
 
@@ -73,13 +73,67 @@ Index: libstdc++-v3/ChangeLog
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
+Index: contrib/ChangeLog
+===================================================================
+--- a/src/contrib/ChangeLog	(.../tags/gcc_9_2_0_release)
++++ b/src/contrib/ChangeLog	(.../branches/gcc-9-branch)
+@@ -1,3 +1,7 @@
++2019-08-16  Uros Bizjak  <ubizjak@gmail.com>
++
++	* test_summary: Do not escape "=".
++
+ 2019-08-12  Release Manager
+ 
+ 	* GCC 9.2.0 released.
+Index: contrib/test_summary
+===================================================================
+--- a/src/contrib/test_summary	(.../tags/gcc_9_2_0_release)
++++ b/src/contrib/test_summary	(.../branches/gcc-9-branch)
+@@ -127,7 +127,7 @@
+   if (lang == "") lang = " "$2" "; else lang = " ";
+ }
+ $2 == "version" { save = $0; $1 = ""; $2 = ""; version = $0; gsub(/^ */, "", version); gsub(/\r$/, "", version); $0 = save; }
+-/\===.*Summary/ { print ""; print; blanks=1; }
++/===.*Summary/ { print ""; print; blanks=1; }
+ /tests ===/ || /^(Target|Host|Native)/ || $2 == "version" { print; blanks=1; }
+ /^(XPASS|FAIL|UNRESOLVED|WARNING|ERROR|# of )/ { sub ("\r", ""); print; }
+ /^using:/ { print ""; print; print ""; }
+Index: gcc/lra-int.h
+===================================================================
+--- a/src/gcc/lra-int.h	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/lra-int.h	(.../branches/gcc-9-branch)
+@@ -401,6 +401,7 @@
+ 
+ /* lra-spills.c:  */
+ 
++extern bool lra_need_for_scratch_reg_p (void);
+ extern bool lra_need_for_spills_p (void);
+ extern void lra_spill (void);
+ extern void lra_final_code_change (void);
 Index: gcc/DATESTAMP
 ===================================================================
 --- a/src/gcc/DATESTAMP	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-9-branch)
 @@ -1 +1 @@
 -20190812
-+20190815
++20190817
+Index: gcc/lra.c
+===================================================================
+--- a/src/gcc/lra.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/lra.c	(.../branches/gcc-9-branch)
+@@ -2587,7 +2587,11 @@
+ 	  lra_create_live_ranges (lra_reg_spill_p, true);
+ 	  live_p = true;
+ 	  if (! lra_need_for_spills_p ())
+-	    break;
++	    {
++	      if (lra_need_for_scratch_reg_p ())
++		continue;
++	      break;
++	    }
+ 	}
+       lra_spill ();
+       /* Assignment of stack slots changes elimination offsets for
 Index: gcc/tree.c
 ===================================================================
 --- a/src/gcc/tree.c	(.../tags/gcc_9_2_0_release)
@@ -185,11 +239,330 @@ Index: gcc/tree.h
  extern wide_int vector_cst_int_elt (const_tree, unsigned int);
  extern tree vector_cst_elt (const_tree, unsigned int);
  
+Index: gcc/lra-spills.c
+===================================================================
+--- a/src/gcc/lra-spills.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/lra-spills.c	(.../branches/gcc-9-branch)
+@@ -548,6 +548,19 @@
+     }
+ }
+ 
++/* Return true if we need scratch reg assignments.  */
++bool
++lra_need_for_scratch_reg_p (void)
++{
++  int i; max_regno = max_reg_num ();
++
++  for (i = FIRST_PSEUDO_REGISTER; i < max_regno; i++)
++    if (lra_reg_info[i].nrefs != 0 && lra_get_regno_hard_regno (i) < 0
++	&& lra_former_scratch_p (i))
++      return true;
++  return false;
++}
++
+ /* Return true if we need to change some pseudos into memory.  */
+ bool
+ lra_need_for_spills_p (void)
+Index: gcc/tree-ssa-sccvn.c
+===================================================================
+--- a/src/gcc/tree-ssa-sccvn.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/tree-ssa-sccvn.c	(.../branches/gcc-9-branch)
+@@ -132,8 +132,6 @@
+ /* There's no BB_EXECUTABLE but we can use BB_VISITED.  */
+ #define BB_EXECUTABLE BB_VISITED
+ 
+-static tree *last_vuse_ptr;
+-static vn_lookup_kind vn_walk_kind;
+ static vn_lookup_kind default_vn_walk_kind;
+ 
+ /* vn_nary_op hashtable helpers.  */
+@@ -1678,18 +1676,33 @@
+   return NULL_TREE;
+ }
+ 
++struct vn_walk_cb_data
++{
++  vn_walk_cb_data (vn_reference_t vr_, tree *last_vuse_ptr_,
++                   vn_lookup_kind vn_walk_kind_, bool tbaa_p_)
++    : vr (vr_), last_vuse_ptr (last_vuse_ptr_), vn_walk_kind (vn_walk_kind_),
++      tbaa_p (tbaa_p_)
++    {}
++
++  vn_reference_t vr;
++  tree *last_vuse_ptr;
++  vn_lookup_kind vn_walk_kind;
++  bool tbaa_p;
++};
++
+ /* Callback for walk_non_aliased_vuses.  Adjusts the vn_reference_t VR_
+    with the current VUSE and performs the expression lookup.  */
+ 
+ static void *
+-vn_reference_lookup_2 (ao_ref *op ATTRIBUTE_UNUSED, tree vuse, void *vr_)
++vn_reference_lookup_2 (ao_ref *op ATTRIBUTE_UNUSED, tree vuse, void *data_)
+ {
+-  vn_reference_t vr = (vn_reference_t)vr_;
++  vn_walk_cb_data *data = (vn_walk_cb_data *)data_;
++  vn_reference_t vr = data->vr;
+   vn_reference_s **slot;
+   hashval_t hash;
+ 
+-  if (last_vuse_ptr)
+-    *last_vuse_ptr = vuse;
++  if (data->last_vuse_ptr)
++    *data->last_vuse_ptr = vuse;
+ 
+   /* Fixup vuse and hash.  */
+   if (vr->vuse)
+@@ -1959,10 +1972,11 @@
+    *DISAMBIGUATE_ONLY is set to true.  */
+ 
+ static void *
+-vn_reference_lookup_3 (ao_ref *ref, tree vuse, void *vr_,
++vn_reference_lookup_3 (ao_ref *ref, tree vuse, void *data_,
+ 		       bool *disambiguate_only)
+ {
+-  vn_reference_t vr = (vn_reference_t)vr_;
++  vn_walk_cb_data *data = (vn_walk_cb_data *)data_;
++  vn_reference_t vr = data->vr;
+   gimple *def_stmt = SSA_NAME_DEF_STMT (vuse);
+   tree base = ao_ref_base (ref);
+   HOST_WIDE_INT offseti, maxsizei;
+@@ -1989,7 +2003,7 @@
+ 						      get_alias_set (lhs),
+ 						      TREE_TYPE (lhs), lhs_ops);
+ 	  if (lhs_ref_ok
+-	      && !refs_may_alias_p_1 (ref, &lhs_ref, true))
++	      && !refs_may_alias_p_1 (ref, &lhs_ref, data->tbaa_p))
+ 	    {
+ 	      *disambiguate_only = true;
+ 	      return NULL;
+@@ -2005,21 +2019,21 @@
+          we find a VN result with exactly the same value as the
+ 	 possible clobber.  In this case we can ignore the clobber
+ 	 and return the found value.  */
+-      if (vn_walk_kind == VN_WALKREWRITE
++      if (data->vn_walk_kind == VN_WALKREWRITE
+ 	  && is_gimple_reg_type (TREE_TYPE (lhs))
+ 	  && types_compatible_p (TREE_TYPE (lhs), vr->type)
+ 	  && ref->ref)
+ 	{
+-	  tree *saved_last_vuse_ptr = last_vuse_ptr;
++	  tree *saved_last_vuse_ptr = data->last_vuse_ptr;
+ 	  /* Do not update last_vuse_ptr in vn_reference_lookup_2.  */
+-	  last_vuse_ptr = NULL;
++	  data->last_vuse_ptr = NULL;
+ 	  tree saved_vuse = vr->vuse;
+ 	  hashval_t saved_hashcode = vr->hashcode;
+-	  void *res = vn_reference_lookup_2 (ref, gimple_vuse (def_stmt), vr);
++	  void *res = vn_reference_lookup_2 (ref, gimple_vuse (def_stmt), data);
+ 	  /* Need to restore vr->vuse and vr->hashcode.  */
+ 	  vr->vuse = saved_vuse;
+ 	  vr->hashcode = saved_hashcode;
+-	  last_vuse_ptr = saved_last_vuse_ptr;
++	  data->last_vuse_ptr = saved_last_vuse_ptr;
+ 	  if (res && res != (void *)-1)
+ 	    {
+ 	      vn_reference_t vnresult = (vn_reference_t) res;
+@@ -2072,7 +2086,9 @@
+ 	}
+     }
+ 
+-  if (*disambiguate_only)
++  /* If we are looking for redundant stores do not create new hashtable
++     entries from aliasing defs with made up alias-sets.  */
++  if (*disambiguate_only || !data->tbaa_p)
+     return (void *)-1;
+ 
+   /* If we cannot constrain the size of the reference we cannot
+@@ -2342,7 +2358,7 @@
+ 
+   /* 5) For aggregate copies translate the reference through them if
+      the copy kills ref.  */
+-  else if (vn_walk_kind == VN_WALKREWRITE
++  else if (data->vn_walk_kind == VN_WALKREWRITE
+ 	   && gimple_assign_single_p (def_stmt)
+ 	   && (DECL_P (gimple_assign_rhs1 (def_stmt))
+ 	       || TREE_CODE (gimple_assign_rhs1 (def_stmt)) == MEM_REF
+@@ -2462,7 +2478,7 @@
+       *ref = r;
+ 
+       /* Do not update last seen VUSE after translating.  */
+-      last_vuse_ptr = NULL;
++      data->last_vuse_ptr = NULL;
+ 
+       /* Keep looking for the adjusted *REF / VR pair.  */
+       return NULL;
+@@ -2470,7 +2486,7 @@
+ 
+   /* 6) For memcpy copies translate the reference through them if
+      the copy kills ref.  */
+-  else if (vn_walk_kind == VN_WALKREWRITE
++  else if (data->vn_walk_kind == VN_WALKREWRITE
+ 	   && is_gimple_reg_type (vr->type)
+ 	   /* ???  Handle BCOPY as well.  */
+ 	   && (gimple_call_builtin_p (def_stmt, BUILT_IN_MEMCPY)
+@@ -2620,7 +2636,7 @@
+       *ref = r;
+ 
+       /* Do not update last seen VUSE after translating.  */
+-      last_vuse_ptr = NULL;
++      data->last_vuse_ptr = NULL;
+ 
+       /* Keep looking for the adjusted *REF / VR pair.  */
+       return NULL;
+@@ -2681,13 +2697,13 @@
+     {
+       ao_ref r;
+       unsigned limit = PARAM_VALUE (PARAM_SCCVN_MAX_ALIAS_QUERIES_PER_ACCESS);
+-      vn_walk_kind = kind;
++      vn_walk_cb_data data (&vr1, NULL, kind, true);
+       if (ao_ref_init_from_vn_reference (&r, set, type, vr1.operands))
+ 	*vnresult =
+-	  (vn_reference_t)walk_non_aliased_vuses (&r, vr1.vuse,
++	  (vn_reference_t)walk_non_aliased_vuses (&r, vr1.vuse, true,
+ 						  vn_reference_lookup_2,
+ 						  vn_reference_lookup_3,
+-						  vuse_valueize, limit, &vr1);
++						  vuse_valueize, limit, &data);
+       gcc_checking_assert (vr1.operands == shared_lookup_references);
+     }
+ 
+@@ -2702,11 +2718,12 @@
+    not exist in the hash table or if the result field of the structure
+    was NULL..  VNRESULT will be filled in with the vn_reference_t
+    stored in the hashtable if one exists.  When TBAA_P is false assume
+-   we are looking up a store and treat it as having alias-set zero.  */
++   we are looking up a store and treat it as having alias-set zero.
++   *LAST_VUSE_PTR will be updated with the VUSE the value lookup succeeded.  */
+ 
+ tree
+ vn_reference_lookup (tree op, tree vuse, vn_lookup_kind kind,
+-		     vn_reference_t *vnresult, bool tbaa_p)
++		     vn_reference_t *vnresult, bool tbaa_p, tree *last_vuse_ptr)
+ {
+   vec<vn_reference_op_s> operands;
+   struct vn_reference_s vr1;
+@@ -2720,7 +2737,7 @@
+   vr1.operands = operands
+     = valueize_shared_reference_ops_from_ref (op, &valuezied_anything);
+   vr1.type = TREE_TYPE (op);
+-  vr1.set = tbaa_p ? get_alias_set (op) : 0;
++  vr1.set = get_alias_set (op);
+   vr1.hashcode = vn_reference_compute_hash (&vr1);
+   if ((cst = fully_constant_vn_reference_p (&vr1)))
+     return cst;
+@@ -2737,14 +2754,12 @@
+ 	  || !ao_ref_init_from_vn_reference (&r, vr1.set, vr1.type,
+ 					     vr1.operands))
+ 	ao_ref_init (&r, op);
+-      if (! tbaa_p)
+-	r.ref_alias_set = r.base_alias_set = 0;
+-      vn_walk_kind = kind;
++      vn_walk_cb_data data (&vr1, last_vuse_ptr, kind, tbaa_p);
+       wvnresult =
+-	(vn_reference_t)walk_non_aliased_vuses (&r, vr1.vuse,
++	(vn_reference_t)walk_non_aliased_vuses (&r, vr1.vuse, tbaa_p,
+ 						vn_reference_lookup_2,
+ 						vn_reference_lookup_3,
+-						vuse_valueize, limit, &vr1);
++						vuse_valueize, limit, &data);
+       gcc_checking_assert (vr1.operands == shared_lookup_references);
+       if (wvnresult)
+ 	{
+@@ -4099,10 +4114,8 @@
+   tree result;
+ 
+   last_vuse = gimple_vuse (stmt);
+-  last_vuse_ptr = &last_vuse;
+   result = vn_reference_lookup (op, gimple_vuse (stmt),
+-				default_vn_walk_kind, NULL, true);
+-  last_vuse_ptr = NULL;
++				default_vn_walk_kind, NULL, true, &last_vuse);
+ 
+   /* We handle type-punning through unions by value-numbering based
+      on offset and size of the access.  Be prepared to handle a
+Index: gcc/tree-ssa-sccvn.h
+===================================================================
+--- a/src/gcc/tree-ssa-sccvn.h	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/tree-ssa-sccvn.h	(.../branches/gcc-9-branch)
+@@ -234,7 +234,8 @@
+ tree vn_reference_lookup_pieces (tree, alias_set_type, tree,
+ 				 vec<vn_reference_op_s> ,
+ 				 vn_reference_t *, vn_lookup_kind);
+-tree vn_reference_lookup (tree, tree, vn_lookup_kind, vn_reference_t *, bool);
++tree vn_reference_lookup (tree, tree, vn_lookup_kind, vn_reference_t *, bool,
++			  tree * = NULL);
+ void vn_reference_lookup_call (gcall *, vn_reference_t *, vn_reference_t);
+ vn_reference_t vn_reference_insert_pieces (tree, alias_set_type, tree,
+ 					   vec<vn_reference_op_s> ,
 Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,46 @@
+@@ -1,3 +1,108 @@
++2019-08-16  Bernd Edlinger  <bernd.edlinger@hotmail.de>
++
++	Backport from mainline
++	2019-08-16  Bernd Edlinger  <bernd.edlinger@hotmail.de>
++
++	PR tree-optimization/91109
++	* lra-int.h (lra_need_for_scratch_reg_p): Declare.
++	* lra.c (lra): Use lra_need_for_scratch_reg_p.
++	* lra-spills.c (lra_need_for_scratch_reg_p): New function.
++
++	2019-08-07  Bernd Edlinger  <bernd.edlinger@hotmail.de>
++
++	PR tree-optimization/91109
++	* lra-remat.c (update_scratch_ops): Remove assignment of the
++	hard register.
++
++2019-08-15  Steve Ellcey  <sellcey@marvell.com>
++
++	Backport from mainline
++	2019-08-02  Steve Ellcey  <sellcey@marvell.com>
++
++	* omp-simd-clone.c (simd_clone_adjust_return_type): Remove call to
++	build_distinct_type_copy.
++	(simd_clone_adjust_argument_types): Ditto.
++	(simd_clone_adjust): Call build_distinct_type_copy here.
++	(expand_simd_clones): Ditto.
++
++2019-08-15  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/91445
++	Backport from mainline
++	2019-07-05  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/91091
++	* tree-ssa-alias.h (get_continuation_for_phi): Add tbaa_p parameter.
++	(walk_non_aliased_vuses): Likewise.
++	* tree-ssa-alias.c (maybe_skip_until): Pass down tbaa_p.
++	(get_continuation_for_phi): New tbaa_p parameter and pass
++	it down.
++	(walk_non_aliased_vuses): Likewise.
++	* tree-ssa-pre.c (translate_vuse_through_block): Likewise.
++	* tree-ssa-scopedtables.c (avail_exprs_stack::lookup_avail_expr):
++	Likewise.
++	* tree-ssa-sccvn.c (struct vn_walk_cb_data): Add tbaa_p flag.
++	(vn_reference_lookup_3): Handle and pass down tbaa_p flag.
++	(vn_reference_lookup_pieces): Adjust.
++	(vn_reference_lookup): Remove alias-set altering, instead pass
++	down false as tbaa_p.
++
++	2019-07-04  Richard Biener  <rguenther@suse.de>
++
++	* tree-ssa-sccvn.h (vn_reference_lookup): Add last_vuse_ptr
++	argument.
++	* tree-ssa-sccvn.c (last_vuse_ptr, vn_walk_kind): Move
++	globals into...
++	(struct vn_walk_cb_data): New callback data struct.
++	(vn_reference_lookup_2): Adjust.
++	(vn_reference_lookup_3): Likewise.
++	(vn_reference_lookup_pieces): Likewise.
++	(vn_reference_lookup): Likewise, get last_vuse_ptr argument.
++	(visit_reference_op_load): Adjust.
++
 +2019-08-14  Martin Sebor  <msebor@redhat.com>
 +
 +	Backport from mainline
@@ -552,11 +925,69 @@ Index: gcc/testsuite/gfortran.dg/allocated_1.f90
 +   if (a2 .neqv. .true.) stop 4
 +
 +end program foo
+Index: gcc/testsuite/gcc.dg/torture/pr91445.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/torture/pr91445.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gcc.dg/torture/pr91445.c	(.../branches/gcc-9-branch)
+@@ -0,0 +1,22 @@
++/* { dg-do run } */
++
++struct S { _Bool x; };
++
++void
++foo (struct S *s)
++{
++  __builtin_memset (s, 0x11, sizeof (struct S));
++  s->x = 1;
++}
++
++int
++main ()
++{
++  struct S s;
++  foo (&s);
++  char c;
++  __builtin_memcpy (&c, &s.x, 1);
++  if (c != 1)
++    __builtin_abort ();
++  return 0;
++}
+Index: gcc/testsuite/gcc.dg/tree-ssa/pr91091-2.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/tree-ssa/pr91091-2.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gcc.dg/tree-ssa/pr91091-2.c	(.../branches/gcc-9-branch)
+@@ -0,0 +1,15 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -fdump-tree-fre1" } */
++
++struct s { int x; };
++struct t { int x; };
++
++void swap(struct s* p, struct t* q)
++{
++  p->x = q->x;
++  q->x = p->x;
++}
++
++/* The second statement is redundant.  */
++/* { dg-final { scan-tree-dump-times "x = " 1 "fre1" } } */
++/* { dg-final { scan-tree-dump-times " = \[^;\]*x;" 1 "fre1" } } */
 Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,86 @@
+@@ -1,3 +1,97 @@
++2019-08-15  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/91445
++	* gcc.dg/torture/pr91445.c: New testcase.
++
++	Backport from mainline
++	2019-07-05  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/91091
++	* gcc.dg/tree-ssa/pr91091-2.c: New testcase.
++
 +2019-08-14  Martin Sebor  <msebor@redhat.com>
 +
 +	Backport from mainline
@@ -691,6 +1122,51 @@ Index: gcc/testsuite/g++.dg/lookup/missing-std-include-6.C
  std::shared_ptr<int> test_shared_ptr; // { dg-error "'shared_ptr' in namespace 'std' does not name a template type" }
  // { dg-message "'#include <memory>'" "" { target *-*-* } .-1 }
  
+Index: gcc/testsuite/g++.dg/warn/Wsign-conversion-5.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/warn/Wsign-conversion-5.C	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/g++.dg/warn/Wsign-conversion-5.C	(.../branches/gcc-9-branch)
+@@ -0,0 +1,18 @@
++// PR c++/87519 - bogus warning with -Wsign-conversion.
++// { dg-options "-Wsign-conversion" }
++
++typedef unsigned long int uint64_t;
++
++void f(unsigned long int a, int q)
++{
++  a += a + q; // { dg-warning "may change the sign" }
++
++  // Explicit cast should disable the warning.
++  a = a + static_cast<uint64_t>(q);
++  a = a + (uint64_t) q;
++  a = a + uint64_t(q);
++  a = a + static_cast<const uint64_t>(q);
++  a = a + (const uint64_t) q;
++  a = a + static_cast<unsigned long int>(q);
++  a = a + static_cast<const unsigned long int>(q);
++}
+Index: gcc/testsuite/g++.dg/warn/ctor-dtor-privacy-4.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/warn/ctor-dtor-privacy-4.C	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/g++.dg/warn/ctor-dtor-privacy-4.C	(.../branches/gcc-9-branch)
+@@ -0,0 +1,5 @@
++// PR c++/90884
++// { dg-options "-Wctor-dtor-privacy" }
++// { dg-prune-output "In file included from" }
++
++#include "ctor-dtor-privacy-4.h"  // { dg-bogus "is public" }
+Index: gcc/testsuite/g++.dg/warn/ctor-dtor-privacy-4.h
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/warn/ctor-dtor-privacy-4.h	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/g++.dg/warn/ctor-dtor-privacy-4.h	(.../branches/gcc-9-branch)
+@@ -0,0 +1,7 @@
++#pragma GCC system_header
++
++namespace std {
++struct __nonesuch {
++  __nonesuch(__nonesuch const &);
++};
++} // namespace std
 Index: gcc/testsuite/g++.dg/cpp0x/lambda/lambda-variadic9.C
 ===================================================================
 --- a/src/gcc/testsuite/g++.dg/cpp0x/lambda/lambda-variadic9.C	(.../tags/gcc_9_2_0_release)
@@ -712,6 +1188,119 @@ Index: gcc/testsuite/g++.dg/cpp0x/lambda/lambda-variadic9.C
 +{
 +  f(1);
 +}
+Index: gcc/testsuite/g++.dg/cpp0x/gen-attrs-68.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp0x/gen-attrs-68.C	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp0x/gen-attrs-68.C	(.../branches/gcc-9-branch)
+@@ -0,0 +1,40 @@
++// PR c++/81429 - wrong parsing of constructor with C++11 attribute.
++// { dg-do compile { target c++11 } }
++// { dg-additional-options "-Wunused-parameter -Wno-pedantic" }
++
++void fn1([[maybe_unused]] int a) { }
++void fn2(int a [[maybe_unused]]) { }
++void fn3(__attribute__((unused)) int a) { }
++void fn4(int a __attribute__((unused))) { }
++
++struct S1 {
++  S1([[maybe_unused]] int a) { }
++};
++
++struct S2 {
++  S2([[maybe_unused]] int f, [[maybe_unused]] int a) { }
++};
++
++struct S3 {
++  S3(int a [[maybe_unused]]) { }
++};
++
++struct S4 {
++  S4(int f [[maybe_unused]], int a [[maybe_unused]]) { }
++};
++
++struct S5 {
++  S5(__attribute__((unused)) int a) { }
++};
++
++struct S6 {
++  S6(__attribute__((unused)) int f, __attribute__((unused)) int a) { }
++};
++
++struct S7 {
++  S7(int a __attribute__((unused))) { }
++};
++
++struct S8 {
++  S8(int f __attribute__((unused)), int a __attribute__((unused))) { }
++};
+Index: gcc/testsuite/g++.dg/cpp0x/gen-attrs-69.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp0x/gen-attrs-69.C	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp0x/gen-attrs-69.C	(.../branches/gcc-9-branch)
+@@ -0,0 +1,40 @@
++// PR c++/81429 - wrong parsing of constructor with C++11 attribute.
++// { dg-do compile { target c++11 } }
++// { dg-additional-options "-Wno-pedantic" }
++
++void fn1([[maybe_unused]] int);
++void fn2(int a [[maybe_unused]]);
++void fn3(__attribute__((unused)) int);
++void fn4(int __attribute__((unused)));
++
++struct S1 {
++  S1([[maybe_unused]] int);
++};
++
++struct S2 {
++  S2([[maybe_unused]] int, [[maybe_unused]] int);
++};
++
++struct S3 {
++  S3(int a [[maybe_unused]]);
++};
++
++struct S4 {
++  S4(int a [[maybe_unused]], int b [[maybe_unused]]);
++};
++
++struct S5 {
++  S5(__attribute__((unused)) int);
++};
++
++struct S6 {
++  S6(__attribute__((unused)) int, __attribute__((unused)) int);
++};
++
++struct S7 {
++  S7(int __attribute__((unused)));
++};
++
++struct S8 {
++  S8(int __attribute__((unused)), int __attribute__((unused)));
++};
+Index: gcc/testsuite/g++.dg/cpp0x/nullptr42.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp0x/nullptr42.C	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp0x/nullptr42.C	(.../branches/gcc-9-branch)
+@@ -0,0 +1,18 @@
++// PR c++/90473 - wrong code with nullptr in default argument.
++// { dg-do run { target c++11 } }
++
++int g;
++void f() { g++; }
++
++void fn1 (void* p = (f(), nullptr)) { }
++void fn2 (int p = (f(), 0)) { }
++
++int main()
++{
++  fn1 ();
++  if (g != 1)
++    __builtin_abort ();
++  fn2 ();
++  if (g != 2)
++    __builtin_abort ();
++}
 Index: gcc/testsuite/g++.dg/cpp0x/range-for19.C
 ===================================================================
 --- a/src/gcc/testsuite/g++.dg/cpp0x/range-for19.C	(.../tags/gcc_9_2_0_release)
@@ -724,6 +1313,25 @@ Index: gcc/testsuite/g++.dg/cpp0x/range-for19.C
 +  for(auto i: a)
      ;
  }
+Index: gcc/testsuite/g++.dg/cpp1y/dr1560.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp1y/dr1560.C	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp1y/dr1560.C	(.../branches/gcc-9-branch)
+@@ -1,14 +0,0 @@
+-// Core 1560
+-// { dg-do compile { target c++14 } }
+-
+-struct A
+-{
+-  A();
+-  A(const A&) = delete;
+-};
+-
+-void f(bool b)
+-{
+-  A a;
+-  b ? a : throw 42;
+-}
 Index: gcc/testsuite/g++.dg/cpp1y/lambda-init16.C
 ===================================================================
 --- a/src/gcc/testsuite/g++.dg/cpp1y/lambda-init16.C	(.../tags/gcc_9_2_0_release)
@@ -1007,6 +1615,54 @@ Index: gcc/testsuite/g++.dg/cpp2a/udlit-class-nttp-ctad-neg.C
 +
 +static_assert("test"_udl == 5); // { dg-error "15:no matching function for call to" }
 +                                // { dg-error "15:class template argument deduction failed" "" { target *-*-* } .-1 }
+Index: gcc/testsuite/g++.dg/expr/cond16.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/expr/cond16.C	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/g++.dg/expr/cond16.C	(.../branches/gcc-9-branch)
+@@ -0,0 +1,25 @@
++// PR c++/90393
++// { dg-do run }
++
++int c, d;
++
++struct string {
++  string(const char *p): s(p) { ++c; }
++  ~string() { ++d; }
++  string(const string& str): s(str.s) { ++c; }
++  const char* s;
++  bool empty() const { return !s; }
++};
++    
++string foo()
++{
++  string s("foo");
++  return s.empty() ? throw "empty" : s;
++}
++
++int main()
++{
++  foo();
++  if (c != d)
++    __builtin_abort();
++}
+Index: gcc/testsuite/g++.dg/expr/cond15.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/expr/cond15.C	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/g++.dg/expr/cond15.C	(.../branches/gcc-9-branch)
+@@ -0,0 +1,13 @@
++// PR c++/90393
++
++struct S {
++  S();
++  S(const S&) {}
++};
++
++S f() {
++  const S m;
++  return true ? m : throw 0;
++}
++
++int main() {}
 Index: gcc/testsuite/g++.dg/abi/mangle73.C
 ===================================================================
 --- a/src/gcc/testsuite/g++.dg/abi/mangle73.C	(.../tags/gcc_9_2_0_release)
@@ -1398,6 +2054,41 @@ Index: gcc/testsuite/c-c++-common/array-1.c
 +}
 +
 +// { dg-final { scan-tree-dump-not "abort" "optimized" } }
+Index: gcc/cp/typeck.c
+===================================================================
+--- a/src/gcc/cp/typeck.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/cp/typeck.c	(.../branches/gcc-9-branch)
+@@ -5516,9 +5516,9 @@
+   if (! converted)
+     {
+       warning_sentinel w (warn_sign_conversion, short_compare);
+-      if (TREE_TYPE (op0) != result_type)
++      if (!same_type_p (TREE_TYPE (op0), result_type))
+ 	op0 = cp_convert_and_check (result_type, op0, complain);
+-      if (TREE_TYPE (op1) != result_type)
++      if (!same_type_p (TREE_TYPE (op1), result_type))
+ 	op1 = cp_convert_and_check (result_type, op1, complain);
+ 
+       if (op0 == error_mark_node || op1 == error_mark_node)
+Index: gcc/cp/class.c
+===================================================================
+--- a/src/gcc/cp/class.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/cp/class.c	(.../branches/gcc-9-branch)
+@@ -2149,10 +2149,10 @@
+ 
+       if (!nonprivate_ctor)
+ 	{
+-	  warning (OPT_Wctor_dtor_privacy,
+-		   "%q#T only defines private constructors and has no friends",
+-		   t);
+-	  if (copy_or_move)
++	  bool w = warning (OPT_Wctor_dtor_privacy,
++			    "%q#T only defines private constructors and has "
++			    "no friends", t);
++	  if (w && copy_or_move)
+ 	    inform (DECL_SOURCE_LOCATION (copy_or_move),
+ 		    "%q#D is public, but requires an existing %q#T object",
+ 		    copy_or_move, t);
 Index: gcc/cp/decl.c
 ===================================================================
 --- a/src/gcc/cp/decl.c	(.../tags/gcc_9_2_0_release)
@@ -1415,13 +2106,59 @@ Index: gcc/cp/decl.c
  
        /* This can happen with an invalid initializer (c++/54501).  */
        if (d->cur == old_cur && !sized_array_p)
+@@ -13042,7 +13043,9 @@
+   /* Avoid redundant -Wzero-as-null-pointer-constant warnings at
+      the call sites.  */
+   if (TYPE_PTR_OR_PTRMEM_P (decl_type)
+-      && null_ptr_cst_p (arg))
++      && null_ptr_cst_p (arg)
++      /* Don't lose side-effects as in PR90473.  */
++      && !TREE_SIDE_EFFECTS (arg))
+     return nullptr_node;
+ 
+   /* [dcl.fct.default]
 Index: gcc/cp/ChangeLog
 ===================================================================
 --- a/src/gcc/cp/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/cp/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,40 @@
+@@ -1,3 +1,75 @@
++2019-08-16  Jason Merrill  <jason@redhat.com>
++
++	PR c++/90393 - ICE with throw in ?:
++	* call.c (build_conditional_expr_1): Revert changes from
++	PR c++/64372 and c++/86205.
++
++2019-08-15  Marek Polacek  <polacek@redhat.com>
++
++	Backported from mainline
++	2019-08-07  Marek Polacek  <polacek@redhat.com>
++
++	PR c++/81429 - wrong parsing of constructor with C++11 attribute.
++	* parser.c (cp_parser_constructor_declarator_p): Handle the scenario
++	when a parameter declaration begins with [[attribute]].
++
++	2019-08-08  Marek Polacek  <polacek@redhat.com>
++
++	PR c++/87519 - bogus warning with -Wsign-conversion.
++	* typeck.c (cp_build_binary_op): Use same_type_p instead of comparing
++	the types directly.
++
++	2019-08-13  Marek Polacek  <polacek@redhat.com>
++
++	PR c++/90473 - wrong code with nullptr in default argument.
++	* call.c (null_ptr_cst_p): Update quote from the standard.
++	* decl.c (check_default_argument): Don't return nullptr when the arg
++	has side-effects.
++
++	2019-06-14  Marek Polacek  <polacek@redhat.com>
++
++	PR c++/90884 - stray note with -Wctor-dtor-privacy.
++	* class.c (maybe_warn_about_overly_private_class): Guard the call to
++	inform.
++
 +2019-08-14  Martin Sebor  <msebor@redhat.com>
 +
++	Backported from mainline
 +	2019-08-01  Martin Sebor  <msebor@redhat.com>
 +
 +	PR c++/90947
@@ -1460,7 +2197,7 @@ Index: gcc/cp/ChangeLog
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -16,7 +53,7 @@
+@@ -16,7 +88,7 @@
  
  	Backported from mainline
  	2019-08-02  Marek Polacek  <polacek@redhat.com>
@@ -1648,7 +2385,18 @@ Index: gcc/cp/parser.c
 ===================================================================
 --- a/src/gcc/cp/parser.c	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/cp/parser.c	(.../branches/gcc-9-branch)
-@@ -27911,7 +27911,10 @@
+@@ -27596,7 +27596,9 @@
+ 	  /* A parameter declaration begins with a decl-specifier,
+ 	     which is either the "attribute" keyword, a storage class
+ 	     specifier, or (usually) a type-specifier.  */
+-	  && !cp_lexer_next_token_is_decl_specifier_keyword (parser->lexer))
++	  && !cp_lexer_next_token_is_decl_specifier_keyword (parser->lexer)
++	  /* A parameter declaration can also begin with [[attribute]].  */
++	  && !cp_next_tokens_can_be_std_attribute_p (parser))
+ 	{
+ 	  tree type;
+ 	  tree pushed_scope = NULL_TREE;
+@@ -27911,7 +27913,10 @@
  	    {
  	      tree parm_list = TREE_VEC_ELT (parameter_list, 0);
  	      tree parm = INNERMOST_TEMPLATE_PARMS (parm_list);
@@ -1660,7 +2408,7 @@ Index: gcc/cp/parser.c
  		/* OK, C++20 string literal operator template.  We don't need
  		   to warn in lower dialects here because we will have already
  		   warned about the template parameter.  */;
-@@ -27925,7 +27928,7 @@
+@@ -27925,7 +27930,7 @@
  	      tree type = INNERMOST_TEMPLATE_PARMS (parm_type);
  	      tree parm_list = TREE_VEC_ELT (parameter_list, 1);
  	      tree parm = INNERMOST_TEMPLATE_PARMS (parm_list);
@@ -1669,6 +2417,134 @@ Index: gcc/cp/parser.c
  		  || TREE_TYPE (parm) != TREE_TYPE (type)
  		  || !TEMPLATE_PARM_PARAMETER_PACK (DECL_INITIAL (parm)))
  		ok = false;
+Index: gcc/cp/call.c
+===================================================================
+--- a/src/gcc/cp/call.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/cp/call.c	(.../branches/gcc-9-branch)
+@@ -530,9 +530,8 @@
+ 
+   /* [conv.ptr]
+ 
+-     A null pointer constant is an integral constant expression
+-     (_expr.const_) rvalue of integer type that evaluates to zero or
+-     an rvalue of type std::nullptr_t. */
++     A null pointer constant is an integer literal ([lex.icon]) with value
++     zero or a prvalue of type std::nullptr_t.  */
+   if (NULLPTR_TYPE_P (type))
+     return true;
+ 
+@@ -5186,18 +5185,15 @@
+   arg3_type = unlowered_expr_type (arg3);
+   if (VOID_TYPE_P (arg2_type) || VOID_TYPE_P (arg3_type))
+     {
+-      /* 'void' won't help in resolving an overloaded expression on the
+-	 other side, so require it to resolve by itself.  */
+-      if (arg2_type == unknown_type_node)
+-	{
+-	  arg2 = resolve_nondeduced_context_or_error (arg2, complain);
+-	  arg2_type = TREE_TYPE (arg2);
+-	}
+-      if (arg3_type == unknown_type_node)
+-	{
+-	  arg3 = resolve_nondeduced_context_or_error (arg3, complain);
+-	  arg3_type = TREE_TYPE (arg3);
+-	}
++      /* Do the conversions.  We don't these for `void' type arguments
++	 since it can't have any effect and since decay_conversion
++	 does not handle that case gracefully.  */
++      if (!VOID_TYPE_P (arg2_type))
++	arg2 = decay_conversion (arg2, complain);
++      if (!VOID_TYPE_P (arg3_type))
++	arg3 = decay_conversion (arg3, complain);
++      arg2_type = TREE_TYPE (arg2);
++      arg3_type = TREE_TYPE (arg3);
+ 
+       /* [expr.cond]
+ 
+@@ -5204,28 +5200,41 @@
+ 	 One of the following shall hold:
+ 
+ 	 --The second or the third operand (but not both) is a
+-	   throw-expression (_except.throw_); the result is of the type
+-	   and value category of the other.
++	   throw-expression (_except.throw_); the result is of the
++	   type of the other and is an rvalue.
+ 
+ 	 --Both the second and the third operands have type void; the
+-	   result is of type void and is a prvalue.  */
++	   result is of type void and is an rvalue.
++
++	 We must avoid calling force_rvalue for expressions of type
++	 "void" because it will complain that their value is being
++	 used.  */
+       if (TREE_CODE (arg2) == THROW_EXPR
+ 	  && TREE_CODE (arg3) != THROW_EXPR)
+ 	{
++	  if (!VOID_TYPE_P (arg3_type))
++	    {
++	      arg3 = force_rvalue (arg3, complain);
++	      if (arg3 == error_mark_node)
++		return error_mark_node;
++	    }
++	  arg3_type = TREE_TYPE (arg3);
+ 	  result_type = arg3_type;
+-	  is_glvalue = glvalue_p (arg3);
+ 	}
+       else if (TREE_CODE (arg2) != THROW_EXPR
+ 	       && TREE_CODE (arg3) == THROW_EXPR)
+ 	{
++	  if (!VOID_TYPE_P (arg2_type))
++	    {
++	      arg2 = force_rvalue (arg2, complain);
++	      if (arg2 == error_mark_node)
++		return error_mark_node;
++	    }
++	  arg2_type = TREE_TYPE (arg2);
+ 	  result_type = arg2_type;
+-	  is_glvalue = glvalue_p (arg2);
+ 	}
+       else if (VOID_TYPE_P (arg2_type) && VOID_TYPE_P (arg3_type))
+-	{
+-	  result_type = void_type_node;
+-	  is_glvalue = false;
+-	}
++	result_type = void_type_node;
+       else
+ 	{
+           if (complain & tf_error)
+@@ -5244,6 +5253,7 @@
+ 	  return error_mark_node;
+ 	}
+ 
++      is_glvalue = false;
+       goto valid_operands;
+     }
+   /* [expr.cond]
+@@ -5361,6 +5371,10 @@
+       && same_type_p (arg2_type, arg3_type))
+     {
+       result_type = arg2_type;
++      if (processing_template_decl)
++	/* Let lvalue_kind know this was a glvalue.  */
++	result_type = cp_build_reference_type (result_type, xvalue_p (arg2));
++
+       arg2 = mark_lvalue_use (arg2);
+       arg3 = mark_lvalue_use (arg3);
+       goto valid_operands;
+@@ -5558,13 +5572,6 @@
+     return error_mark_node;
+ 
+  valid_operands:
+-  if (processing_template_decl && is_glvalue)
+-    {
+-      /* Let lvalue_kind know this was a glvalue.  */
+-      tree arg = (result_type == arg2_type ? arg2 : arg3);
+-      result_type = cp_build_reference_type (result_type, xvalue_p (arg));
+-    }
+-
+   result = build3_loc (loc, COND_EXPR, result_type, arg1, arg2, arg3);
+ 
+   /* If the ARG2 and ARG3 are the same and don't have side-effects,
 Index: gcc/cp/lambda.c
 ===================================================================
 --- a/src/gcc/cp/lambda.c	(.../tags/gcc_9_2_0_release)
@@ -1783,6 +2659,85 @@ Index: gcc/cp/name-lookup.c
      {"shared_ptr", "<memory>", cxx11},
      {"unique_ptr", "<memory>", cxx11},
      {"weak_ptr", "<memory>", cxx11},
+Index: gcc/tree-ssa-alias.c
+===================================================================
+--- a/src/gcc/tree-ssa-alias.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/tree-ssa-alias.c	(.../branches/gcc-9-branch)
+@@ -2599,8 +2599,8 @@
+ 
+ static bool
+ maybe_skip_until (gimple *phi, tree &target, basic_block target_bb,
+-		  ao_ref *ref, tree vuse, unsigned int &limit, bitmap *visited,
+-		  bool abort_on_visited,
++		  ao_ref *ref, tree vuse, bool tbaa_p, unsigned int &limit,
++		  bitmap *visited, bool abort_on_visited,
+ 		  void *(*translate)(ao_ref *, tree, void *, bool *),
+ 		  void *data)
+ {
+@@ -2634,7 +2634,7 @@
+ 	  /* An already visited PHI node ends the walk successfully.  */
+ 	  if (bitmap_bit_p (*visited, SSA_NAME_VERSION (PHI_RESULT (def_stmt))))
+ 	    return !abort_on_visited;
+-	  vuse = get_continuation_for_phi (def_stmt, ref, limit,
++	  vuse = get_continuation_for_phi (def_stmt, ref, tbaa_p, limit,
+ 					   visited, abort_on_visited,
+ 					   translate, data);
+ 	  if (!vuse)
+@@ -2649,7 +2649,7 @@
+ 	  if ((int)limit <= 0)
+ 	    return false;
+ 	  --limit;
+-	  if (stmt_may_clobber_ref_p_1 (def_stmt, ref))
++	  if (stmt_may_clobber_ref_p_1 (def_stmt, ref, tbaa_p))
+ 	    {
+ 	      bool disambiguate_only = true;
+ 	      if (translate
+@@ -2681,7 +2681,7 @@
+    Returns NULL_TREE if no suitable virtual operand can be found.  */
+ 
+ tree
+-get_continuation_for_phi (gimple *phi, ao_ref *ref,
++get_continuation_for_phi (gimple *phi, ao_ref *ref, bool tbaa_p,
+ 			  unsigned int &limit, bitmap *visited,
+ 			  bool abort_on_visited,
+ 			  void *(*translate)(ao_ref *, tree, void *, bool *),
+@@ -2724,7 +2724,8 @@
+       arg1 = PHI_ARG_DEF (phi, i);
+       if (arg1 == arg0)
+ 	;
+-      else if (! maybe_skip_until (phi, arg0, dom, ref, arg1, limit, visited,
++      else if (! maybe_skip_until (phi, arg0, dom, ref, arg1, tbaa_p,
++				   limit, visited,
+ 				   abort_on_visited,
+ 				   /* Do not translate when walking over
+ 				      backedges.  */
+@@ -2768,7 +2769,7 @@
+    TODO: Cache the vector of equivalent vuses per ref, vuse pair.  */
+ 
+ void *
+-walk_non_aliased_vuses (ao_ref *ref, tree vuse,
++walk_non_aliased_vuses (ao_ref *ref, tree vuse, bool tbaa_p,
+ 			void *(*walker)(ao_ref *, tree, void *),
+ 			void *(*translate)(ao_ref *, tree, void *, bool *),
+ 			tree (*valueize)(tree),
+@@ -2809,7 +2810,7 @@
+       if (gimple_nop_p (def_stmt))
+ 	break;
+       else if (gimple_code (def_stmt) == GIMPLE_PHI)
+-	vuse = get_continuation_for_phi (def_stmt, ref, limit,
++	vuse = get_continuation_for_phi (def_stmt, ref, tbaa_p, limit,
+ 					 &visited, translated, translate, data);
+       else
+ 	{
+@@ -2819,7 +2820,7 @@
+ 	      break;
+ 	    }
+ 	  --limit;
+-	  if (stmt_may_clobber_ref_p_1 (def_stmt, ref))
++	  if (stmt_may_clobber_ref_p_1 (def_stmt, ref, tbaa_p))
+ 	    {
+ 	      if (!translate)
+ 		break;
 Index: gcc/lto-wrapper.c
 ===================================================================
 --- a/src/gcc/lto-wrapper.c	(.../tags/gcc_9_2_0_release)
@@ -1829,6 +2784,54 @@ Index: gcc/lto-wrapper.c
  					&decoded_options,
  					&decoded_options_count);
  
+Index: gcc/tree-ssa-alias.h
+===================================================================
+--- a/src/gcc/tree-ssa-alias.h	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/tree-ssa-alias.h	(.../branches/gcc-9-branch)
+@@ -131,11 +131,11 @@
+ extern bool call_may_clobber_ref_p_1 (gcall *, ao_ref *);
+ extern bool stmt_kills_ref_p (gimple *, tree);
+ extern bool stmt_kills_ref_p (gimple *, ao_ref *);
+-extern tree get_continuation_for_phi (gimple *, ao_ref *,
++extern tree get_continuation_for_phi (gimple *, ao_ref *, bool,
+ 				      unsigned int &, bitmap *, bool,
+ 				      void *(*)(ao_ref *, tree, void *, bool *),
+ 				      void *);
+-extern void *walk_non_aliased_vuses (ao_ref *, tree,
++extern void *walk_non_aliased_vuses (ao_ref *, tree, bool,
+ 				     void *(*)(ao_ref *, tree, void *),
+ 				     void *(*)(ao_ref *, tree, void *, bool *),
+ 				     tree (*)(tree), unsigned &, void *);
+Index: gcc/lra-remat.c
+===================================================================
+--- a/src/gcc/lra-remat.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/lra-remat.c	(.../branches/gcc-9-branch)
+@@ -1020,7 +1020,6 @@
+ static void
+ update_scratch_ops (rtx_insn *remat_insn)
+ {
+-  int hard_regno;
+   lra_insn_recog_data_t id = lra_get_insn_recog_data (remat_insn);
+   struct lra_static_insn_data *static_id = id->insn_static_data;
+   for (int i = 0; i < static_id->n_operands; i++)
+@@ -1031,17 +1030,9 @@
+       int regno = REGNO (*loc);
+       if (! lra_former_scratch_p (regno))
+ 	continue;
+-      hard_regno = reg_renumber[regno];
+       *loc = lra_create_new_reg (GET_MODE (*loc), *loc,
+ 				 lra_get_allocno_class (regno),
+ 				 "scratch pseudo copy");
+-      if (hard_regno >= 0)
+-	{
+-	  reg_renumber[REGNO (*loc)] = hard_regno;
+-	  if (lra_dump_file)
+-	    fprintf (lra_dump_file, "	 Assigning the same %d to r%d\n",
+-		     REGNO (*loc), hard_regno);
+-	}
+       lra_register_new_scratch_op (remat_insn, i, id->icode);
+     }
+   
 Index: gcc/fortran/intrinsic.c
 ===================================================================
 --- a/src/gcc/fortran/intrinsic.c	(.../tags/gcc_9_2_0_release)
@@ -2246,6 +3249,76 @@ Index: gcc/BASE-VER
 @@ -1 +1 @@
 -9.2.0
 +9.2.1
+Index: gcc/tree-ssa-pre.c
+===================================================================
+--- a/src/gcc/tree-ssa-pre.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/tree-ssa-pre.c	(.../branches/gcc-9-branch)
+@@ -1184,8 +1184,8 @@
+ 	  bitmap visited = NULL;
+ 	  /* Try to find a vuse that dominates this phi node by skipping
+ 	     non-clobbering statements.  */
+-	  vuse = get_continuation_for_phi (phi, &ref, cnt, &visited, false,
+-					   NULL, NULL);
++	  vuse = get_continuation_for_phi (phi, &ref, true,
++					   cnt, &visited, false, NULL, NULL);
+ 	  if (visited)
+ 	    BITMAP_FREE (visited);
+ 	}
+Index: gcc/omp-simd-clone.c
+===================================================================
+--- a/src/gcc/omp-simd-clone.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/omp-simd-clone.c	(.../branches/gcc-9-branch)
+@@ -498,7 +498,6 @@
+   /* Adjust the function return type.  */
+   if (orig_rettype == void_type_node)
+     return NULL_TREE;
+-  TREE_TYPE (fndecl) = build_distinct_type_copy (TREE_TYPE (fndecl));
+   t = TREE_TYPE (TREE_TYPE (fndecl));
+   if (INTEGRAL_TYPE_P (t) || POINTER_TYPE_P (t))
+     veclen = node->simdclone->vecsize_int;
+@@ -724,11 +723,7 @@
+ 	  else
+ 	    new_reversed = void_list_node;
+ 	}
+-
+-      tree new_type = build_distinct_type_copy (TREE_TYPE (node->decl));
+-      TYPE_ARG_TYPES (new_type) = new_reversed;
+-      TREE_TYPE (node->decl) = new_type;
+-
++      TYPE_ARG_TYPES (TREE_TYPE (node->decl)) = new_reversed;
+       adjustments.release ();
+     }
+   args.release ();
+@@ -1164,6 +1159,7 @@
+ {
+   push_cfun (DECL_STRUCT_FUNCTION (node->decl));
+ 
++  TREE_TYPE (node->decl) = build_distinct_type_copy (TREE_TYPE (node->decl));
+   targetm.simd_clone.adjust (node);
+ 
+   tree retval = simd_clone_adjust_return_type (node);
+@@ -1737,6 +1733,8 @@
+ 	    simd_clone_adjust (n);
+ 	  else
+ 	    {
++	      TREE_TYPE (n->decl)
++		= build_distinct_type_copy (TREE_TYPE (n->decl));
+ 	      targetm.simd_clone.adjust (n);
+ 	      simd_clone_adjust_return_type (n);
+ 	      simd_clone_adjust_argument_types (n);
+Index: gcc/tree-ssa-scopedtables.c
+===================================================================
+--- a/src/gcc/tree-ssa-scopedtables.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/tree-ssa-scopedtables.c	(.../branches/gcc-9-branch)
+@@ -298,7 +298,7 @@
+ 	    && TREE_CODE (gimple_assign_lhs (stmt)) == SSA_NAME
+ 	    && (ao_ref_init (&ref, gimple_assign_rhs1 (stmt)),
+ 		ref.base_alias_set = ref.ref_alias_set = tbaa_p ? -1 : 0, true)
+-	    && walk_non_aliased_vuses (&ref, vuse2, vuse_eq, NULL, NULL,
++	    && walk_non_aliased_vuses (&ref, vuse2, true, vuse_eq, NULL, NULL,
+ 				       limit, vuse1) != NULL))
+ 	{
+ 	  if (insert)
 Index: libgfortran/intrinsics/random.c
 ===================================================================
 --- a/src/libgfortran/intrinsics/random.c	(.../tags/gcc_9_2_0_release)
