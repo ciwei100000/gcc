@@ -1,10 +1,10 @@
-# DP: updates from the 9 branch upto 20190817 (r274599).
+# DP: updates from the 9 branch upto 20190819 (r274667).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Sat Aug 17 10:33:43 CEST 2019
-Sat Aug 17 08:33:43 UTC 2019 (revision 274599)
+Mon Aug 19 11:20:56 CEST 2019
+Mon Aug 19 09:20:56 UTC 2019 (revision 274667)
 EOF
 }
 
@@ -40,6 +40,70 @@ Index: libgomp/testsuite/libgomp.oacc-fortran/routine-7.f90
    integer :: i
  
    do i = 1, N
+Index: libsanitizer/asan/Makefile.in
+===================================================================
+--- a/src/libsanitizer/asan/Makefile.in	(.../tags/gcc_9_2_0_release)
++++ b/src/libsanitizer/asan/Makefile.in	(.../branches/gcc-9-branch)
+@@ -90,7 +90,7 @@
+ build_triplet = @build@
+ host_triplet = @host@
+ target_triplet = @target@
+-@USING_MAC_INTERPOSE_TRUE@am__append_1 = -DMAC_INTERPOSE_FUNCTIONS -DMISSING_BLOCKS_SUPPORT
++@USING_MAC_INTERPOSE_TRUE@am__append_1 = -DMAC_INTERPOSE_FUNCTIONS -DMISSING_BLOCKS_SUPPORT -DASAN_HAS_CXA_RETHROW_PRIMARY_EXCEPTION=0
+ @USING_MAC_INTERPOSE_FALSE@am__append_2 = $(top_builddir)/interception/libinterception.la
+ @LIBBACKTRACE_SUPPORTED_TRUE@am__append_3 = $(top_builddir)/libbacktrace/libsanitizer_libbacktrace.la
+ subdir = asan
+Index: libsanitizer/asan/asan_interceptors.h
+===================================================================
+--- a/src/libsanitizer/asan/asan_interceptors.h	(.../tags/gcc_9_2_0_release)
++++ b/src/libsanitizer/asan/asan_interceptors.h	(.../branches/gcc-9-branch)
+@@ -79,7 +79,12 @@
+ #if ASAN_HAS_EXCEPTIONS && !SANITIZER_WINDOWS && !SANITIZER_SOLARIS && \
+     !SANITIZER_NETBSD
+ # define ASAN_INTERCEPT___CXA_THROW 1
+-# define ASAN_INTERCEPT___CXA_RETHROW_PRIMARY_EXCEPTION 1
++# if ! defined(ASAN_HAS_CXA_RETHROW_PRIMARY_EXCEPTION) \
++     || ASAN_HAS_CXA_RETHROW_PRIMARY_EXCEPTION
++#   define ASAN_INTERCEPT___CXA_RETHROW_PRIMARY_EXCEPTION 1
++# else
++#   define ASAN_INTERCEPT___CXA_RETHROW_PRIMARY_EXCEPTION 0
++# endif
+ # if defined(_GLIBCXX_SJLJ_EXCEPTIONS) || (SANITIZER_IOS && defined(__arm__))
+ #  define ASAN_INTERCEPT__UNWIND_SJLJ_RAISEEXCEPTION 1
+ # else
+Index: libsanitizer/asan/Makefile.am
+===================================================================
+--- a/src/libsanitizer/asan/Makefile.am	(.../tags/gcc_9_2_0_release)
++++ b/src/libsanitizer/asan/Makefile.am	(.../branches/gcc-9-branch)
+@@ -5,7 +5,7 @@
+ 
+ DEFS = -D_GNU_SOURCE -D_DEBUG -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -DASAN_HAS_EXCEPTIONS=1 -DASAN_NEEDS_SEGV=1 -DCAN_SANITIZE_UB=0
+ if USING_MAC_INTERPOSE
+-DEFS += -DMAC_INTERPOSE_FUNCTIONS -DMISSING_BLOCKS_SUPPORT
++DEFS += -DMAC_INTERPOSE_FUNCTIONS -DMISSING_BLOCKS_SUPPORT -DASAN_HAS_CXA_RETHROW_PRIMARY_EXCEPTION=0
+ endif
+ AM_CXXFLAGS = -Wall -W -Wno-unused-parameter -Wwrite-strings -pedantic -Wno-long-long  -fPIC -fno-builtin -fno-exceptions -fno-rtti -fomit-frame-pointer -funwind-tables -fvisibility=hidden -Wno-variadic-macros -fno-ipa-icf
+ AM_CXXFLAGS += $(LIBSTDCXX_RAW_CXX_CXXFLAGS)
+Index: libsanitizer/ChangeLog
+===================================================================
+--- a/src/libsanitizer/ChangeLog	(.../tags/gcc_9_2_0_release)
++++ b/src/libsanitizer/ChangeLog	(.../branches/gcc-9-branch)
+@@ -1,3 +1,15 @@
++2019-08-18  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backport from mainline
++	2019-06-18  Iain Sandoe  <iain@sandoe.co.uk>
++
++	PR libsanitizer/87880
++	* asan/asan_interceptors.h:
++	(ASAN_INTERCEPT___CXA_RETHROW_PRIMARY_EXCEPTION): New.
++	* asan/Makefile.am (DEFS): Add (for Darwin only)
++	ASAN_HAS_CXA_RETHROW_PRIMARY_EXCEPTION, defined to 0.
++	* asan/Makefile.in: Regenerated.
++
+ 2019-08-12  Release Manager
+ 
+ 	* GCC 9.2.0 released.
 Index: libstdc++-v3/src/c++17/string-inst.cc
 ===================================================================
 --- a/src/libstdc++-v3/src/c++17/string-inst.cc	(.../tags/gcc_9_2_0_release)
@@ -116,7 +180,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-9-branch)
 @@ -1 +1 @@
 -20190812
-+20190817
++20190819
 Index: gcc/lra.c
 ===================================================================
 --- a/src/gcc/lra.c	(.../tags/gcc_9_2_0_release)
@@ -710,6 +774,80 @@ Index: gcc/testsuite/gfortran.dg/pr70754.f90
      end do
  
      where ((xyz(:,:,2) /= 0) .and. (c /= 0))
+Index: gcc/testsuite/gfortran.dg/pr78719_3.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr78719_3.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr78719_3.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,32 @@
++! { dg-do compile }
++! PR fortran/78719
++! Code contributed by Gerhard Steinmetz 
++program p
++
++   type t
++      integer :: n
++   end type
++
++   class(t) :: g     ! { dg-error "must be dummy, allocatable or pointer" }
++
++   abstract interface
++      subroutine h
++      end
++   end interface
++
++   procedure(h), pointer :: s
++
++   s => f
++   call s
++   s => g            ! { dg-error "Invalid procedure pointer" }
++   call s
++
++   contains
++
++      subroutine f
++      end
++
++      subroutine g   ! { dg-error "has an explicit interface" }
++      end
++
++end program p        ! { dg-error "Syntax error" }
+Index: gcc/testsuite/gfortran.dg/use_rename_8.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/use_rename_8.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/use_rename_8.f90	(.../branches/gcc-9-branch)
+@@ -19,8 +19,8 @@
+     USE MOO, ONLY: X => B
+ END SUBROUTINE T
+ 
+-SUBROUTINE C
+-    USE MOO, ONLY: C  ! { dg-error "is also the name of the current program unit" }
++SUBROUTINE C          ! { dg-error "\(1\)" }
++    USE MOO, ONLY: C  ! { dg-error "conflicts with the" }
+ END SUBROUTINE C
+ 
+ SUBROUTINE D
+@@ -36,15 +36,15 @@
+     USE MOO, ONLY: X => F
+ END SUBROUTINE F
+ 
+-SUBROUTINE X
+-    USE MOO, ONLY: X => G ! { dg-error "is also the name of the current program unit" }
++SUBROUTINE X              ! { dg-error "\(1\)" }
++    USE MOO, ONLY: X => G ! { dg-error "conflicts with the rename" }
+ END SUBROUTINE X
+ 
+-SUBROUTINE Y
+-    USE MOO, ONLY: Y => H ! { dg-error "is also the name of the current program unit" }
++SUBROUTINE Y              ! { dg-error "\(1\)" }
++    USE MOO, ONLY: Y => H ! { dg-error "conflicts with the rename" }
+ END SUBROUTINE Y
+ 
+-SUBROUTINE Z
+-    USE MOO, ONLY: Z => I, Z => I ! { dg-error "is also the name of the current program unit" }
++SUBROUTINE Z                        ! { dg-error "\(1\)" }
++    USE MOO, ONLY: Z => I, Z => I   ! { dg-error "conflicts with the rename" }
+ END SUBROUTINE Z
+ 
 Index: gcc/testsuite/gfortran.dg/pr87993.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr87993.f90	(.../tags/gcc_9_2_0_release)
@@ -723,6 +861,99 @@ Index: gcc/testsuite/gfortran.dg/pr87993.f90
 +   if (any(a /= 1)) stop 1
 +   if (b /= kind(a)) stop 2
 +end
+Index: gcc/testsuite/gfortran.dg/pr91471.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr91471.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr91471.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,14 @@
++! { dg-do compile }
++! PR fortran/91471
++! Code contributed by Sameeran Joshi <SameeranJayant dot Joshi at amd dot com>
++!
++! This invalid code (x(1) is referenced, but never set) caused an ICE due
++! to hitting a gfc_internal_error() in primary.c (gfc_variable_attr).  The
++! fix is to remove that gfc_internal_error().
++! 
++program dynamic
++   implicit none
++   integer, dimension(:), allocatable :: x
++   allocate(x(1))
++   stop x(1)
++end program dynamic
+Index: gcc/testsuite/gfortran.dg/pr78719_2.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr78719_2.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr78719_2.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,32 @@
++! { dg-do compile }
++! PR fortran/78719
++! Code contributed by Gerhard Steinmetz 
++program p
++
++   type t
++      integer :: n
++   end type
++
++   real :: g
++
++   abstract interface
++      subroutine h
++      end
++   end interface
++
++   procedure(h), pointer :: s
++
++   s => f
++   call s
++   s => g            ! { dg-error "Invalid procedure pointer" }
++   call s
++
++   contains
++
++      subroutine f
++      end
++
++      subroutine g   ! { dg-error "has an explicit interface" }
++      end
++
++end program p        ! { dg-error "Syntax error" }
+Index: gcc/testsuite/gfortran.dg/use_15.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/use_15.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/use_15.f90	(.../branches/gcc-9-branch)
+@@ -28,8 +28,8 @@
+ end subroutine
+ 
+ 
+-subroutine my_sub3 (a)
+-  use test_mod2, my_sub3 => my_sub2  ! { dg-error "is also the name of the current program unit" }
++subroutine my_sub3 (a)              ! { dg-error "\(1\)" }
++  use test_mod2, my_sub3 => my_sub2 ! { dg-error "conflicts with the rename" }
+   real a
+   print *, a
+ end subroutine
+Index: gcc/testsuite/gfortran.dg/pr71649.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr71649.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr71649.f90	(.../branches/gcc-9-branch)
+@@ -1,13 +1,13 @@
+ ! { dg-do compile }
+ ! PR71649 Internal Compiler Error
+-SUBROUTINE Compiler_Options ( Options, Version, WriteOpt )
+-   USE ISO_FORTRAN_ENV, ONLY : Compiler_Version, Compiler_Options ! { dg-error "already declared" }
++SUBROUTINE Compiler_Options ( Options, Version, WriteOpt )        ! { dg-error "\(1\)" }
++   USE ISO_FORTRAN_ENV, ONLY : Compiler_Version, Compiler_Options ! { dg-error "conflicts with the" }
+    IMPLICIT NONE
+    CHARACTER (LEN=*), INTENT(OUT) :: Options
+    CHARACTER (LEN=*), INTENT(OUT) :: Version
+    LOGICAL, INTENT(IN), OPTIONAL  :: WriteOpt
+-   Version = Compiler_Version()
+-   Options = Compiler_Options() ! { dg-error "Unexpected use of subroutine name" }
++   Version = Compiler_Version()  ! { dg-error "has no IMPLICIT type" }
++   Options = Compiler_Options()  ! { dg-error "Unexpected use of subroutine name" }
+    RETURN
+ END SUBROUTINE Compiler_Options
+ 
 Index: gcc/testsuite/gfortran.dg/pr88072.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr88072.f90	(.../tags/gcc_9_2_0_release)
@@ -783,6 +1014,60 @@ Index: gcc/testsuite/gfortran.dg/do_subscript_5.f90
 +          endif
 +      enddo
 +end program
+Index: gcc/testsuite/gfortran.dg/pr78719_1.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr78719_1.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr78719_1.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,29 @@
++! { dg-do run }
++! PR fortran/78719
++! Code contributed by Gerhard Steinmetz 
++program p
++
++   type t
++      integer :: n
++   end type
++
++   abstract interface
++      subroutine h
++      end
++   end interface
++
++   procedure(h), pointer :: s
++
++   s => f
++   call s
++   s => g
++   call s
++
++   contains
++
++      subroutine f
++      end
++
++      subroutine g
++      end
++end program p
+Index: gcc/testsuite/gfortran.dg/pr78739.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr78739.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr78739.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,15 @@
++! { dg-do compile }
++! { dg-options "-w" }
++! PR fortran/78739
++! Code contributed Gerhard Steinmetz
++function f(n)
++   f() = n    ! { dg-error "conflicts with function name" }
++end
++
++function g()
++   g(x) = x   ! { dg-error "conflicts with function name" }
++end
++
++function a()  ! This should cause an error, but cannot be easily detected!
++   a() = x
++end
 Index: gcc/testsuite/gfortran.dg/pr89647.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr89647.f90	(.../tags/gcc_9_2_0_release)
@@ -821,6 +1106,35 @@ Index: gcc/testsuite/gfortran.dg/pr89647.f90
 +      END TYPE t_extension
 +    END SUBROUTINE s
 +  END MODULE m2
+Index: gcc/testsuite/gfortran.dg/pr91485.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr91485.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr91485.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,24 @@
++! { dg-do compile }
++module foo
++   implicit none
++   interface operator(.x.)
++      module procedure product
++   end interface operator(.x.)
++   contains
++      function product(x, y)
++         real, intent(in) :: x, y
++         real :: product
++         product = x * y
++      end function product
++end module foo
++
++module gfcbug155
++   implicit none
++   contains
++      subroutine print_prod (x, y)
++         use foo, only : operator(.x.)
++         implicit none
++         real :: x, y
++         print *, x .x. y
++      end subroutine print_prod
++end module gfcbug155
 Index: gcc/testsuite/gfortran.dg/allocated_2.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/allocated_2.f90	(.../tags/gcc_9_2_0_release)
@@ -976,7 +1290,36 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,97 @@
+@@ -1,3 +1,126 @@
++2019-08-18  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91485
++	* gfortran.dg/pr91485.f90: New test.
++
++2019-08-17  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91471
++	* gfortran.dg/pr91471.f90: New test.
++
++2019-08-17  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/78739
++	* fortran.dg/pr78739.f90: New test.
++
++2019-08-17  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/78719
++	* gfortran.dg/pr78719_1.f90: New test.
++	* gfortran.dg/pr78719_2.f90: Ditto.
++	* gfortran.dg/pr78719_3.f90: Ditto.
++
++2019-08-17  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/82992
++	* gfortran.dg/pr71649.f90: Adjust error messages.
++	* gfortran.dg/use_15.f90: Ditto.
++	* gfortran.dg/use_rename_8.f90: Ditto.
++
 +2019-08-15  Richard Biener  <rguenther@suse.de>
 +
 +	PR tree-optimization/91445
@@ -2899,11 +3242,61 @@ Index: gcc/fortran/trans-expr.c
        string_length = rse.string_length;
      }
    else
+Index: gcc/fortran/decl.c
+===================================================================
+--- a/src/gcc/fortran/decl.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/fortran/decl.c	(.../branches/gcc-9-branch)
+@@ -1335,9 +1335,9 @@
+ 	}
+ 
+       /* Trap declarations of attributes in encompassing scope.  The
+-	 signature for this is that ts.kind is set.  Legitimate
+-	 references only set ts.type.  */
+-      if (sym->ts.kind != 0
++	 signature for this is that ts.kind is nonzero for no-CLASS
++	 entity.  For a CLASS entity, ts.kind is zero.  */
++      if ((sym->ts.kind != 0 || sym->ts.type == BT_CLASS)
+ 	  && !sym->attr.implicit_type
+ 	  && sym->attr.proc == 0
+ 	  && gfc_current_ns->parent != NULL
 Index: gcc/fortran/ChangeLog
 ===================================================================
 --- a/src/gcc/fortran/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/fortran/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,62 @@
+@@ -1,3 +1,95 @@
++2019-08-18  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91485
++	module.c (gfc_match_use): User defined operator cannot conflict with
++	a rename symbol.
++
++2019-08-17  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91471
++	* primary.c (gfc_variable_attr): Remove a gfc_internal_error(),
++	which cannot be reached by conforming Fortran code, but seems to
++	be reachable from nonconforming Fortran code.  Treat the AR_UNKNOWN
++	case as a no-op.
++
++2019-08-17  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/78739
++	* match.c (gfc_match_st_function):  When matching a statement function,
++	need to check if the statement function name shadows the function
++	name.
++
++2019-08-17  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/78719
++	* decl.c (get_proc_name): Check for a CLASS entity when trying to
++	add attributes to an entity that already has an explicit interface.
++
++2019-08-17  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/82992
++	* module.c (gfc_match_use):  When renaming a module entity, search
++	current namespace for conflicting symbol.
++
 +2019-08-13  Steven G. Kargl  <kargl@gcc.gnu.org>
 +
 +	PR fortran/87991
@@ -2982,6 +3375,47 @@ Index: gcc/fortran/expr.c
        if (!simplify_constructor (p->value.constructor, type))
  	return false;
  
+Index: gcc/fortran/module.c
+===================================================================
+--- a/src/gcc/fortran/module.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/fortran/module.c	(.../branches/gcc-9-branch)
+@@ -525,6 +525,8 @@
+   gfc_intrinsic_op op;
+   match m;
+   gfc_use_list *use_list;
++  gfc_symtree *st;
++  locus loc;
+ 
+   use_list = gfc_get_use_list ();
+ 
+@@ -632,6 +634,8 @@
+ 	case INTERFACE_USER_OP:
+ 	case INTERFACE_GENERIC:
+ 	case INTERFACE_DTIO:
++	  loc = gfc_current_locus;
++
+ 	  m = gfc_match (" =>");
+ 
+ 	  if (type == INTERFACE_USER_OP && m == MATCH_YES
+@@ -642,6 +646,18 @@
+ 	  if (type == INTERFACE_USER_OP)
+ 	    new_use->op = INTRINSIC_USER;
+ 
++	  st = gfc_find_symtree (gfc_current_ns->sym_root, name);
++	  if (st && type != INTERFACE_USER_OP)
++	    {
++	      if (m == MATCH_YES)
++		gfc_error ("Symbol %qs at %L conflicts with the rename symbol "
++			   "at %L", name, &st->n.sym->declared_at, &loc);
++	      else
++		gfc_error ("Symbol %qs at %L conflicts with the symbol "
++			   "at %L", name, &st->n.sym->declared_at, &loc);
++	      goto cleanup;
++	    }
++
+ 	  if (use_list->only_flag)
+ 	    {
+ 	      if (m != MATCH_YES)
 Index: gcc/fortran/trans.c
 ===================================================================
 --- a/src/gcc/fortran/trans.c	(.../tags/gcc_9_2_0_release)
@@ -3178,6 +3612,54 @@ Index: gcc/fortran/resolve.c
      }
  
    if (e->rank == 0 || has_pointer)
+Index: gcc/fortran/match.c
+===================================================================
+--- a/src/gcc/fortran/match.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/fortran/match.c	(.../branches/gcc-9-branch)
+@@ -5698,7 +5698,29 @@
+   gfc_symbol *sym;
+   gfc_expr *expr;
+   match m;
++  char name[GFC_MAX_SYMBOL_LEN + 1];
++  locus old_locus;
++  bool fcn;
++  gfc_formal_arglist *ptr;
+ 
++  /* Read the possible statement function name, and then check to see if
++     a symbol is already present in the namespace.  Record if it is a
++     function and whether it has been referenced.  */
++  fcn = false;
++  ptr = NULL;
++  old_locus = gfc_current_locus;
++  m = gfc_match_name (name);
++  if (m == MATCH_YES)
++    {
++      gfc_find_symbol (name, NULL, 1, &sym);
++      if (sym && sym->attr.function && !sym->attr.referenced)
++	{
++	  fcn = true;
++	  ptr = sym->formal;
++	}
++    }
++
++  gfc_current_locus = old_locus;
+   m = gfc_match_symbol (&sym, 0);
+   if (m != MATCH_YES)
+     return m;
+@@ -5726,6 +5748,13 @@
+       return MATCH_ERROR;
+     }
+ 
++  if (fcn && ptr != sym->formal)
++    {
++      gfc_error ("Statement function %qs at %L conflicts with function name",
++		 sym->name, &expr->where);
++      return MATCH_ERROR;
++    }
++
+   sym->value = expr;
+ 
+   if ((gfc_current_state () == COMP_FUNCTION
 Index: gcc/fortran/trans-decl.c
 ===================================================================
 --- a/src/gcc/fortran/trans-decl.c	(.../tags/gcc_9_2_0_release)
@@ -3218,6 +3700,27 @@ Index: gcc/fortran/check.c
  bool
  gfc_check_allocated (gfc_expr *array)
  {
+Index: gcc/fortran/primary.c
+===================================================================
+--- a/src/gcc/fortran/primary.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/fortran/primary.c	(.../branches/gcc-9-branch)
+@@ -2559,12 +2559,10 @@
+ 	    break;
+ 
+ 	  case AR_UNKNOWN:
+-	    /* If any of start, end or stride is not integer, there will
+-	       already have been an error issued.  */
+-	    int errors;
+-	    gfc_get_errors (NULL, &errors);
+-	    if (errors == 0)
+-	      gfc_internal_error ("gfc_variable_attr(): Bad array reference");
++	    /* For standard conforming code, AR_UNKNOWN should not happen.
++	       For nonconforming code, gfortran can end up here.  Treat it 
++	       as a no-op.  */
++	    break;
+ 	  }
+ 
+ 	break;
 Index: gcc/fortran/misc.c
 ===================================================================
 --- a/src/gcc/fortran/misc.c	(.../tags/gcc_9_2_0_release)
