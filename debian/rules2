@@ -347,7 +347,11 @@ endif # !DEB_STAGE
 CONFARGS += --with-system-zlib
 
 ifeq ($(with_phobos),yes)
-  CONFARGS += --with-target-system-zlib=auto
+  ifeq ($(DEB_CROSS),yes)
+    CONFARGS += --without-target-system-zlib
+  else
+    CONFARGS += --with-target-system-zlib=auto
+  endif
 endif
 
 ifeq ($(with_d),yes)
@@ -356,8 +360,10 @@ ifeq ($(with_d),yes)
   endif
 endif
 
-ifeq ($(with_objc)-$(with_objc_gc),yes-yes)
-  CONFARGS += --enable-objc-gc=auto
+ifeq ($(with_m2),yes)
+  ifeq ($(DEB_CROSS),yes)
+    CONFARGS += --enable-libpth-m2
+  endif
 endif
 
 ifneq (,$(filter $(DEB_TARGET_GNU_TYPE), i486-linux-gnu i586-linux-gnu i686-linux-gnu))
@@ -1135,6 +1141,11 @@ ifeq ($(with_d),yes)
   endif
 else
 	@echo "Will not build the D compiler: $(with_d)"
+endif
+ifeq ($(with_m2),yes)
+	@echo "Will build the Modula-2 compiler."
+else
+	@echo "Will not build the Modula-2 compiler: $(with_m2)"
 endif
 ifeq ($(with_ssp),yes)
 	@echo "Will build with SSP support."
