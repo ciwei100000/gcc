@@ -1,10 +1,10 @@
-# DP: updates from the 7 branch upto 20190628 (r272781).
+# DP: updates from the 7 branch upto 20190820 (r27450).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Fri Jun 28 11:57:14 CEST 2019
-Fri Jun 28 09:57:14 UTC 2019 (revision 272781)
+Tue Aug 20 17:29:25 CEST 2019
+Tue Aug 20 15:29:25 UTC 2019 (revision 274750)
 EOF
 }
 
@@ -2460,6 +2460,67 @@ Index: libstdc++-v3/acinclude.m4
  else
    glibcxx_stylesheets=no
  fi
+Index: libiberty/simple-object-elf.c
+===================================================================
+--- a/src/libiberty/simple-object-elf.c	(.../tags/gcc_7_4_0_release)
++++ b/src/libiberty/simple-object-elf.c	(.../branches/gcc-7-branch)
+@@ -479,6 +479,14 @@
+       return NULL;
+     }
+ 
++  if (eor->shstrndx == 0)
++    {
++      *errmsg = "invalid ELF shstrndx == 0";
++      *err = 0;
++      XDELETE (eor);
++      return NULL;
++    }
++
+   return (void *) eor;
+ }
+ 
+Index: libiberty/ChangeLog
+===================================================================
+--- a/src/libiberty/ChangeLog	(.../tags/gcc_7_4_0_release)
++++ b/src/libiberty/ChangeLog	(.../branches/gcc-7-branch)
+@@ -1,3 +1,12 @@
++2019-07-25  Richard Biener  <rguenther@suse.de>
++
++	PR lto/90924
++	Backport from mainline
++	2019-07-12  Ren Kimura  <rkx1209dev@gmail.com>
++
++	* simple-object-elf.c (simple_object_elf_match): Check zero value
++	shstrndx.
++
+ 2018-12-06  Release Manager
+ 
+ 	* GCC 7.4.0 released.
+Index: contrib/ChangeLog
+===================================================================
+--- a/src/contrib/ChangeLog	(.../tags/gcc_7_4_0_release)
++++ b/src/contrib/ChangeLog	(.../branches/gcc-7-branch)
+@@ -1,3 +1,7 @@
++2019-08-16  Uros Bizjak  <ubizjak@gmail.com>
++
++	* test_summary: Do not escape "=".
++
+ 2018-12-06  Release Manager
+ 
+ 	* GCC 7.4.0 released.
+Index: contrib/test_summary
+===================================================================
+--- a/src/contrib/test_summary	(.../tags/gcc_7_4_0_release)
++++ b/src/contrib/test_summary	(.../branches/gcc-7-branch)
+@@ -126,7 +126,7 @@
+   if (lang == "") lang = " "$2" "; else lang = " ";
+ }
+ $2 == "version" { save = $0; $1 = ""; $2 = ""; version = $0; gsub(/^ */, "", version); gsub(/\r$/, "", version); $0 = save; }
+-/\===.*Summary/ { print ""; print; blanks=1; }
++/===.*Summary/ { print ""; print; blanks=1; }
+ /tests ===/ || /^(Target|Host|Native)/ || $2 == "version" { print; blanks=1; }
+ /^(XPASS|FAIL|UNRESOLVED|WARNING|ERROR|# of )/ { sub ("\r", ""); print; }
+ /^using:/ { print ""; print; print ""; }
 Index: gcc/ipa-icf-gimple.c
 ===================================================================
 --- a/src/gcc/ipa-icf-gimple.c	(.../tags/gcc_7_4_0_release)
@@ -2474,6 +2535,45 @@ Index: gcc/ipa-icf-gimple.c
    if (gimple_asm_ninputs (g1) != gimple_asm_ninputs (g2))
      return false;
  
+Index: gcc/opts-common.c
+===================================================================
+--- a/src/gcc/opts-common.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/opts-common.c	(.../branches/gcc-7-branch)
+@@ -438,7 +438,8 @@
+ 
+   extra_args = 0;
+ 
+-  opt_index = find_opt (argv[0] + 1, lang_mask);
++  const char *opt_value = argv[0] + 1;
++  opt_index = find_opt (opt_value, lang_mask);
+   i = 0;
+   while (opt_index == OPT_SPECIAL_unknown
+ 	 && i < ARRAY_SIZE (option_map))
+@@ -641,7 +642,24 @@
+   /* Check if this is a switch for a different front end.  */
+   if (!option_ok_for_language (option, lang_mask))
+     errors |= CL_ERR_WRONG_LANG;
++  else if (strcmp (option->opt_text, "-Werror=") == 0
++	   && strchr (opt_value, ',') == NULL)
++    {
++      /* Verify that -Werror argument is a valid warning
++	 for a language.  */
++      char *werror_arg = xstrdup (opt_value + 6);
++      werror_arg[0] = 'W';
+ 
++      size_t warning_index = find_opt (werror_arg, lang_mask);
++      if (warning_index != OPT_SPECIAL_unknown)
++	{
++	  const struct cl_option *warning_option
++	    = &cl_options[warning_index];
++	  if (!option_ok_for_language (warning_option, lang_mask))
++	    errors |= CL_ERR_WRONG_LANG;
++	}
++    }
++
+   /* Convert the argument to lowercase if appropriate.  */
+   if (arg && option->cl_tolower)
+     {
 Index: gcc/c-family/ChangeLog
 ===================================================================
 --- a/src/gcc/c-family/ChangeLog	(.../tags/gcc_7_4_0_release)
@@ -2822,7 +2922,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-7-branch)
 @@ -1 +1 @@
 -20181206
-+20190628
++20190820
 Index: gcc/lra.c
 ===================================================================
 --- a/src/gcc/lra.c	(.../tags/gcc_7_4_0_release)
@@ -3057,7 +3157,57 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,828 @@
+@@ -1,3 +1,878 @@
++2019-08-20  Eric Botcazou  <ebotcazou@adacore.com>
++
++	PR rtl-optimization/91347
++	* dse.c (scan_insn): Call add_wild_read for non-const/memset tail calls
++	before reload if HARD_FRAME_POINTER_IS_ARG_POINTER.
++
++2019-07-22  Martin Liska  <mliska@suse.cz>
++
++	Backport from mainline
++	2019-07-22  Martin Liska  <mliska@suse.cz>
++
++	PR driver/91172
++	* opts-common.c (decode_cmdline_option): Decode
++	argument of -Werror and check it for a wrong language.
++	* opts-global.c (complain_wrong_lang): Remove such case.
++
++2019-07-16  Wilco Dijkstra  <wdijkstr@arm.com>
++
++	Backport from mainline
++	2019-03-05  Wilco Dijkstra  <wdijkstr@arm.com>
++
++	PR target/89222
++	* config/arm/arm.md (movsi): Use targetm.cannot_force_const_mem
++	to decide when to split off a non-zero offset from a symbol.
++	* config/arm/arm.c (arm_cannot_force_const_mem): Disallow offsets
++	in function symbols.
++
++2019-07-15  Andreas Krebbel  <krebbel@linux.ibm.com>
++
++	Backport from mainline
++	2019-07-01  Andreas Krebbel  <krebbel@linux.ibm.com>
++
++	* config/s390/vector.md: Fix shift count operand printing.
++
++2019-07-12  Eric Botcazou  <ebotcazou@adacore.com>
++
++	PR rtl-optimization/91136
++	* df-core.c (ACCESSING REFS): Fix typos in comment.
++	* resource.c (mark_target_live_reg): Add artificial defs that occur at
++	the beginning of the block to the initial set of live registers.
++
++2019-06-28  Jeff Law  <law@redhat.com>
++
++	Backport from mainline
++	2019-06-21  Jeff Law  <law@redhat.com>
++
++	PR tree-optimization/90949
++	* tree-ssa-copy.c (fini_copy_prop): Use reset_flow_sensitive_info.
++	* tree-ssanames.c (reset_flow_sensitive_info): Reset non-null state.
++
 +2019-06-27  Martin Jambor  <mjambor@suse.cz>
 +
 +	Backport from mainline
@@ -3886,7 +4036,7 @@ Index: gcc/ChangeLog
  2018-12-06  Release Manager
  
  	* GCC 7.4.0 released.
-@@ -19,13 +848,13 @@
+@@ -19,13 +898,13 @@
  	* gcc/dwarf2out.c (FUNC_SECOND_SECT_LABEL): New.
  	(dwarf2out_switch_text_section): Generate a local label for the second
  	function sub-section and apply it as the second FDE start label.
@@ -13845,6 +13995,43 @@ Index: gcc/testsuite/gcc.target/arm/pr88648-asm-syntax-unified.c
 +/* { dg-final { scan-assembler-times {\.syntax\sunified} 3 } } */
 +/* { dg-final { scan-assembler-not {\.syntax\sdivided} } } */
 +
+Index: gcc/testsuite/gcc.target/arm/pr89222.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/arm/pr89222.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/arm/pr89222.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,32 @@
++/* { dg-do compile } */
++/* { dg-options "-O2" } */
++
++void g (void);
++
++void f1 (int x)
++{
++  if (x != (int) g + 3)
++    return;
++  g();
++}
++
++void (*a2)(void);
++
++void f2 (void)
++{
++  a2 = &g + 3;
++}
++
++typedef void (*__sighandler_t)(int);
++void handler (int);
++
++void f3 (int x)
++{
++  __sighandler_t h = &handler;
++  if (h != (__sighandler_t) 2 && h != (__sighandler_t) 1)
++    h (x);
++}
++
++/* { dg-final { scan-assembler-times {add(?:s)?\tr[0-9]+, r[0-9]+, #3} 2 } } */
++/* { dg-final { scan-assembler-not {.word\tg\+3} } } */
++/* { dg-final { scan-assembler-not {.word\thandler-1} } } */
 Index: gcc/testsuite/gcc.target/arm/f16_f64_conv_no_dp.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/arm/f16_f64_conv_no_dp.c	(.../tags/gcc_7_4_0_release)
@@ -13921,6 +14108,35 @@ Index: gcc/testsuite/gcc.target/s390/zvector/vec-double-2.c
 +}
 +
 +/* { dg-final { scan-assembler-times "vcdgb\t" 1 } } */
+Index: gcc/testsuite/gcc.target/s390/vector/vec-shift-2.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/s390/vector/vec-shift-2.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/s390/vector/vec-shift-2.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,24 @@
++/* { dg-do run } */
++/* { dg-options "-O3 -mzarch -march=z13 --save-temps" } */
++
++/* { dg-final { scan-assembler-times "veslf" 1 } } */
++
++typedef __attribute__((vector_size(16))) signed int v4si;
++
++v4si __attribute__((noinline,noclone))
++shift_left_by_scalar (v4si in, int shift_count)
++{
++  return in << (3 + shift_count);
++}
++
++int
++main ()
++{
++  v4si a = { 1, 2, 3, 4 };
++  v4si result = shift_left_by_scalar (a, 1);
++
++  if (result[1] != 32)
++    __builtin_abort ();
++
++  return 0;
++}
 Index: gcc/testsuite/gcc.target/sparc/tls-ld-int64.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/sparc/tls-ld-int64.c	(.../tags/gcc_7_4_0_release)
@@ -15134,6 +15350,49 @@ Index: gcc/testsuite/gfortran.dg/public_private_module_10.f90
 +  end function
 +
 +end module
+Index: gcc/testsuite/gfortran.dg/proc_ptr_51.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/proc_ptr_51.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/proc_ptr_51.f90	(.../branches/gcc-7-branch)
+@@ -0,0 +1,38 @@
++! { dg-do run }
++!
++! Test the fix for PR90786.
++!
++! Contributed by Andrew benson  <abensonca@gmail.com>
++!
++module f
++procedure(c), pointer :: c_
++
++ type :: s
++   integer :: i = 42
++ end type s
++ class(s), pointer :: res, tgt
++
++contains
++
++ function c()
++   implicit none
++   class(s), pointer ::  c
++   c => tgt
++   return
++ end function c
++
++ subroutine fs()
++   implicit none
++   c_ => c  ! This used to ICE
++   return
++ end subroutine fs
++
++end module f
++
++  use f
++  allocate (tgt, source = s(99))
++  call fs()
++  res => c_()
++  if (res%i .ne. 99) stop 1
++  deallocate (tgt)
++end
 Index: gcc/testsuite/gfortran.dg/dependency_53.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/dependency_53.f90	(.../tags/gcc_7_4_0_release)
@@ -16410,6 +16669,182 @@ Index: gcc/testsuite/gfortran.dg/assumed_type_2.f90
  
  ! { dg-final { scan-tree-dump-times "sub_array_shape \\(&array_real_alloc," 1 "original" } }
  ! { dg-final { scan-tree-dump-times "sub_array_shape \\(&array_char_ptr," 1 "original" } }
+Index: gcc/testsuite/gcc.c-torture/execute/20190820-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.c-torture/execute/20190820-1.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.c-torture/execute/20190820-1.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,111 @@
++/* PR rtl-optimization/91347 */
++/* Reported by John David Anglin <danglin@gcc.gnu.org> */
++
++typedef unsigned short __u16;
++typedef __signed__ int __s32;
++typedef unsigned int __u32;
++typedef __signed__ long long __s64;
++typedef unsigned long long __u64;
++typedef __u16 u16;
++typedef __s32 s32;
++typedef __u32 u32;
++typedef __u64 u64;
++typedef _Bool bool;
++typedef s32 int32_t;
++typedef u32 uint32_t;
++typedef u64 uint64_t;
++
++char hex_asc_upper[16];
++u16 decpair[100];
++
++static __attribute__((noinline, noclone)) void
++put_dec_full4 (char *buf, unsigned r)
++{
++ unsigned q;
++ q = (r * 0x147b) >> 19;
++ *((u16 *)buf) = decpair[r - 100*q];
++ buf += 2;
++ *((u16 *)buf) = decpair[q];
++}
++
++static __attribute__((noinline, noclone)) unsigned
++put_dec_helper4 (char *buf, unsigned x)
++{
++  uint32_t q = (x * (uint64_t)0x346DC5D7) >> 43;
++  put_dec_full4(buf, x - q * 10000);
++  return q;
++}
++
++static __attribute__((noinline, noclone)) char *
++put_dec (char *buf, unsigned long long n)
++{
++ uint32_t d3, d2, d1, q, h;
++ d1 = ((uint32_t)n >> 16);
++ h = (n >> 32);
++ d2 = (h ) & 0xffff;
++ d3 = (h >> 16);
++ q = 656 * d3 + 7296 * d2 + 5536 * d1 + ((uint32_t)n & 0xffff);
++ q = put_dec_helper4(buf, q);
++ q += 7671 * d3 + 9496 * d2 + 6 * d1;
++ q = put_dec_helper4(buf+4, q);
++ q += 4749 * d3 + 42 * d2;
++ q = put_dec_helper4(buf+8, q);
++ return buf;
++}
++
++struct printf_spec {
++ unsigned int type:8;
++ signed int field_width:24;
++ unsigned int flags:8;
++ unsigned int base:8;
++ signed int precision:16;
++} __attribute__((__packed__));
++
++static __attribute__((noinline, noclone)) char *
++number (char *buf, char *end, unsigned long long num, struct printf_spec spec)
++{
++
++ char tmp[3 * sizeof(num)] __attribute__((__aligned__(2)));
++ char sign;
++ char locase;
++ int need_pfx = ((spec.flags & 64) && spec.base != 10);
++ int i;
++ bool is_zero = num == 0LL;
++ int field_width = spec.field_width;
++ int precision = spec.precision;
++
++ i = 0;
++ if (num < spec.base)
++  tmp[i++] = hex_asc_upper[num] | locase;
++ else if (spec.base != 10) {
++  int mask = spec.base - 1;
++  int shift = 3;
++  if (spec.base == 16)
++   shift = 4;
++  else
++    __builtin_abort ();
++  do {
++   tmp[i++] = (hex_asc_upper[((unsigned char)num) & mask] | locase);
++   num >>= shift;
++  } while (num);
++ } else {
++  i = put_dec(tmp, num) - tmp;
++ }
++ return buf;
++}
++
++static __attribute__((noinline, noclone)) char *
++pointer_string (char *buf, char *end, const void *ptr, struct printf_spec spec)
++{
++ spec.base = 16;
++ spec.flags = 0;
++ return number(buf, end, 100, spec);
++}
++
++int
++main (void)
++{
++  struct printf_spec spec;
++  char *s = pointer_string (0, 0, 0, spec);
++  return 0;
++}
+Index: gcc/testsuite/gcc.c-torture/execute/pr90949.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.c-torture/execute/pr90949.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.c-torture/execute/pr90949.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,42 @@
++void __attribute__ ((noipa, noinline)) my_puts (const char *str) { }
++
++void __attribute__ ((noipa, noinline)) my_free (void *p) { }
++
++
++struct Node
++{
++  struct Node *child;
++};
++
++struct Node space[2] = { };
++
++struct Node * __attribute__ ((noipa, noinline)) my_malloc (int bytes)
++{
++  return &space[0];
++}
++
++void
++walk (struct Node *module, int cleanup)
++{
++  if (module == 0)
++    {
++      return;
++    }
++  if (!cleanup)
++    {
++      my_puts ("No cleanup");
++    }
++  walk (module->child, cleanup);
++  if (cleanup)
++    {
++      my_free (module);
++    }
++}
++
++int
++main ()
++{
++  struct Node *node = my_malloc (sizeof (struct Node));
++  node->child = 0;
++  walk (node, 1);
++}
+Index: gcc/testsuite/gcc.c-torture/execute/builtins/builtins.exp
+===================================================================
+--- a/src/gcc/testsuite/gcc.c-torture/execute/builtins/builtins.exp	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.c-torture/execute/builtins/builtins.exp	(.../branches/gcc-7-branch)
+@@ -37,7 +37,7 @@
+ torture-init
+ set-torture-options $C_TORTURE_OPTIONS {{}} $LTO_TORTURE_OPTIONS
+ 
+-set additional_flags "-fno-tree-loop-distribute-patterns -fno-tracer"
++set additional_flags "-fno-tree-loop-distribute-patterns -fno-tracer -fno-ipa-ra"
+ if [istarget "powerpc-*-darwin*"] {
+    lappend additional_flags "-Wl,-multiply_defined,suppress"
+ }
 Index: gcc/testsuite/gcc.c-torture/execute/pr88739.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.c-torture/execute/pr88739.c	(.../tags/gcc_7_4_0_release)
@@ -17388,7 +17823,55 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,994 @@
+@@ -1,3 +1,1042 @@
++2019-08-20  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* gcc.c-torture/execute/20190820-1.c: New test.
++
++2019-08-03  Thomas Koenig  <tkoenig@gcc.gnu.org>
++	Paul Thomas <pault@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/90786
++	PR fortran/90813
++	* gfortran.dg/proc_ptr_51.f90: New test.
++
++2019-07-22  Martin Liska  <mliska@suse.cz>
++
++	Backport from mainline
++	2019-07-22  Martin Liska  <mliska@suse.cz>
++
++	PR driver/91172
++	* gcc.dg/pr91172.c: New test.
++
++2019-07-16  Wilco Dijkstra  <wdijkstr@arm.com>
++
++	Backport from mainline
++	2019-03-05  Wilco Dijkstra  <wdijkstr@arm.com>
++
++	PR target/89222
++	* gcc.target/arm/pr89222.c: Add new test.
++
++2019-07-15  Andreas Krebbel  <krebbel@linux.ibm.com>
++
++	Backport from mainline
++	2019-07-01  Andreas Krebbel  <krebbel@linux.ibm.com>
++
++	* gcc.target/s390/vector/vec-shift-2.c: New test.
++
++2019-07-12  Wilco Dijkstra  <wdijkstr@arm.com>
++
++	PR testsuite/78529
++	* gcc.c-torture/execute/builtins/builtins.exp: Add -fno-ipa-ra.
++
++2019-06-21  Jeff Law  <law@redhat.com>
++
++	Backport fom mainline
++	2019-06-21  Jeff Law  <law@redhat.com>
++
++        PR tree-optimization/90949
++	* gcc.c-torture/execute/pr90949.c: New test.
++
 +2019-06-21  Thomas Koenig  <tkoenig@gcc.gnu.org>
 +
 +	Backport from trunk
@@ -18938,6 +19421,26 @@ Index: gcc/cp/cp-tree.h
  extern tree finish_label_stmt			(tree);
  extern void finish_label_decl			(tree);
  extern cp_expr finish_parenthesized_expr	(cp_expr);
+Index: gcc/df-core.c
+===================================================================
+--- a/src/gcc/df-core.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/df-core.c	(.../branches/gcc-7-branch)
+@@ -298,12 +298,12 @@
+ 
+    Artificial defs and uses occur both at the beginning and ends of blocks.
+ 
+-     For blocks that area at the destination of eh edges, the
++     For blocks that are at the destination of eh edges, the
+      artificial uses and defs occur at the beginning.  The defs relate
+      to the registers specified in EH_RETURN_DATA_REGNO and the uses
+-     relate to the registers specified in ED_USES.  Logically these
++     relate to the registers specified in EH_USES.  Logically these
+      defs and uses should really occur along the eh edge, but there is
+-     no convenient way to do this.  Artificial edges that occur at the
++     no convenient way to do this.  Artificial defs that occur at the
+      beginning of the block have the DF_REF_AT_TOP flag set.
+ 
+      Artificial uses occur at the end of all blocks.  These arise from
 Index: gcc/ipa-pure-const.c
 ===================================================================
 --- a/src/gcc/ipa-pure-const.c	(.../tags/gcc_7_4_0_release)
@@ -19143,7 +19646,18 @@ Index: gcc/ada/ChangeLog
 ===================================================================
 --- a/src/gcc/ada/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/ada/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,90 @@
+@@ -1,3 +1,101 @@
++2019-06-29  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* gcc-interface/trans.c (mark_visited_r): Set TYPE_SIZES_GIMPLIFIED on
++	the main variant of a type, if any.
++
++2019-06-29  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* gcc-interface/decl.c (set_nonaliased_component_on_array_type): Add
++	missing guard for the presence of TYPE_CANONICAL.
++	(set_reverse_storage_order_on_array_type): Likewise.
++
 +2019-05-28  Eric Botcazou  <ebotcazou@adacore.com>
 +
 +	* gcc-interface/trans.c (walk_nesting_tree): New static function.
@@ -19306,7 +19820,27 @@ Index: gcc/ada/gcc-interface/decl.c
 ===================================================================
 --- a/src/gcc/ada/gcc-interface/decl.c	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/ada/gcc-interface/decl.c	(.../branches/gcc-7-branch)
-@@ -6341,12 +6341,6 @@
+@@ -6307,7 +6307,8 @@
+ set_nonaliased_component_on_array_type (tree type)
+ {
+   TYPE_NONALIASED_COMPONENT (type) = 1;
+-  TYPE_NONALIASED_COMPONENT (TYPE_CANONICAL (type)) = 1;
++  if (TYPE_CANONICAL (type))
++    TYPE_NONALIASED_COMPONENT (TYPE_CANONICAL (type)) = 1;
+ }
+ 
+ /* Set TYPE_REVERSE_STORAGE_ORDER on an array type built by means of
+@@ -6317,7 +6318,8 @@
+ set_reverse_storage_order_on_array_type (tree type)
+ {
+   TYPE_REVERSE_STORAGE_ORDER (type) = 1;
+-  TYPE_REVERSE_STORAGE_ORDER (TYPE_CANONICAL (type)) = 1;
++  if (TYPE_CANONICAL (type))
++    TYPE_REVERSE_STORAGE_ORDER (TYPE_CANONICAL (type)) = 1;
+ }
+ 
+ /* Return true if DISCR1 and DISCR2 represent the same discriminant.  */
+@@ -6341,12 +6343,6 @@
  static bool
  array_type_has_nonaliased_component (tree gnu_type, Entity_Id gnat_type)
  {
@@ -19319,7 +19853,7 @@ Index: gcc/ada/gcc-interface/decl.c
    /* If the array type has an aliased component in the front-end sense,
       then it also has an aliased component in the back-end sense.  */
    if (Has_Aliased_Components (gnat_type))
-@@ -6357,15 +6351,17 @@
+@@ -6357,15 +6353,17 @@
    if (Is_Derived_Type (gnat_type))
      {
        tree gnu_parent_type = gnat_to_gnu_type (Etype (gnat_type));
@@ -19340,7 +19874,7 @@ Index: gcc/ada/gcc-interface/decl.c
    /* Otherwise, rely exclusively on properties of the element type.  */
    return type_for_nonaliased_component_p (TREE_TYPE (gnu_type));
  }
-@@ -8052,9 +8048,8 @@
+@@ -8052,9 +8050,8 @@
  annotate_value (tree gnu_size)
  {
    TCode tcode;
@@ -19351,7 +19885,7 @@ Index: gcc/ada/gcc-interface/decl.c
  
    /* See if we've already saved the value for this node.  */
    if (EXPR_P (gnu_size))
-@@ -8071,49 +8066,56 @@
+@@ -8071,49 +8068,56 @@
      in.base.from = NULL_TREE;
  
    /* If we do not return inside this switch, TCODE will be set to the
@@ -19428,7 +19962,7 @@ Index: gcc/ada/gcc-interface/decl.c
      case TRUNC_DIV_EXPR:	tcode = Trunc_Div_Expr; break;
      case CEIL_DIV_EXPR:		tcode = Ceil_Div_Expr; break;
      case FLOOR_DIV_EXPR:	tcode = Floor_Div_Expr; break;
-@@ -8138,20 +8140,56 @@
+@@ -8138,20 +8142,56 @@
      case EQ_EXPR:		tcode = Eq_Expr; break;
      case NE_EXPR:		tcode = Ne_Expr; break;
  
@@ -19494,7 +20028,7 @@ Index: gcc/ada/gcc-interface/decl.c
  	}
        break;
  
-@@ -8162,14 +8200,11 @@
+@@ -8162,14 +8202,11 @@
        if (List_Representation_Info == 3 || type_annotate_only)
  	{
  	  tree t = maybe_inline_call_in_expr (gnu_size);
@@ -19510,7 +20044,7 @@ Index: gcc/ada/gcc-interface/decl.c
      default:
        return No_Uint;
      }
-@@ -8176,20 +8211,15 @@
+@@ -8176,20 +8213,15 @@
  
    /* Now get each of the operands that's relevant for this code.  If any
       cannot be expressed as a repinfo node, say we can't.  */
@@ -19538,7 +20072,7 @@ Index: gcc/ada/gcc-interface/decl.c
  
    /* Save the result in the cache.  */
    if (in.base.from)
-@@ -8202,7 +8232,7 @@
+@@ -8202,7 +8234,7 @@
        h = annotate_value_cache->find_slot (&in, INSERT);
        gcc_assert (!*h);
        *h = ggc_alloc<tree_int_map> ();
@@ -19694,6 +20228,17 @@ Index: gcc/ada/gcc-interface/trans.c
  	    }
  
  	  /* Otherwise build a regular assignment.  */
+@@ -8084,8 +8100,9 @@
+   else if (!TYPE_IS_DUMMY_P (t))
+     TREE_VISITED (t) = 1;
+ 
++  /* The test in gimplify_type_sizes is on the main variant.  */
+   if (TYPE_P (t))
+-    TYPE_SIZES_GIMPLIFIED (t) = 1;
++    TYPE_SIZES_GIMPLIFIED (TYPE_MAIN_VARIANT (t)) = 1;
+ 
+   return NULL_TREE;
+ }
 Index: gcc/ada/osint.adb
 ===================================================================
 --- a/src/gcc/ada/osint.adb	(.../tags/gcc_7_4_0_release)
@@ -19765,6 +20310,26 @@ Index: gcc/ada/osint.ads
 -   --  avoid function calls every time we want to reset the attributes).
 -
  end Osint;
+Index: gcc/dse.c
+===================================================================
+--- a/src/gcc/dse.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/dse.c	(.../branches/gcc-7-branch)
+@@ -2389,10 +2389,13 @@
+ 		clear_rhs_from_active_local_stores ();
+ 	    }
+ 	}
+-      else if (SIBLING_CALL_P (insn) && reload_completed)
++      else if (SIBLING_CALL_P (insn)
++	       && (reload_completed || HARD_FRAME_POINTER_IS_ARG_POINTER))
+ 	/* Arguments for a sibling call that are pushed to memory are passed
+ 	   using the incoming argument pointer of the current function.  After
+-	   reload that might be (and likely is) frame pointer based.  */
++	   reload that might be (and likely is) frame pointer based.  And, if
++	   it is a frame pointer on the target, even before reload we need to
++	   kill frame pointer based stores.  */
+ 	add_wild_read (bb_info);
+       else
+ 	/* Every other call, including pure functions, may read any memory
 Index: gcc/gimple-ssa-strength-reduction.c
 ===================================================================
 --- a/src/gcc/gimple-ssa-strength-reduction.c	(.../tags/gcc_7_4_0_release)
@@ -19970,6 +20535,69 @@ Index: gcc/fortran/trans-expr.c
    else
      conv_base_obj_fcn_val (se, base_object, expr);
  
+@@ -8255,24 +8333,7 @@
+     }
+ }
+ 
+-/* Indentify class valued proc_pointer assignments.  */
+ 
+-static bool
+-pointer_assignment_is_proc_pointer (gfc_expr * expr1, gfc_expr * expr2)
+-{
+-  gfc_ref * ref;
+-
+-  ref = expr1->ref;
+-  while (ref && ref->next)
+-     ref = ref->next;
+-
+-  return ref && ref->type == REF_COMPONENT
+-      && ref->u.c.component->attr.proc_pointer
+-      && expr2->expr_type == EXPR_VARIABLE
+-      && expr2->symtree->n.sym->attr.flavor == FL_PROCEDURE;
+-}
+-
+-
+ /* Do everything that is needed for a CLASS function expr2.  */
+ 
+ static tree
+@@ -8325,7 +8386,7 @@
+   tree tmp;
+   tree decl;
+   tree expr1_vptr = NULL_TREE;
+-  bool scalar, non_proc_pointer_assign;
++  bool scalar, non_proc_ptr_assign;
+   gfc_ss *ss;
+ 
+   gfc_start_block (&block);
+@@ -8333,7 +8394,9 @@
+   gfc_init_se (&lse, NULL);
+ 
+   /* Usually testing whether this is not a proc pointer assignment.  */
+-  non_proc_pointer_assign = !pointer_assignment_is_proc_pointer (expr1, expr2);
++  non_proc_ptr_assign = !(gfc_expr_attr (expr1).proc_pointer
++			&& expr2->expr_type == EXPR_VARIABLE
++			&& expr2->symtree->n.sym->attr.flavor == FL_PROCEDURE);
+ 
+   /* Check whether the expression is a scalar or not; we cannot use
+      expr1->rank as it can be nonzero for proc pointers.  */
+@@ -8343,7 +8406,7 @@
+     gfc_free_ss_chain (ss);
+ 
+   if (expr1->ts.type == BT_DERIVED && expr2->ts.type == BT_CLASS
+-      && expr2->expr_type != EXPR_FUNCTION && non_proc_pointer_assign)
++      && expr2->expr_type != EXPR_FUNCTION && non_proc_ptr_assign)
+     {
+       gfc_add_data_component (expr2);
+       /* The following is required as gfc_add_data_component doesn't
+@@ -8363,7 +8426,7 @@
+       else
+ 	gfc_conv_expr (&rse, expr2);
+ 
+-      if (non_proc_pointer_assign && expr1->ts.type == BT_CLASS)
++      if (non_proc_ptr_assign && expr1->ts.type == BT_CLASS)
+ 	{
+ 	  trans_class_vptr_len_assignment (&block, expr1, expr2, &rse, NULL,
+ 					   NULL);
 Index: gcc/fortran/trans-array.c
 ===================================================================
 --- a/src/gcc/fortran/trans-array.c	(.../tags/gcc_7_4_0_release)
@@ -20313,7 +20941,27 @@ Index: gcc/fortran/ChangeLog
 ===================================================================
 --- a/src/gcc/fortran/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/fortran/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,334 @@
+@@ -1,3 +1,354 @@
++2019-08-03  Thomas Koenig  <tkoenig@gcc.gnu.org>
++	Paul Thomas <pault@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/90786
++	PR fortran/90813
++	* trans-expr.c (pointer_assignment_is_proc_pointer) Remove as
++	it is very simple and only called from one place.
++	(gfc_trans_pointer_assignment): Rename non_proc_pointer_assign
++	as non_proc_ptr_assign. Assign to it directly, rather than call
++	to above, deleted function and use gfc_expr_attr instead of
++	only checking the reference chain.
++	* trans-decl.c (sym_identifier): New function.
++	(mangled_identifier): New function, doing most of the work
++	of gfc_sym_mangled_identifier.
++	(gfc_sym_mangled_identifier): Use mangled_identifier.  Add mangled
++	identifier to global symbol table.
++	(get_proc_pointer_decl): Use backend decl from global identifier
++	if present.
++
 +2019-06-21  Thomas Koenig  <tkoenig@gcc.gnu.org>
 +
 +	Backport from trunk
@@ -21372,7 +22020,110 @@ Index: gcc/fortran/trans-decl.c
 ===================================================================
 --- a/src/gcc/fortran/trans-decl.c	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/fortran/trans-decl.c	(.../branches/gcc-7-branch)
-@@ -831,7 +831,7 @@
+@@ -334,39 +334,45 @@
+     }
+ }
+ 
++/* Return the name of an identifier.  */
+ 
++static const char *
++sym_identifier (gfc_symbol *sym)
++{
++  if (sym->attr.is_main_program && strcmp (sym->name, "main") == 0)
++    return "MAIN__";
++  else
++    return sym->name;
++}
++
+ /* Convert a gfc_symbol to an identifier of the same name.  */
+ 
+ static tree
+ gfc_sym_identifier (gfc_symbol * sym)
+ {
+-  if (sym->attr.is_main_program && strcmp (sym->name, "main") == 0)
+-    return (get_identifier ("MAIN__"));
+-  else
+-    return (get_identifier (sym->name));
++  return get_identifier (sym_identifier (sym));
+ }
+ 
++/* Construct mangled name from symbol name.   */
+ 
+-/* Construct mangled name from symbol name.  */
+-
+-static tree
+-gfc_sym_mangled_identifier (gfc_symbol * sym)
++static const char *
++mangled_identifier (gfc_symbol *sym)
+ {
+-  char name[GFC_MAX_MANGLED_SYMBOL_LEN + 1];
+-
++  static char name[GFC_MAX_MANGLED_SYMBOL_LEN + 1];
+   /* Prevent the mangling of identifiers that have an assigned
+      binding label (mainly those that are bind(c)).  */
++
+   if (sym->attr.is_bind_c == 1 && sym->binding_label)
+-    return get_identifier (sym->binding_label);
++    return sym->binding_label;
+ 
+   if (!sym->fn_result_spec)
+     {
+       if (sym->module == NULL)
+-	return gfc_sym_identifier (sym);
++	return sym_identifier (sym);
+       else
+ 	{
+ 	  snprintf (name, sizeof name, "__%s_MOD_%s", sym->module, sym->name);
+-	  return get_identifier (name);
++	  return name;
+ 	}
+     }
+   else
+@@ -381,18 +387,41 @@
+ 		    sym->ns->proc_name->module,
+ 		    sym->ns->proc_name->name,
+ 		    sym->name);
+-	  return get_identifier (name);
++	  return name;
+ 	}
+       else
+ 	{
+ 	  snprintf (name, sizeof name, "__%s_PROC_%s",
+ 		    sym->ns->proc_name->name, sym->name);
+-	  return get_identifier (name);
++	  return name;
+ 	}
+     }
+ }
+ 
++/* Get mangled identifier, adding the symbol to the global table if
++   it is not yet already there.  */
+ 
++static tree
++gfc_sym_mangled_identifier (gfc_symbol * sym)
++{
++  tree result;
++  gfc_gsymbol *gsym;
++  const char *name;
++
++  name = mangled_identifier (sym);
++  result = get_identifier (name);
++
++  gsym = gfc_find_gsymbol (gfc_gsym_root, name);
++  if (gsym == NULL)
++    {
++      gsym = gfc_get_gsymbol (name, false);
++      gsym->ns = sym->ns;
++      gsym->sym_name = sym->name;
++    }
++
++  return result;
++}
++
+ /* Construct mangled function name from symbol name.  */
+ 
+ static tree
+@@ -831,7 +860,7 @@
  	{
  	  if (!gsym)
  	    {
@@ -21381,7 +22132,7 @@ Index: gcc/fortran/trans-decl.c
  	      gsym->type = GSYM_MODULE;
  	      gsym->ns = gfc_get_namespace (NULL, 0);
  	    }
-@@ -1655,7 +1655,9 @@
+@@ -1655,7 +1684,9 @@
      {
        /* Catch functions. Only used for actual parameters,
  	 procedure pointers and procptr initialization targets.  */
@@ -21392,7 +22143,30 @@ Index: gcc/fortran/trans-decl.c
  	  || sym->attr.if_source != IFSRC_DECL)
  	{
  	  decl = gfc_get_extern_function_decl (sym);
-@@ -1934,7 +1936,7 @@
+@@ -1862,6 +1893,22 @@
+   tree decl;
+   tree attributes;
+ 
++  if (sym->module || sym->fn_result_spec)
++    {
++      const char *name;
++      gfc_gsymbol *gsym;
++
++      name = mangled_identifier (sym);
++      gsym = gfc_find_gsymbol (gfc_gsym_root, name);
++      if (gsym != NULL)
++	{
++	  gfc_symbol *s;
++	  gfc_find_symbol (sym->name, gsym->ns, 0, &s);
++	  if (s && s->backend_decl)
++	    return s->backend_decl;
++	}
++    }
++
+   decl = sym->backend_decl;
+   if (decl)
+     return decl;
+@@ -1934,7 +1981,7 @@
  /* Get a basic decl for an external function.  */
  
  tree
@@ -21401,7 +22175,7 @@ Index: gcc/fortran/trans-decl.c
  {
    tree type;
    tree fndecl;
-@@ -1959,10 +1961,23 @@
+@@ -1959,10 +2006,23 @@
      return get_proc_pointer_decl (sym);
  
    /* See if this is an external procedure from the same file.  If so,
@@ -21428,7 +22202,7 @@ Index: gcc/fortran/trans-decl.c
    if (gsym && !gsym->defined)
      gsym = NULL;
  
-@@ -2107,7 +2122,7 @@
+@@ -2107,7 +2167,7 @@
        mangled_name = gfc_sym_mangled_function_id (sym);
      }
  
@@ -21437,7 +22211,7 @@ Index: gcc/fortran/trans-decl.c
    fndecl = build_decl (input_location,
  		       FUNCTION_DECL, name, type);
  
-@@ -5220,6 +5235,33 @@
+@@ -5220,6 +5280,33 @@
    /* Handle "static" initializer.  */
    if (sym->value)
      {
@@ -21804,6 +22578,29 @@ Index: gcc/ipa-prop.c
              return;
  	  check_ref = true;
  	  arg_base = arg;
+Index: gcc/tree-ssa-copy.c
+===================================================================
+--- a/src/gcc/tree-ssa-copy.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/tree-ssa-copy.c	(.../branches/gcc-7-branch)
+@@ -532,13 +532,12 @@
+ 	      duplicate_ssa_name_ptr_info (copy_of[i].value,
+ 					   SSA_NAME_PTR_INFO (var));
+ 	      /* Points-to information is cfg insensitive,
+-		 but alignment info might be cfg sensitive, if it
+-		 e.g. is derived from VRP derived non-zero bits.
+-		 So, do not copy alignment info if the two SSA_NAMEs
+-		 aren't defined in the same basic block.  */
++		 but [E]VRP might record context sensitive alignment
++		 info, non-nullness, etc.  So reset context sensitive
++		 info if the two SSA_NAMEs aren't defined in the same
++		 basic block.  */
+ 	      if (var_bb != copy_of_bb)
+-		mark_ptr_info_alignment_unknown
+-				(SSA_NAME_PTR_INFO (copy_of[i].value));
++		reset_flow_sensitive_info (copy_of[i].value);
+ 	    }
+ 	  else if (!POINTER_TYPE_P (TREE_TYPE (var))
+ 		   && SSA_NAME_RANGE_INFO (var)
 Index: gcc/varasm.c
 ===================================================================
 --- a/src/gcc/varasm.c	(.../tags/gcc_7_4_0_release)
@@ -21901,6 +22698,44 @@ Index: gcc/combine.c
  	  return CONST0_RTX (mode);
        }
  
+Index: gcc/resource.c
+===================================================================
+--- a/src/gcc/resource.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/resource.c	(.../branches/gcc-7-branch)
+@@ -966,9 +966,13 @@
+     {
+       regset regs_live = DF_LR_IN (BASIC_BLOCK_FOR_FN (cfun, b));
+       rtx_insn *start_insn, *stop_insn;
++      df_ref def;
+ 
+       /* Compute hard regs live at start of block.  */
+       REG_SET_TO_HARD_REG_SET (current_live_regs, regs_live);
++      FOR_EACH_ARTIFICIAL_DEF (def, b)
++	if (DF_REF_FLAGS (def) & DF_REF_AT_TOP)
++	  SET_HARD_REG_BIT (current_live_regs, DF_REF_REGNO (def));
+ 
+       /* Get starting and ending insn, handling the case where each might
+ 	 be a SEQUENCE.  */
+Index: gcc/opts-global.c
+===================================================================
+--- a/src/gcc/opts-global.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/opts-global.c	(.../branches/gcc-7-branch)
+@@ -100,10 +100,14 @@
+ 	   text, bad_lang);
+   else if (lang_mask == CL_DRIVER)
+     gcc_unreachable ();
+-  else
++  else if (ok_langs[0] != '\0')
+     /* Eventually this should become a hard error IMO.  */
+     warning (0, "command line option %qs is valid for %s but not for %s",
+ 	     text, ok_langs, bad_lang);
++  else
++    /* Happens for -Werror=warning_name.  */
++    warning (0, "%<-Werror=%> argument %qs is not valid for %s",
++	     text, bad_lang);
+ 
+   free (ok_langs);
+   free (bad_lang);
 Index: gcc/tree-ssa-structalias.c
 ===================================================================
 --- a/src/gcc/tree-ssa-structalias.c	(.../tags/gcc_7_4_0_release)
@@ -22090,6 +22925,19 @@ Index: gcc/config/s390/s390.md
  ; VX: TFmode in FPR pairs: use cxbr instead of wfcxb
  ; cxtr, cdtr, cxbr, cdbr, cebr, cdb, ceb, wfcsb, wfcdb
  (define_insn "*cmp<mode>_ccs"
+Index: gcc/config/s390/vector.md
+===================================================================
+--- a/src/gcc/config/s390/vector.md	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/config/s390/vector.md	(.../branches/gcc-7-branch)
+@@ -933,7 +933,7 @@
+ 	(VEC_SHIFTS:VI (match_operand:VI 1 "register_operand"   "v")
+ 		       (match_operand:SI 2 "nonmemory_operand" "an")))]
+   "TARGET_VX"
+-  "<vec_shifts_mnem><bhfgq>\t%v0,%v1,%Y2"
++  "<vec_shifts_mnem><bhfgq>\t%v0,%v1,<addr_style_op_ops>"
+   [(set_attr "op_type" "VRS")])
+ 
+ ; Shift each element by corresponding vector element
 Index: gcc/config/s390/s390-builtins.def
 ===================================================================
 --- a/src/gcc/config/s390/s390-builtins.def	(.../tags/gcc_7_4_0_release)
@@ -24849,7 +25697,27 @@ Index: gcc/config/arm/arm.c
  
  #ifdef SUBTARGET_OVERRIDE_INTERNAL_OPTIONS
    SUBTARGET_OVERRIDE_INTERNAL_OPTIONS;
-@@ -11695,8 +11696,7 @@
+@@ -8711,11 +8712,16 @@
+ arm_cannot_force_const_mem (machine_mode mode ATTRIBUTE_UNUSED, rtx x)
+ {
+   rtx base, offset;
++  split_const (x, &base, &offset);
+ 
+-  if (ARM_OFFSETS_MUST_BE_WITHIN_SECTIONS_P)
++  if (SYMBOL_REF_P (base))
+     {
+-      split_const (x, &base, &offset);
+-      if (GET_CODE (base) == SYMBOL_REF
++      /* Function symbols cannot have an offset due to the Thumb bit.  */
++      if ((SYMBOL_REF_FLAGS (base) & SYMBOL_FLAG_FUNCTION)
++	  && INTVAL (offset) != 0)
++	return true;
++
++      if (ARM_OFFSETS_MUST_BE_WITHIN_SECTIONS_P
+ 	  && !offset_within_block_p (base, INTVAL (offset)))
+ 	return true;
+     }
+@@ -11695,8 +11701,7 @@
    else
      {
        n_elts = 1;
@@ -25070,6 +25938,77 @@ Index: gcc/config/arm/t-rtems
  MULTILIB_REQUIRED += mthumb/mcpu=cortex-m7/mfpu=fpv5-d16/mfloat-abi=hard
 -MULTILIB_REQUIRED += mthumb/march=armv7-m
  MULTILIB_REQUIRED += mthumb
+Index: gcc/config/arm/arm.md
+===================================================================
+--- a/src/gcc/config/arm/arm.md	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/config/arm/arm.md	(.../branches/gcc-7-branch)
+@@ -5999,52 +5999,29 @@
+         }
+     }
+ 
+-  if (ARM_OFFSETS_MUST_BE_WITHIN_SECTIONS_P)
++  split_const (operands[1], &base, &offset);
++  if (INTVAL (offset) != 0
++      && targetm.cannot_force_const_mem (SImode, operands[1]))
+     {
+-      split_const (operands[1], &base, &offset);
+-      if (GET_CODE (base) == SYMBOL_REF
+-	  && !offset_within_block_p (base, INTVAL (offset)))
+-	{
+-	  tmp = can_create_pseudo_p () ? gen_reg_rtx (SImode) : operands[0];
+-	  emit_move_insn (tmp, base);
+-	  emit_insn (gen_addsi3 (operands[0], tmp, offset));
+-	  DONE;
+-	}
++      tmp = can_create_pseudo_p () ? gen_reg_rtx (SImode) : operands[0];
++      emit_move_insn (tmp, base);
++      emit_insn (gen_addsi3 (operands[0], tmp, offset));
++      DONE;
+     }
+ 
++  tmp = can_create_pseudo_p () ? NULL_RTX : operands[0];
++
+   /* Recognize the case where operand[1] is a reference to thread-local
+-     data and load its address to a register.  */
++     data and load its address to a register.  Offsets have been split off
++     already.  */
+   if (arm_tls_referenced_p (operands[1]))
+-    {
+-      rtx tmp = operands[1];
+-      rtx addend = NULL;
+-
+-      if (GET_CODE (tmp) == CONST && GET_CODE (XEXP (tmp, 0)) == PLUS)
+-        {
+-          addend = XEXP (XEXP (tmp, 0), 1);
+-          tmp = XEXP (XEXP (tmp, 0), 0);
+-        }
+-
+-      gcc_assert (GET_CODE (tmp) == SYMBOL_REF);
+-      gcc_assert (SYMBOL_REF_TLS_MODEL (tmp) != 0);
+-
+-      tmp = legitimize_tls_address (tmp,
+-				    !can_create_pseudo_p () ? operands[0] : 0);
+-      if (addend)
+-        {
+-          tmp = gen_rtx_PLUS (SImode, tmp, addend);
+-          tmp = force_operand (tmp, operands[0]);
+-        }
+-      operands[1] = tmp;
+-    }
++    operands[1] = legitimize_tls_address (operands[1], tmp);
+   else if (flag_pic
+ 	   && (CONSTANT_P (operands[1])
+ 	       || symbol_mentioned_p (operands[1])
+ 	       || label_mentioned_p (operands[1])))
+-      operands[1] = legitimize_pic_address (operands[1], SImode,
+-					    (!can_create_pseudo_p ()
+-					     ? operands[0]
+-					     : 0));
++    operands[1] =
++      legitimize_pic_address (operands[1], SImode, tmp);
+   }
+   "
+ )
 Index: gcc/config/pa/pa.md
 ===================================================================
 --- a/src/gcc/config/pa/pa.md	(.../tags/gcc_7_4_0_release)
@@ -25211,6 +26150,24 @@ Index: gcc/dce.c
  }
  
  
+Index: gcc/tree-ssanames.c
+===================================================================
+--- a/src/gcc/tree-ssanames.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/tree-ssanames.c	(.../branches/gcc-7-branch)
+@@ -744,7 +744,12 @@
+     {
+       /* points-to info is not flow-sensitive.  */
+       if (SSA_NAME_PTR_INFO (name))
+-	mark_ptr_info_alignment_unknown (SSA_NAME_PTR_INFO (name));
++	{
++	  /* [E]VRP can derive context sensitive alignment info and
++	     non-nullness properties.  We must reset both.  */
++	  mark_ptr_info_alignment_unknown (SSA_NAME_PTR_INFO (name));
++	  SSA_NAME_PTR_INFO (name)->pt.null = 1;
++	}
+     }
+   else
+     SSA_NAME_RANGE_INFO (name) = NULL;
 Index: libgfortran/runtime/backtrace.c
 ===================================================================
 --- a/src/libgfortran/runtime/backtrace.c	(.../tags/gcc_7_4_0_release)
