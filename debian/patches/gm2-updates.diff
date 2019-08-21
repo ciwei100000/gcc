@@ -1,13 +1,32 @@
-# DP: gm2 updates up to 20190817
+# DP: gm2 updates up to 20190820
 
-git diff de2034bc023a89e45bec67e54d2a63982080c316 c67b2fd818227cd0d1a29051365b8e2a7a5efc02 | filterdiff --strip=2 --addoldprefix=a/src/ --addnewprefix=b/src/ --remove-timestamp
+git diff de2034bc023a89e45bec67e54d2a63982080c316 37ac5de83cefd414863a697866464ac9c8ac2140 | filterdiff --strip=2 --addoldprefix=a/src/ --addnewprefix=b/src/ --remove-timestamp | egrep -v '^(diff|index)'
 
-diffgcc/gm2/ChangeLog b/gcc-versionno/gcc/gm2/ChangeLog
-index 43688ba0..49190553 100644
 --- a/src/gcc/gm2/ChangeLog
 +++ b/src/gcc/gm2/ChangeLog
-@@ -1,4 +1,38 @@
+@@ -1,4 +1,59 @@
 -2019-08-05      Gaius Mulley <gaius.mulley@southwales.ac.uk>
++2019-08-20      Gaius Mulley <gaius.mulley@southwales.ac.uk>
++
++	* gm2/Make-lang.in:  use -p parameter for mkdir.
++
++2019-08-20      Matthias Klose  <doko@cs.tu-berlin.de>
++
++	* gm2/Make-lang.in:  added dependancies for subdir
++          creation.
++
++2019-08-20      Gaius Mulley <gaius.mulley@southwales.ac.uk>
++
++	* gm2/tools-src/buildsyntax:  removed function keyword
++          to be sh complient rather than bash.
++	* gm2/tools-src/makeSystem:  removed function keyword
++          to be sh complient rather than bash.
++	* gm2/tools-src/makeconfigure:  removed function keyword
++          to be sh complient rather than bash.
++	* gm2/tools-src/makeversion:  removed function keyword
++          to be sh complient rather than bash.  Also use = rather
++          than ==.
++
 +2019-08-16      Gaius Mulley <gaius.mulley@southwales.ac.uk>
 +
 +	* gm2/Make-lang.in:  (gm2/pge) added -lgcov.
@@ -46,10 +65,24 @@ index 43688ba0..49190553 100644
  
  	* New branch gcc_9_2_0_gm2
  	* gm2/configure.in:  changed release number to 1.9.2.
-diffgcc/gm2/Make-lang.in b/gcc-versionno/gcc/gm2/Make-lang.in
-index 0af2ca63..85c006b1 100644
 --- a/src/gcc/gm2/Make-lang.in
 +++ b/src/gcc/gm2/Make-lang.in
+@@ -312,11 +312,11 @@ $(objdir)/gm2/boot-bin:
+ $(objdir)/gm2/ulm-lib-gm2:
+ 	mkdir $@
+ 
+-$(objdir)/gm2/ulm-lib-gm2/sys:
+-	mkdir $@
++$(objdir)/gm2/ulm-lib-gm2/sys: $(objdir)/gm2/ulm-lib-gm2
++	mkdir -p $@
+ 
+-$(objdir)/gm2/ulm-lib-gm2/std:
+-	mkdir $@
++$(objdir)/gm2/ulm-lib-gm2/std: $(objdir)/gm2/ulm-lib-gm2
++	mkdir -p $@
+ 
+ $(objdir)/gm2/gm2-libs-pim:
+ 	mkdir $@
 @@ -1757,7 +1757,9 @@ gm2/mc-boot-ch/$(SRC_PREFIX)%.o: gm2/mc-boot-ch/$(SRC_PREFIX)%.c
  mc-bootstrap: $(GM2_DIRS) mc-clean gm2/boot-bin/mc$(exeext)
  
@@ -107,8 +140,6 @@ index 0af2ca63..85c006b1 100644
  
  check-gm2-local: $(GM2TESTSUITEDIR)/site.exp
  	-(rootme=`${PWD_COMMAND}`; export rootme; \
-diffgcc/gm2/lang-specs.h b/gcc-versionno/gcc/gm2/lang-specs.h
-index ba961343..fc7dae2a 100644
 --- a/src/gcc/gm2/lang-specs.h
 +++ b/src/gcc/gm2/lang-specs.h
 @@ -31,7 +31,7 @@ Boston, MA 02110-1301, USA.  */
@@ -120,8 +151,327 @@ index ba961343..fc7dae2a 100644
    " AS("%b_m2.s",OUTPUT) " "
  
  #define GM2LCC(OBJECT,LST) \
-diffgcc/testsuite/gm2/calling-c/datatypes/unbounded/run/pass/gm2.exp b/gcc-versionno/gcc/testsuite/gm2/calling-c/datatypes/unbounded/run/pass/gm2.exp
-index 0eb58402..923ceafd 100644
+--- a/src/gcc/gm2/tools-src/buildsyntax
++++ b/src/gcc/gm2/tools-src/buildsyntax
+@@ -8,21 +8,21 @@
+ # it under the terms of the GNU General Public License as published by
+ # the Free Software Foundation; either version 3, or (at your option)
+ # any later version.
+-# 
++#
+ # GNU Modula-2 is distributed in the hope that it will be useful,
+ # but WITHOUT ANY WARRANTY; without even the implied warranty of
+ # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ # GNU General Public License for more details.
+-# 
++#
+ # You should have received a copy of the GNU General Public License
+ # along with GNU Modula-2; see the file COPYING.  If not, write to the
+ # Free Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+-# 02110-1301, USA. 
++# 02110-1301, USA.
+ #
+ 
+ TMPFILE=/tmp/t.$$
+ 
+-function buildpass1 () {
++buildpass1 () {
+     if [ -x ../bin3/pg ] ; then
+         if ../bin3/pg ../bnf/m2.bnf > $TMPFILE ; then
+            cat $TMPFILE | sed -e "s/WHICHPASS1/TRUE/" > P1SyntaxCheck.mod
+@@ -36,7 +36,7 @@ function buildpass1 () {
+     fi
+ }
+ 
+-function buildpass2 () {
++buildpass2 () {
+     if [ -x ../bin3/pg ] ; then
+         if ../bin3/pg ../bnf/m2-2.bnf > $TMPFILE ; then
+            cat $TMPFILE | sed -e "s/WHICHPASS2/TRUE/" > P2Build.mod
+@@ -50,7 +50,7 @@ function buildpass2 () {
+     fi
+ }
+ 
+-function buildpass3 () {
++buildpass3 () {
+     if [ -x ../bin3/pg ] ; then
+         if ../bin3/pg ../bnf/m2-3.bnf > $TMPFILE ; then
+            cat $TMPFILE | sed -e "s/WHICHPASS3/TRUE/" > P3Build.mod
+@@ -64,7 +64,7 @@ function buildpass3 () {
+     fi
+ }
+ 
+-function buildpassH () {
++buildpassH () {
+     if [ -x ../bin3/pg ] ; then
+         if ../bin3/pg ../bnf/m2-h.bnf > $TMPFILE ; then
+            cat $TMPFILE | sed -e "s/WHICHPASS3/TRUE/" > PHBuild.mod
+@@ -82,7 +82,7 @@ function buildpassH () {
+ #  buildsyntax - build the pass 1 parser with error recovery
+ #
+ 
+-function buildsyntax () {
++buildsyntax () {
+    buildpass1
+    buildpass2
+    buildpass3
+--- a/src/gcc/gm2/tools-src/makeSystem
++++ b/src/gcc/gm2/tools-src/makeSystem
+@@ -19,7 +19,7 @@
+ # Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA. *)
+ 
+ 
+-function Usage () {
++Usage () {
+    echo "Usage: makesystem dialectflag SYSTEM.def SYSTEM.mod librarypath compiler"
+ }
+ 
+@@ -41,7 +41,7 @@ if [ "$DIALECT" != "-fiso" -a "$DIALECT" != "-fpim" ] ; then
+    exit 1
+ fi
+ 
+-function displayExportedTypes () {
++displayExportedTypes () {
+    n=1
+    c=0
+    for i in ${types} ; do
+@@ -60,24 +60,24 @@ function displayExportedTypes () {
+    echo " " >> ${OUTPUTFILE}
+ }
+ 
+-function displayBuiltinTypes () {
++displayBuiltinTypes () {
+    for i in ${types} ; do
+       echo "   $i ; " >> ${OUTPUTFILE}
+    done
+ }
+ 
+-function displayStart () {
++displayStart () {
+    sed -e "1,/@SYSTEM_DATATYPES@/!d" < ${SYSTEMDEF} | \
+    sed -e "/@SYSTEM_DATATYPES@/d" >> ${OUTPUTFILE}
+ }
+ 
+-function displayMiddle () {
++displayMiddle () {
+    sed -e "1,/@SYSTEM_DATATYPES@/d" < ${SYSTEMDEF} | \
+    sed -e "1,/@SYSTEM_TYPES@/!d" | \
+    sed -e "/@SYSTEM_TYPES@/d" >> ${OUTPUTFILE}
+ }
+ 
+-function displayEnd () {
++displayEnd () {
+    sed -e "1,/@SYSTEM_TYPES@/d" < ${SYSTEMDEF} >> ${OUTPUTFILE}
+ }
+ 
+--- a/src/gcc/gm2/tools-src/makeconfigure
++++ b/src/gcc/gm2/tools-src/makeconfigure
+@@ -8,16 +8,16 @@
+ # it under the terms of the GNU General Public License as published by
+ # the Free Software Foundation; either version 3, or (at your option)
+ # any later version.
+-# 
++#
+ # GNU Modula-2 is distributed in the hope that it will be useful,
+ # but WITHOUT ANY WARRANTY; without even the implied warranty of
+ # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ # GNU General Public License for more details.
+-# 
++#
+ # You should have received a copy of the GNU General Public License
+ # along with GNU Modula-2; see the file COPYING.  If not, write to the
+ # Free Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+-# 02110-1301, USA. 
++# 02110-1301, USA.
+ #
+ 
+ #
+@@ -25,13 +25,13 @@
+ # file:
+ #
+ # gm2s/386-gas/M2Configure.def
+-# 
++#
+ 
+ #
+ # create configuration constant
+ #
+ 
+-function EmitConst () {
++EmitConst () {
+    echo "  " $1 "=" $2 ";  (* automatically generated *)" >> $DESTINATION
+    echo "" >> $DESTINATION
+ }
+@@ -40,7 +40,7 @@ function EmitConst () {
+ # remove the old configuration file and create new empty ones
+ #
+ 
+-function Initialize () {
++Initialize () {
+    /bin/rm -f $DESTINATION
+    touch $DESTINATION
+ }
+@@ -50,7 +50,7 @@ function Initialize () {
+ # ModulePrologue - write the start of the definition module.
+ #
+ 
+-function ModulePrologue () {
++ModulePrologue () {
+    cat >> $DESTINATION << EOF
+ DEFINITION MODULE M2Configure ;
+ 
+@@ -113,7 +113,7 @@ EOF
+ # ModuleEpilogue - terminates the definition module.
+ #
+ 
+-function ModuleEpilogue () {
++ModuleEpilogue () {
+    echo "" >> $DESTINATION
+    echo "END M2Configure." >> $DESTINATION
+ }
+@@ -123,7 +123,7 @@ function ModuleEpilogue () {
+ # work out whether we are compiling on a xenix system
+ #
+ 
+-function IsSystemXenix () {
++IsSystemXenix () {
+    echo -n "are we compiling under xenix..."
+    cat >> $DESTINATION << EOF3
+ (*
+@@ -142,7 +142,7 @@ EOF3
+ }
+ 
+ 
+-function UseUnderscoreForC () {
++UseUnderscoreForC () {
+    cat >> $DESTINATION << EOF
+ (*
+    UseUnderscoreForC - if true then the C compiler uses _ in front of
+@@ -168,7 +168,7 @@ EOF
+ }
+ 
+ 
+-function UseDotForGDBLabels () {
++UseDotForGDBLabels () {
+    cat >> $DESTINATION << EOF
+ (*
+    UseDotForGDBLabels - if true then the C compiler produced .LBB2: for the
+@@ -195,7 +195,7 @@ EOF
+ }
+ 
+ 
+-function UseDotForJumpLabels () {
++UseDotForJumpLabels () {
+    cat >> $DESTINATION << EOF
+ (*
+    UseDotForJumpLabels - if true then the C compiler produced .L2: for jump
+@@ -222,12 +222,12 @@ EOF
+ }
+ 
+ 
+-function secondword () {
++secondword () {
+    echo $2
+ }
+ 
+ 
+-function AlignmentSize () {
++AlignmentSize () {
+    cat >> $DESTINATION << EOF
+ (*
+    AlignmentSize - returns the default alignment size used.
+@@ -247,7 +247,7 @@ EOF
+ }
+ 
+ 
+-function ActivationRecordOffset () {
++ActivationRecordOffset () {
+    cat >> $DESTINATION << EOF
+ (*
+    ActivationRecordOffset - the number of words relative to frame pointer
+@@ -260,7 +260,7 @@ EOF
+ }
+ 
+ 
+-function UseShortStabLineNumbers () {
++UseShortStabLineNumbers () {
+    cat >> $DESTINATION << EOF
+ (*
+    UseShortStabLineNumbers - if true then the C compiler produced .stabd 68,0,2
+@@ -288,7 +288,7 @@ EOF
+ }
+ 
+ 
+-function DefaultLibraryPath () {
++DefaultLibraryPath () {
+    cat >> $DESTINATION << EOF
+ (*
+    DefaultLibraryPath - defermines the default library path and creates a
+@@ -302,7 +302,7 @@ EOF
+ }
+ 
+ 
+-function UsingGCCBackend () {
++UsingGCCBackend () {
+    cat >> $DESTINATION << EOF
+ (*
+    UsingGCCBackend - is the compiler being built with the GCC code generator?
+--- a/src/gcc/gm2/tools-src/makeversion
++++ b/src/gcc/gm2/tools-src/makeversion
+@@ -29,7 +29,7 @@
+ 
+ 
+ 
+-function doM2 () {
++doM2 () {
+ /bin/rm -f M2Version.mod
+ 
+ cat << EOF >> M2Version.mod
+@@ -71,7 +71,7 @@ EOF
+ }
+ 
+ 
+-function doC () {
++doC () {
+ 
+ cat <<EOF > gm2version.c
+ /* Generated by makeversion - do not edit */
+@@ -95,7 +95,7 @@ EOF
+ }
+ 
+ 
+-function doCP () {
++doCP () {
+ 
+ cat <<EOF > gm2version.c
+ /* Generated by makeversion - do not edit */
+@@ -119,7 +119,7 @@ EOF
+ }
+ 
+ 
+-function doTexi () {
++doTexi () {
+ 
+ cat <<EOF > version.texi
+ 
+@@ -135,7 +135,7 @@ EOF
+ 
+ progname=$0
+ 
+-function usage () {
++usage () {
+    cat <<EOF
+ Usage: $progname [-m][-c][-t]
+    -m  generates a Modula-2 module M2Version.mod
+@@ -206,7 +206,7 @@ fi
+ #  $(srcdir)/gm2/gm2-libs/config-host.in
+ #
+ 
+-if [ "`grep AC_INIT ${SRCDIR}/gm2/gm2-libs/config-host.in | grep ${GM2VERSION}`" == "" ] ; then
++if [ "`grep AC_INIT ${SRCDIR}/gm2/gm2-libs/config-host.in | grep ${GM2VERSION}`" = "" ] ; then
+    echo "makeversion has found a consistency error:  the ${SRCDIR}/gm2/gm2-libs/config-host.in does not match the GNU Modula-2 release number"
+    exit 1
+ fi
 --- a/src/gcc/testsuite/gm2/calling-c/datatypes/unbounded/run/pass/gm2.exp
 +++ b/src/gcc/testsuite/gm2/calling-c/datatypes/unbounded/run/pass/gm2.exp
 @@ -27,12 +27,12 @@ set gm2src ${srcdir}/../gm2
@@ -139,8 +489,6 @@ index 0eb58402..923ceafd 100644
  
  foreach testcase [lsort [glob -nocomplain $srcdir/$subdir/*.mod]] {
      # If we're only testing specific files and this isn't one of them, skip it.
-diffgcc/testsuite/gm2/examples/callingC/run/pass/gm2.exp b/gcc-versionno/gcc/testsuite/gm2/examples/callingC/run/pass/gm2.exp
-index 6d0a31f5..c1528ccd 100644
 --- a/src/gcc/testsuite/gm2/examples/callingC/run/pass/gm2.exp
 +++ b/src/gcc/testsuite/gm2/examples/callingC/run/pass/gm2.exp
 @@ -13,7 +13,7 @@
@@ -166,8 +514,6 @@ index 6d0a31f5..c1528ccd 100644
  
  
  foreach testcase [lsort [glob -nocomplain $srcdir/$subdir/*.mod]] {
-diffgcc/testsuite/gm2/exceptions/run/pass/gm2.exp b/gcc-versionno/gcc/testsuite/gm2/exceptions/run/pass/gm2.exp
-index 6f43cc8c..ee0b11d3 100644
 --- a/src/gcc/testsuite/gm2/exceptions/run/pass/gm2.exp
 +++ b/src/gcc/testsuite/gm2/exceptions/run/pass/gm2.exp
 @@ -25,11 +25,11 @@ load_lib prune.exp
@@ -185,8 +531,6 @@ index 6f43cc8c..ee0b11d3 100644
  
  #
  #  notice this uses PIM libraries with exceptions - this is a useful test.
-diffgcc/testsuite/gm2/extensions/run/pass/gm2.exp b/gcc-versionno/gcc/testsuite/gm2/extensions/run/pass/gm2.exp
-index 492ef7d9..4b632030 100644
 --- a/src/gcc/testsuite/gm2/extensions/run/pass/gm2.exp
 +++ b/src/gcc/testsuite/gm2/extensions/run/pass/gm2.exp
 @@ -13,7 +13,7 @@
@@ -211,8 +555,6 @@ index 492ef7d9..4b632030 100644
  
  
  foreach testcase [lsort [glob -nocomplain $srcdir/$subdir/*.mod]] {
-diffgcc/testsuite/gm2/imports/run/pass/gm2.exp b/gcc-versionno/gcc/testsuite/gm2/imports/run/pass/gm2.exp
-index eea64f1c..1996b26d 100644
 --- a/src/gcc/testsuite/gm2/imports/run/pass/gm2.exp
 +++ b/src/gcc/testsuite/gm2/imports/run/pass/gm2.exp
 @@ -13,7 +13,7 @@
@@ -233,8 +575,6 @@ index eea64f1c..1996b26d 100644
  
      # If we're only testing specific files and this isn't one of them, skip it.
      if ![runtest_file_p $runtests $testcase] then {
-diffgcc/testsuite/gm2/linking/libarchive/pass/gm2.exp b/gcc-versionno/gcc/testsuite/gm2/linking/libarchive/pass/gm2.exp
-index a7b84536..0f6217aa 100644
 --- a/src/gcc/testsuite/gm2/linking/libarchive/pass/gm2.exp
 +++ b/src/gcc/testsuite/gm2/linking/libarchive/pass/gm2.exp
 @@ -13,7 +13,7 @@
@@ -263,8 +603,6 @@ index a7b84536..0f6217aa 100644
  
  foreach testcase [lsort [glob -nocomplain $srcdir/$subdir/*.mod]] {
      # If we're only testing specific files and this isn't one of them, skip it.
-diffgcc/testsuite/gm2/pim/run/pass/gm2.exp b/gcc-versionno/gcc/testsuite/gm2/pim/run/pass/gm2.exp
-index 74cd1fec..3f571f90 100755
 --- a/src/gcc/testsuite/gm2/pim/run/pass/gm2.exp
 +++ b/src/gcc/testsuite/gm2/pim/run/pass/gm2.exp
 @@ -27,7 +27,7 @@ set gm2src ${srcdir}/../gm2
@@ -276,8 +614,6 @@ index 74cd1fec..3f571f90 100755
  
      # If we're only testing specific files and this isn't one of them, skip it.
      if ![runtest_file_p $runtests $testcase] then {
-diffgcc/testsuite/gm2/types/run/pass/gm2.exp b/gcc-versionno/gcc/testsuite/gm2/types/run/pass/gm2.exp
-index bef297d7..ddc8c7dd 100755
 --- a/src/gcc/testsuite/gm2/types/run/pass/gm2.exp
 +++ b/src/gcc/testsuite/gm2/types/run/pass/gm2.exp
 @@ -13,7 +13,7 @@
@@ -314,8 +650,6 @@ index bef297d7..ddc8c7dd 100755
 -set output [exec rm -f d.o]
 \ No newline at end of file
 +set output [exec rm -f d.o]
-diffgcc/testsuite/lib/gm2.exp b/gcc-versionno/gcc/testsuite/lib/gm2.exp
-index fd6b44e7..791473df 100755
 --- a/src/gcc/testsuite/lib/gm2.exp
 +++ b/src/gcc/testsuite/lib/gm2.exp
 @@ -92,8 +92,8 @@ proc gm2_init { args } {
