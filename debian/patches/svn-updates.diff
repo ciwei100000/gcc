@@ -1,10 +1,10 @@
-# DP: updates from the 9 branch upto 20190931 (r275240).
+# DP: updates from the 9 branch upto 20190931 (r275242).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Sat Aug 31 05:20:41 CEST 2019
-Sat Aug 31 03:20:41 UTC 2019 (revision 275240)
+Sat Aug 31 18:46:07 CEST 2019
+Sat Aug 31 16:46:07 UTC 2019 (revision 275242)
 EOF
 }
 
@@ -4178,6 +4178,23 @@ Index: gcc/testsuite/gfortran.dg/pr70754.f90
      end do
  
      where ((xyz(:,:,2) /= 0) .and. (c /= 0))
+Index: gcc/testsuite/gfortran.dg/pr91587.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr91587.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr91587.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,12 @@
++! { dg-do compile }
++! PR fortran/91587
++! Code contributed by Gerhard Steinmetz
++program p
++   backspace(err=!)  ! { dg-error "Syntax error in" }
++   flush(err=!)      ! { dg-error "Syntax error in" }
++   rewind(err=!)     ! { dg-error "Syntax error in" }
++end
++
++subroutine bar       ! An other matcher runs, and gives a different error.
++   endfile(err=!)    ! { dg-error "Expecting END" }
++end
 Index: gcc/testsuite/gfortran.dg/pr78719_3.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr78719_3.f90	(.../tags/gcc_9_2_0_release)
@@ -4895,7 +4912,12 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,178 @@
+@@ -1,3 +1,183 @@
++2019-08-30  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91587
++	* gfortran.dg/pr91587.f90: New test.
++
 +2019-08-30  Steven G. Kargl  <kargl@gcc.gnu.org>
 +
 +	PR fortran/91565
@@ -7019,7 +7041,12 @@ Index: gcc/fortran/ChangeLog
 ===================================================================
 --- a/src/gcc/fortran/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/fortran/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,113 @@
+@@ -1,3 +1,118 @@
++2019-08-30  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91587
++	* io.c (match_filepos): MATCH_ERROR should branch to a syntax error.
++
 +2019-08-30  Steven G. Kargl  <kargl@gcc.gnu.org>
 +
 +	PR fortran/91565
@@ -7227,6 +7254,19 @@ Index: gcc/fortran/trans.h
  
  /* Find the appropriate variant of a math intrinsic.  */
  tree gfc_builtin_decl_for_float_kind (enum built_in_function, int);
+Index: gcc/fortran/io.c
+===================================================================
+--- a/src/gcc/fortran/io.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/fortran/io.c	(.../branches/gcc-9-branch)
+@@ -2804,7 +2804,7 @@
+ 
+   m = match_file_element (fp);
+   if (m == MATCH_ERROR)
+-    goto done;
++    goto syntax;
+   if (m == MATCH_NO)
+     {
+       m = gfc_match_expr (&fp->unit);
 Index: gcc/fortran/frontend-passes.c
 ===================================================================
 --- a/src/gcc/fortran/frontend-passes.c	(.../tags/gcc_9_2_0_release)
