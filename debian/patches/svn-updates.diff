@@ -1,10 +1,10 @@
-# DP: updates from the 9 branch upto 20190927 (r274974).
+# DP: updates from the 9 branch upto 20190931 (r275240).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Wed Aug 28 00:45:13 CEST 2019
-Tue Aug 27 22:45:13 UTC 2019 (revision 274974)
+Sat Aug 31 05:20:41 CEST 2019
+Sat Aug 31 03:20:41 UTC 2019 (revision 275240)
 EOF
 }
 
@@ -104,6 +104,19 @@ Index: libsanitizer/ChangeLog
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
+Index: libstdc++-v3/configure
+===================================================================
+--- a/src/libstdc++-v3/configure	(.../tags/gcc_9_2_0_release)
++++ b/src/libstdc++-v3/configure	(.../branches/gcc-9-branch)
+@@ -79469,7 +79469,7 @@
+ fi
+ 
+ # For libtool versioning info, format is CURRENT:REVISION:AGE
+-libtool_VERSION=6:27:0
++libtool_VERSION=6:28:0
+ 
+ # Everything parsed; figure out what files and settings to use.
+ case $enable_symvers in
 Index: libstdc++-v3/src/c++17/string-inst.cc
 ===================================================================
 --- a/src/libstdc++-v3/src/c++17/string-inst.cc	(.../tags/gcc_9_2_0_release)
@@ -749,7 +762,33 @@ Index: libstdc++-v3/ChangeLog
 ===================================================================
 --- a/src/libstdc++-v3/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/libstdc++-v3/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,52 @@
+@@ -1,3 +1,78 @@
++2019-08-29  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/91067
++	* acinclude.m4 (libtool_VERSION): Bump to 6:28:0.
++	* configure: Regenerate.
++	* config/abi/pre/gnu.ver (GLIBCXX_3.4.28): Add new version. Export
++	missing symbols.
++	* testsuite/27_io/filesystem/iterators/91067.cc: Test move
++	constructors.
++	* testsuite/util/testsuite_abi.cc: Add new symbol version.
++
++2019-08-29  Jakub Jelinek  <jakub@redhat.com
++
++	* config/abi/post/aarch64-linux-gnu/baseline_symbols.txt: Update.
++	* config/abi/post/s390x-linux-gnu/baseline_symbols.txt: Update.
++
++2019-08-28  Jonathan Wakely  <jwakely@redhat.com>
++
++	* config/abi/post/i386-linux-gnu/baseline_symbols.txt: Update.
++	* config/abi/post/i486-linux-gnu/baseline_symbols.txt: Update.
++	* config/abi/post/powerpc-linux-gnu/baseline_symbols.txt: Update.
++	* config/abi/post/powerpc64-linux-gnu/32/baseline_symbols.txt: Update.
++	* config/abi/post/powerpc64-linux-gnu/baseline_symbols.txt: Update.
++	* config/abi/post/x86_64-linux-gnu/32/baseline_symbols.txt: Update.
++	* config/abi/post/x86_64-linux-gnu/baseline_symbols.txt: Update.
++
 +2019-08-23  Joseph Myers  <joseph@codesourcery.com>
 +
 +	* src/filesystem/ops-common.h [_GLIBCXX_FILESYSTEM_IS_WINDOWS]
@@ -864,6 +903,36 @@ Index: libstdc++-v3/testsuite/25_algorithms/for_each/for_each_n.cc
 +{
 +  test01();
 +}
+Index: libstdc++-v3/testsuite/27_io/filesystem/iterators/91067.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/27_io/filesystem/iterators/91067.cc	(.../tags/gcc_9_2_0_release)
++++ b/src/libstdc++-v3/testsuite/27_io/filesystem/iterators/91067.cc	(.../branches/gcc-9-branch)
+@@ -37,9 +37,25 @@
+   d = std::move(d);
+ }
+ 
++void
++test03()
++{
++  std::filesystem::directory_iterator d;
++  auto d2 = std::move(d);
++}
++
++void
++test04()
++{
++  std::filesystem::recursive_directory_iterator d;
++  auto d2 = std::move(d);
++}
++
+ int
+ main()
+ {
+   test01();
+   test02();
++  test03();
++  test04();
+ }
 Index: libstdc++-v3/testsuite/26_numerics/transform_inclusive_scan/1.cc
 ===================================================================
 --- a/src/libstdc++-v3/testsuite/26_numerics/transform_inclusive_scan/1.cc	(.../tags/gcc_9_2_0_release)
@@ -1536,6 +1605,27 @@ Index: libstdc++-v3/testsuite/26_numerics/exclusive_scan/1.cc
 +  test01();
 +  test02();
 +}
+Index: libstdc++-v3/testsuite/util/testsuite_abi.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/util/testsuite_abi.cc	(.../tags/gcc_9_2_0_release)
++++ b/src/libstdc++-v3/testsuite/util/testsuite_abi.cc	(.../branches/gcc-9-branch)
+@@ -208,6 +208,7 @@
+       known_versions.push_back("GLIBCXX_3.4.25");
+       known_versions.push_back("GLIBCXX_3.4.26");
+       known_versions.push_back("GLIBCXX_3.4.27");
++      known_versions.push_back("GLIBCXX_3.4.28");
+       known_versions.push_back("CXXABI_1.3");
+       known_versions.push_back("CXXABI_LDBL_1.3");
+       known_versions.push_back("CXXABI_1.3.1");
+@@ -239,7 +240,7 @@
+ 	test.version_status = symbol::incompatible;
+ 
+       // Check that added symbols are added in the latest pre-release version.
+-      bool latestp = (test.version_name == "GLIBCXX_3.4.27"
++      bool latestp = (test.version_name == "GLIBCXX_3.4.28"
+ 		     || test.version_name == "CXXABI_1.3.12"
+ 		     || test.version_name == "CXXABI_FLOAT128"
+ 		     || test.version_name == "CXXABI_TM_1");
 Index: libstdc++-v3/testsuite/util/testsuite_iterators.h
 ===================================================================
 --- a/src/libstdc++-v3/testsuite/util/testsuite_iterators.h	(.../tags/gcc_9_2_0_release)
@@ -1551,6 +1641,144 @@ Index: libstdc++-v3/testsuite/util/testsuite_iterators.h
    };
  }
  #endif
+Index: libstdc++-v3/config/abi/post/x86_64-linux-gnu/32/baseline_symbols.txt
+===================================================================
+--- a/src/libstdc++-v3/config/abi/post/x86_64-linux-gnu/32/baseline_symbols.txt	(.../tags/gcc_9_2_0_release)
++++ b/src/libstdc++-v3/config/abi/post/x86_64-linux-gnu/32/baseline_symbols.txt	(.../branches/gcc-9-branch)
+@@ -1829,6 +1829,7 @@
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratorD1Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratorD2Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratoraSEOS0_@@GLIBCXX_3.4.26
++FUNC:_ZNSt10filesystem28recursive_directory_iteratoraSERKS0_@@GLIBCXX_3.4.27
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratorppEv@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem4copyERKNS_4pathES2_NS_12copy_optionsE@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem4copyERKNS_4pathES2_NS_12copy_optionsERSt10error_code@@GLIBCXX_3.4.26
+@@ -1885,6 +1886,7 @@
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratorD1Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratorD2Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratoraSEOS1_@@GLIBCXX_3.4.26
++FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratoraSERKS1_@@GLIBCXX_3.4.27
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratorppEv@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx114path14_M_split_cmptsEv@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx114path14_S_convert_locEPKcS3_RKSt6locale@@GLIBCXX_3.4.26
+@@ -2060,13 +2062,17 @@
+ FUNC:_ZNSt12__basic_fileIcED2Ev@@GLIBCXX_3.4
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem28recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1EOS5_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem28recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem28recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEC1EOS4_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEaSEOS4_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx1128recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1EOS6_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx1128recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx1128recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEC1EOS5_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEaSEOS5_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12bad_weak_ptrD0Ev@@GLIBCXX_3.4.15
+ FUNC:_ZNSt12bad_weak_ptrD1Ev@@GLIBCXX_3.4.15
+@@ -4402,6 +4408,7 @@
+ OBJECT:0:GLIBCXX_3.4.24
+ OBJECT:0:GLIBCXX_3.4.25
+ OBJECT:0:GLIBCXX_3.4.26
++OBJECT:0:GLIBCXX_3.4.27
+ OBJECT:0:GLIBCXX_3.4.3
+ OBJECT:0:GLIBCXX_3.4.4
+ OBJECT:0:GLIBCXX_3.4.5
+Index: libstdc++-v3/config/abi/post/x86_64-linux-gnu/baseline_symbols.txt
+===================================================================
+--- a/src/libstdc++-v3/config/abi/post/x86_64-linux-gnu/baseline_symbols.txt	(.../tags/gcc_9_2_0_release)
++++ b/src/libstdc++-v3/config/abi/post/x86_64-linux-gnu/baseline_symbols.txt	(.../branches/gcc-9-branch)
+@@ -1829,6 +1829,7 @@
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratorD1Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratorD2Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratoraSEOS0_@@GLIBCXX_3.4.26
++FUNC:_ZNSt10filesystem28recursive_directory_iteratoraSERKS0_@@GLIBCXX_3.4.27
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratorppEv@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem4copyERKNS_4pathES2_NS_12copy_optionsE@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem4copyERKNS_4pathES2_NS_12copy_optionsERSt10error_code@@GLIBCXX_3.4.26
+@@ -1885,6 +1886,7 @@
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratorD1Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratorD2Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratoraSEOS1_@@GLIBCXX_3.4.26
++FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratoraSERKS1_@@GLIBCXX_3.4.27
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratorppEv@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx114path14_M_split_cmptsEv@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx114path14_S_convert_locEPKcS3_RKSt6locale@@GLIBCXX_3.4.26
+@@ -2060,13 +2062,17 @@
+ FUNC:_ZNSt12__basic_fileIcED2Ev@@GLIBCXX_3.4
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem28recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1EOS5_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem28recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem28recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEC1EOS4_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEaSEOS4_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx1128recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1EOS6_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx1128recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx1128recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEC1EOS5_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEaSEOS5_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12bad_weak_ptrD0Ev@@GLIBCXX_3.4.15
+ FUNC:_ZNSt12bad_weak_ptrD1Ev@@GLIBCXX_3.4.15
+@@ -4402,6 +4408,7 @@
+ OBJECT:0:GLIBCXX_3.4.24
+ OBJECT:0:GLIBCXX_3.4.25
+ OBJECT:0:GLIBCXX_3.4.26
++OBJECT:0:GLIBCXX_3.4.27
+ OBJECT:0:GLIBCXX_3.4.3
+ OBJECT:0:GLIBCXX_3.4.4
+ OBJECT:0:GLIBCXX_3.4.5
+Index: libstdc++-v3/config/abi/post/powerpc-linux-gnu/baseline_symbols.txt
+===================================================================
+--- a/src/libstdc++-v3/config/abi/post/powerpc-linux-gnu/baseline_symbols.txt	(.../tags/gcc_9_2_0_release)
++++ b/src/libstdc++-v3/config/abi/post/powerpc-linux-gnu/baseline_symbols.txt	(.../branches/gcc-9-branch)
+@@ -1975,6 +1975,7 @@
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratorD1Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratorD2Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratoraSEOS0_@@GLIBCXX_3.4.26
++FUNC:_ZNSt10filesystem28recursive_directory_iteratoraSERKS0_@@GLIBCXX_3.4.27
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratorppEv@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem4copyERKNS_4pathES2_NS_12copy_optionsE@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem4copyERKNS_4pathES2_NS_12copy_optionsERSt10error_code@@GLIBCXX_3.4.26
+@@ -2031,6 +2032,7 @@
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratorD1Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratorD2Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratoraSEOS1_@@GLIBCXX_3.4.26
++FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratoraSERKS1_@@GLIBCXX_3.4.27
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratorppEv@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx114path14_M_split_cmptsEv@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx114path14_S_convert_locEPKcS3_RKSt6locale@@GLIBCXX_3.4.26
+@@ -2206,13 +2208,17 @@
+ FUNC:_ZNSt12__basic_fileIcED2Ev@@GLIBCXX_3.4
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem28recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1EOS5_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem28recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem28recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEC1EOS4_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEaSEOS4_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx1128recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1EOS6_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx1128recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx1128recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEC1EOS5_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEaSEOS5_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12bad_weak_ptrD0Ev@@GLIBCXX_3.4.15
+ FUNC:_ZNSt12bad_weak_ptrD1Ev@@GLIBCXX_3.4.15
+@@ -4635,6 +4641,7 @@
+ OBJECT:0:GLIBCXX_3.4.24
+ OBJECT:0:GLIBCXX_3.4.25
+ OBJECT:0:GLIBCXX_3.4.26
++OBJECT:0:GLIBCXX_3.4.27
+ OBJECT:0:GLIBCXX_3.4.3
+ OBJECT:0:GLIBCXX_3.4.4
+ OBJECT:0:GLIBCXX_3.4.5
 Index: libstdc++-v3/config/abi/post/alpha-linux-gnu/baseline_symbols.txt
 ===================================================================
 --- a/src/libstdc++-v3/config/abi/post/alpha-linux-gnu/baseline_symbols.txt	(.../tags/gcc_9_2_0_release)
@@ -2601,6 +2829,332 @@ Index: libstdc++-v3/config/abi/post/alpha-linux-gnu/baseline_symbols.txt
  OBJECT:8:_ZNSt7codecvtIDsc11__mbstate_tE2idE@@GLIBCXX_3.4.21
  OBJECT:8:_ZNSt7codecvtIcc11__mbstate_tE2idE@@GLIBCXX_3.4
  OBJECT:8:_ZNSt7codecvtIwc11__mbstate_tE2idE@@GLIBCXX_3.4
+Index: libstdc++-v3/config/abi/post/s390x-linux-gnu/baseline_symbols.txt
+===================================================================
+--- a/src/libstdc++-v3/config/abi/post/s390x-linux-gnu/baseline_symbols.txt	(.../tags/gcc_9_2_0_release)
++++ b/src/libstdc++-v3/config/abi/post/s390x-linux-gnu/baseline_symbols.txt	(.../branches/gcc-9-branch)
+@@ -1975,6 +1975,7 @@
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratorD1Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratorD2Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratoraSEOS0_@@GLIBCXX_3.4.26
++FUNC:_ZNSt10filesystem28recursive_directory_iteratoraSERKS0_@@GLIBCXX_3.4.27
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratorppEv@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem4copyERKNS_4pathES2_NS_12copy_optionsE@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem4copyERKNS_4pathES2_NS_12copy_optionsERSt10error_code@@GLIBCXX_3.4.26
+@@ -2031,6 +2032,7 @@
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratorD1Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratorD2Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratoraSEOS1_@@GLIBCXX_3.4.26
++FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratoraSERKS1_@@GLIBCXX_3.4.27
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratorppEv@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx114path14_M_split_cmptsEv@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx114path14_S_convert_locEPKcS3_RKSt6locale@@GLIBCXX_3.4.26
+@@ -2206,13 +2208,17 @@
+ FUNC:_ZNSt12__basic_fileIcED2Ev@@GLIBCXX_3.4
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem28recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1EOS5_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem28recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem28recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEC1EOS4_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEaSEOS4_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx1128recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1EOS6_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx1128recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx1128recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEC1EOS5_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEaSEOS5_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12bad_weak_ptrD0Ev@@GLIBCXX_3.4.15
+ FUNC:_ZNSt12bad_weak_ptrD1Ev@@GLIBCXX_3.4.15
+@@ -4635,6 +4641,7 @@
+ OBJECT:0:GLIBCXX_3.4.24
+ OBJECT:0:GLIBCXX_3.4.25
+ OBJECT:0:GLIBCXX_3.4.26
++OBJECT:0:GLIBCXX_3.4.27
+ OBJECT:0:GLIBCXX_3.4.3
+ OBJECT:0:GLIBCXX_3.4.4
+ OBJECT:0:GLIBCXX_3.4.5
+Index: libstdc++-v3/config/abi/post/aarch64-linux-gnu/baseline_symbols.txt
+===================================================================
+--- a/src/libstdc++-v3/config/abi/post/aarch64-linux-gnu/baseline_symbols.txt	(.../tags/gcc_9_2_0_release)
++++ b/src/libstdc++-v3/config/abi/post/aarch64-linux-gnu/baseline_symbols.txt	(.../branches/gcc-9-branch)
+@@ -1829,6 +1829,7 @@
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratorD1Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratorD2Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratoraSEOS0_@@GLIBCXX_3.4.26
++FUNC:_ZNSt10filesystem28recursive_directory_iteratoraSERKS0_@@GLIBCXX_3.4.27
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratorppEv@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem4copyERKNS_4pathES2_NS_12copy_optionsE@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem4copyERKNS_4pathES2_NS_12copy_optionsERSt10error_code@@GLIBCXX_3.4.26
+@@ -1885,6 +1886,7 @@
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratorD1Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratorD2Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratoraSEOS1_@@GLIBCXX_3.4.26
++FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratoraSERKS1_@@GLIBCXX_3.4.27
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratorppEv@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx114path14_M_split_cmptsEv@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx114path14_S_convert_locEPKcS3_RKSt6locale@@GLIBCXX_3.4.26
+@@ -2060,13 +2062,17 @@
+ FUNC:_ZNSt12__basic_fileIcED2Ev@@GLIBCXX_3.4
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem28recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1EOS5_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem28recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem28recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEC1EOS4_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEaSEOS4_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx1128recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1EOS6_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx1128recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx1128recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEC1EOS5_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEaSEOS5_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12bad_weak_ptrD0Ev@@GLIBCXX_3.4.15
+ FUNC:_ZNSt12bad_weak_ptrD1Ev@@GLIBCXX_3.4.15
+@@ -4401,6 +4407,7 @@
+ OBJECT:0:GLIBCXX_3.4.24
+ OBJECT:0:GLIBCXX_3.4.25
+ OBJECT:0:GLIBCXX_3.4.26
++OBJECT:0:GLIBCXX_3.4.27
+ OBJECT:0:GLIBCXX_3.4.3
+ OBJECT:0:GLIBCXX_3.4.4
+ OBJECT:0:GLIBCXX_3.4.5
+Index: libstdc++-v3/config/abi/post/powerpc64-linux-gnu/32/baseline_symbols.txt
+===================================================================
+--- a/src/libstdc++-v3/config/abi/post/powerpc64-linux-gnu/32/baseline_symbols.txt	(.../tags/gcc_9_2_0_release)
++++ b/src/libstdc++-v3/config/abi/post/powerpc64-linux-gnu/32/baseline_symbols.txt	(.../branches/gcc-9-branch)
+@@ -1975,6 +1975,7 @@
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratorD1Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratorD2Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratoraSEOS0_@@GLIBCXX_3.4.26
++FUNC:_ZNSt10filesystem28recursive_directory_iteratoraSERKS0_@@GLIBCXX_3.4.27
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratorppEv@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem4copyERKNS_4pathES2_NS_12copy_optionsE@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem4copyERKNS_4pathES2_NS_12copy_optionsERSt10error_code@@GLIBCXX_3.4.26
+@@ -2031,6 +2032,7 @@
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratorD1Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratorD2Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratoraSEOS1_@@GLIBCXX_3.4.26
++FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratoraSERKS1_@@GLIBCXX_3.4.27
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratorppEv@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx114path14_M_split_cmptsEv@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx114path14_S_convert_locEPKcS3_RKSt6locale@@GLIBCXX_3.4.26
+@@ -2206,13 +2208,17 @@
+ FUNC:_ZNSt12__basic_fileIcED2Ev@@GLIBCXX_3.4
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem28recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1EOS5_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem28recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem28recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEC1EOS4_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEaSEOS4_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx1128recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1EOS6_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx1128recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx1128recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEC1EOS5_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEaSEOS5_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12bad_weak_ptrD0Ev@@GLIBCXX_3.4.15
+ FUNC:_ZNSt12bad_weak_ptrD1Ev@@GLIBCXX_3.4.15
+@@ -4635,6 +4641,7 @@
+ OBJECT:0:GLIBCXX_3.4.24
+ OBJECT:0:GLIBCXX_3.4.25
+ OBJECT:0:GLIBCXX_3.4.26
++OBJECT:0:GLIBCXX_3.4.27
+ OBJECT:0:GLIBCXX_3.4.3
+ OBJECT:0:GLIBCXX_3.4.4
+ OBJECT:0:GLIBCXX_3.4.5
+Index: libstdc++-v3/config/abi/post/powerpc64-linux-gnu/baseline_symbols.txt
+===================================================================
+--- a/src/libstdc++-v3/config/abi/post/powerpc64-linux-gnu/baseline_symbols.txt	(.../tags/gcc_9_2_0_release)
++++ b/src/libstdc++-v3/config/abi/post/powerpc64-linux-gnu/baseline_symbols.txt	(.../branches/gcc-9-branch)
+@@ -1975,6 +1975,7 @@
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratorD1Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratorD2Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratoraSEOS0_@@GLIBCXX_3.4.26
++FUNC:_ZNSt10filesystem28recursive_directory_iteratoraSERKS0_@@GLIBCXX_3.4.27
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratorppEv@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem4copyERKNS_4pathES2_NS_12copy_optionsE@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem4copyERKNS_4pathES2_NS_12copy_optionsERSt10error_code@@GLIBCXX_3.4.26
+@@ -2031,6 +2032,7 @@
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratorD1Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratorD2Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratoraSEOS1_@@GLIBCXX_3.4.26
++FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratoraSERKS1_@@GLIBCXX_3.4.27
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratorppEv@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx114path14_M_split_cmptsEv@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx114path14_S_convert_locEPKcS3_RKSt6locale@@GLIBCXX_3.4.26
+@@ -2206,13 +2208,17 @@
+ FUNC:_ZNSt12__basic_fileIcED2Ev@@GLIBCXX_3.4
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem28recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1EOS5_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem28recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem28recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEC1EOS4_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEaSEOS4_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx1128recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1EOS6_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx1128recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx1128recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEC1EOS5_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEaSEOS5_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12bad_weak_ptrD0Ev@@GLIBCXX_3.4.15
+ FUNC:_ZNSt12bad_weak_ptrD1Ev@@GLIBCXX_3.4.15
+@@ -4635,6 +4641,7 @@
+ OBJECT:0:GLIBCXX_3.4.24
+ OBJECT:0:GLIBCXX_3.4.25
+ OBJECT:0:GLIBCXX_3.4.26
++OBJECT:0:GLIBCXX_3.4.27
+ OBJECT:0:GLIBCXX_3.4.3
+ OBJECT:0:GLIBCXX_3.4.4
+ OBJECT:0:GLIBCXX_3.4.5
+Index: libstdc++-v3/config/abi/post/i386-linux-gnu/baseline_symbols.txt
+===================================================================
+--- a/src/libstdc++-v3/config/abi/post/i386-linux-gnu/baseline_symbols.txt	(.../tags/gcc_9_2_0_release)
++++ b/src/libstdc++-v3/config/abi/post/i386-linux-gnu/baseline_symbols.txt	(.../branches/gcc-9-branch)
+@@ -1829,6 +1829,7 @@
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratorD1Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratorD2Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratoraSEOS0_@@GLIBCXX_3.4.26
++FUNC:_ZNSt10filesystem28recursive_directory_iteratoraSERKS0_@@GLIBCXX_3.4.27
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratorppEv@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem4copyERKNS_4pathES2_NS_12copy_optionsE@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem4copyERKNS_4pathES2_NS_12copy_optionsERSt10error_code@@GLIBCXX_3.4.26
+@@ -1885,6 +1886,7 @@
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratorD1Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratorD2Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratoraSEOS1_@@GLIBCXX_3.4.26
++FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratoraSERKS1_@@GLIBCXX_3.4.27
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratorppEv@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx114path14_M_split_cmptsEv@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx114path14_S_convert_locEPKcS3_RKSt6locale@@GLIBCXX_3.4.26
+@@ -2060,13 +2062,17 @@
+ FUNC:_ZNSt12__basic_fileIcED2Ev@@GLIBCXX_3.4
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem28recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1EOS5_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem28recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem28recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEC1EOS4_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEaSEOS4_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx1128recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1EOS6_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx1128recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx1128recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEC1EOS5_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEaSEOS5_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12bad_weak_ptrD0Ev@@GLIBCXX_3.4.15
+ FUNC:_ZNSt12bad_weak_ptrD1Ev@@GLIBCXX_3.4.15
+@@ -4402,6 +4408,7 @@
+ OBJECT:0:GLIBCXX_3.4.24
+ OBJECT:0:GLIBCXX_3.4.25
+ OBJECT:0:GLIBCXX_3.4.26
++OBJECT:0:GLIBCXX_3.4.27
+ OBJECT:0:GLIBCXX_3.4.3
+ OBJECT:0:GLIBCXX_3.4.4
+ OBJECT:0:GLIBCXX_3.4.5
+Index: libstdc++-v3/config/abi/post/i486-linux-gnu/baseline_symbols.txt
+===================================================================
+--- a/src/libstdc++-v3/config/abi/post/i486-linux-gnu/baseline_symbols.txt	(.../tags/gcc_9_2_0_release)
++++ b/src/libstdc++-v3/config/abi/post/i486-linux-gnu/baseline_symbols.txt	(.../branches/gcc-9-branch)
+@@ -1829,6 +1829,7 @@
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratorD1Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratorD2Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratoraSEOS0_@@GLIBCXX_3.4.26
++FUNC:_ZNSt10filesystem28recursive_directory_iteratoraSERKS0_@@GLIBCXX_3.4.27
+ FUNC:_ZNSt10filesystem28recursive_directory_iteratorppEv@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem4copyERKNS_4pathES2_NS_12copy_optionsE@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem4copyERKNS_4pathES2_NS_12copy_optionsERSt10error_code@@GLIBCXX_3.4.26
+@@ -1885,6 +1886,7 @@
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratorD1Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratorD2Ev@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratoraSEOS1_@@GLIBCXX_3.4.26
++FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratoraSERKS1_@@GLIBCXX_3.4.27
+ FUNC:_ZNSt10filesystem7__cxx1128recursive_directory_iteratorppEv@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx114path14_M_split_cmptsEv@@GLIBCXX_3.4.26
+ FUNC:_ZNSt10filesystem7__cxx114path14_S_convert_locEPKcS3_RKSt6locale@@GLIBCXX_3.4.26
+@@ -2060,13 +2062,17 @@
+ FUNC:_ZNSt12__basic_fileIcED2Ev@@GLIBCXX_3.4
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem28recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1EOS5_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem28recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem28recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEC1EOS4_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE2EEaSEOS4_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx1128recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1EOS6_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx1128recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx1128recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEC1EOS5_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEC1Ev@@GLIBCXX_3.4.26
++FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEC2Ev@@GLIBCXX_3.4.27
+ FUNC:_ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE2EEaSEOS5_@@GLIBCXX_3.4.26
+ FUNC:_ZNSt12bad_weak_ptrD0Ev@@GLIBCXX_3.4.15
+ FUNC:_ZNSt12bad_weak_ptrD1Ev@@GLIBCXX_3.4.15
+@@ -4402,6 +4408,7 @@
+ OBJECT:0:GLIBCXX_3.4.24
+ OBJECT:0:GLIBCXX_3.4.25
+ OBJECT:0:GLIBCXX_3.4.26
++OBJECT:0:GLIBCXX_3.4.27
+ OBJECT:0:GLIBCXX_3.4.3
+ OBJECT:0:GLIBCXX_3.4.4
+ OBJECT:0:GLIBCXX_3.4.5
+Index: libstdc++-v3/config/abi/pre/gnu.ver
+===================================================================
+--- a/src/libstdc++-v3/config/abi/pre/gnu.ver	(.../tags/gcc_9_2_0_release)
++++ b/src/libstdc++-v3/config/abi/pre/gnu.ver	(.../branches/gcc-9-branch)
+@@ -2268,11 +2268,11 @@
+ 
+ GLIBCXX_3.4.27 {
+ 
+-    # __shared_ptr<_Dir>::__shared_ptr()
++    # __shared_ptr<_Dir>::__shared_ptr() (base object ctor)
+     _ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE[012]EEC2Ev;
+     _ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE[012]EEC2Ev;
+ 
+-    # __shared_ptr<recursive_directory_iterator::_Dir_stack>::__shared_ptr()
++    # __shared_ptr<recursive_directory_iterator::_Dir_stack>::__shared_ptr() (base object ctor)
+     _ZNSt12__shared_ptrINSt10filesystem28recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE[012]EEC2Ev;
+     _ZNSt12__shared_ptrINSt10filesystem7__cxx1128recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE[012]EEC2Ev;
+ 
+@@ -2282,6 +2282,18 @@
+ 
+ } GLIBCXX_3.4.26;
+ 
++GLIBCXX_3.4.28 {
++
++    # __shared_ptr<_Dir>::__shared_ptr(__shared_ptr&&) (base object ctor)
++    _ZNSt12__shared_ptrINSt10filesystem4_DirELN9__gnu_cxx12_Lock_policyE[012]EEC2EOS4_;
++    _ZNSt12__shared_ptrINSt10filesystem7__cxx114_DirELN9__gnu_cxx12_Lock_policyE[012]EEC2EOS5_;
++
++    # __shared_ptr<recursive_directory_iterator::_Dir_stack>::__shared_ptr(__shared_ptr&&) (base object ctor)
++    _ZNSt12__shared_ptrINSt10filesystem28recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE[012]EEC2EOS5_;
++    _ZNSt12__shared_ptrINSt10filesystem7__cxx1128recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE[012]EEC2EOS6_;
++
++} GLIBCXX_3.4.27;
++
+ # Symbols in the support library (libsupc++) have their own tag.
+ CXXABI_1.3 {
+ 
+Index: libstdc++-v3/acinclude.m4
+===================================================================
+--- a/src/libstdc++-v3/acinclude.m4	(.../tags/gcc_9_2_0_release)
++++ b/src/libstdc++-v3/acinclude.m4	(.../branches/gcc-9-branch)
+@@ -3820,7 +3820,7 @@
+ fi
+ 
+ # For libtool versioning info, format is CURRENT:REVISION:AGE
+-libtool_VERSION=6:27:0
++libtool_VERSION=6:28:0
+ 
+ # Everything parsed; figure out what files and settings to use.
+ case $enable_symvers in
 Index: contrib/ChangeLog
 ===================================================================
 --- a/src/contrib/ChangeLog	(.../tags/gcc_9_2_0_release)
@@ -2712,7 +3266,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-9-branch)
 @@ -1 +1 @@
 -20190812
-+20190827
++20190831
 Index: gcc/lra.c
 ===================================================================
 --- a/src/gcc/lra.c	(.../tags/gcc_9_2_0_release)
@@ -3202,7 +3756,64 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,197 @@
+@@ -1,3 +1,254 @@
++2019-08-30  Segher Boessenkool  <segher@kernel.crashing.org>
++
++	Backport from trunk
++	2019-08-22  Segher Boessenkool  <segher@kernel.crashing.org>
++
++	PR target/91481
++	* config/rs6000/rs6000.md (unspec): Delete UNSPEC_DARN, UNSPEC_DARN_32,
++	and UNSPEC_DARN_RAW.
++	(unspecv): New enumerator values UNSPECV_DARN, UNSPECV_DARN_32, and
++	UNSPECV_DARN_RAW.
++	(darn_32): Use an unspec_volatile, and UNSPECV_DARN_32.
++	(darn_raw): Use an unspec_volatile, and UNSPECV_DARN_RAW.
++	(darn): Use an unspec_volatile, and UNSPECV_DARN.
++
++2019-08-30  Segher Boessenkool  <segher@kernel.crashing.org>
++
++	Backport from trunk
++	2019-08-22  Segher Boessenkool  <segher@kernel.crashing.org>
++
++	* config/rs6000/altivec.md (unspec): Delete UNSPEC_DARN, UNSPEC_DARN_32,
++	UNSPEC_DARN_RAW, UNSPEC_CMPRB, UNSPEC_CMPRB2, UNSPEC_CMPEQB; move to...
++	* config/rs6000/rs6000.md (unspec): ... here.
++	* config/rs6000/altivec.md (darn_32, darn_raw, darn, cmprb,
++	*cmprb_internal, setb_signed, setb_unsigned, cmprb2, *cmprb2_internal,
++	cmpeqb, *cmpeqb_internal): Delete, move to...
++	* config/rs6000/rs6000.md (darn_32, darn_raw, darn, cmprb,
++	*cmprb_internal, setb_signed, setb_unsigned, cmprb2, *cmprb2_internal,
++	cmpeqb, *cmpeqb_internal): ... here.
++
++2019-08-30  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2019-04-29  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/90278
++	* tree-ssa-forwprop.c (pass_forwprop::execute): Transfer/clean
++	EH on comparison simplification.
++
++2019-08-29  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/91568
++	* tree-vectorizer.h (_slp_tree::max_nunits): Add.
++	(vect_update_max_nunits): Add overload for poly_uint64.
++	* tree-vect-slp.c (vect_create_new_slp_node): Initialize it.
++	(vect_build_slp_tree): Record max_nunits into the subtree
++	and merge it upwards.
++	(vect_print_slp_tree): Print max_nunits.
++
++2019-08-28  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2019-05-27  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/90637
++	* tree-ssa-sink.c (statement_sink_location): Honor the
++	computed sink location for single-uses.
++
 +2019-08-26  Xiong Hu Luo  <luoxhu@linux.ibm.com>
 +
 +	Backport r274411 from trunk to gcc-9-branch.
@@ -3400,7 +4011,7 @@ Index: gcc/ChangeLog
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -513,7 +707,7 @@
+@@ -513,7 +764,7 @@
  
  2019-07-11  Uroš Bizjak  <ubizjak@gmail.com>
  
@@ -3409,6 +4020,27 @@ Index: gcc/ChangeLog
  	2019-07-06  Richard Sandiford  <richard.sandiford@arm.com>
  
  	* config/i386/sse.md (*andnot<mode>3_bcst): Fix VI/VI48_AVX512VL typo.
+Index: gcc/testsuite/gcc.target/powerpc/darn-3.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/darn-3.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/darn-3.c	(.../branches/gcc-9-branch)
+@@ -0,0 +1,16 @@
++/* { dg-do compile { target { powerpc*-*-* } } } */
++/* { dg-skip-if "" { powerpc*-*-aix* } } */
++/* { dg-options "-O2 -mdejagnu-cpu=power9" } */
++
++static int darn32(void) { return __builtin_darn_32(); }
++
++int four(void)
++{
++	int sum = 0;
++	int i;
++	for (i = 0; i < 4; i++)
++		sum += darn32();
++	return sum;
++}
++
++/* { dg-final { scan-assembler-times {(?n)\mdarn .*,0\M} 4 } } */
 Index: gcc/testsuite/gcc.target/mips/get-fcsr-3.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/mips/get-fcsr-3.c	(.../tags/gcc_9_2_0_release)
@@ -3450,6 +4082,28 @@ Index: gcc/testsuite/gfortran.dg/do_subscript_3.f90
 +    end do
 +  end subroutine x
 +end program main
+Index: gcc/testsuite/gfortran.dg/pr91565.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr91565.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr91565.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,17 @@
++! { dg-do compile }
++! PR fortran/91565
++! Contributed by Gerhard Steinmetz
++program p
++   integer, parameter :: a(2) = [2,2]              ! { dg-error "\(1\)" }
++   print *, reshape([1,2,3,4,5,6], [2,3], order=a) ! { dg-error "not a permutation" }
++end
++
++subroutine foo
++   integer, parameter :: a(1) = 1                  ! { dg-error "\(1\)" }
++   print *, reshape([1,2,3,4,5,6], [2,3], order=a) ! { dg-error "are different" }
++end
++
++subroutine bar
++   integer, parameter :: a(1,2) = 1                ! { dg-error "\(1\)" }
++   print *, reshape([1,2,3,4,5,6], [2,3], order=a) ! { dg-error "are different" }
++end
 Index: gcc/testsuite/gfortran.dg/pr91359_2.f
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr91359_2.f	(.../tags/gcc_9_2_0_release)
@@ -3598,6 +4252,27 @@ Index: gcc/testsuite/gfortran.dg/use_rename_8.f90
 +    USE MOO, ONLY: Z => I, Z => I   ! { dg-error "conflicts with the rename" }
  END SUBROUTINE Z
  
+Index: gcc/testsuite/gfortran.dg/pr91564.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr91564.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr91564.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,16 @@
++! { dg-do compile }
++! PR fortran/91564
++! Contributed by Gerhard Steinmetz.
++program p
++   integer i, j
++   call kill (1, 2, 3)        ! { dg-error "shall be an INTENT" }
++   i = 42
++   call bar(i, j)
++end
++
++subroutine bar(n, m)
++   integer, intent(in) :: n
++   integer, intent(inout) :: m
++   call kill (1, 3, n)        ! { dg-error "shall be an INTENT" }
++   call kill (1, 3, m)
++end subroutine bar
 Index: gcc/testsuite/gfortran.dg/pr87993.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr87993.f90	(.../tags/gcc_9_2_0_release)
@@ -3704,6 +4379,33 @@ Index: gcc/testsuite/gfortran.dg/pr71649.f90
     RETURN
  END SUBROUTINE Compiler_Options
  
+Index: gcc/testsuite/gfortran.dg/pr91568.f
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr91568.f	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr91568.f	(.../branches/gcc-9-branch)
+@@ -0,0 +1,11 @@
++! { dg-do compile }
++! { dg-options "-Ofast" }
++      subroutine h3dall(z,hvec,hder,nterms)
++      complex *16 hvec(0:1),hder(0:1)
++      complex *16 z,zinv,ztmp/1.0/
++      zinv=1.0/z
++      do i=1,nterms
++         ztmp=zinv*i
++         hder(i)=hvec(i-1)-ztmp*hvec(i)
++      enddo
++      end
+Index: gcc/testsuite/gfortran.dg/allocated_3.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/allocated_3.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/allocated_3.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,6 @@
++! { dg-do compile }
++! PR fortran/91551
++! Contributed by Gerhard Steinmetz
++program p
++   if (allocated()) stop 1 ! { dg-error "requires an array or scalar allocatable" }
++end
 Index: gcc/testsuite/gfortran.dg/pr88072.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr88072.f90	(.../tags/gcc_9_2_0_release)
@@ -4105,6 +4807,25 @@ Index: gcc/testsuite/gcc.c-torture/execute/20190820-1.c
 +  char *s = pointer_string (0, 0, 0, spec);
 +  return 0;
 +}
+Index: gcc/testsuite/gcc.dg/gomp/pr90637.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/gomp/pr90637.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gcc.dg/gomp/pr90637.c	(.../branches/gcc-9-branch)
+@@ -0,0 +1,14 @@
++/* PR tree-optimization/90637 */
++/* { dg-do compile } */
++/* { dg-options "-fopenmp -O1 --param sink-frequency-threshold=90" } */
++
++int v;
++
++void
++foo (int c)
++{
++  int i;
++#pragma omp for simd if (c) lastprivate (v) schedule (static, 16)
++  for (i = 0; i < 64; ++i)
++    v = i;
++}
 Index: gcc/testsuite/gcc.dg/torture/pr91445.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.dg/torture/pr91445.c	(.../tags/gcc_9_2_0_release)
@@ -4132,6 +4853,24 @@ Index: gcc/testsuite/gcc.dg/torture/pr91445.c
 +    __builtin_abort ();
 +  return 0;
 +}
+Index: gcc/testsuite/gcc.dg/torture/pr90278.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/torture/pr90278.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gcc.dg/torture/pr90278.c	(.../branches/gcc-9-branch)
+@@ -0,0 +1,13 @@
++/* { dg-do compile } */
++/* { dg-additional-options "-fexceptions -fnon-call-exceptions" } */
++
++double
++hc (void)
++{
++  double dp = 0.0;
++  double ek[1];
++
++  ek[0] = 1.0 / dp < 0.0;
++
++  return ek[0];
++}
 Index: gcc/testsuite/gcc.dg/tree-ssa/pr91091-2.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.dg/tree-ssa/pr91091-2.c	(.../tags/gcc_9_2_0_release)
@@ -4156,7 +4895,51 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,134 @@
+@@ -1,3 +1,178 @@
++2019-08-30  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91565
++	* gfortran.dg/pr91565.f90: New test.
++
++2019-08-30  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91564
++	* gfortran.dg/pr91564.f90: New test.
++
++2019-08-30  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91551
++ 	* gfortran.dg/allocated_3.f90
++
++2019-08-30  Segher Boessenkool  <segher@kernel.crashing.org>
++
++	Backport from trunk
++	2019-08-23  Segher Boessenkool  <segher@kernel.crashing.org>
++
++	PR target/91481
++	* gcc.target/powerpc/darn-3.c: New testcase.
++
++2019-08-30  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2019-04-29  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/90278
++	* gcc.dg/torture/pr90278.c: New testcase.
++
++2019-08-29  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/91568
++	* gfortran.dg/pr91568.f: New testcase.
++
++2019-08-28  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2019-05-27  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/90637
++	* gcc.dg/gomp/pr90637.c: New testcase.
++
 +2019-08-23  Mihailo Stojanovic  <mistojanovic@wavecomp.com>
 +
 +	* gcc.target/mips/get-fcsr-3.c: New test.
@@ -6072,6 +6855,22 @@ Index: gcc/tree-ssa-alias.h
  				     void *(*)(ao_ref *, tree, void *),
  				     void *(*)(ao_ref *, tree, void *, bool *),
  				     tree (*)(tree), unsigned &, void *);
+Index: gcc/tree-ssa-sink.c
+===================================================================
+--- a/src/gcc/tree-ssa-sink.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/tree-ssa-sink.c	(.../branches/gcc-9-branch)
+@@ -439,7 +439,10 @@
+ 	  if (sinkbb == frombb)
+ 	    return false;
+ 
+-	  *togsi = gsi_for_stmt (use);
++	  if (sinkbb == gimple_bb (use))
++	    *togsi = gsi_for_stmt (use);
++	  else
++	    *togsi = gsi_after_labels (sinkbb);
+ 
+ 	  return true;
+ 	}
 Index: gcc/dse.c
 ===================================================================
 --- a/src/gcc/dse.c	(.../tags/gcc_9_2_0_release)
@@ -6126,48 +6925,58 @@ Index: gcc/fortran/intrinsic.c
 ===================================================================
 --- a/src/gcc/fortran/intrinsic.c	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/fortran/intrinsic.c	(.../branches/gcc-9-branch)
-@@ -4180,6 +4180,40 @@
+@@ -4180,6 +4180,50 @@
    if (f == NULL && a == NULL)	/* No arguments */
      return true;
  
 +  /* ALLOCATED has two mutually exclusive keywords, but only one
 +     can be present at time and neither is optional. */
-+  if (strcmp (name, "allocated") == 0 && a->name)
++  if (strcmp (name, "allocated") == 0)
 +    {
-+      if (strcmp (a->name, "scalar") == 0)
++      if (!a)
 +	{
-+          if (a->next)
-+	    goto whoops;
-+	  if (a->expr->rank != 0)
-+	    {
-+	      gfc_error ("Scalar entity required at %L", &a->expr->where);
-+	      return false;
-+	    }
-+          return true;
-+	}
-+      else if (strcmp (a->name, "array") == 0)
-+	{
-+          if (a->next)
-+	    goto whoops;
-+	  if (a->expr->rank == 0)
-+	    {
-+	      gfc_error ("Array entity required at %L", &a->expr->where);
-+	      return false;
-+	    }
-+          return true;
-+	}
-+      else
-+	{
-+	  gfc_error ("Invalid keyword %qs in %qs intrinsic function at %L",
-+		     a->name, name, &a->expr->where);
++	  gfc_error ("ALLOCATED intrinsic at %L requires an array or scalar "
++		     "allocatable entity", where);
 +	  return false;
++	}
++
++      if (a->name)
++	{
++	  if (strcmp (a->name, "scalar") == 0)
++	    {
++	      if (a->next)
++		goto whoops;
++	      if (a->expr->rank != 0)
++		{
++		  gfc_error ("Scalar entity required at %L", &a->expr->where);
++		  return false;
++		}
++	      return true;
++	    }
++	  else if (strcmp (a->name, "array") == 0)
++	    {
++	      if (a->next)
++		goto whoops;
++	      if (a->expr->rank == 0)
++		{
++		  gfc_error ("Array entity required at %L", &a->expr->where);
++		  return false;
++		}
++	      return true;
++	    }
++	  else
++	    {
++	      gfc_error ("Invalid keyword %qs in %qs intrinsic function at %L",
++			 a->name, name, &a->expr->where);
++	      return false;
++	    }
 +	}
 +    }
 +
    for (;;)
      {		/* Put the nonkeyword arguments in a 1:1 correspondence */
        if (f == NULL)
-@@ -4199,6 +4233,7 @@
+@@ -4199,6 +4243,7 @@
    if (a == NULL)
      goto do_sort;
  
@@ -6210,8 +7019,26 @@ Index: gcc/fortran/ChangeLog
 ===================================================================
 --- a/src/gcc/fortran/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/fortran/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,95 @@
-+2019-08-18  Steven G. Kargl  <kargl@gcc.gnu.org>
+@@ -1,3 +1,113 @@
++2019-08-30  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91565
++	* simplify.c (gfc_simplify_reshape): Add additional checks of the
++	ORDER dummy argument.
++
++2019-08-30  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91564
++	* check.c (gfc_check_kill_sub): Additional checks on status dummy
++	argument.
++
++2019-08-30  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91551
++	* intrinsic.c (sort_actual): ALLOCATED has one argument. Check for
++	no argument case.
++
++2019-08-30  Steven G. Kargl  <kargl@gcc.gnu.org>
 +
 +	PR fortran/91485
 +	module.c (gfc_match_use): User defined operator cannot conflict with
@@ -6647,6 +7474,29 @@ Index: gcc/fortran/check.c
  bool
  gfc_check_allocated (gfc_expr *array)
  {
+@@ -2781,6 +2785,22 @@
+ 
+       if (!scalar_check (status, 2))
+ 	return false;
++
++      if (status->expr_type != EXPR_VARIABLE)
++	{
++	  gfc_error ("STATUS at %L shall be an INTENT(OUT) variable",
++		     &status->where);
++	  return false;
++	}
++
++      if (status->expr_type == EXPR_VARIABLE
++	  && status->symtree && status->symtree->n.sym
++	  && status->symtree->n.sym->attr.intent == INTENT_IN)
++	{
++	  gfc_error ("%qs at %L shall be an INTENT(OUT) variable",
++		     status->symtree->name, &status->where);
++	  return false;
++	}
+     }
+ 
+   return true;
 Index: gcc/fortran/primary.c
 ===================================================================
 --- a/src/gcc/fortran/primary.c	(.../tags/gcc_9_2_0_release)
@@ -6692,6 +7542,66 @@ Index: gcc/fortran/misc.c
  	sprintf (buffer, "CLASS(*)");
        else
  	sprintf (buffer, "CLASS(%s)", ts->u.derived->name);
+Index: gcc/fortran/simplify.c
+===================================================================
+--- a/src/gcc/fortran/simplify.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/fortran/simplify.c	(.../branches/gcc-9-branch)
+@@ -6684,6 +6684,9 @@
+   mpz_init (index);
+   rank = 0;
+ 
++  for (i = 0; i < GFC_MAX_DIMENSIONS; i++)
++    x[i] = 0;
++
+   for (;;)
+     {
+       e = gfc_constructor_lookup_expr (shape_exp->value.constructor, rank);
+@@ -6708,9 +6711,29 @@
+     }
+   else
+     {
+-      for (i = 0; i < rank; i++)
+-	x[i] = 0;
++      mpz_t size;
++      int order_size, shape_size;
+ 
++      if (order_exp->rank != shape_exp->rank)
++	{
++	  gfc_error ("Shapes of ORDER at %L and SHAPE at %L are different",
++		     &order_exp->where, &shape_exp->where);
++	  return &gfc_bad_expr;
++	}
++
++      gfc_array_size (shape_exp, &size);
++      shape_size = mpz_get_ui (size);
++      mpz_clear (size);
++      gfc_array_size (order_exp, &size);
++      order_size = mpz_get_ui (size);
++      mpz_clear (size);
++      if (order_size != shape_size)
++	{
++	  gfc_error ("Sizes of ORDER at %L and SHAPE at %L are different",
++		     &order_exp->where, &shape_exp->where);
++	  return &gfc_bad_expr;
++	}
++
+       for (i = 0; i < rank; i++)
+ 	{
+ 	  e = gfc_constructor_lookup_expr (order_exp->value.constructor, i);
+@@ -6720,7 +6743,12 @@
+ 
+ 	  gcc_assert (order[i] >= 1 && order[i] <= rank);
+ 	  order[i]--;
+-	  gcc_assert (x[order[i]] == 0);
++	  if (x[order[i]] != 0)
++	    {
++	      gfc_error ("ORDER at %L is not a permutation of the size of "
++			 "SHAPE at %L", &order_exp->where, &shape_exp->where);
++	      return &gfc_bad_expr;
++	    }
+ 	  x[order[i]] = 1;
+ 	}
+     }
 Index: gcc/BASE-VER
 ===================================================================
 --- a/src/gcc/BASE-VER	(.../tags/gcc_9_2_0_release)
@@ -6699,6 +7609,52 @@ Index: gcc/BASE-VER
 @@ -1 +1 @@
 -9.2.0
 +9.2.1
+Index: gcc/tree-vectorizer.h
+===================================================================
+--- a/src/gcc/tree-vectorizer.h	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/tree-vectorizer.h	(.../branches/gcc-9-branch)
+@@ -132,6 +132,9 @@
+   unsigned int vec_stmts_size;
+   /* Reference count in the SLP graph.  */
+   unsigned int refcnt;
++  /* The maximum number of vector elements for the subtree rooted
++     at this node.  */
++  poly_uint64 max_nunits;
+   /* Whether the scalar computations use two different operators.  */
+   bool two_operators;
+   /* The DEF type of this node.  */
+@@ -1350,19 +1353,27 @@
+ }
+ 
+ /* Update maximum unit count *MAX_NUNITS so that it accounts for
+-   the number of units in vector type VECTYPE.  *MAX_NUNITS can be 1
+-   if we haven't yet recorded any vector types.  */
++   NUNITS.  *MAX_NUNITS can be 1 if we haven't yet recorded anything.  */
+ 
+ static inline void
+-vect_update_max_nunits (poly_uint64 *max_nunits, tree vectype)
++vect_update_max_nunits (poly_uint64 *max_nunits, poly_uint64 nunits)
+ {
+   /* All unit counts have the form current_vector_size * X for some
+      rational X, so two unit sizes must have a common multiple.
+      Everything is a multiple of the initial value of 1.  */
+-  poly_uint64 nunits = TYPE_VECTOR_SUBPARTS (vectype);
+   *max_nunits = force_common_multiple (*max_nunits, nunits);
+ }
+ 
++/* Update maximum unit count *MAX_NUNITS so that it accounts for
++   the number of units in vector type VECTYPE.  *MAX_NUNITS can be 1
++   if we haven't yet recorded any vector types.  */
++
++static inline void
++vect_update_max_nunits (poly_uint64 *max_nunits, tree vectype)
++{
++  vect_update_max_nunits (max_nunits, TYPE_VECTOR_SUBPARTS (vectype));
++}
++
+ /* Return the vectorization factor that should be used for costing
+    purposes while vectorizing the loop described by LOOP_VINFO.
+    Pick a reasonable estimate if the vectorization factor isn't
 Index: gcc/tree-ssa-pre.c
 ===================================================================
 --- a/src/gcc/tree-ssa-pre.c	(.../tags/gcc_9_2_0_release)
@@ -6714,11 +7670,216 @@ Index: gcc/tree-ssa-pre.c
  	  if (visited)
  	    BITMAP_FREE (visited);
  	}
+Index: gcc/po/es.po
+===================================================================
+--- a/src/gcc/po/es.po	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/po/es.po	(.../branches/gcc-9-branch)
+@@ -43,7 +43,7 @@
+ "Project-Id-Version: gcc 9.1.0\n"
+ "Report-Msgid-Bugs-To: https://gcc.gnu.org/bugs/\n"
+ "POT-Creation-Date: 2019-05-02 20:28+0000\n"
+-"PO-Revision-Date: 2019-05-17 05:23+0200\n"
++"PO-Revision-Date: 2019-08-28 09:32+0200\n"
+ "Last-Translator: Antonio Ceballos Roa <aceballos@gmail.com>\n"
+ "Language-Team: Spanish <es@tp.org.es>\n"
+ "Language: es\n"
+@@ -174,17 +174,11 @@
+ 
+ #: diagnostic.c:618
+ msgid "In file included from"
+-msgstr ""
++msgstr "En el fichero incluido desde"
+ 
+ #: diagnostic.c:619
+-#, fuzzy
+-#| msgid ""
+-#| ",\n"
+-#| "                 from %s:%u"
+ msgid "                 from"
+-msgstr ""
+-",\n"
+-"                 de %s:%u"
++msgstr "                 desde"
+ 
+ #: diagnostic.c:991
+ #, c-format
+@@ -796,10 +790,9 @@
+ "%s.\n"
+ 
+ #: gcov-tool.c:528
+-#, fuzzy, c-format
+-#| msgid "Copyright %s 2018 Free Software Foundation, Inc.\n"
++#, c-format
+ msgid "Copyright %s 2019 Free Software Foundation, Inc.\n"
+-msgstr "Copyright %s 2018 Free Software Foundation, Inc.\n"
++msgstr "Copyright %s 2019 Free Software Foundation, Inc.\n"
+ 
+ #: gcov-tool.c:531 gcov.c:925
+ #, c-format
+@@ -867,10 +860,9 @@
+ msgstr "  -h, --help                      Muestra esta información, y finaliza\n"
+ 
+ #: gcov.c:894
+-#, fuzzy, c-format
+-#| msgid "  -n, --no-output                 Do not create an output file\n"
++#, c-format
+ msgid "  -i, --json-format               Output JSON intermediate format into .gcov.json.gz file\n"
+-msgstr "  -n, --no-output                 No crea un fichero de salida\n"
++msgstr "  -i, --json-format               Salida con formato JSON intermedia en el fichero .gcov.json.gz\n"
+ 
+ #: gcov.c:895
+ #, c-format
+@@ -912,10 +904,9 @@
+ msgstr "  -p, --preserve-paths            Preserva todos los nombres de ruta de los componentes\n"
+ 
+ #: gcov.c:903
+-#, fuzzy, c-format
+-#| msgid "  -k, --use-colors                Emit colored output\n"
++#, c-format
+ msgid "  -q, --use-hotness-colors        Emit perf-like colored output for hot lines\n"
+-msgstr "  -k, --use-colors                Emite salida con colores\n"
++msgstr "  -q, --use-hotness-colors        Emite salida con colores de tipo perf para las líneas calientes\n"
+ 
+ #: gcov.c:904
+ #, c-format
+@@ -928,10 +919,9 @@
+ msgstr "  -s, --source-prefix DIR         Prefijo de fuente a omitir\n"
+ 
+ #: gcov.c:906
+-#, fuzzy, c-format
+-#| msgid "  -n, --no-output                 Do not create an output file\n"
++#, c-format
+ msgid "  -t, --stdout                    Output to stdout instead of a file\n"
+-msgstr "  -n, --no-output                 No crea un fichero de salida\n"
++msgstr "  -t, --stdout                    Salida en stdout en lugar de un fichero\n"
+ 
+ #: gcov.c:907
+ #, c-format
+@@ -959,10 +949,9 @@
+ msgstr "gcov %s%s\n"
+ 
+ #: gcov.c:1250
+-#, fuzzy, c-format
+-#| msgid "Treat the input file as already preprocessed."
++#, c-format
+ msgid "'%s' file is already processed\n"
+-msgstr "Trata al fichero de entrada como previamente preprocesado."
++msgstr "El fichero '%s' ya está procesado\n"
+ 
+ #: gcov.c:1364
+ #, c-format
+@@ -990,16 +979,14 @@
+ msgstr "\n"
+ 
+ #: gcov.c:1489
+-#, fuzzy, c-format
+-#| msgid "%s: Cannot open output file: %s\n"
++#, c-format
+ msgid "Cannot open JSON output file %s\n"
+-msgstr "%s: No se puede abrir el fichero de salida: %s\n"
++msgstr "No se puede abrir el fichero de salida JSON %s\n"
+ 
+ #: gcov.c:1497
+-#, fuzzy, c-format
+-#| msgid "Error writing output file '%s'\n"
++#, c-format
+ msgid "Error writing JSON output file %s\n"
+-msgstr "Error al escribir el fichero de salida '%s'\n"
++msgstr "Error al escribir el fichero de salida JSON %s\n"
+ 
+ #: gcov.c:1664
+ #, c-format
+@@ -1266,10 +1253,8 @@
+ msgstr "este es la insn:"
+ 
+ #: lra-constraints.c:2971
+-#, fuzzy
+-#| msgid "unable to generate reloads for:"
+ msgid "unable to generate reloads for impossible constraints:"
+-msgstr "no se pueden generar recargas para:"
++msgstr "no se pueden generar recargas para restricciones imposibles:"
+ 
+ #: lra-constraints.c:3962 reload.c:3814
+ msgid "unable to generate reloads for:"
+@@ -1327,12 +1312,13 @@
+ msgstr "Ya se mostraron todas las opciones con las características deseadas\n"
+ 
+ #: opts.c:1581
+-#, fuzzy, c-format
+-#| msgid "invalid argument %qs to %qs"
++#, c-format
+ msgid ""
+ "  Known valid arguments for %s option:\n"
+ "   "
+-msgstr "argumento %qs no válido para %qs"
++msgstr ""
++"  Argumentos válidos conocidos para la opción %s:\n"
++"   "
+ 
+ #: opts.c:1631
+ msgid "The following options are target specific"
+@@ -1430,16 +1416,12 @@
+ msgstr "creado y usado con diferentes opciones de '%s'"
+ 
+ #: targhooks.c:2038
+-#, fuzzy
+-#| msgid "created and used with different settings of -fpic"
+ msgid "created and used with different settings of %<-fpic%>"
+-msgstr "creado y usado con diferentes opciones de -fpic"
++msgstr "creado y usado con diferentes opciones de %<-fpic%>"
+ 
+ #: targhooks.c:2040
+-#, fuzzy
+-#| msgid "created and used with different settings of -fpie"
+ msgid "created and used with different settings of %<-fpie%>"
+-msgstr "creado y usado con diferentes opciones de -fpie"
++msgstr "creado y usado con diferentes opciones de %<-fpie%>"
+ 
+ #: tlink.c:387
+ #, c-format
+@@ -1703,16 +1685,14 @@
+ msgstr "El número máximo de instrucciones cuando se hace inclusión en línea por tamaño."
+ 
+ #: params.def:97
+-#, fuzzy, no-c-format
+-#| msgid "Use subroutines for function prologues and epilogues."
++#, no-c-format
+ msgid "Instruction accounted for function prologue, epilogue and other overhead."
+-msgstr "Usa subrutinas para los prólogos y epílogos de función."
++msgstr "Instrucción contabilizada para el prólogo y epílogo de la función y otras sobrecargas."
+ 
+ #: params.def:103
+-#, fuzzy, no-c-format
+-#| msgid "Use subroutines for function prologues and epilogues."
++#, no-c-format
+ msgid "Time accounted for function prologue, epilogue and other overhead."
+-msgstr "Usa subrutinas para los prólogos y epílogos de función."
++msgstr "Tiempo contabilizado para el prólogo y epílogo de la función y otras sobrecargas."
+ 
+ #: params.def:109
+ #, no-c-format
+@@ -1946,10 +1926,9 @@
+ 
+ # 'desfactorizar' no me gusta. ¿Alguna sugerencia? - cfuga
+ #: params.def:393
+-#, fuzzy, no-c-format
+-#| msgid "The maximum number of insns to duplicate when unfactoring computed gotos."
++#, no-c-format
+ msgid "The maximum number of insns in loop header duplicated by the copy loop headers pass."
+-msgstr "El número máximo de insns a duplicar al desfactorizar gotos calculados."
++msgstr "El número máximo de instrucciones en encabezamiento de bucle a duplicar en el paso de encabezamientos de bucles."
+ 
+ #: params.def:400
+ #, no-c-format
 Index: gcc/po/ChangeLog
 ===================================================================
 --- a/src/gcc/po/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/po/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,7 @@
+@@ -1,3 +1,11 @@
++2019-08-28  Joseph Myers  <joseph@codesourcery.com>
++
++	* es.po: Update.
++
 +2019-08-23  Joseph Myers  <joseph@codesourcery.com>
 +
 +	* zh_CN.po: Update.
@@ -7565,6 +8726,19 @@ Index: gcc/po/zh_CN.po
  
  #: common.opt:2862
  #, fuzzy, gcc-internal-format
+Index: gcc/tree-ssa-forwprop.c
+===================================================================
+--- a/src/gcc/tree-ssa-forwprop.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/tree-ssa-forwprop.c	(.../branches/gcc-9-branch)
+@@ -2496,6 +2496,8 @@
+ 		  {
+ 		    int did_something;
+ 		    did_something = forward_propagate_into_comparison (&gsi);
++		    if (maybe_clean_or_replace_eh_stmt (stmt, gsi_stmt (gsi)))
++		      bitmap_set_bit (to_purge, bb->index);
+ 		    if (did_something == 2)
+ 		      cfg_changed = true;
+ 		    changed = did_something != 0;
 Index: gcc/omp-simd-clone.c
 ===================================================================
 --- a/src/gcc/omp-simd-clone.c	(.../tags/gcc_9_2_0_release)
@@ -7863,6 +9037,504 @@ Index: gcc/config/rs6000/darwin.h
        builtin_define ("__NATURAL_ALIGNMENT__");		\
        darwin_cpp_builtins (pfile);			\
      }							\
+Index: gcc/config/rs6000/altivec.md
+===================================================================
+--- a/src/gcc/config/rs6000/altivec.md	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/config/rs6000/altivec.md	(.../branches/gcc-9-branch)
+@@ -80,9 +80,6 @@
+    UNSPEC_VUPKHPX
+    UNSPEC_VUPKLPX
+    UNSPEC_CONVERT_4F32_8I16
+-   UNSPEC_DARN
+-   UNSPEC_DARN_32
+-   UNSPEC_DARN_RAW
+    UNSPEC_DST
+    UNSPEC_DSTT
+    UNSPEC_DSTST
+@@ -161,9 +158,6 @@
+    UNSPEC_BCDADD
+    UNSPEC_BCDSUB
+    UNSPEC_BCD_OVERFLOW
+-   UNSPEC_CMPRB
+-   UNSPEC_CMPRB2
+-   UNSPEC_CMPEQB
+    UNSPEC_VRLMI
+    UNSPEC_VRLNM
+ ])
+@@ -4101,223 +4095,6 @@
+   "bcd<bcd_add_sub>. %0,%1,%2,%3"
+   [(set_attr "type" "vecsimple")])
+ 
+-(define_insn "darn_32"
+-  [(set (match_operand:SI 0 "register_operand" "=r")
+-        (unspec:SI [(const_int 0)] UNSPEC_DARN_32))]
+-  "TARGET_P9_MISC"
+-  "darn %0,0"
+-  [(set_attr "type" "integer")])
+-
+-(define_insn "darn_raw"
+-  [(set (match_operand:DI 0 "register_operand" "=r")
+-        (unspec:DI [(const_int 0)] UNSPEC_DARN_RAW))]
+-  "TARGET_P9_MISC && TARGET_64BIT"
+-  "darn %0,2"
+-  [(set_attr "type" "integer")])
+-
+-(define_insn "darn"
+-  [(set (match_operand:DI 0 "register_operand" "=r")
+-        (unspec:DI [(const_int 0)] UNSPEC_DARN))]
+-  "TARGET_P9_MISC && TARGET_64BIT"
+-  "darn %0,1"
+-  [(set_attr "type" "integer")])
+-
+-;; Test byte within range.
+-;;
+-;; The bytes of operand 1 are organized as xx:xx:xx:vv, where xx
+-;; represents a byte whose value is ignored in this context and
+-;; vv, the least significant byte, holds the byte value that is to
+-;; be tested for membership within the range specified by operand 2.
+-;; The bytes of operand 2 are organized as xx:xx:hi:lo.
+-;;
+-;; Return in target register operand 0 a value of 1 if lo <= vv and
+-;; vv <= hi.  Otherwise, set register operand 0 to 0.
+-;;
+-;; Though the instructions to which this expansion maps operate on
+-;; 64-bit registers, the current implementation only operates on
+-;; SI-mode operands as the high-order bits provide no information
+-;; that is not already available in the low-order bits.  To avoid the
+-;; costs of data widening operations, future enhancements might allow
+-;; DI mode for operand 0 and/or might allow operand 1 to be QI mode.
+-(define_expand "cmprb"
+-  [(set (match_dup 3)
+-	(unspec:CC [(match_operand:SI 1 "gpc_reg_operand" "r")
+-		    (match_operand:SI 2 "gpc_reg_operand" "r")]
+-	 UNSPEC_CMPRB))
+-   (set (match_operand:SI 0 "gpc_reg_operand" "=r")
+-	(if_then_else:SI (lt (match_dup 3)
+-			     (const_int 0))
+-			 (const_int -1)
+-			 (if_then_else (gt (match_dup 3)
+-					   (const_int 0))
+-				       (const_int 1)
+-				       (const_int 0))))]
+-  "TARGET_P9_MISC"
+-{
+-  operands[3] = gen_reg_rtx (CCmode);
+-})
+-
+-;; The bytes of operand 1 are organized as xx:xx:xx:vv, where xx
+-;; represents a byte whose value is ignored in this context and
+-;; vv, the least significant byte, holds the byte value that is to
+-;; be tested for membership within the range specified by operand 2.
+-;; The bytes of operand 2 are organized as xx:xx:hi:lo.
+-;;
+-;; Set bit 1 (the GT bit, 0x4) of CR register operand 0 to 1 if
+-;; lo <= vv and vv <= hi.  Otherwise, set the GT bit to 0.  The other
+-;; 3 bits of the target CR register are all set to 0.
+-(define_insn "*cmprb_internal"
+-  [(set (match_operand:CC 0 "cc_reg_operand" "=y")
+-	(unspec:CC [(match_operand:SI 1 "gpc_reg_operand" "r")
+-		    (match_operand:SI 2 "gpc_reg_operand" "r")]
+-	 UNSPEC_CMPRB))]
+-  "TARGET_P9_MISC"
+-  "cmprb %0,0,%1,%2"
+-  [(set_attr "type" "logical")])
+-
+-;; Set operand 0 register to -1 if the LT bit (0x8) of condition
+-;; register operand 1 is on.  Otherwise, set operand 0 register to 1
+-;; if the GT bit (0x4) of condition register operand 1 is on.
+-;; Otherwise, set operand 0 to 0.  Note that the result stored into
+-;; register operand 0 is non-zero iff either the LT or GT bits are on
+-;; within condition register operand 1.
+-(define_insn "setb_signed"
+-   [(set (match_operand:SI 0 "gpc_reg_operand" "=r")
+-	 (if_then_else:SI (lt (match_operand:CC 1 "cc_reg_operand" "y")
+-			      (const_int 0))
+-			  (const_int -1)
+-			  (if_then_else (gt (match_dup 1)
+-					    (const_int 0))
+-					(const_int 1)
+-					(const_int 0))))]
+-  "TARGET_P9_MISC"
+-  "setb %0,%1"
+-  [(set_attr "type" "logical")])
+-
+-(define_insn "setb_unsigned"
+-   [(set (match_operand:SI 0 "gpc_reg_operand" "=r")
+-	 (if_then_else:SI (ltu (match_operand:CCUNS 1 "cc_reg_operand" "y")
+-			      (const_int 0))
+-			  (const_int -1)
+-			  (if_then_else (gtu (match_dup 1)
+-					    (const_int 0))
+-					(const_int 1)
+-					(const_int 0))))]
+-  "TARGET_P9_MISC"
+-  "setb %0,%1"
+-  [(set_attr "type" "logical")])
+-
+-;; Test byte within two ranges.
+-;;
+-;; The bytes of operand 1 are organized as xx:xx:xx:vv, where xx
+-;; represents a byte whose value is ignored in this context and
+-;; vv, the least significant byte, holds the byte value that is to
+-;; be tested for membership within the range specified by operand 2.
+-;; The bytes of operand 2 are organized as hi_1:lo_1:hi_2:lo_2.
+-;;
+-;; Return in target register operand 0 a value of 1 if (lo_1 <= vv and
+-;; vv <= hi_1) or if (lo_2 <= vv and vv <= hi_2).  Otherwise, set register
+-;; operand 0 to 0.
+-;;
+-;; Though the instructions to which this expansion maps operate on
+-;; 64-bit registers, the current implementation only operates on
+-;; SI-mode operands as the high-order bits provide no information
+-;; that is not already available in the low-order bits.  To avoid the
+-;; costs of data widening operations, future enhancements might allow
+-;; DI mode for operand 0 and/or might allow operand 1 to be QI mode.
+-(define_expand "cmprb2"
+-  [(set (match_dup 3)
+-	(unspec:CC [(match_operand:SI 1 "gpc_reg_operand" "r")
+-		    (match_operand:SI 2 "gpc_reg_operand" "r")]
+-	 UNSPEC_CMPRB2))
+-   (set (match_operand:SI 0 "gpc_reg_operand" "=r")
+-	(if_then_else:SI (lt (match_dup 3)
+-			     (const_int 0))
+-			 (const_int -1)
+-			 (if_then_else (gt (match_dup 3)
+-					   (const_int 0))
+-				       (const_int 1)
+-				       (const_int 0))))]
+-  "TARGET_P9_MISC"
+-{
+-  operands[3] = gen_reg_rtx (CCmode);
+-})
+-
+-;; The bytes of operand 1 are organized as xx:xx:xx:vv, where xx
+-;; represents a byte whose value is ignored in this context and
+-;; vv, the least significant byte, holds the byte value that is to
+-;; be tested for membership within the ranges specified by operand 2.
+-;; The bytes of operand 2 are organized as hi_1:lo_1:hi_2:lo_2.
+-;;
+-;; Set bit 1 (the GT bit, 0x4) of CR register operand 0 to 1 if
+-;; (lo_1 <= vv and vv <= hi_1) or if (lo_2 <= vv and vv <= hi_2).
+-;; Otherwise, set the GT bit to 0.  The other 3 bits of the target
+-;; CR register are all set to 0.
+-(define_insn "*cmprb2_internal"
+-  [(set (match_operand:CC 0 "cc_reg_operand" "=y")
+-	(unspec:CC [(match_operand:SI 1 "gpc_reg_operand" "r")
+-		    (match_operand:SI 2 "gpc_reg_operand" "r")]
+-	 UNSPEC_CMPRB2))]
+-  "TARGET_P9_MISC"
+-  "cmprb %0,1,%1,%2"
+-  [(set_attr "type" "logical")])
+-
+-;; Test byte membership within set of 8 bytes.
+-;;
+-;; The bytes of operand 1 are organized as xx:xx:xx:vv, where xx
+-;; represents a byte whose value is ignored in this context and
+-;; vv, the least significant byte, holds the byte value that is to
+-;; be tested for membership within the set specified by operand 2.
+-;; The bytes of operand 2 are organized as e0:e1:e2:e3:e4:e5:e6:e7.
+-;;
+-;; Return in target register operand 0 a value of 1 if vv equals one
+-;; of the values e0, e1, e2, e3, e4, e5, e6, or e7.  Otherwise, set
+-;; register operand 0 to 0.  Note that the 8 byte values held within
+-;; operand 2 need not be unique.
+-;;
+-;; Though the instructions to which this expansion maps operate on
+-;; 64-bit registers, the current implementation requires that operands
+-;; 0 and 1 have mode SI as the high-order bits provide no information
+-;; that is not already available in the low-order bits.  To avoid the
+-;; costs of data widening operations, future enhancements might allow
+-;; DI mode for operand 0 and/or might allow operand 1 to be QI mode.
+-(define_expand "cmpeqb"
+-  [(set (match_dup 3)
+-	(unspec:CC [(match_operand:SI 1 "gpc_reg_operand" "r")
+-		    (match_operand:DI 2 "gpc_reg_operand" "r")]
+-	 UNSPEC_CMPEQB))
+-   (set (match_operand:SI 0 "gpc_reg_operand" "=r")
+-	(if_then_else:SI (lt (match_dup 3)
+-			     (const_int 0))
+-			 (const_int -1)
+-			 (if_then_else (gt (match_dup 3)
+-					   (const_int 0))
+-				       (const_int 1)
+-				       (const_int 0))))]
+-  "TARGET_P9_MISC && TARGET_64BIT"
+-{
+-  operands[3] = gen_reg_rtx (CCmode);
+-})
+-
+-;; The bytes of operand 1 are organized as xx:xx:xx:vv, where xx
+-;; represents a byte whose value is ignored in this context and
+-;; vv, the least significant byte, holds the byte value that is to
+-;; be tested for membership within the set specified by operand 2.
+-;; The bytes of operand 2 are organized as e0:e1:e2:e3:e4:e5:e6:e7.
+-;;
+-;; Set bit 1 (the GT bit, 0x4) of CR register operand 0 to 1 if vv
+-;; equals one of the values e0, e1, e2, e3, e4, e5, e6, or e7.  Otherwise,
+-;; set the GT bit to zero.  The other 3 bits of the target CR register
+-;; are all set to 0.
+-(define_insn "*cmpeqb_internal"
+-  [(set (match_operand:CC 0 "cc_reg_operand" "=y")
+-	 (unspec:CC [(match_operand:SI 1 "gpc_reg_operand" "r")
+-		     (match_operand:DI 2 "gpc_reg_operand" "r")]
+-	  UNSPEC_CMPEQB))]
+-  "TARGET_P9_MISC && TARGET_64BIT"
+-  "cmpeqb %0,%1,%2"
+-  [(set_attr "type" "logical")])
+-
+ (define_expand "bcd<bcd_add_sub>_<code>"
+   [(parallel [(set (reg:CCFP CR6_REGNO)
+ 		   (compare:CCFP
+Index: gcc/config/rs6000/rs6000.md
+===================================================================
+--- a/src/gcc/config/rs6000/rs6000.md	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/config/rs6000/rs6000.md	(.../branches/gcc-9-branch)
+@@ -137,6 +137,9 @@
+    UNSPEC_LSQ
+    UNSPEC_FUSION_GPR
+    UNSPEC_STACK_CHECK
++   UNSPEC_CMPRB
++   UNSPEC_CMPRB2
++   UNSPEC_CMPEQB
+    UNSPEC_ADD_ROUND_TO_ODD
+    UNSPEC_SUB_ROUND_TO_ODD
+    UNSPEC_MUL_ROUND_TO_ODD
+@@ -164,6 +167,9 @@
+    UNSPECV_EH_RR		; eh_reg_restore
+    UNSPECV_ISYNC		; isync instruction
+    UNSPECV_MFTB			; move from time base
++   UNSPECV_DARN			; darn 1 (deliver a random number)
++   UNSPECV_DARN_32		; darn 2
++   UNSPECV_DARN_RAW		; darn 0
+    UNSPECV_NLGR			; non-local goto receiver
+    UNSPECV_MFFS			; Move from FPSCR
+    UNSPECV_MFFSL		; Move from FPSCR light instruction version
+@@ -14322,7 +14328,225 @@
+    "xscmpuqp %0,%1,%2"
+   [(set_attr "type" "veccmp")
+    (set_attr "size" "128")])
++
++;; Miscellaneous ISA 3.0 (power9) instructions
+ 
++(define_insn "darn_32"
++  [(set (match_operand:SI 0 "register_operand" "=r")
++        (unspec_volatile:SI [(const_int 0)] UNSPECV_DARN_32))]
++  "TARGET_P9_MISC"
++  "darn %0,0"
++  [(set_attr "type" "integer")])
++
++(define_insn "darn_raw"
++  [(set (match_operand:DI 0 "register_operand" "=r")
++        (unspec_volatile:DI [(const_int 0)] UNSPECV_DARN_RAW))]
++  "TARGET_P9_MISC && TARGET_64BIT"
++  "darn %0,2"
++  [(set_attr "type" "integer")])
++
++(define_insn "darn"
++  [(set (match_operand:DI 0 "register_operand" "=r")
++        (unspec_volatile:DI [(const_int 0)] UNSPECV_DARN))]
++  "TARGET_P9_MISC && TARGET_64BIT"
++  "darn %0,1"
++  [(set_attr "type" "integer")])
++
++;; Test byte within range.
++;;
++;; The bytes of operand 1 are organized as xx:xx:xx:vv, where xx
++;; represents a byte whose value is ignored in this context and
++;; vv, the least significant byte, holds the byte value that is to
++;; be tested for membership within the range specified by operand 2.
++;; The bytes of operand 2 are organized as xx:xx:hi:lo.
++;;
++;; Return in target register operand 0 a value of 1 if lo <= vv and
++;; vv <= hi.  Otherwise, set register operand 0 to 0.
++;;
++;; Though the instructions to which this expansion maps operate on
++;; 64-bit registers, the current implementation only operates on
++;; SI-mode operands as the high-order bits provide no information
++;; that is not already available in the low-order bits.  To avoid the
++;; costs of data widening operations, future enhancements might allow
++;; DI mode for operand 0 and/or might allow operand 1 to be QI mode.
++(define_expand "cmprb"
++  [(set (match_dup 3)
++	(unspec:CC [(match_operand:SI 1 "gpc_reg_operand" "r")
++		    (match_operand:SI 2 "gpc_reg_operand" "r")]
++	 UNSPEC_CMPRB))
++   (set (match_operand:SI 0 "gpc_reg_operand" "=r")
++	(if_then_else:SI (lt (match_dup 3)
++			     (const_int 0))
++			 (const_int -1)
++			 (if_then_else (gt (match_dup 3)
++					   (const_int 0))
++				       (const_int 1)
++				       (const_int 0))))]
++  "TARGET_P9_MISC"
++{
++  operands[3] = gen_reg_rtx (CCmode);
++})
++
++;; The bytes of operand 1 are organized as xx:xx:xx:vv, where xx
++;; represents a byte whose value is ignored in this context and
++;; vv, the least significant byte, holds the byte value that is to
++;; be tested for membership within the range specified by operand 2.
++;; The bytes of operand 2 are organized as xx:xx:hi:lo.
++;;
++;; Set bit 1 (the GT bit, 0x4) of CR register operand 0 to 1 if
++;; lo <= vv and vv <= hi.  Otherwise, set the GT bit to 0.  The other
++;; 3 bits of the target CR register are all set to 0.
++(define_insn "*cmprb_internal"
++  [(set (match_operand:CC 0 "cc_reg_operand" "=y")
++	(unspec:CC [(match_operand:SI 1 "gpc_reg_operand" "r")
++		    (match_operand:SI 2 "gpc_reg_operand" "r")]
++	 UNSPEC_CMPRB))]
++  "TARGET_P9_MISC"
++  "cmprb %0,0,%1,%2"
++  [(set_attr "type" "logical")])
++
++;; Set operand 0 register to -1 if the LT bit (0x8) of condition
++;; register operand 1 is on.  Otherwise, set operand 0 register to 1
++;; if the GT bit (0x4) of condition register operand 1 is on.
++;; Otherwise, set operand 0 to 0.  Note that the result stored into
++;; register operand 0 is non-zero iff either the LT or GT bits are on
++;; within condition register operand 1.
++(define_insn "setb_signed"
++   [(set (match_operand:SI 0 "gpc_reg_operand" "=r")
++	 (if_then_else:SI (lt (match_operand:CC 1 "cc_reg_operand" "y")
++			      (const_int 0))
++			  (const_int -1)
++			  (if_then_else (gt (match_dup 1)
++					    (const_int 0))
++					(const_int 1)
++					(const_int 0))))]
++  "TARGET_P9_MISC"
++  "setb %0,%1"
++  [(set_attr "type" "logical")])
++
++(define_insn "setb_unsigned"
++   [(set (match_operand:SI 0 "gpc_reg_operand" "=r")
++	 (if_then_else:SI (ltu (match_operand:CCUNS 1 "cc_reg_operand" "y")
++			      (const_int 0))
++			  (const_int -1)
++			  (if_then_else (gtu (match_dup 1)
++					    (const_int 0))
++					(const_int 1)
++					(const_int 0))))]
++  "TARGET_P9_MISC"
++  "setb %0,%1"
++  [(set_attr "type" "logical")])
++
++;; Test byte within two ranges.
++;;
++;; The bytes of operand 1 are organized as xx:xx:xx:vv, where xx
++;; represents a byte whose value is ignored in this context and
++;; vv, the least significant byte, holds the byte value that is to
++;; be tested for membership within the range specified by operand 2.
++;; The bytes of operand 2 are organized as hi_1:lo_1:hi_2:lo_2.
++;;
++;; Return in target register operand 0 a value of 1 if (lo_1 <= vv and
++;; vv <= hi_1) or if (lo_2 <= vv and vv <= hi_2).  Otherwise, set register
++;; operand 0 to 0.
++;;
++;; Though the instructions to which this expansion maps operate on
++;; 64-bit registers, the current implementation only operates on
++;; SI-mode operands as the high-order bits provide no information
++;; that is not already available in the low-order bits.  To avoid the
++;; costs of data widening operations, future enhancements might allow
++;; DI mode for operand 0 and/or might allow operand 1 to be QI mode.
++(define_expand "cmprb2"
++  [(set (match_dup 3)
++	(unspec:CC [(match_operand:SI 1 "gpc_reg_operand" "r")
++		    (match_operand:SI 2 "gpc_reg_operand" "r")]
++	 UNSPEC_CMPRB2))
++   (set (match_operand:SI 0 "gpc_reg_operand" "=r")
++	(if_then_else:SI (lt (match_dup 3)
++			     (const_int 0))
++			 (const_int -1)
++			 (if_then_else (gt (match_dup 3)
++					   (const_int 0))
++				       (const_int 1)
++				       (const_int 0))))]
++  "TARGET_P9_MISC"
++{
++  operands[3] = gen_reg_rtx (CCmode);
++})
++
++;; The bytes of operand 1 are organized as xx:xx:xx:vv, where xx
++;; represents a byte whose value is ignored in this context and
++;; vv, the least significant byte, holds the byte value that is to
++;; be tested for membership within the ranges specified by operand 2.
++;; The bytes of operand 2 are organized as hi_1:lo_1:hi_2:lo_2.
++;;
++;; Set bit 1 (the GT bit, 0x4) of CR register operand 0 to 1 if
++;; (lo_1 <= vv and vv <= hi_1) or if (lo_2 <= vv and vv <= hi_2).
++;; Otherwise, set the GT bit to 0.  The other 3 bits of the target
++;; CR register are all set to 0.
++(define_insn "*cmprb2_internal"
++  [(set (match_operand:CC 0 "cc_reg_operand" "=y")
++	(unspec:CC [(match_operand:SI 1 "gpc_reg_operand" "r")
++		    (match_operand:SI 2 "gpc_reg_operand" "r")]
++	 UNSPEC_CMPRB2))]
++  "TARGET_P9_MISC"
++  "cmprb %0,1,%1,%2"
++  [(set_attr "type" "logical")])
++
++;; Test byte membership within set of 8 bytes.
++;;
++;; The bytes of operand 1 are organized as xx:xx:xx:vv, where xx
++;; represents a byte whose value is ignored in this context and
++;; vv, the least significant byte, holds the byte value that is to
++;; be tested for membership within the set specified by operand 2.
++;; The bytes of operand 2 are organized as e0:e1:e2:e3:e4:e5:e6:e7.
++;;
++;; Return in target register operand 0 a value of 1 if vv equals one
++;; of the values e0, e1, e2, e3, e4, e5, e6, or e7.  Otherwise, set
++;; register operand 0 to 0.  Note that the 8 byte values held within
++;; operand 2 need not be unique.
++;;
++;; Though the instructions to which this expansion maps operate on
++;; 64-bit registers, the current implementation requires that operands
++;; 0 and 1 have mode SI as the high-order bits provide no information
++;; that is not already available in the low-order bits.  To avoid the
++;; costs of data widening operations, future enhancements might allow
++;; DI mode for operand 0 and/or might allow operand 1 to be QI mode.
++(define_expand "cmpeqb"
++  [(set (match_dup 3)
++	(unspec:CC [(match_operand:SI 1 "gpc_reg_operand" "r")
++		    (match_operand:DI 2 "gpc_reg_operand" "r")]
++	 UNSPEC_CMPEQB))
++   (set (match_operand:SI 0 "gpc_reg_operand" "=r")
++	(if_then_else:SI (lt (match_dup 3)
++			     (const_int 0))
++			 (const_int -1)
++			 (if_then_else (gt (match_dup 3)
++					   (const_int 0))
++				       (const_int 1)
++				       (const_int 0))))]
++  "TARGET_P9_MISC && TARGET_64BIT"
++{
++  operands[3] = gen_reg_rtx (CCmode);
++})
++
++;; The bytes of operand 1 are organized as xx:xx:xx:vv, where xx
++;; represents a byte whose value is ignored in this context and
++;; vv, the least significant byte, holds the byte value that is to
++;; be tested for membership within the set specified by operand 2.
++;; The bytes of operand 2 are organized as e0:e1:e2:e3:e4:e5:e6:e7.
++;;
++;; Set bit 1 (the GT bit, 0x4) of CR register operand 0 to 1 if vv
++;; equals one of the values e0, e1, e2, e3, e4, e5, e6, or e7.  Otherwise,
++;; set the GT bit to zero.  The other 3 bits of the target CR register
++;; are all set to 0.
++(define_insn "*cmpeqb_internal"
++  [(set (match_operand:CC 0 "cc_reg_operand" "=y")
++	 (unspec:CC [(match_operand:SI 1 "gpc_reg_operand" "r")
++		     (match_operand:DI 2 "gpc_reg_operand" "r")]
++	  UNSPEC_CMPEQB))]
++  "TARGET_P9_MISC && TARGET_64BIT"
++  "cmpeqb %0,%1,%2"
++  [(set_attr "type" "logical")])
+ 
+ 
+ (include "sync.md")
 Index: gcc/config/mips/mips.md
 ===================================================================
 --- a/src/gcc/config/mips/mips.md	(.../tags/gcc_9_2_0_release)
@@ -7885,6 +9557,60 @@ Index: gcc/config/mips/mips.md
    "TARGET_HARD_FLOAT"
    "cfc1\t%0,$31")
  
+Index: gcc/tree-vect-slp.c
+===================================================================
+--- a/src/gcc/tree-vect-slp.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/tree-vect-slp.c	(.../branches/gcc-9-branch)
+@@ -129,6 +129,7 @@
+   SLP_TREE_TWO_OPERATORS (node) = false;
+   SLP_TREE_DEF_TYPE (node) = vect_internal_def;
+   node->refcnt = 1;
++  node->max_nunits = 1;
+ 
+   unsigned i;
+   FOR_EACH_VEC_ELT (scalar_stmts, i, stmt_info)
+@@ -1051,15 +1052,24 @@
+ 	dump_printf_loc (MSG_NOTE, vect_location, "re-using %sSLP tree %p\n",
+ 			 *leader ? "" : "failed ", *leader);
+       if (*leader)
+-	(*leader)->refcnt++;
++	{
++	  (*leader)->refcnt++;
++	  vect_update_max_nunits (max_nunits, (*leader)->max_nunits);
++	}
+       return *leader;
+     }
+-  slp_tree res = vect_build_slp_tree_2 (vinfo, stmts, group_size, max_nunits,
++  poly_uint64 this_max_nunits = 1;
++  slp_tree res = vect_build_slp_tree_2 (vinfo, stmts, group_size,
++					&this_max_nunits,
+ 					matches, npermutes, tree_size,
+ 					max_tree_size, bst_map);
+-  /* Keep a reference for the bst_map use.  */
+   if (res)
+-    res->refcnt++;
++    {
++      res->max_nunits = this_max_nunits;
++      vect_update_max_nunits (max_nunits, this_max_nunits);
++      /* Keep a reference for the bst_map use.  */
++      res->refcnt++;
++    }
+   bst_map->put (stmts.copy (), res);
+   return res;
+ }
+@@ -1463,9 +1473,10 @@
+ 
+   dump_metadata_t metadata (dump_kind, loc.get_impl_location ());
+   dump_user_location_t user_loc = loc.get_user_location ();
+-  dump_printf_loc (metadata, user_loc, "node%s %p\n",
++  dump_printf_loc (metadata, user_loc, "node%s %p (max_nunits=%u)\n",
+ 		   SLP_TREE_DEF_TYPE (node) != vect_internal_def
+-		   ? " (external)" : "", node);
++		   ? " (external)" : "", node,
++		   estimated_poly_value (node->max_nunits));
+   FOR_EACH_VEC_ELT (SLP_TREE_SCALAR_STMTS (node), i, stmt_info)
+     dump_printf_loc (metadata, user_loc, "\tstmt %d %G", i, stmt_info->stmt);
+   if (SLP_TREE_CHILDREN (node).is_empty ())
 Index: libgfortran/intrinsics/random.c
 ===================================================================
 --- a/src/libgfortran/intrinsics/random.c	(.../tags/gcc_9_2_0_release)
