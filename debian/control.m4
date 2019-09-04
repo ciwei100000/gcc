@@ -4870,6 +4870,7 @@ ifdef(`MULTIARCH', `Multi-Arch: same
 Priority: optional
 Depends: BASELDEP, ${shlibs:Depends}, ${misc:Depends}
 Replaces: libgphobos68`'LS
+Breaks: dub (<< 1.16.0-1~)
 BUILT_USING`'dnl
 Description: Phobos D standard library (runtime library)
  This is the Phobos standard library that comes with the D2 compiler.
