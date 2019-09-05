@@ -1,10 +1,10 @@
-# DP: updates from the 9 branch upto 20190904 (r275364).
+# DP: updates from the 9 branch upto 20190905 (r275395).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Wed Sep  4 09:25:49 CEST 2019
-Wed Sep  4 07:25:49 UTC 2019 (revision 275364)
+Thu Sep  5 06:40:43 CEST 2019
+Thu Sep  5 04:40:43 UTC 2019 (revision 275396)
 EOF
 }
 
@@ -3817,7 +3817,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-9-branch)
 @@ -1 +1 @@
 -20190812
-+20190904
++20190905
 Index: gcc/lra.c
 ===================================================================
 --- a/src/gcc/lra.c	(.../tags/gcc_9_2_0_release)
@@ -4351,7 +4351,16 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,290 @@
+@@ -1,3 +1,299 @@
++2019-09-04  Wilco Dijkstra  <wdijkstr@arm.com>
++
++	Backport from mainline
++	2019-08-13  Wilco Dijkstra  <wdijkstr@arm.com>
++
++	PR target/81800
++	* gcc/config/aarch64/aarch64.md (lrint): Disable lrint pattern if GPF
++	operand is larger than a long int.
++
 +2019-09-03  Jakub Jelinek  <jakub@redhat.com>
 +
 +	PR tree-optimization/91597
@@ -4642,7 +4651,7 @@ Index: gcc/ChangeLog
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -513,7 +800,7 @@
+@@ -513,7 +809,7 @@
  
  2019-07-11  Uroš Bizjak  <ubizjak@gmail.com>
  
@@ -4686,6 +4695,28 @@ Index: gcc/testsuite/gcc.target/mips/get-fcsr-3.c
 +}
 +
 +/* { dg-final { scan-assembler "cfc1" } } */
+Index: gcc/testsuite/gcc.target/aarch64/no-inline-lrint_3.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/aarch64/no-inline-lrint_3.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gcc.target/aarch64/no-inline-lrint_3.c	(.../branches/gcc-9-branch)
+@@ -0,0 +1,17 @@
++/* { dg-do compile } */
++/* { dg-require-effective-target ilp32 } */
++/* { dg-options "-O3 -fno-math-errno -fno-fp-int-builtin-inexact" } */
++
++#define TEST(name, float_type, int_type, fn) void f_##name (float_type x) \
++{									  \
++  volatile int_type   b = __builtin_##fn (x);				  \
++}
++
++TEST (dld, double, long, lrint)
++TEST (flf, float , long, lrintf)
++
++TEST (did, double, int, lrint)
++TEST (fif, float , int, lrintf)
++
++/* { dg-final { scan-assembler-times "fcvtzs\tw\[0-9\]+, \[d,s\]\[0-9\]+" 2 } } */
++/* { dg-final { scan-assembler-times "bl\tlrint" 2 } } */
 Index: gcc/testsuite/gfortran.dg/do_subscript_3.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/do_subscript_3.f90	(.../tags/gcc_9_2_0_release)
@@ -5652,7 +5683,15 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,205 @@
+@@ -1,3 +1,213 @@
++2019-09-04  Wilco Dijkstra  <wdijkstr@arm.com>
++
++	Backport from mainline
++	2019-08-13  Wilco Dijkstra  <wdijkstr@arm.com>
++
++	PR target/81800
++	* gcc.target/aarch64/no-inline-lrint_3.c: New test.
++
 +2019-09-03  Jakub Jelinek  <jakub@redhat.com>
 +
 +	PR tree-optimization/91597
@@ -10806,6 +10845,19 @@ Index: gcc/config/i386/i386-builtin.def
  
  BDESC (OPTION_MASK_ISA_SSSE3, 0, CODE_FOR_ssse3_phaddwv8hi3, "__builtin_ia32_phaddw128", IX86_BUILTIN_PHADDW128, UNKNOWN, (int) V8HI_FTYPE_V8HI_V8HI)
  BDESC (OPTION_MASK_ISA_SSSE3 | OPTION_MASK_ISA_MMX, 0, CODE_FOR_ssse3_phaddwv4hi3, "__builtin_ia32_phaddw", IX86_BUILTIN_PHADDW, UNKNOWN, (int) V4HI_FTYPE_V4HI_V4HI)
+Index: gcc/config/aarch64/aarch64.md
+===================================================================
+--- a/src/gcc/config/aarch64/aarch64.md	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/config/aarch64/aarch64.md	(.../branches/gcc-9-branch)
+@@ -6304,7 +6304,7 @@
+   [(match_operand:GPI 0 "register_operand")
+    (match_operand:GPF 1 "register_operand")]
+   "TARGET_FLOAT
+-   && ((GET_MODE_SIZE (<GPF:MODE>mode) <= GET_MODE_SIZE (<GPI:MODE>mode))
++   && ((GET_MODE_BITSIZE (<GPF:MODE>mode) <= LONG_TYPE_SIZE)
+    || !flag_trapping_math || flag_fp_int_builtin_inexact)"
+ {
+   rtx cvt = gen_reg_rtx (<GPF:MODE>mode);
 Index: gcc/config/aarch64/aarch64.c
 ===================================================================
 --- a/src/gcc/config/aarch64/aarch64.c	(.../tags/gcc_9_2_0_release)
