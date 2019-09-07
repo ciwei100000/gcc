@@ -1,10 +1,10 @@
-# DP: updates from the 9 branch upto 20190905 (r275395).
+# DP: updates from the 9 branch upto 20190907 (r275484).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Thu Sep  5 06:40:43 CEST 2019
-Thu Sep  5 04:40:43 UTC 2019 (revision 275396)
+Sat Sep  7 09:28:10 CEST 2019
+Sat Sep  7 07:28:10 UTC 2019 (revision 275484)
 EOF
 }
 
@@ -3817,7 +3817,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-9-branch)
 @@ -1 +1 @@
 -20190812
-+20190905
++20190907
 Index: gcc/lra.c
 ===================================================================
 --- a/src/gcc/lra.c	(.../tags/gcc_9_2_0_release)
@@ -5160,6 +5160,20 @@ Index: gcc/testsuite/gfortran.dg/do_subscript_5.f90
 +          endif
 +      enddo
 +end program
+Index: gcc/testsuite/gfortran.dg/pr91660_2.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr91660_2.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr91660_2.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,9 @@
++! { dg-do compile }
++! PR fortran/91660
++program foo
++   type(doubleprecision :: x   ! { dg-error "Malformed type-spec" }
++   type(double precision :: y  ! { dg-error "Malformed type-spec" }
++   type(character(len=3) :: a  ! { dg-error "Malformed type-spec" }
++   type(doublecomplex :: b     ! { dg-error "Malformed type-spec" }
++   type(double complex :: c    ! { dg-error "Malformed type-spec" }
++end program foo
 Index: gcc/testsuite/gfortran.dg/pr78719_1.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr78719_1.f90	(.../tags/gcc_9_2_0_release)
@@ -5281,6 +5295,49 @@ Index: gcc/testsuite/gfortran.dg/pr91485.f90
 +         print *, x .x. y
 +      end subroutine print_prod
 +end module gfcbug155
+Index: gcc/testsuite/gfortran.dg/pr91496.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr91496.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr91496.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,38 @@
++! { dg-do compile }
++! { dg-options "-fdump-tree-original" }
++!
++subroutine foo (a, b, c, n)
++  implicit none
++  real a(*), b(*), c(*)
++  integer :: i, n
++  external bar
++!DIR$ unroll (4)
++!GCC$ unroll 4
++  do i = 1, n
++     a(i) = b(i) + c(i)
++  end do
++!DIR$ ivdep
++!GCC$ ivdep
++  do i = 1, n
++     a(i) = b(i) + c(i)
++  end do
++!DIR$ vector
++!GCC$ vector
++  do i = 1, n
++     a(i) = b(i) + c(i)
++  end do
++!DIR$ novector
++!GCC$ novector
++  do i = 1, n
++     a(i) = b(i) + c(i)
++  end do
++!GCC$ ivdep
++!GCC$ vector
++  do i = 1, n
++     a(i) = b(i) + c(i)
++  end do
++!DIR$ noinline
++!GCC$ noinline          ! { dg-warning "Unclassifiable GCC directive" }
++  call bar (a)
++end subroutine foo
++! { dg-final { scan-tree-dump-times "ANNOTATE_EXPR" 6 "original" } }
 Index: gcc/testsuite/gfortran.dg/allocated_2.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/allocated_2.f90	(.../tags/gcc_9_2_0_release)
@@ -5334,6 +5391,33 @@ Index: gcc/testsuite/gfortran.dg/do_subscript_4.f90
 +  end do
 +  print *,a
 +end program main
+Index: gcc/testsuite/gfortran.dg/pr91660_1.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr91660_1.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr91660_1.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,9 @@
++! { dg-do compile }
++! PR fortran/91660
++! Code contributed by Gerhard Steinmetz
++program p
++   type t
++   end type
++   type (t x    ! { dg-error "Malformed type-spec" }
++   x = t()      ! { dg-error "Cannot convert" }
++end
+Index: gcc/testsuite/gfortran.dg/directive_unroll_5.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/directive_unroll_5.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/directive_unroll_5.f90	(.../branches/gcc-9-branch)
+@@ -31,7 +31,7 @@
+   integer :: a(n), b(n)
+   integer (kind=4) :: i
+ !GCC$ unroll 8
+-  write (*,*) "wrong"! { dg-error "directive does not commence a loop" }
++  write (*,*) "wrong"! { dg-error "directive not at the start of a loop" }
+   DO i=n, 1, -1
+     call dummy2(a(i), b(i), i)
+   ENDDO
 Index: gcc/testsuite/gfortran.dg/pr91359_1.f
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr91359_1.f	(.../tags/gcc_9_2_0_release)
@@ -5385,6 +5469,22 @@ Index: gcc/testsuite/gfortran.dg/allocated_1.f90
 +   if (a2 .neqv. .true.) stop 4
 +
 +end program foo
+Index: gcc/testsuite/gfortran.dg/pdt_4.f03
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pdt_4.f03	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pdt_4.f03	(.../branches/gcc-9-branch)
+@@ -97,9 +97,9 @@
+     type (mytype(4, *)) :: arg      ! OK
+   end subroutine
+   subroutine bar(arg)               ! { dg-error "is neither allocatable nor a pointer" }
+-    type (thytype(8, :, 4) :: arg
++    type (thytype(8, :, 4)) :: arg
+   end subroutine
+   subroutine foobar(arg)            ! OK
+-    type (thytype(8, *, 4) :: arg
++    type (thytype(8, *, 4)) :: arg
+   end subroutine
+ end
 Index: gcc/testsuite/gcc.c-torture/execute/20190820-1.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.c-torture/execute/20190820-1.c	(.../tags/gcc_9_2_0_release)
@@ -5683,7 +5783,23 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,213 @@
+@@ -1,3 +1,229 @@
++2019-09-05  Harald Anlauf  <anlauf@gmx.de>
++
++	Backport from mainline
++	PR fortran/91496
++	* gfortran.dg/pr91496.f90: New testcase.
++
++	PR fortran/91496
++	* gfortran.dg/directive_unroll_5.f90: Adjust error message.
++
++2019-09-05  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91660
++	* gfortran.dg/pdt_4.f03: Fix invalid code.
++        * gfortran.dg/pr91660_1.f90: New test.
++	* gfortran.dg/pr91660_2.f90: Ditto.
++
 +2019-09-04  Wilco Dijkstra  <wdijkstr@arm.com>
 +
 +	Backport from mainline
@@ -8014,7 +8130,19 @@ Index: gcc/fortran/decl.c
 ===================================================================
 --- a/src/gcc/fortran/decl.c	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/fortran/decl.c	(.../branches/gcc-9-branch)
-@@ -1335,9 +1335,9 @@
+@@ -99,6 +99,11 @@
+ /* Set upon parsing a !GCC$ unroll n directive for use in the next loop.  */
+ int directive_unroll = -1;
+ 
++/* Set upon parsing supported !GCC$ pragmas for use in the next loop.  */
++bool directive_ivdep = false;
++bool directive_vector = false;
++bool directive_novector = false;
++
+ /* Map of middle-end built-ins that should be vectorized.  */
+ hash_map<nofree_string_hash, int> *gfc_vectorized_builtins;
+ 
+@@ -1335,9 +1340,9 @@
  	}
  
        /* Trap declarations of attributes in encompassing scope.  The
@@ -8027,6 +8155,121 @@ Index: gcc/fortran/decl.c
  	  && !sym->attr.implicit_type
  	  && sym->attr.proc == 0
  	  && gfc_current_ns->parent != NULL
+@@ -3991,7 +3996,6 @@
+       return MATCH_YES;
+     }
+ 
+-
+   m = gfc_match (" type (");
+   matched_type = (m == MATCH_YES);
+   if (matched_type)
+@@ -4039,7 +4043,10 @@
+ 	m = MATCH_YES;
+ 
+       if (matched_type && m == MATCH_YES && gfc_match_char (')') != MATCH_YES)
+-	m = MATCH_ERROR;
++	{
++	  gfc_error ("Malformed type-spec at %C");
++	  return MATCH_ERROR;
++	}
+ 
+       return m;
+     }
+@@ -4062,8 +4069,12 @@
+ 	  && !gfc_notify_std (GFC_STD_F2008, "TYPE with "
+ 			      "intrinsic-type-spec at %C"))
+ 	return MATCH_ERROR;
++
+       if (matched_type && gfc_match_char (')') != MATCH_YES)
+-	return MATCH_ERROR;
++	{
++	  gfc_error ("Malformed type-spec at %C");
++	  return MATCH_ERROR;
++	}
+ 
+       ts->type = BT_REAL;
+       ts->kind = gfc_default_double_kind;
+@@ -4093,7 +4104,10 @@
+ 	return MATCH_ERROR;
+ 
+       if (matched_type && gfc_match_char (')') != MATCH_YES)
+-	return MATCH_ERROR;
++	{
++	  gfc_error ("Malformed type-spec at %C");
++	  return MATCH_ERROR;
++	}
+ 
+       ts->type = BT_COMPLEX;
+       ts->kind = gfc_default_double_kind;
+@@ -4114,7 +4128,13 @@
+       if (m == MATCH_ERROR)
+ 	return m;
+ 
+-    m = gfc_match_char (')');
++      gfc_gobble_whitespace ();
++      if (gfc_peek_ascii_char () != ')')
++	{
++	  gfc_error ("Malformed type-spec at %C");
++	  return MATCH_ERROR;
++	}
++      m = gfc_match_char (')'); /* Burn closing ')'.  */
+     }
+ 
+   if (m != MATCH_YES)
+@@ -11472,3 +11492,53 @@
+ 
+   return MATCH_YES;
+ }
++
++/* Match an !GCC$ IVDEP statement.
++   When we come here, we have already matched the !GCC$ IVDEP string.  */
++
++match
++gfc_match_gcc_ivdep (void)
++{
++  if (gfc_match_eos () == MATCH_YES)
++    {
++      directive_ivdep = true;
++      return MATCH_YES;
++    }
++
++  gfc_error ("Syntax error in !GCC$ IVDEP directive at %C");
++  return MATCH_ERROR;
++}
++
++/* Match an !GCC$ VECTOR statement.
++   When we come here, we have already matched the !GCC$ VECTOR string.  */
++
++match
++gfc_match_gcc_vector (void)
++{
++  if (gfc_match_eos () == MATCH_YES)
++    {
++      directive_vector = true;
++      directive_novector = false;
++      return MATCH_YES;
++    }
++
++  gfc_error ("Syntax error in !GCC$ VECTOR directive at %C");
++  return MATCH_ERROR;
++}
++
++/* Match an !GCC$ NOVECTOR statement.
++   When we come here, we have already matched the !GCC$ NOVECTOR string.  */
++
++match
++gfc_match_gcc_novector (void)
++{
++  if (gfc_match_eos () == MATCH_YES)
++    {
++      directive_novector = true;
++      directive_vector = false;
++      return MATCH_YES;
++    }
++
++  gfc_error ("Syntax error in !GCC$ NOVECTOR directive at %C");
++  return MATCH_ERROR;
++}
 Index: gcc/fortran/array.c
 ===================================================================
 --- a/src/gcc/fortran/array.c	(.../tags/gcc_9_2_0_release)
@@ -8083,11 +8326,74 @@ Index: gcc/fortran/array.c
  	}
      }
    else
+@@ -2175,6 +2199,9 @@
+   dest->end = gfc_copy_expr (src->end);
+   dest->step = gfc_copy_expr (src->step);
+   dest->unroll = src->unroll;
++  dest->ivdep = src->ivdep;
++  dest->vector = src->vector;
++  dest->novector = src->novector;
+ 
+   return dest;
+ }
+Index: gcc/fortran/gfortran.h
+===================================================================
+--- a/src/gcc/fortran/gfortran.h	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/fortran/gfortran.h	(.../branches/gcc-9-branch)
+@@ -2407,6 +2407,9 @@
+ {
+   gfc_expr *var, *start, *end, *step;
+   unsigned short unroll;
++  bool ivdep;
++  bool vector;
++  bool novector;
+ }
+ gfc_iterator;
+ 
+@@ -2783,6 +2786,9 @@
+ bool gfc_in_match_data (void);
+ match gfc_match_char_spec (gfc_typespec *);
+ extern int directive_unroll;
++extern bool directive_ivdep;
++extern bool directive_vector;
++extern bool directive_novector;
+ 
+ /* SIMD clause enum.  */
+ enum gfc_simd_clause
 Index: gcc/fortran/ChangeLog
 ===================================================================
 --- a/src/gcc/fortran/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/fortran/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,124 @@
+@@ -1,3 +1,153 @@
++2019-09-05  Harald Anlauf  <anlauf@gmx.de>
++
++	Backport from mainline
++	PR fortran/91496
++	* gfortran.h: Extend struct gfc_iterator for loop annotations.
++	* array.c (gfc_copy_iterator): Copy loop annotations by IVDEP,
++	VECTOR, and NOVECTOR pragmas.
++	* decl.c (gfc_match_gcc_ivdep, gfc_match_gcc_vector)
++	(gfc_match_gcc_novector): New matcher functions handling IVDEP,
++	VECTOR, and NOVECTOR pragmas.
++	* match.h: Declare prototypes of matcher functions handling IVDEP,
++	VECTOR, and NOVECTOR pragmas.
++	* parse.c (decode_gcc_attribute, parse_do_block)
++	(parse_executable): Decode IVDEP, VECTOR, and NOVECTOR pragmas;
++	emit warning for unrecognized pragmas instead of error.
++	* trans-stmt.c (gfc_trans_simple_do, gfc_trans_do): Add code to
++	emit annotations for IVDEP, VECTOR, and NOVECTOR pragmas.
++	* gfortran.texi: Document IVDEP, VECTOR, and NOVECTOR pragmas.
++
++	PR fortran/91496
++	* parse.c (parse_executable): Improve error messages for
++	improperly placed pragmas not preceeding a loop.
++
++2019-09-05  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91660
++	* decl.c (gfc_match_decl_type_spec): Improve and restore error
++	message for malformed types-spec.
++
 +2019-09-02  Steven G. Kargl  <kargl@gc.gnu.org>
 +
 +	PR fortran/91552
@@ -8212,6 +8518,51 @@ Index: gcc/fortran/ChangeLog
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
+Index: gcc/fortran/trans-stmt.c
+===================================================================
+--- a/src/gcc/fortran/trans-stmt.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/fortran/trans-stmt.c	(.../branches/gcc-9-branch)
+@@ -2171,6 +2171,19 @@
+ 		build_int_cst (integer_type_node, annot_expr_unroll_kind),
+ 		build_int_cst (integer_type_node, code->ext.iterator->unroll));
+ 
++  if (code->ext.iterator->ivdep && cond != error_mark_node)
++    cond = build3 (ANNOTATE_EXPR, TREE_TYPE (cond), cond,
++		   build_int_cst (integer_type_node, annot_expr_ivdep_kind),
++		   integer_zero_node);
++  if (code->ext.iterator->vector && cond != error_mark_node)
++    cond = build3 (ANNOTATE_EXPR, TREE_TYPE (cond), cond,
++		   build_int_cst (integer_type_node, annot_expr_vector_kind),
++		   integer_zero_node);
++  if (code->ext.iterator->novector && cond != error_mark_node)
++    cond = build3 (ANNOTATE_EXPR, TREE_TYPE (cond), cond,
++		   build_int_cst (integer_type_node, annot_expr_no_vector_kind),
++		   integer_zero_node);
++
+   /* The loop exit.  */
+   tmp = fold_build1_loc (loc, GOTO_EXPR, void_type_node, exit_label);
+   TREE_USED (exit_label) = 1;
+@@ -2501,6 +2514,20 @@
+       = build3 (ANNOTATE_EXPR, TREE_TYPE (cond), cond,
+ 		build_int_cst (integer_type_node, annot_expr_unroll_kind),
+ 		build_int_cst (integer_type_node, code->ext.iterator->unroll));
++
++  if (code->ext.iterator->ivdep && cond != error_mark_node)
++    cond = build3 (ANNOTATE_EXPR, TREE_TYPE (cond), cond,
++		   build_int_cst (integer_type_node, annot_expr_ivdep_kind),
++		   integer_zero_node);
++  if (code->ext.iterator->vector && cond != error_mark_node)
++    cond = build3 (ANNOTATE_EXPR, TREE_TYPE (cond), cond,
++		   build_int_cst (integer_type_node, annot_expr_vector_kind),
++		   integer_zero_node);
++  if (code->ext.iterator->novector && cond != error_mark_node)
++    cond = build3 (ANNOTATE_EXPR, TREE_TYPE (cond), cond,
++		   build_int_cst (integer_type_node, annot_expr_no_vector_kind),
++		   integer_zero_node);
++
+   tmp = fold_build1_loc (loc, GOTO_EXPR, void_type_node, exit_label);
+   tmp = fold_build3_loc (loc, COND_EXPR, void_type_node,
+ 			 cond, tmp, build_empty_stmt (loc));
 Index: gcc/fortran/expr.c
 ===================================================================
 --- a/src/gcc/fortran/expr.c	(.../tags/gcc_9_2_0_release)
@@ -8551,6 +8902,91 @@ Index: gcc/fortran/trans-decl.c
      }
  
    return build1_v (RETURN_EXPR, result);
+Index: gcc/fortran/match.h
+===================================================================
+--- a/src/gcc/fortran/match.h	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/fortran/match.h	(.../branches/gcc-9-branch)
+@@ -246,8 +246,11 @@
+ match gfc_match_dimension (void);
+ match gfc_match_external (void);
+ match gfc_match_gcc_attributes (void);
++match gfc_match_gcc_builtin (void);
++match gfc_match_gcc_ivdep (void);
++match gfc_match_gcc_novector (void);
+ match gfc_match_gcc_unroll (void);
+-match gfc_match_gcc_builtin (void);
++match gfc_match_gcc_vector (void);
+ match gfc_match_import (void);
+ match gfc_match_intent (void);
+ match gfc_match_intrinsic (void);
+Index: gcc/fortran/parse.c
+===================================================================
+--- a/src/gcc/fortran/parse.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/fortran/parse.c	(.../branches/gcc-9-branch)
+@@ -1079,12 +1079,20 @@
+   match ("attributes", gfc_match_gcc_attributes, ST_ATTR_DECL);
+   match ("unroll", gfc_match_gcc_unroll, ST_NONE);
+   match ("builtin", gfc_match_gcc_builtin, ST_NONE);
++  match ("ivdep", gfc_match_gcc_ivdep, ST_NONE);
++  match ("vector", gfc_match_gcc_vector, ST_NONE);
++  match ("novector", gfc_match_gcc_novector, ST_NONE);
+ 
+   /* All else has failed, so give up.  See if any of the matchers has
+      stored an error message of some sort.  */
+ 
+   if (!gfc_error_check ())
+-    gfc_error_now ("Unclassifiable GCC directive at %C");
++    {
++      if (pedantic)
++	gfc_error_now ("Unclassifiable GCC directive at %C");
++      else
++	gfc_warning_now (0, "Unclassifiable GCC directive at %C, ignored");
++    }
+ 
+   reject_statement ();
+ 
+@@ -4672,6 +4680,21 @@
+ 	  new_st.ext.iterator->unroll = directive_unroll;
+ 	  directive_unroll = -1;
+ 	}
++      if (directive_ivdep)
++	{
++	  new_st.ext.iterator->ivdep = directive_ivdep;
++	  directive_ivdep = false;
++	}
++      if (directive_vector)
++	{
++	  new_st.ext.iterator->vector = directive_vector;
++	  directive_vector = false;
++	}
++      if (directive_novector)
++	{
++	  new_st.ext.iterator->novector = directive_novector;
++	  directive_novector = false;
++	}
+     }
+   else
+     stree = NULL;
+@@ -5431,8 +5454,18 @@
+ 	}
+ 
+       if (directive_unroll != -1)
+-	gfc_error ("%<GCC unroll%> directive does not commence a loop at %C");
++	gfc_error ("%<GCC unroll%> directive not at the start of a loop at %C");
+ 
++      if (directive_ivdep)
++	gfc_error ("%<GCC ivdep%> directive not at the start of a loop at %C");
++
++      if (directive_vector)
++	gfc_error ("%<GCC vector%> directive not at the start of a loop at %C");
++
++      if (directive_novector)
++	gfc_error ("%<GCC novector%> "
++		   "directive not at the start of a loop at %C");
++
+       st = next_statement ();
+     }
+ }
 Index: gcc/fortran/check.c
 ===================================================================
 --- a/src/gcc/fortran/check.c	(.../tags/gcc_9_2_0_release)
