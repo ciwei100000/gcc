@@ -1,10 +1,10 @@
-# DP: updates from the 8 branch upto 20190909 (r275501).
+# DP: updates from the 8 branch upto 20190909 (r275519).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Mon Sep  9 09:53:50 CEST 2019
-Mon Sep  9 07:53:50 UTC 2019 (revision 275501)
+Mon Sep  9 17:27:17 CEST 2019
+Mon Sep  9 15:27:17 UTC 2019 (revision 275519)
 EOF
 }
 
@@ -7599,7 +7599,18 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,1716 @@
+@@ -1,3 +1,1727 @@
++2019-09-09  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/87853
++	* config/i386/emmintrin.h (_mm_cmpeq_epi8): Use casts to __v16qi
++	instead of __v16qs.
++
++	PR target/91704
++	* config/i386/avxintrin.h (__v32qs): New typedef.
++	* config/i386/avx2intrin.h (_mm256_cmpgt_epi8): Use casts to __v32qs
++	instead of __v32qi.
++
 +2019-09-04  Wilco Dijkstra  <wdijkstr@arm.com>
 +
 +	Backport from mainline
@@ -9316,7 +9327,7 @@ Index: gcc/ChangeLog
  2019-02-22  Release Manager
  
  	* GCC 8.3.0 released.
-@@ -568,7 +2285,7 @@
+@@ -568,7 +2296,7 @@
  
  	Backport from mainline
  	2018-11-20  Richard Biener  <rguenther@suse.de>
@@ -19004,6 +19015,25 @@ Index: gcc/testsuite/gcc.target/i386/ret-thunk-25.c
  /* { dg-options "-O2 -mfunction-return=thunk -fcheck-pointer-bounds -mmpx -fno-pic" } */
  
  struct s { _Complex unsigned short x; };
+Index: gcc/testsuite/gcc.target/i386/pr91704.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr91704.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr91704.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,14 @@
++/* PR target/91704 */
++/* { dg-do compile } */
++/* { dg-options "-O2 -funsigned-char -mavx2 -mavx512f -masm=att" } */
++/* { dg-final { scan-assembler-times "\tvpcmpgtb\t%ymm" 1 } } */
++/* { dg-final { scan-assembler-not "\tvpsubusb\t" } } */
++/* { dg-final { scan-assembler-not "\tvpcmpeqb\t" } } */
++
++#include <x86intrin.h>
++
++__m256i
++foo (__m256i x, __m256i y)
++{
++  return _mm256_cmpgt_epi8 (x, y);
++}
 Index: gcc/testsuite/gcc.target/i386/ret-thunk-9.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/ret-thunk-9.c	(.../tags/gcc_8_3_0_release)
@@ -19793,6 +19823,31 @@ Index: gcc/testsuite/gcc.target/i386/cet-notrack-5a.c
  /* { dg-final { scan-assembler-times "notrack call\[ \t]+" 1 } } */
  
  int (*fptr) (int) __attribute__ ((nocf_check));
+Index: gcc/testsuite/gcc.target/i386/pr87853.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr87853.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr87853.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,20 @@
++/* PR target/87853 */
++/* { dg-do compile } */
++/* { dg-options "-O2 -funsigned-char -msse2 -mno-sse3 -masm=att" } */
++/* { dg-final { scan-assembler-times "\tpcmpgtb\t%xmm" 2 } } */
++/* { dg-final { scan-assembler-not "\tpsubusb\t" } } */
++/* { dg-final { scan-assembler-not "\tpcmpeqb\t" } } */
++
++#include <x86intrin.h>
++
++__m128i
++foo (__m128i x, __m128i y)
++{
++  return _mm_cmpgt_epi8 (x, y);
++}
++
++__m128i
++bar (__m128i x, __m128i y)
++{
++  return _mm_cmplt_epi8 (x, y);
++}
 Index: gcc/testsuite/gcc.target/i386/pr89523-7.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/pr89523-7.c	(.../tags/gcc_8_3_0_release)
@@ -25735,7 +25790,15 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,1771 @@
+@@ -1,3 +1,1779 @@
++2019-09-09  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/87853
++	* gcc.target/i386/pr87853.c: New test.
++
++	PR target/91704
++	* gcc.target/i386/pr91704.c: New test.
++
 +2019-09-05  Steven G. Kargl  <kargl@gcc.gnu.org>
 +
 +	PR fortran/91660
@@ -47899,6 +47962,19 @@ Index: gcc/config/i386/i386.md
  
  ;; See comment for addsi_1_zext why we do use nonimmediate_operand
  (define_insn "*andsi_1_zext"
+Index: gcc/config/i386/avx2intrin.h
+===================================================================
+--- a/src/gcc/config/i386/avx2intrin.h	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/i386/avx2intrin.h	(.../branches/gcc-8-branch)
+@@ -258,7 +258,7 @@
+ __attribute__ ((__gnu_inline__, __always_inline__, __artificial__))
+ _mm256_cmpgt_epi8 (__m256i __A, __m256i __B)
+ {
+-  return (__m256i) ((__v32qi)__A > (__v32qi)__B);
++  return (__m256i) ((__v32qs)__A > (__v32qs)__B);
+ }
+ 
+ extern __inline __m256i
 Index: gcc/config/i386/t-darwin32-biarch
 ===================================================================
 --- a/src/gcc/config/i386/t-darwin32-biarch	(.../tags/gcc_8_3_0_release)
@@ -48375,6 +48451,31 @@ Index: gcc/config/i386/darwin.h
  /* Darwin profiling -- call mcount.  */
  #undef FUNCTION_PROFILER
  #define FUNCTION_PROFILER(FILE, LABELNO)				\
+Index: gcc/config/i386/emmintrin.h
+===================================================================
+--- a/src/gcc/config/i386/emmintrin.h	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/i386/emmintrin.h	(.../branches/gcc-8-branch)
+@@ -1296,7 +1296,7 @@
+ extern __inline __m128i __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+ _mm_cmpeq_epi8 (__m128i __A, __m128i __B)
+ {
+-  return (__m128i) ((__v16qs)__A == (__v16qs)__B);
++  return (__m128i) ((__v16qi)__A == (__v16qi)__B);
+ }
+ 
+ extern __inline __m128i __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+Index: gcc/config/i386/avxintrin.h
+===================================================================
+--- a/src/gcc/config/i386/avxintrin.h	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/i386/avxintrin.h	(.../branches/gcc-8-branch)
+@@ -47,6 +47,7 @@
+ typedef short __v16hi __attribute__ ((__vector_size__ (32)));
+ typedef unsigned short __v16hu __attribute__ ((__vector_size__ (32)));
+ typedef char __v32qi __attribute__ ((__vector_size__ (32)));
++typedef signed char __v32qs __attribute__ ((__vector_size__ (32)));
+ typedef unsigned char __v32qu __attribute__ ((__vector_size__ (32)));
+ 
+ /* The Intel API is flexible enough that we must allow aliasing with other
 Index: gcc/config/i386/i386.c
 ===================================================================
 --- a/src/gcc/config/i386/i386.c	(.../tags/gcc_8_3_0_release)
