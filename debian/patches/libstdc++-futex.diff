@@ -1,0 +1,87 @@
+# DP: Fix GCC_LINUX_FUTEX to work with C99 compilers
+
+config/
+
+2019-09-06  Florian Weimer  <fweimer@redhat.com>
+
+	* futex.m4 (GCC_LINUX_FUTEX): Include <unistd.h> for the syscall
+	function.
+
+libitm/ libgomp/ libstdc++-v3/
+
+2019-09-06  Florian Weimer  <fweimer@redhat.com>
+
+	* configure: Regenerate.
+ 
+--- a/src/config/futex.m4
++++ b/src/config/futex.m4
+@@ -22,6 +22,7 @@ case "$target" in
+ 	AC_LINK_IFELSE(
+ 	 [AC_LANG_PROGRAM(
+ 	  [#include <sys/syscall.h>
++	   #include <unistd.h>
+ 	   int lk;],
+ 	  [syscall (SYS_gettid); syscall (SYS_futex, &lk, 0, 0, 0);])],
+ 	  [save_LIBS="$LIBS"
+@@ -48,6 +49,7 @@ If so, please configure with --disable-l
+ 	AC_LINK_IFELSE(
+ 	 [AC_LANG_PROGRAM(
+ 	  [#include <sys/syscall.h>
++	   #include <unistd.h>
+ 	   int lk;],
+ 	  [syscall (SYS_gettid); syscall (SYS_futex, &lk, 0, 0, 0);])],[],
+ 	  [AC_MSG_ERROR([SYS_gettid and SYS_futex required for --enable-linux-futex])])
+--- a/src/libitm/configure
++++ b/src/libitm/configure
+@@ -16252,6 +16252,7 @@ case "$target" in
+ 	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+ /* end confdefs.h.  */
+ #include <sys/syscall.h>
++#include <unistd.h>
+ 	   int lk;
+ int
+ main ()
+@@ -16304,6 +16305,7 @@ rm -f core conftest.err conftest.$ac_obj
+ 	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+ /* end confdefs.h.  */
+ #include <sys/syscall.h>
++	   #include <unistd.h>
+ 	   int lk;
+ int
+ main ()
+--- a/src/libgomp/configure
++++ b/src/libgomp/configure
+@@ -15625,6 +15625,7 @@ case "$target" in
+ 	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+ /* end confdefs.h.  */
+ #include <sys/syscall.h>
++	   #include <unistd.h>
+ 	   int lk;
+ int
+ main ()
+@@ -15677,6 +15678,7 @@ rm -f core conftest.err conftest.$ac_obj
+ 	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+ /* end confdefs.h.  */
+ #include <sys/syscall.h>
++	   #include <unistd.h>
+ 	   int lk;
+ int
+ main ()
+--- a/src/libstdc++-v3/configure
++++ b/src/libstdc++-v3/configure
+@@ -78433,6 +78433,7 @@ fi
+ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+ /* end confdefs.h.  */
+ #include <sys/syscall.h>
++	   #include <unistd.h>
+ 	   int lk;
+ int
+ main ()
+@@ -78491,6 +78492,7 @@ fi
+ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+ /* end confdefs.h.  */
+ #include <sys/syscall.h>
++	   #include <unistd.h>
+ 	   int lk;
+ int
+ main ()
