@@ -1,10 +1,10 @@
-# DP: updates from the 7 branch upto 20190909 (r275519).
+# DP: updates from the 7 branch upto 20190912 (r275684).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Mon Sep  9 17:30:00 CEST 2019
-Mon Sep  9 15:30:00 UTC 2019 (revision 275519)
+Thu Sep 12 13:28:31 CEST 2019
+Thu Sep 12 11:28:31 UTC 2019 (revision 275684)
 EOF
 }
 
@@ -430,6 +430,19 @@ Index: libstdc++-v3/python/Makefile.in
  XMLLINT = @XMLLINT@
  XSLTPROC = @XSLTPROC@
  XSL_STYLE_DIR = @XSL_STYLE_DIR@
+Index: libstdc++-v3/python/libstdcxx/v6/xmethods.py
+===================================================================
+--- a/src/libstdc++-v3/python/libstdcxx/v6/xmethods.py	(.../tags/gcc_7_4_0_release)
++++ b/src/libstdc++-v3/python/libstdcxx/v6/xmethods.py	(.../branches/gcc-7-branch)
+@@ -728,7 +728,7 @@
+         return gdb.lookup_type('long')
+ 
+     def __call__(self, obj):
+-        refcounts = ['_M_refcount']['_M_pi']
++        refcounts = obj['_M_refcount']['_M_pi']
+         return refcounts['_M_use_count'] if refcounts else 0
+ 
+ class SharedPtrUniqueWorker(SharedPtrUseCountWorker):
 Index: libstdc++-v3/Makefile.in
 ===================================================================
 --- a/src/libstdc++-v3/Makefile.in	(.../tags/gcc_7_4_0_release)
@@ -2056,7 +2069,12 @@ Index: libstdc++-v3/ChangeLog
 ===================================================================
 --- a/src/libstdc++-v3/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/libstdc++-v3/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,248 @@
+@@ -1,3 +1,253 @@
++2019-09-11  Jonathan Wakely  <jwakely@redhat.com>
++
++	* python/libstdcxx/v6/xmethods.py (SharedPtrUseCountWorker.__call__):
++	Fix syntax error.
++
 +2019-09-02  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	PR middle-end/89303
@@ -4078,7 +4096,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-7-branch)
 @@ -1 +1 @@
 -20181206
-+20190909
++20190912
 Index: gcc/valtrack.c
 ===================================================================
 --- a/src/gcc/valtrack.c	(.../tags/gcc_7_4_0_release)
@@ -4344,6 +4362,15 @@ Index: gcc/rtlanal.c
      {
        offset1 = crtl->outgoing_args_size + get_frame_size ();
  #if !STACK_GROWS_DOWNWARD
+@@ -4636,7 +4636,7 @@
+ 	       || ((extend_op = load_extend_op (inner_mode)) == SIGN_EXTEND
+ 		   ? val_signbit_known_set_p (inner_mode, nonzero)
+ 		   : extend_op != ZERO_EXTEND)
+-	       || (!MEM_P (SUBREG_REG (x)) && !REG_P (SUBREG_REG (x))))
++	       || !MEM_P (SUBREG_REG (x)))
+ 	      && GET_MODE_PRECISION (GET_MODE (x))
+ 		  > GET_MODE_PRECISION (inner_mode))
+ 	    nonzero
 Index: gcc/internal-fn.c
 ===================================================================
 --- a/src/gcc/internal-fn.c	(.../tags/gcc_7_4_0_release)
@@ -5058,7 +5085,13 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,1794 @@
+@@ -1,3 +1,1800 @@
++2019-09-11  Eric Botcazou  <ebotcazou@adacore.com>
++
++	PR rtl-optimization/89795
++	* rtlanal.c (nonzero_bits1) <SUBREG>: Do not propagate results from
++	inner REGs to paradoxical SUBREGs if WORD_REGISTER_OPERATIONS is set.
++
 +2019-09-09  Jakub Jelinek  <jakub@redhat.com>
 +
 +	PR target/87853
@@ -6853,7 +6886,7 @@ Index: gcc/ChangeLog
  2018-12-06  Release Manager
  
  	* GCC 7.4.0 released.
-@@ -19,13 +1814,13 @@
+@@ -19,13 +1820,13 @@
  	* gcc/dwarf2out.c (FUNC_SECOND_SECT_LABEL): New.
  	(dwarf2out_switch_text_section): Generate a local label for the second
  	function sub-section and apply it as the second FDE start label.
@@ -17373,6 +17406,16 @@ Index: gcc/testsuite/gcc.target/sparc/struct-ret-check-1.c
  /* { dg-require-effective-target ilp32 } */
  #include <stdio.h>
  #include <stdlib.h>
+Index: gcc/testsuite/gcc.target/sparc/20161111-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/sparc/20161111-1.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/sparc/20161111-1.c	(.../branches/gcc-7-branch)
+@@ -14,4 +14,4 @@
+   return retval;
+ }
+ 
+-/* { dg-final { scan-assembler-not "and\t%" } } */
++/* { dg-final { scan-assembler-not "and\t%" { xfail *-*-* } } } */
 Index: gcc/testsuite/gcc.target/aarch64/pr90075.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/aarch64/pr90075.c	(.../tags/gcc_7_4_0_release)
@@ -17440,6 +17483,18 @@ Index: gcc/testsuite/gcc.target/i386/pr89523-4.c
 +{
 +  x = _mm_i32gather_pd ((void *) 0, idx, 1);
 +}
+Index: gcc/testsuite/gcc.target/i386/pr66819-4.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr66819-4.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr66819-4.c	(.../branches/gcc-7-branch)
+@@ -1,6 +1,6 @@
+ /* { dg-do compile { target ia32 } } */
+ /* { dg-options "-O2 -mregparm=3" } */
+-/* { dg-final { scan-assembler-not "call" } } */
++/* { dg-final { scan-assembler-not {call[ \t]+_?bar} } } */
+ 
+ #include <stdarg.h>
+ 
 Index: gcc/testsuite/gcc.target/i386/pr32219-1.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/pr32219-1.c	(.../tags/gcc_7_4_0_release)
@@ -17460,6 +17515,20 @@ Index: gcc/testsuite/gcc.target/i386/pr32219-1.c
 +
 +/* For Darwin, we default to PIC - but that's needed for Darwin's PIE.  */
 +/* { dg-final { scan-assembler {movl[ \t]_xxx-L1\$pb\(%eax\),[ \t]%eax} { target { ia32 && *-*-darwin* } } } } */
+Index: gcc/testsuite/gcc.target/i386/pr59874-3.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr59874-3.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr59874-3.c	(.../branches/gcc-7-branch)
+@@ -1,7 +1,8 @@
+ /* PR target/59874 */
+ /* { dg-do compile } */
+ /* { dg-options "-O2 -mpopcnt -masm=att" } */
+-/* { dg-final { scan-assembler "popcntw" } } */
++/* { dg-final { scan-assembler "\tpopcntw" { target { ! *-*-darwin* } } } } */
++/* { dg-final { scan-assembler "\tpopcnt" { target *-*-darwin* } } } */
+ 
+ unsigned int
+ foo (unsigned short x)
 Index: gcc/testsuite/gcc.target/i386/pr91704.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/pr91704.c	(.../tags/gcc_7_4_0_release)
@@ -17505,6 +17574,16 @@ Index: gcc/testsuite/gcc.target/i386/pr49866.c
  
  void fn (void *, int, int);
  int fn2 (void);
+Index: gcc/testsuite/gcc.target/i386/pr67985-2.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr67985-2.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr67985-2.c	(.../branches/gcc-7-branch)
+@@ -10,4 +10,4 @@
+ 
+ /* { dg-final { scan-assembler-not "mulss" } } */
+ /* { dg-final { scan-assembler-not "movl\[ \t\].*, %eax" } } */
+-/* { dg-final { scan-assembler "call\[ \t\]__mulsf3" } } */
++/* { dg-final { scan-assembler "call\[ \t\]_?__mulsf3" } } */
 Index: gcc/testsuite/gcc.target/i386/pr89523-5.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/pr89523-5.c	(.../tags/gcc_7_4_0_release)
@@ -17569,6 +17648,22 @@ Index: gcc/testsuite/gcc.target/i386/pr32219-2.c
 +/* Darwin m32 defaults to PIC but common symbols need to be indirected.  */
 +/* { dg-final { scan-assembler {movl[ \t]l_xxx\$non_lazy_ptr-L1\$pb\(%eax\),[ \t]%eax} { target { ia32 && *-*-darwin* } } } } */
 +
+Index: gcc/testsuite/gcc.target/i386/pr39013-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr39013-1.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr39013-1.c	(.../branches/gcc-7-branch)
+@@ -12,5 +12,9 @@
+   return foo () + bar ();
+ }
+ 
+-/* { dg-final { scan-assembler "foo@PLT" } } */
+-/* { dg-final { scan-assembler "bar@PLT" } } */
++/* { dg-final { scan-assembler "foo@PLT" { target { ! *-*-darwin* } } } } */
++/* { dg-final { scan-assembler "bar@PLT" { target { ! *-*-darwin* } } } } */
++
++/* Darwin's dynamic linker does PIE without indirection.  */
++/* { dg-final { scan-assembler {call[ \t]_foo} { target *-*-darwin* } } } */
++/* { dg-final { scan-assembler {call[ \t]_bar} { target *-*-darwin* } } } */
 Index: gcc/testsuite/gcc.target/i386/pr90547.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/pr90547.c	(.../tags/gcc_7_4_0_release)
@@ -17708,6 +17803,22 @@ Index: gcc/testsuite/gcc.target/i386/indirect-thunk-extern-7.c
  
  void func0 (void);
  void func1 (void);
+Index: gcc/testsuite/gcc.target/i386/pr39013-2.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr39013-2.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr39013-2.c	(.../branches/gcc-7-branch)
+@@ -12,5 +12,9 @@
+   return foo () + bar ();
+ }
+ 
+-/* { dg-final { scan-assembler "foo@PLT" } } */
+-/* { dg-final { scan-assembler "bar@PLT" } } */
++/* { dg-final { scan-assembler "foo@PLT" { target { ! *-*-darwin* } } } } */
++/* { dg-final { scan-assembler "bar@PLT" { target { ! *-*-darwin* } } } } */
++
++/* Darwin's dynamic linker does PIE without indirection.  */
++/* { dg-final { scan-assembler {call[ \t]_foo} { target *-*-darwin* } } } */
++/* { dg-final { scan-assembler {call[ \t]_bar} { target *-*-darwin* } } } */
 Index: gcc/testsuite/gcc.target/i386/fuse-caller-save-rec.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/fuse-caller-save-rec.c	(.../tags/gcc_7_4_0_release)
@@ -17760,6 +17871,18 @@ Index: gcc/testsuite/gcc.target/i386/fuse-caller-save-xmm.c
  /* Check absence of save/restore of xmm1 register.  */
  /* { dg-final { scan-assembler-not "movaps\t%xmm1, \\(%\[re\]?sp\\)" } } */
  /* { dg-final { scan-assembler-not "movapd\t\\(%\[re\]?sp\\), %xmm1" } } */
+Index: gcc/testsuite/gcc.target/i386/pr77881.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr77881.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr77881.c	(.../branches/gcc-7-branch)
+@@ -8,5 +8,5 @@
+     if (a < 0 || b)
+           baz ();
+ }
+-/* { dg-final { scan-assembler "js\[ \t\]\.L" } } */
+-/* { dg-final { scan-assembler "jne\[ \t\]\.L" } } */
++/* { dg-final { scan-assembler "js\[ \t\]\.?L" } } */
++/* { dg-final { scan-assembler "jne\[ \t\]\.?L" } } */
 Index: gcc/testsuite/gcc.target/i386/pr87853.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/pr87853.c	(.../tags/gcc_7_4_0_release)
@@ -18283,6 +18406,17 @@ Index: gcc/testsuite/gcc.target/i386/pr88948.c
 +/* { dg-options "-O2 -fgcse-sm -msse3 -mfpmath=387" } */
 +
 +#include "../../gcc.c-torture/execute/stdarg-3.c"
+Index: gcc/testsuite/gcc.target/i386/pr24414.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr24414.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr24414.c	(.../branches/gcc-7-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do run } */
+ /* { dg-options "-O2" } */
++/* { dg-skip-if "asm insert mismatches ABI for Darwin" { *-*-darwin* } } */
+ int test;
+ 
+ int
 Index: gcc/testsuite/gcc.target/i386/pr88418.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/pr88418.c	(.../tags/gcc_7_4_0_release)
@@ -18632,6 +18766,18 @@ Index: gcc/testsuite/gcc.target/i386/pr89523-3.c
 +{
 +  x = _mm_i64gather_pd (base, idx, 1);
 +}
+Index: gcc/testsuite/gcc.target/i386/pr66819-3.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr66819-3.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr66819-3.c	(.../branches/gcc-7-branch)
+@@ -1,6 +1,6 @@
+ /* { dg-do compile { target ia32 } } */
+ /* { dg-options "-O2 -mregparm=3" } */
+-/* { dg-final { scan-assembler-not "call" } } */
++/* { dg-final { scan-assembler-not {call[ \t]+_?bar} } } */
+ 
+ void (*bar)(int, int);
+ 
 Index: gcc/testsuite/gcc.target/i386/pr88906.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/pr88906.c	(.../tags/gcc_7_4_0_release)
@@ -18658,6 +18804,38 @@ Index: gcc/testsuite/gcc.target/i386/pr88906.c
 +    __builtin_abort ();
 +  return 0;
 +}
+Index: gcc/testsuite/gcc.target/i386/pr70738-7.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr70738-7.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr70738-7.c	(.../branches/gcc-7-branch)
+@@ -1,4 +1,4 @@
+-/* { dg-do compile { target ia32 } } */
++/* { dg-do compile { target { ia32 && { ! *-*-darwin* } } } } */
+ /* { dg-options "-msse2 -mgeneral-regs-only" } */
+ 
+ extern float a, b, c;
+Index: gcc/testsuite/gcc.target/i386/pr64317.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr64317.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr64317.c	(.../branches/gcc-7-branch)
+@@ -2,9 +2,14 @@
+ /* { dg-require-effective-target ia32 } */
+ /* { dg-require-effective-target pie } */
+ /* { dg-options "-O2 -fpie" } */
+-/* { dg-final { scan-assembler "addl\[ \\t\]+\[$\]_GLOBAL_OFFSET_TABLE_, %ebx" } } */
+-/* { dg-final { scan-assembler "movl\[ \\t\]+c@GOTOFF\[(\]%ebx\[)\]" } } */
+-/* { dg-final { scan-assembler-not "movl\[ \\t\]+\[0-9]+\[(\]%esp\[)\], %ebx" } } */
++/* { dg-final { scan-assembler "addl\[ \\t\]+\[$\]_GLOBAL_OFFSET_TABLE_, %ebx" { target { ! *-*-darwin* } } } } */
++/* { dg-final { scan-assembler "movl\[ \\t\]+c@GOTOFF\[(\]%ebx\[)\]" { target { ! *-*-darwin* } } } } */
++/* { dg-final { scan-assembler-not "movl\[ \\t\]+\[0-9]+\[(\]%esp\[)\], %ebx" { target { ! *-*-darwin* } } } } */
++
++/* Check PIC access to c and t1 on Darwin (PIC is default, needed for PIE).  */
++/* { dg-final { scan-assembler {_c-L1\$pb\(%} { target *-*-darwin* } } } */
++/* { dg-final { scan-assembler {_t1.[0-9]+-L1\$pb\(%} { target *-*-darwin* } } } */
++
+ long c = 1;
+ 
+ int bar();
 Index: gcc/testsuite/gcc.target/i386/pr32219-8.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/pr32219-8.c	(.../tags/gcc_7_4_0_release)
@@ -19514,6 +19692,27 @@ Index: gcc/testsuite/gfortran.dg/warn_conversion_10.f90
 +  integer    :: j, js(3,2)
 +  js(:,:) = cshift (js(:,:), shift=j, dim=1)
 +end subroutine bug
+Index: gcc/testsuite/gfortran.dg/pr91686.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr91686.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr91686.f90	(.../branches/gcc-7-branch)
+@@ -0,0 +1,16 @@
++! { dg-do run }
++!
++! Test the fix for PR91686
++!
++! Contributed by  <urbanjost@comcast.net>
++!
++program shuf
++  implicit none
++  character(len=:),allocatable :: pageout(:)
++  integer                      :: i
++  pageout=[character(len=20) :: 'a','bbbbbbb','ccccc']
++  pageout=pageout([3,2,1])
++  if (trim( pageout(1)) .ne. 'ccccc') stop 1
++  if (trim( pageout(2)) .ne. 'bbbbbbb') stop 2
++  if (trim( pageout(3)) .ne. 'a') stop 3
++end program shuf
 Index: gcc/testsuite/gfortran.dg/pr85797.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr85797.f90	(.../tags/gcc_7_4_0_release)
@@ -23797,6 +23996,18 @@ Index: gcc/testsuite/gcc.dg/pr89520-2.c
 +B (sqrt)
 +B (fabs)
 +B (logb)
+Index: gcc/testsuite/gcc.dg/uninit-19.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/uninit-19.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.dg/uninit-19.c	(.../branches/gcc-7-branch)
+@@ -23,5 +23,5 @@
+   fn1 (l, &d, &e, &g, &i, &h, &k, n);  /* 23.  */
+ }
+ 
+-/* { dg-warning "may be used uninitialized" "" { target { { nonpic } || { hppa*64*-*-* } } } 14 } */
+-/* { dg-warning "may be used uninitialized" "" { target { ! { { nonpic } || { hppa*64*-*-* } } } } 23 } */
++/* { dg-warning "may be used uninitialized" "" { target { { nonpic } || { hppa*64*-*-* *-*-darwin* } } } 14 } */
++/* { dg-warning "may be used uninitialized" "" { target { ! { { nonpic } || { hppa*64*-*-* *-*-darwin* } } } } 23 } */
 Index: gcc/testsuite/gcc.dg/pr89679.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.dg/pr89679.c	(.../tags/gcc_7_4_0_release)
@@ -23988,7 +24199,79 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,1832 @@
+@@ -1,3 +1,1904 @@
++2019-09-12  Paul Thomas  <pault@gcc.gnu.org>
++
++	PR fortran/91686
++	* gfortran.dg/pr91686.f90 : New test.
++
++2019-09-11  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* gcc.target/sparc/20161111-1.c: XFAIL redundant zero-extension test.
++
++2019-09-10  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backport from mainline.
++	2019-05-26  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* gcc.target/i386/pr39013-1.c: Adjust scan-asms for PIE to
++	account for PIC code on Darwin.
++	* gcc.target/i386/pr39013-2.c: Likewise.
++	* gcc.target/i386/pr64317.c: Likewise.
++
++2019-09-10  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backport from mainline.
++	2019-05-25  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* gcc.target/i386/pr59874-3.c: Use the spelling of popcnt
++	expected for Darwin.
++
++2019-09-09  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backport from mainline.
++	2019-07-25  Iain Sandoe  <iain@sandoe.co.uk>
++
++	PR gcov-profile/91087
++	* g++.dg/gcov/pr16855.C: Xfail the count lines for the DTORs and the
++	"final" line for the failure summaries.  Adjust source layout so that
++	dejagnu xfail expressions work.
++
++2019-09-09  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backport from mainline.
++	2019-06-11  Iain Sandoe  <iain@sandoe.co.uk>
++
++	PR testsuite/65364
++	* gcc.dg/uninit-19.c (fn1): Adjust target condition for Darwin.
++	(fn2): Likewise.
++
++2019-09-09  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backport from mainline.
++	2019-05-24  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* gcc.target/i386/pr66819-3.c: Specifically, check that there is no
++	call to "bar".
++	* gcc.target/i386/pr66819-4.c: Likewise.
++
++2019-09-09  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backport from mainline.
++	2019-05-24  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* gcc.target/i386/pr67985-2.c: Adjust label checks for
++	Darwin.
++	* gcc.target/i386/pr77881.c: Likewise.
++
++2019-09-09  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backport from mainline.
++	2019-05-24  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* gcc.target/i386/pr70738-7.c: Likewise.
++	* gcc.target/i386/pr24414.c: Likewise.
++
 +2019-09-09  Jakub Jelinek  <jakub@redhat.com>
 +
 +	PR target/87853
@@ -24757,7 +25040,7 @@ Index: gcc/testsuite/ChangeLog
 +
 +	PR c++/60994
 +	* g++.dg/lookup/pr60994.C: New test.
-+ 
++
 +	2018-10-25  Jakub Jelinek  <jakub@redhat.com>
 +
 +	PR fortran/87725
@@ -25211,7 +25494,7 @@ Index: gcc/testsuite/ChangeLog
 +	* gcc.dg/torture/pr86554-2.c: Likewise.
 +
 +	2018-11-20  Richard Biener  <rguenther@suse.de>
-+ 
++
 +	PR tree-optimization/88105
 +	* gcc.dg/gomp/pr88105.c: New testcase.
 +
@@ -28023,6 +28306,40 @@ Index: gcc/testsuite/g++.dg/tls/thread_local11.h
 +S *f11 () { return &T::u7; }
 +template <int N>
 +int *f12 () { return &T::u8.i; }
+Index: gcc/testsuite/g++.dg/gcov/pr16855.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/gcov/pr16855.C	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/g++.dg/gcov/pr16855.C	(.../branches/gcc-7-branch)
+@@ -1,6 +1,8 @@
+ /* { dg-options "-fprofile-arcs -ftest-coverage" } */
+ /* { dg-do run { target native } } */
+ 
++/* See PR91087 for information on Darwin xfails. */
++
+ #include <stdlib.h>
+ #include <stdio.h>
+ 
+@@ -18,7 +20,9 @@
+ {
+ public:
+   Test (void) { fprintf (stderr, "In Test::Test\n"); /* count(1) */ }
+-  ~Test (void) { fprintf (stderr, "In Test::~Test\n"); /* count(1) */ }
++  ~Test (void) {
++   fprintf (stderr, "In Test::~Test\n"); /* count(1) { xfail *-*-darwin* } */
++  }
+ } T1;
+ 
+ void
+@@ -42,7 +46,7 @@
+ 
+ static void __attribute__ ((destructor)) dtor_default ()
+ {
+-  fprintf (stderr, "in destructor(())\n"); /* count(1) */
++  fprintf (stderr, "in destructor(())\n"); /* count(1) { xfail *-*-darwin* } */
+ }
+ 
+-/* { dg-final { run-gcov branches { -b pr16855.C } } } */
++/* { dg-final { run-gcov branches { -b pr16855.C } { xfail *-*-darwin* } } } */
 Index: gcc/testsuite/objc.dg/instancetype-0.m
 ===================================================================
 --- a/src/gcc/testsuite/objc.dg/instancetype-0.m	(.../tags/gcc_7_4_0_release)
@@ -31174,6 +31491,40 @@ Index: gcc/fortran/trans-expr.c
  	{
  	  trans_class_vptr_len_assignment (&block, expr1, expr2, &rse, NULL,
  					   NULL);
+@@ -10102,19 +10165,27 @@
+   /* When assigning a character function result to a deferred-length variable,
+      the function call must happen before the (re)allocation of the lhs -
+      otherwise the character length of the result is not known.
+-     NOTE: This relies on having the exact dependence of the length type
++     NOTE 1: This relies on having the exact dependence of the length type
+      parameter available to the caller; gfortran saves it in the .mod files.
+-     NOTE ALSO: The concatenation operation generates a temporary pointer,
++     NOTE 2: Vector array references generate an index temporary that must
++     not go outside the loop. Otherwise, variables should not generate
++     a pre block.
++     NOTE 3: The concatenation operation generates a temporary pointer,
+      whose allocation must go to the innermost loop.
+-     NOTE ALSO (2): A character conversion may generate a temporary, too.  */
++     NOTE 4: Elemental functions may generate a temporary, too.  */
+   if (flag_realloc_lhs
+       && expr2->ts.type == BT_CHARACTER && expr1->ts.deferred
+       && !(lss != gfc_ss_terminator
+-	   && ((expr2->expr_type == EXPR_OP
+-		&& expr2->value.op.op == INTRINSIC_CONCAT)
++	   && rss != gfc_ss_terminator
++	   && ((expr2->expr_type == EXPR_VARIABLE && expr2->rank)
+ 	       || (expr2->expr_type == EXPR_FUNCTION
++		   && expr2->value.function.esym != NULL
++		   && expr2->value.function.esym->attr.elemental)
++	       || (expr2->expr_type == EXPR_FUNCTION
+ 		   && expr2->value.function.isym != NULL
+-		   && expr2->value.function.isym->id == GFC_ISYM_CONVERSION))))
++		   && expr2->value.function.isym->elemental)
++	       || (expr2->expr_type == EXPR_OP
++		   && expr2->value.op.op == INTRINSIC_CONCAT))))
+     gfc_add_block_to_block (&block, &rse.pre);
+ 
+   /* Nullify the allocatable components corresponding to those of the lhs
 Index: gcc/fortran/trans-array.c
 ===================================================================
 --- a/src/gcc/fortran/trans-array.c	(.../tags/gcc_7_4_0_release)
@@ -31619,7 +31970,14 @@ Index: gcc/fortran/ChangeLog
 ===================================================================
 --- a/src/gcc/fortran/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/fortran/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,429 @@
+@@ -1,3 +1,436 @@
++2019-09-12  Paul Thomas  <pault@gcc.gnu.org>
++
++	PR fortran/91686
++	Backport from mainline
++	* trans-expr.c (gfc_trans_assignment_1): Copy and paste section
++	handling the rse.pre block from mainline.
++
 +2019-08-30  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from mainline
