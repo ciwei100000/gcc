@@ -1,10 +1,10 @@
-# DP: updates from the 9 branch upto 20190909 (r275519).
+# DP: updates from the 9 branch upto 20190917 (r275806).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Mon Sep  9 17:12:28 CEST 2019
-Mon Sep  9 15:12:28 UTC 2019 (revision 275519)
+Tue Sep 17 17:10:02 CEST 2019
+Tue Sep 17 15:10:02 UTC 2019 (revision 275806)
 EOF
 }
 
@@ -117,6 +117,19 @@ Index: libstdc++-v3/configure
  
  # Everything parsed; figure out what files and settings to use.
  case $enable_symvers in
+Index: libstdc++-v3/python/libstdcxx/v6/xmethods.py
+===================================================================
+--- a/src/libstdc++-v3/python/libstdcxx/v6/xmethods.py	(.../tags/gcc_9_2_0_release)
++++ b/src/libstdc++-v3/python/libstdcxx/v6/xmethods.py	(.../branches/gcc-9-branch)
+@@ -728,7 +728,7 @@
+         return gdb.lookup_type('long')
+ 
+     def __call__(self, obj):
+-        refcounts = ['_M_refcount']['_M_pi']
++        refcounts = obj['_M_refcount']['_M_pi']
+         return refcounts['_M_use_count'] if refcounts else 0
+ 
+ class SharedPtrUniqueWorker(SharedPtrUseCountWorker):
 Index: libstdc++-v3/src/c++17/string-inst.cc
 ===================================================================
 --- a/src/libstdc++-v3/src/c++17/string-inst.cc	(.../tags/gcc_9_2_0_release)
@@ -162,6 +175,30 @@ Index: libstdc++-v3/doc/xml/manual/abi.xml
      </itemizedlist>
      <para>
        Note 1: Error should be libstdc++.so.3.0.3.
+Index: libstdc++-v3/doc/xml/manual/status_cxx2020.xml
+===================================================================
+--- a/src/libstdc++-v3/doc/xml/manual/status_cxx2020.xml	(.../tags/gcc_9_2_0_release)
++++ b/src/libstdc++-v3/doc/xml/manual/status_cxx2020.xml	(.../branches/gcc-9-branch)
+@@ -309,7 +309,6 @@
+     </row>
+ 
+     <row>
+-      <?dbhtml bgcolor="#C8B0B0" ?>
+       <entry>  Constexpr iterator requirements </entry>
+       <entry>
+         <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0858r0.html">
+@@ -316,8 +315,9 @@
+ 	P0858R0
+ 	</link>
+       </entry>
+-      <entry align="center"> </entry>
+-      <entry />
++      <entry align="center"> 9.1 </entry>
++      <entry> <code>__cpp_lib_string_view &gt;= 201803L</code>
++      and <code>__cpp_lib_array_constexpr &gt;= 201803L</code> </entry>
+     </row>
+ 
+     <row>
 Index: libstdc++-v3/doc/html/manual/abi.html
 ===================================================================
 --- a/src/libstdc++-v3/doc/html/manual/abi.html	(.../tags/gcc_9_2_0_release)
@@ -732,7 +769,7 @@ Index: libstdc++-v3/include/bits/stl_algo.h
 ===================================================================
 --- a/src/libstdc++-v3/include/bits/stl_algo.h	(.../tags/gcc_9_2_0_release)
 +++ b/src/libstdc++-v3/include/bits/stl_algo.h	(.../branches/gcc-9-branch)
-@@ -3877,7 +3877,40 @@
+@@ -3877,7 +3877,44 @@
        return __f; // N.B. [alg.foreach] says std::move(f) but it's redundant.
      }
  
@@ -756,7 +793,11 @@ Index: libstdc++-v3/include/bits/stl_algo.h
 +      typename iterator_traits<_InputIterator>::difference_type __n2 = __n;
 +      using _Cat = typename iterator_traits<_InputIterator>::iterator_category;
 +      if constexpr (is_base_of_v<random_access_iterator_tag, _Cat>)
-+	return std::for_each(__first, __first + __n2, __f);
++	{
++	  auto __last = __first + __n2;
++	  std::for_each(__first, __last, std::move(__f));
++	  return __last;
++	}
 +      else
 +	{
 +	  while (__n2-->0)
@@ -790,7 +831,25 @@ Index: libstdc++-v3/ChangeLog
 ===================================================================
 --- a/src/libstdc++-v3/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/libstdc++-v3/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,96 @@
+@@ -1,3 +1,114 @@
++2019-09-12  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/91748
++	* include/bits/stl_algo.h (for_each_n): Fix random access iterator
++	case.
++	* testsuite/25_algorithms/for_each/for_each_n.cc: Test with random
++	access iterators.
++
++2019-09-11  Jonathan Wakely  <jwakely@redhat.com>
++
++	* python/libstdcxx/v6/xmethods.py (SharedPtrUseCountWorker.__call__):
++	Fix syntax error.
++
++2019-09-09  Edward Smith-Rowland  <3dw4rd@verizon.net>
++
++	Update docs for p858 - Constexpr iterator changes available since 9.1.
++	* doc/xml/manual/status_cxx2020.xml: Update p0858r0 status.
++
 +2019-09-02  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	* doc/xml/manual/abi.xml: Document 9.x library versions.
@@ -891,7 +950,7 @@ Index: libstdc++-v3/testsuite/25_algorithms/for_each/for_each_n.cc
 ===================================================================
 --- a/src/libstdc++-v3/testsuite/25_algorithms/for_each/for_each_n.cc	(.../tags/gcc_9_2_0_release)
 +++ b/src/libstdc++-v3/testsuite/25_algorithms/for_each/for_each_n.cc	(.../branches/gcc-9-branch)
-@@ -0,0 +1,57 @@
+@@ -0,0 +1,88 @@
 +// { dg-options "-std=gnu++17" }
 +// { dg-do run { target c++17 } }
 +
@@ -941,13 +1000,44 @@ Index: libstdc++-v3/testsuite/25_algorithms/for_each/for_each_n.cc
 +  };
 +  auto res = std::for_each_n(con.begin(), Size(con.size()), Func(sum));
 +
-+  VERIFY( res.ptr == con.end().ptr );
++  VERIFY( res == con.end() );
 +  VERIFY( sum == 15 );
++}
++
++void
++test02()
++{
++  using __gnu_test::test_container;
++  using __gnu_test::random_access_iterator_wrapper;
++  int array[5] = { 2, 4, 6, 8, 10 };
++  test_container<int, random_access_iterator_wrapper> con(array);
++
++  int prod = 1;
++  struct Func
++  {
++    Func(int& i) : i(i) { }
++    Func(Func&&) = default;
++    Func& operator=(Func&&) = delete;
++    void operator()(int n) const { i *= n; }
++    int& i;
++  };
++
++  struct Size
++  {
++    Size(short v) : val(v) { }
++    operator short() const { return val; }
++    short val;
++  };
++  auto res = std::for_each_n(con.begin(), Size(con.size()), Func(prod));
++
++  VERIFY( res == con.end() );
++  VERIFY( prod == 3840 );
 +}
 +
 +int main()
 +{
 +  test01();
++  test02();
 +}
 Index: libstdc++-v3/testsuite/27_io/filesystem/iterators/91067.cc
 ===================================================================
@@ -3817,7 +3907,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-9-branch)
 @@ -1 +1 @@
 -20190812
-+20190909
++20190917
 Index: gcc/lra.c
 ===================================================================
 --- a/src/gcc/lra.c	(.../tags/gcc_9_2_0_release)
@@ -3940,6 +4030,19 @@ Index: gcc/tree.h
  extern wide_int vector_cst_int_elt (const_tree, unsigned int);
  extern tree vector_cst_elt (const_tree, unsigned int);
  
+Index: gcc/rtlanal.c
+===================================================================
+--- a/src/gcc/rtlanal.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/rtlanal.c	(.../branches/gcc-9-branch)
+@@ -4793,7 +4793,7 @@
+ 	       || ((extend_op = load_extend_op (inner_mode)) == SIGN_EXTEND
+ 		   ? val_signbit_known_set_p (inner_mode, nonzero)
+ 		   : extend_op != ZERO_EXTEND)
+-	       || (!MEM_P (SUBREG_REG (x)) && !REG_P (SUBREG_REG (x))))
++	       || !MEM_P (SUBREG_REG (x)))
+ 	      && xmode_width > inner_width)
+ 	    nonzero
+ 	      |= (GET_MODE_MASK (GET_MODE (x)) & ~GET_MODE_MASK (inner_mode));
 Index: gcc/builtins.c
 ===================================================================
 --- a/src/gcc/builtins.c	(.../tags/gcc_9_2_0_release)
@@ -4351,7 +4454,13 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,310 @@
+@@ -1,3 +1,316 @@
++2019-09-11  Eric Botcazou  <ebotcazou@adacore.com>
++
++	PR rtl-optimization/89795
++	* rtlanal.c (nonzero_bits1) <SUBREG>: Do not propagate results from
++	inner REGs to paradoxical SUBREGs if WORD_REGISTER_OPERATIONS is set.
++
 +2019-09-09  Jakub Jelinek  <jakub@redhat.com>
 +
 +	PR target/87853
@@ -4662,7 +4771,7 @@ Index: gcc/ChangeLog
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -513,7 +820,7 @@
+@@ -513,7 +826,7 @@
  
  2019-07-11  Uroš Bizjak  <ubizjak@gmail.com>
  
@@ -4692,6 +4801,16 @@ Index: gcc/testsuite/gcc.target/powerpc/darn-3.c
 +}
 +
 +/* { dg-final { scan-assembler-times {(?n)\mdarn .*,0\M} 4 } } */
+Index: gcc/testsuite/gcc.target/sparc/20161111-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/sparc/20161111-1.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gcc.target/sparc/20161111-1.c	(.../branches/gcc-9-branch)
+@@ -14,4 +14,4 @@
+   return retval;
+ }
+ 
+-/* { dg-final { scan-assembler-not "and\t%" } } */
++/* { dg-final { scan-assembler-not "and\t%" { xfail *-*-* } } } */
 Index: gcc/testsuite/gcc.target/mips/get-fcsr-3.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/mips/get-fcsr-3.c	(.../tags/gcc_9_2_0_release)
@@ -4895,6 +5014,30 @@ Index: gcc/testsuite/gfortran.dg/pr70754.f90
      end do
  
      where ((xyz(:,:,2) /= 0) .and. (c /= 0))
+Index: gcc/testsuite/gfortran.dg/pr91642.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr91642.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr91642.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,19 @@
++! { dg-do compile }
++! PR fortran/91642
++! Code contributed by Gerhard Steinmetz
++program p
++   integer i
++   integer :: iol
++   integer, external :: null
++   i = 0
++   inquire (iolength=iol) i, null()
++   if (iol == 4) stop 1
++end
++
++subroutine q
++   integer i
++   integer :: iol
++   i = 0
++   inquire (iolength=iol) i, null() ! { dg-error "cannot appear in INQUIRE" }
++   if (iol == 4) stop 1
++end
 Index: gcc/testsuite/gfortran.dg/pr91587.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr91587.f90	(.../tags/gcc_9_2_0_release)
@@ -4986,6 +5129,40 @@ Index: gcc/testsuite/gfortran.dg/use_rename_8.f90
 +    USE MOO, ONLY: Z => I, Z => I   ! { dg-error "conflicts with the rename" }
  END SUBROUTINE Z
  
+Index: gcc/testsuite/gfortran.dg/warn_unused_dummy_argument_5.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/warn_unused_dummy_argument_5.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/warn_unused_dummy_argument_5.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,16 @@
++! { dg-do compile }
++! { dg-additional-options "-Wunused-dummy-argument" }
++! PR 91557 - this used to generate a bogus warning
++! Test case by Gerhard Steinmetz
++program p
++   integer :: a, b
++   a = 1
++   call g
++contains
++   subroutine g
++      integer :: x, y
++      call h (x, y)
++      if ( a > 0 )   y = y - 1
++      b = y - x + 1
++   end
++end
+Index: gcc/testsuite/gfortran.dg/pr91553.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr91553.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr91553.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,8 @@
++! { dg-do run }
++! Code contributed by Gerhard Steinmetz
++program p
++   complex z(1)
++   z = (1.0, 2.0) * [real :: (3.0 + 4.0)]
++   if (real(z(1)) /= 7.) stop 1
++   if (aimag(z(1)) /= 14.) stop 2
++end
 Index: gcc/testsuite/gfortran.dg/pr91564.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr91564.f90	(.../tags/gcc_9_2_0_release)
@@ -5466,6 +5643,25 @@ Index: gcc/testsuite/gfortran.dg/do_subscript_4.f90
 +  end do
 +  print *,a
 +end program main
+Index: gcc/testsuite/gfortran.dg/pr91566.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr91566.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr91566.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,14 @@
++! { dg-do compile }
++! Code contributed by Gerhard Steinmetz
++program p
++   call q
++   call r
++end program p
++
++subroutine q
++   print *, -merge([3,4], 0, [.false.,.true.])
++end
++
++subroutine r
++   print *, 2 + merge([3,4], 0, [.false.,.true.])
++end
 Index: gcc/testsuite/gfortran.dg/pr91660_1.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr91660_1.f90	(.../tags/gcc_9_2_0_release)
@@ -5858,7 +6054,32 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,243 @@
+@@ -1,3 +1,268 @@
++2019-09-15  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/91557
++	* gfortran.dg/warn_unused_dummy_argument_5.f90: New test.
++
++2019-09-14  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91553
++	* gfortran.dg/pr91553.f90: New test.
++
++2019-09-14  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91566
++	* gfortran.dg/pr91566.f90: New test.
++
++2019-09-14  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91642
++	* gfortran.dg/pr91642.f90: New test.
++
++2019-09-11  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* gcc.target/sparc/20161111-1.c: XFAIL redundant zero-extension test.
++
 +2019-09-09  Jakub Jelinek  <jakub@redhat.com>
 +
 +	PR target/87853
@@ -6102,7 +6323,7 @@ Index: gcc/testsuite/ChangeLog
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -427,7 +667,7 @@
+@@ -427,7 +692,7 @@
  	Backport from mainline.
  	2019-05-15  Iain Sandoe  <iain@sandoe.co.uk>
  
@@ -6410,6 +6631,77 @@ Index: gcc/testsuite/g++.dg/cpp1y/dr1560.C
 -  A a;
 -  b ? a : throw 42;
 -}
+Index: gcc/testsuite/g++.dg/cpp1y/constexpr-incr2.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp1y/constexpr-incr2.C	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp1y/constexpr-incr2.C	(.../branches/gcc-9-branch)
+@@ -0,0 +1,66 @@
++// PR c++/91705 - constexpr evaluation rejects ++/-- on floats.
++// { dg-do compile { target c++14 } }
++
++#define SA(X) static_assert((X),#X)
++
++template <class T>
++constexpr T fn1(T t)
++{
++  return ++t;
++}
++
++constexpr float fn2(float t)
++{
++  return ++t;
++}
++
++template <class T>
++constexpr T fn3(T t)
++{
++  return --t;
++}
++
++constexpr float fn4(float t)
++{
++  return --t;
++}
++
++template <class T>
++constexpr T fn5(T t)
++{
++  return t++;
++}
++
++constexpr float fn6(float t)
++{
++  return t++;
++}
++
++template <class T>
++constexpr T fn7(T t)
++{
++  return t--;
++}
++
++constexpr float fn8(float t)
++{
++  return t--;
++}
++
++constexpr double r1 = fn1(2.0f);
++SA(r1 == 3);
++constexpr double r2 = fn2(2.0f);
++SA(r2 == 3);
++constexpr double r3 = fn3(2.0f);
++SA(r3 == 1);
++constexpr double r4 = fn4(2.0f);
++SA(r4 == 1);
++
++constexpr double r5 = fn5(2.0f);
++SA(r5 == 2);
++constexpr double r6 = fn6(2.0f);
++SA(r6 == 2);
++constexpr double r7 = fn7(2.0f);
++SA(r7 == 2);
++constexpr double r8 = fn8(2.0f);
++SA(r8 == 2);
 Index: gcc/testsuite/g++.dg/cpp1y/lambda-init16.C
 ===================================================================
 --- a/src/gcc/testsuite/g++.dg/cpp1y/lambda-init16.C	(.../tags/gcc_9_2_0_release)
@@ -7338,11 +7630,35 @@ Index: gcc/cp/decl.c
      return nullptr_node;
  
    /* [dcl.fct.default]
+Index: gcc/cp/constexpr.c
+===================================================================
+--- a/src/gcc/cp/constexpr.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/cp/constexpr.c	(.../branches/gcc-9-branch)
+@@ -3973,6 +3973,10 @@
+   tree offset = TREE_OPERAND (t, 1);
+   gcc_assert (TREE_CONSTANT (offset));
+ 
++  /* OFFSET is constant, but perhaps not constant enough.  We need to
++     e.g. bash FLOAT_EXPRs to REAL_CSTs.  */
++  offset = fold_simple (offset);
++
+   /* The operand as an lvalue.  */
+   op = cxx_eval_constant_expression (ctx, op, true,
+ 				     non_constant_p, overflow_p);
 Index: gcc/cp/ChangeLog
 ===================================================================
 --- a/src/gcc/cp/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/cp/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,104 @@
+@@ -1,3 +1,113 @@
++2019-09-10  Marek Polacek  <polacek@redhat.com>
++
++	Backported from mainline
++	2019-09-10  Marek Polacek  <polacek@redhat.com>
++
++	PR c++/91705 - constexpr evaluation rejects ++/-- on floats.
++	* constexpr.c (cxx_eval_increment_expression): Call fold_simple on
++	the offset.
++
 +2019-09-01  Marek Polacek  <polacek@redhat.com>
 +
 +	Backported from mainline
@@ -7447,7 +7763,7 @@ Index: gcc/cp/ChangeLog
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -16,7 +117,7 @@
+@@ -16,7 +126,7 @@
  
  	Backported from mainline
  	2019-08-02  Marek Polacek  <polacek@redhat.com>
@@ -8462,7 +8778,34 @@ Index: gcc/fortran/ChangeLog
 ===================================================================
 --- a/src/gcc/fortran/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/fortran/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,160 @@
+@@ -1,3 +1,187 @@
++2019-09-15  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/91557
++	* trans-decl.c (generate_local_decl): Do not warn if the symbol
++	is artificial.
++	* trans-types.c (get_formal_from_actual_arglist): Set artificial
++	attribute on dummy arguments.
++
++2019-09-14  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91553
++	* simplify.c (gfc_convert_constant):  During conversion check if the
++	constant is enclosed in parenthesis, and simplify expression.
++
++2019-09-14  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91566
++	* simplify.c (gfc_simplify_merge): Need to simplify expression
++	after insertation of parenthesis.
++
++2019-09-14  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91642
++	* io.c (gfc_match_inquire): null() cannot be in an iolength inquire
++	list.
++
 +2019-09-07  Paul Thomas  <pault@gcc.gnu.org>
 +
 +	Backport from mainline
@@ -8750,6 +9093,18 @@ Index: gcc/fortran/trans.c
  /* Build a MODIFY_EXPR node and add it to a given statement block PBLOCK.
     A MODIFY_EXPR is an assignment:
     LHS <- RHS.  */
+Index: gcc/fortran/trans-types.c
+===================================================================
+--- a/src/gcc/fortran/trans-types.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/fortran/trans-types.c	(.../branches/gcc-9-branch)
+@@ -3021,6 +3021,7 @@
+ 		}
+ 	    }
+ 	  s->attr.dummy = 1;
++	  s->attr.artificial = 1;
+ 	  s->attr.intent = INTENT_UNKNOWN;
+ 	  (*f)->sym = s;
+ 	}
 Index: gcc/fortran/trans.h
 ===================================================================
 --- a/src/gcc/fortran/trans.h	(.../tags/gcc_9_2_0_release)
@@ -8775,6 +9130,24 @@ Index: gcc/fortran/io.c
    if (m == MATCH_NO)
      {
        m = gfc_match_expr (&fp->unit);
+@@ -4583,6 +4583,17 @@
+       if (m == MATCH_NO)
+ 	goto syntax;
+ 
++      for (gfc_code *c = code; c; c = c->next)
++	if (c->expr1 && c->expr1->expr_type == EXPR_FUNCTION
++	    && c->expr1->symtree && c->expr1->symtree->n.sym->attr.function
++	    && !c->expr1->symtree->n.sym->attr.external
++	    && strcmp (c->expr1->symtree->name, "null") == 0)
++	  {
++	    gfc_error ("NULL() near %L cannot appear in INQUIRE statement",
++		       &c->expr1->where);
++	    goto cleanup;
++	  }
++
+       new_st.op = EXEC_IOLENGTH;
+       new_st.expr1 = inquire->iolength;
+       new_st.ext.inquire = inquire;
 Index: gcc/fortran/frontend-passes.c
 ===================================================================
 --- a/src/gcc/fortran/frontend-passes.c	(.../tags/gcc_9_2_0_release)
@@ -8986,7 +9359,22 @@ Index: gcc/fortran/trans-decl.c
 ===================================================================
 --- a/src/gcc/fortran/trans-decl.c	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/fortran/trans-decl.c	(.../branches/gcc-9-branch)
-@@ -6440,6 +6440,20 @@
+@@ -5862,9 +5862,11 @@
+ 	    }
+ 	  else if (warn_unused_dummy_argument)
+ 	    {
+-	      gfc_warning (OPT_Wunused_dummy_argument,
+-			   "Unused dummy argument %qs at %L", sym->name,
+-			   &sym->declared_at);
++	      if (!sym->attr.artificial)
++		gfc_warning (OPT_Wunused_dummy_argument,
++			     "Unused dummy argument %qs at %L", sym->name,
++			     &sym->declared_at);
++
+ 	      if (sym->backend_decl != NULL_TREE)
+ 		TREE_NO_WARNING(sym->backend_decl) = 1;
+ 	    }
+@@ -6440,6 +6442,20 @@
  				    TREE_TYPE (result), DECL_RESULT (fndecl),
  				    result);
  	}
@@ -9222,7 +9610,22 @@ Index: gcc/fortran/simplify.c
 ===================================================================
 --- a/src/gcc/fortran/simplify.c	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/fortran/simplify.c	(.../branches/gcc-9-branch)
-@@ -6684,6 +6684,9 @@
+@@ -4808,8 +4808,12 @@
+   gfc_constructor *tsource_ctor, *fsource_ctor, *mask_ctor;
+ 
+   if (mask->expr_type == EXPR_CONSTANT)
+-    return gfc_get_parentheses (gfc_copy_expr (mask->value.logical
+-					       ? tsource : fsource));
++    {
++      result = gfc_copy_expr (mask->value.logical ? tsource : fsource);
++      result = gfc_get_parentheses (result);
++      gfc_simplify_expr (result, 1);
++      return result;
++    }
+ 
+   if (!mask->rank || !is_constant_array_expr (mask)
+       || !is_constant_array_expr (tsource) || !is_constant_array_expr (fsource))
+@@ -6684,6 +6688,9 @@
    mpz_init (index);
    rank = 0;
  
@@ -9232,7 +9635,7 @@ Index: gcc/fortran/simplify.c
    for (;;)
      {
        e = gfc_constructor_lookup_expr (shape_exp->value.constructor, rank);
-@@ -6708,9 +6711,29 @@
+@@ -6708,9 +6715,29 @@
      }
    else
      {
@@ -9264,7 +9667,7 @@ Index: gcc/fortran/simplify.c
        for (i = 0; i < rank; i++)
  	{
  	  e = gfc_constructor_lookup_expr (order_exp->value.constructor, i);
-@@ -6720,7 +6743,12 @@
+@@ -6720,7 +6747,12 @@
  
  	  gcc_assert (order[i] >= 1 && order[i] <= rank);
  	  order[i]--;
@@ -9278,6 +9681,19 @@ Index: gcc/fortran/simplify.c
  	  x[order[i]] = 1;
  	}
      }
+@@ -8494,6 +8526,12 @@
+ 	    {
+ 	      if (c->expr->expr_type == EXPR_ARRAY)
+ 		tmp = gfc_convert_constant (c->expr, type, kind);
++	      else if (c->expr->expr_type == EXPR_OP
++			&& c->expr->value.op.op == INTRINSIC_PARENTHESES)
++		{
++		  gfc_simplify_expr (c->expr, 1);
++		  tmp = f (c->expr, kind);
++		}
+ 	      else
+ 		tmp = f (c->expr, kind);
+ 	    }
 Index: gcc/BASE-VER
 ===================================================================
 --- a/src/gcc/BASE-VER	(.../tags/gcc_9_2_0_release)
@@ -12120,6 +12536,252 @@ Index: gcc/tree-vect-slp.c
    FOR_EACH_VEC_ELT (SLP_TREE_SCALAR_STMTS (node), i, stmt_info)
      dump_printf_loc (metadata, user_loc, "\tstmt %d %G", i, stmt_info->stmt);
    if (SLP_TREE_CHILDREN (node).is_empty ())
+Index: libgo/mksysinfo.sh
+===================================================================
+--- a/src/libgo/mksysinfo.sh	(.../tags/gcc_9_2_0_release)
++++ b/src/libgo/mksysinfo.sh	(.../branches/gcc-9-branch)
+@@ -1127,7 +1127,7 @@
+ # Prefer largefile variant if available.
+ # CentOS 5 does not have f_flags, so pull from f_spare.
+ statfs=`grep '^type _statfs64 ' gen-sysinfo.go || true`
+-if test "$statfs" == ""; then
++if test "$statfs" = ""; then
+   statfs=`grep '^type _statfs ' gen-sysinfo.go || true`
+ fi
+ if ! echo "$statfs" | grep f_flags; then
+Index: libgo/go/go/internal/gccgoimporter/parser.go
+===================================================================
+--- a/src/libgo/go/go/internal/gccgoimporter/parser.go	(.../tags/gcc_9_2_0_release)
++++ b/src/libgo/go/go/internal/gccgoimporter/parser.go	(.../branches/gcc-9-branch)
+@@ -248,7 +248,7 @@
+ 		case *types.Named:
+ 			name = typ.Obj().Name()
+ 		default:
+-			p.error("anonymous field expected")
++			p.error("embedded field expected")
+ 		}
+ 	}
+ 	field = types.NewField(token.NoPos, pkg, name, typ, anon)
+@@ -451,8 +451,12 @@
+ 	}
+ }
+ 
+-// update sets the type map entries for the given type numbers nlist to t.
+-func (p *parser) update(t types.Type, nlist []int) {
++// update sets the type map entries for the entries in nlist to t.
++// An entry in nlist can be a type number in p.typeList,
++// used to resolve named types, or it can be a *types.Pointer,
++// used to resolve pointers to named types in case they are referenced
++// by embedded fields.
++func (p *parser) update(t types.Type, nlist []interface{}) {
+ 	if len(nlist) != 0 {
+ 		if t == reserved {
+ 			p.errorf("internal error: update(%v) invoked on reserved", nlist)
+@@ -462,13 +466,27 @@
+ 		}
+ 	}
+ 	for _, n := range nlist {
+-		if p.typeList[n] == t {
+-			continue
++		switch n := n.(type) {
++		case int:
++			if p.typeList[n] == t {
++				continue
++			}
++			if p.typeList[n] != reserved {
++				p.errorf("internal error: update(%v): %d not reserved", nlist, n)
++			}
++			p.typeList[n] = t
++		case *types.Pointer:
++			if *n != (types.Pointer{}) {
++				elem := n.Elem()
++				if elem == t {
++					continue
++				}
++				p.errorf("internal error: update: pointer already set to %v, expected %v", elem, t)
++			}
++			*n = *types.NewPointer(t)
++		default:
++			p.errorf("internal error: %T on nlist", n)
+ 		}
+-		if p.typeList[n] != reserved {
+-			p.errorf("internal error: update(%v): %d not reserved", nlist, n)
+-		}
+-		p.typeList[n] = t
+ 	}
+ }
+ 
+@@ -475,7 +493,7 @@
+ // NamedType = TypeName [ "=" ] Type { Method } .
+ // TypeName  = ExportedName .
+ // Method    = "func" "(" Param ")" Name ParamList ResultList [InlineBody] ";" .
+-func (p *parser) parseNamedType(nlist []int) types.Type {
++func (p *parser) parseNamedType(nlist []interface{}) types.Type {
+ 	pkg, name := p.parseExportedName()
+ 	scope := pkg.Scope()
+ 	obj := scope.Lookup(name)
+@@ -582,7 +600,7 @@
+ }
+ 
+ // ArrayOrSliceType = "[" [ int ] "]" Type .
+-func (p *parser) parseArrayOrSliceType(pkg *types.Package, nlist []int) types.Type {
++func (p *parser) parseArrayOrSliceType(pkg *types.Package, nlist []interface{}) types.Type {
+ 	p.expect('[')
+ 	if p.tok == ']' {
+ 		p.next()
+@@ -605,7 +623,7 @@
+ }
+ 
+ // MapType = "map" "[" Type "]" Type .
+-func (p *parser) parseMapType(pkg *types.Package, nlist []int) types.Type {
++func (p *parser) parseMapType(pkg *types.Package, nlist []interface{}) types.Type {
+ 	p.expectKeyword("map")
+ 
+ 	t := new(types.Map)
+@@ -621,7 +639,7 @@
+ }
+ 
+ // ChanType = "chan" ["<-" | "-<"] Type .
+-func (p *parser) parseChanType(pkg *types.Package, nlist []int) types.Type {
++func (p *parser) parseChanType(pkg *types.Package, nlist []interface{}) types.Type {
+ 	p.expectKeyword("chan")
+ 
+ 	t := new(types.Chan)
+@@ -648,7 +666,7 @@
+ }
+ 
+ // StructType = "struct" "{" { Field } "}" .
+-func (p *parser) parseStructType(pkg *types.Package, nlist []int) types.Type {
++func (p *parser) parseStructType(pkg *types.Package, nlist []interface{}) types.Type {
+ 	p.expectKeyword("struct")
+ 
+ 	t := new(types.Struct)
+@@ -714,7 +732,7 @@
+ }
+ 
+ // FunctionType = ParamList ResultList .
+-func (p *parser) parseFunctionType(pkg *types.Package, nlist []int) *types.Signature {
++func (p *parser) parseFunctionType(pkg *types.Package, nlist []interface{}) *types.Signature {
+ 	t := new(types.Signature)
+ 	p.update(t, nlist)
+ 
+@@ -740,7 +758,7 @@
+ }
+ 
+ // InterfaceType = "interface" "{" { ("?" Type | Func) ";" } "}" .
+-func (p *parser) parseInterfaceType(pkg *types.Package, nlist []int) types.Type {
++func (p *parser) parseInterfaceType(pkg *types.Package, nlist []interface{}) types.Type {
+ 	p.expectKeyword("interface")
+ 
+ 	t := new(types.Interface)
+@@ -767,7 +785,7 @@
+ }
+ 
+ // PointerType = "*" ("any" | Type) .
+-func (p *parser) parsePointerType(pkg *types.Package, nlist []int) types.Type {
++func (p *parser) parsePointerType(pkg *types.Package, nlist []interface{}) types.Type {
+ 	p.expect('*')
+ 	if p.tok == scanner.Ident {
+ 		p.expectKeyword("any")
+@@ -779,13 +797,13 @@
+ 	t := new(types.Pointer)
+ 	p.update(t, nlist)
+ 
+-	*t = *types.NewPointer(p.parseType(pkg))
++	*t = *types.NewPointer(p.parseType(pkg, t))
+ 
+ 	return t
+ }
+ 
+ // TypeSpec = NamedType | MapType | ChanType | StructType | InterfaceType | PointerType | ArrayOrSliceType | FunctionType .
+-func (p *parser) parseTypeSpec(pkg *types.Package, nlist []int) types.Type {
++func (p *parser) parseTypeSpec(pkg *types.Package, nlist []interface{}) types.Type {
+ 	switch p.tok {
+ 	case scanner.String:
+ 		return p.parseNamedType(nlist)
+@@ -874,13 +892,13 @@
+ //
+ // parseType updates the type map to t for all type numbers n.
+ //
+-func (p *parser) parseType(pkg *types.Package, n ...int) types.Type {
++func (p *parser) parseType(pkg *types.Package, n ...interface{}) types.Type {
+ 	p.expect('<')
+ 	return p.parseTypeAfterAngle(pkg, n...)
+ }
+ 
+ // (*parser).Type after reading the "<".
+-func (p *parser) parseTypeAfterAngle(pkg *types.Package, n ...int) (t types.Type) {
++func (p *parser) parseTypeAfterAngle(pkg *types.Package, n ...interface{}) (t types.Type) {
+ 	p.expectKeyword("type")
+ 
+ 	switch p.tok {
+@@ -995,12 +1013,12 @@
+ 	}
+ 
+ 	for i := 1; i < int(exportedp1); i++ {
+-		p.parseSavedType(pkg, i, []int{})
++		p.parseSavedType(pkg, i, nil)
+ 	}
+ }
+ 
+ // parseSavedType parses one saved type definition.
+-func (p *parser) parseSavedType(pkg *types.Package, i int, nlist []int) {
++func (p *parser) parseSavedType(pkg *types.Package, i int, nlist []interface{}) {
+ 	defer func(s *scanner.Scanner, tok rune, lit string) {
+ 		p.scanner = s
+ 		p.tok = tok
+Index: libgo/go/go/internal/gccgoimporter/importer_test.go
+===================================================================
+--- a/src/libgo/go/go/internal/gccgoimporter/importer_test.go	(.../tags/gcc_9_2_0_release)
++++ b/src/libgo/go/go/internal/gccgoimporter/importer_test.go	(.../branches/gcc-9-branch)
+@@ -91,6 +91,7 @@
+ 	{pkgpath: "v1reflect", name: "Type", want: "type Type interface{Align() int; AssignableTo(u Type) bool; Bits() int; ChanDir() ChanDir; Elem() Type; Field(i int) StructField; FieldAlign() int; FieldByIndex(index []int) StructField; FieldByName(name string) (StructField, bool); FieldByNameFunc(match func(string) bool) (StructField, bool); Implements(u Type) bool; In(i int) Type; IsVariadic() bool; Key() Type; Kind() Kind; Len() int; Method(int) Method; MethodByName(string) (Method, bool); Name() string; NumField() int; NumIn() int; NumMethod() int; NumOut() int; Out(i int) Type; PkgPath() string; Size() uintptr; String() string; common() *commonType; rawString() string; runtimeType() *runtimeType; uncommon() *uncommonType}"},
+ 	{pkgpath: "nointerface", name: "I", want: "type I int"},
+ 	{pkgpath: "issue29198", name: "FooServer", want: "type FooServer struct{FooServer *FooServer; user string; ctx context.Context}"},
++	{pkgpath: "issue34182", name: "T1", want: "type T1 struct{f *T2}"},
+ }
+ 
+ func TestGoxImporter(t *testing.T) {
+Index: libgo/go/go/internal/gccgoimporter/testdata/issue34182.gox
+===================================================================
+--- a/src/libgo/go/go/internal/gccgoimporter/testdata/issue34182.gox	(.../tags/gcc_9_2_0_release)
++++ b/src/libgo/go/go/internal/gccgoimporter/testdata/issue34182.gox	(.../branches/gcc-9-branch)
+@@ -0,0 +1,13 @@
++v3;
++package issue34182
++pkgpath issue34182
++init issue34182 ~go.issue34182
++types 8 4 21 21 21 17 30 45 45
++type 1 "T1" <type 6>
++type 2 "T2" <type 7>
++type 3 "T3" <type 5>
++type 4 *<type 2>
++type 5 struct { ? <type 4>; }
++type 6 struct { .go.issue34182.f <type 4>; }
++type 7 struct { .go.issue34182.f <type 3>; }
++checksum FF02C49BAF44B06C087ED4E573F7CC880C79C208
+Index: libgo/go/go/internal/gccgoimporter/testdata/issue34182.go
+===================================================================
+--- a/src/libgo/go/go/internal/gccgoimporter/testdata/issue34182.go	(.../tags/gcc_9_2_0_release)
++++ b/src/libgo/go/go/internal/gccgoimporter/testdata/issue34182.go	(.../branches/gcc-9-branch)
+@@ -0,0 +1,17 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue34182
++
++type T1 struct {
++	f *T2
++}
++
++type T2 struct {
++	f T3
++}
++
++type T3 struct {
++	*T2
++}
 Index: libgfortran/intrinsics/random.c
 ===================================================================
 --- a/src/libgfortran/intrinsics/random.c	(.../tags/gcc_9_2_0_release)
