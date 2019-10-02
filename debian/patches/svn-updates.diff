@@ -1,10 +1,10 @@
-# DP: updates from the 8 branch upto 20190909 (r275519).
+# DP: updates from the 8 branch upto 20191002 (r276439).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Mon Sep  9 17:27:17 CEST 2019
-Mon Sep  9 15:27:17 UTC 2019 (revision 275519)
+Wed Oct  2 06:09:43 CEST 2019
+Wed Oct  2 04:09:43 UTC 2019 (revision 276439)
 EOF
 }
 
@@ -12,6 +12,45 @@ LANG=C svn diff svn://gcc.gnu.org/svn/gcc/tags/gcc_8_3_0_release svn://gcc.gnu.o
 	| sed -r 's,^--- (\S+)\t(\S+)(.*)$,--- a/src/\1\t\2,;s,^\+\+\+ (\S+)\t(\S+)(.*)$,+++ b/src/\1\t\2,' \
 	| awk '/^Index:.*\.(class|texi)/ {skip=1; next} /^Index:/ { skip=0 } skip==0'
 
+Index: libitm/ChangeLog
+===================================================================
+--- a/src/libitm/ChangeLog	(.../tags/gcc_8_3_0_release)
++++ b/src/libitm/ChangeLog	(.../branches/gcc-8-branch)
+@@ -1,3 +1,12 @@
++2019-09-28  Oleg Endo  <olegendo@gcc.gnu.org>
++
++	Backport from mainline
++	2018-08-03  Sergei Trofimovich  <slyfox@gentoo.org>
++
++	PR target/86712
++	* config/sh/sjlj.S: Adjust to use PIC vs normal code to avoid
++	absolute relocation in a shared library.
++
+ 2019-02-22  Release Manager
+ 
+ 	* GCC 8.3.0 released.
+Index: libitm/config/sh/sjlj.S
+===================================================================
+--- a/src/libitm/config/sh/sjlj.S	(.../tags/gcc_8_3_0_release)
++++ b/src/libitm/config/sh/sjlj.S	(.../branches/gcc-8-branch)
+@@ -53,7 +53,7 @@
+ #else
+ 	cfi_def_cfa_offset (4*10)
+ #endif
+-#if defined HAVE_ATTRIBUTE_VISIBILITY || !defined __PIC__
++#if !defined __PIC__
+ 	mov.l	.Lbegin, r1
+ 	jsr	@r1
+ 	 mov	r15, r5
+@@ -78,7 +78,7 @@
+ 
+ 	.align  2
+ .Lbegin:
+-#if defined HAVE_ATTRIBUTE_VISIBILITY || !defined __PIC__
++#if !defined __PIC__
+ 	.long	GTM_begin_transaction
+ #else
+ 	.long	GTM_begin_transaction@PCREL-(.Lbegin0-.)
 Index: libgomp/ChangeLog
 ===================================================================
 --- a/src/libgomp/ChangeLog	(.../tags/gcc_8_3_0_release)
@@ -335,6 +374,19 @@ Index: libstdc++-v3/python/Makefile.in
  XMLLINT = @XMLLINT@
  XSLTPROC = @XSLTPROC@
  XSL_STYLE_DIR = @XSL_STYLE_DIR@
+Index: libstdc++-v3/python/libstdcxx/v6/xmethods.py
+===================================================================
+--- a/src/libstdc++-v3/python/libstdcxx/v6/xmethods.py	(.../tags/gcc_8_3_0_release)
++++ b/src/libstdc++-v3/python/libstdcxx/v6/xmethods.py	(.../branches/gcc-8-branch)
+@@ -728,7 +728,7 @@
+         return gdb.lookup_type('long')
+ 
+     def __call__(self, obj):
+-        refcounts = ['_M_refcount']['_M_pi']
++        refcounts = obj['_M_refcount']['_M_pi']
+         return refcounts['_M_use_count'] if refcounts else 0
+ 
+ class SharedPtrUniqueWorker(SharedPtrUseCountWorker):
 Index: libstdc++-v3/Makefile.in
 ===================================================================
 --- a/src/libstdc++-v3/Makefile.in	(.../tags/gcc_8_3_0_release)
@@ -3102,7 +3154,12 @@ Index: libstdc++-v3/ChangeLog
 ===================================================================
 --- a/src/libstdc++-v3/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/libstdc++-v3/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,472 @@
+@@ -1,3 +1,477 @@
++2019-09-11  Jonathan Wakely  <jwakely@redhat.com>
++
++	* python/libstdcxx/v6/xmethods.py (SharedPtrUseCountWorker.__call__):
++	Fix syntax error.
++
 +2019-09-02  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	* doc/html/*: Regenerate.
@@ -6471,7 +6528,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-8-branch)
 @@ -1 +1 @@
 -20190222
-+20190909
++20191002
 Index: gcc/tree-ssa-loop-ch.c
 ===================================================================
 --- a/src/gcc/tree-ssa-loop-ch.c	(.../tags/gcc_8_3_0_release)
@@ -6690,6 +6747,15 @@ Index: gcc/rtlanal.c
      {
        offset1 = crtl->outgoing_args_size + get_frame_size ();
  #if !STACK_GROWS_DOWNWARD
+@@ -4756,7 +4756,7 @@
+ 	       || ((extend_op = load_extend_op (inner_mode)) == SIGN_EXTEND
+ 		   ? val_signbit_known_set_p (inner_mode, nonzero)
+ 		   : extend_op != ZERO_EXTEND)
+-	       || (!MEM_P (SUBREG_REG (x)) && !REG_P (SUBREG_REG (x))))
++	       || !MEM_P (SUBREG_REG (x)))
+ 	      && xmode_width > inner_width)
+ 	    nonzero
+ 	      |= (GET_MODE_MASK (GET_MODE (x)) & ~GET_MODE_MASK (inner_mode));
 Index: gcc/configure
 ===================================================================
 --- a/src/gcc/configure	(.../tags/gcc_8_3_0_release)
@@ -7599,7 +7665,105 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,1727 @@
+@@ -1,3 +1,1825 @@
++2019-10-01  Oleg Endo  <olegendo@gcc.gnu.org>
++
++	Backport from mainline
++
++	2019-10-01  Oleg Endo  <olegendo@gcc.gnu.org>
++
++	PR target/88562
++	* config/sh/sh.c (sh_extending_set_of_reg::use_as_extended_reg): Use
++	sh_check_add_incdec_notes to preserve REG_INC notes when replacing
++	a memory access insn.
++
++2019-10-01  Kyrylo Tkachov  <kyrylo.tkachov@arm.com>
++
++	Backport from mainline
++	2019-09-24  Kyrylo Tkachov  <kyrylo.tkachov@arm.com>
++
++	* config/aarch64/aarch64.md (mov<mode>): Don't call
++	aarch64_split_dimode_const_store on volatile MEM.
++
++2019-10-01  Eric Botcazou  <ebotcazou@adacore.com>
++
++	PR target/91854
++	Backport from mainline
++	2019-09-20  Eric Botcazou  <ebotcazou@adacore.com>
++
++	PR target/91269
++	* config/sparc/sparc.h (HARD_REGNO_CALLER_SAVE_MODE): Define.
++
++2019-09-28  Oleg Endo  <olegendo@gcc.gnu.org>
++
++	Backport from mainline
++	2019-09-28  Oleg Endo  <olegendo@gcc.gnu.org>
++
++	PR target/80672
++	* config/sh/sh.c (parse_validate_atomic_model_option): Use
++	std::string::compare instead of std::string::find.
++
++2019-09-28  Oleg Endo  <olegendo@gcc.gnu.org>
++
++	Backport from mainline
++	2018-07-15  Jeff Law  <law@redhat.com>
++
++	PR target/85993
++	* config/sh/sh.c (output_mi_thunk): Remove dead conditional
++	block.
++
++2019-09-26  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backport from mainline
++	2019-06-16  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* config/darwin.opt (prebind, noprebind, seglinkedit,
++	noseglinkedit): Add RejectNegative.
++
++	Backport from mainline
++	2019-06-14  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* config/darwin.opt: Add RejectNegative where needed, reorder
++	and add minimal functional descriptions.
++
++2019-09-25  Kyrylo Tkachov <kyrylo.tkachov@arm.com>
++
++	Backport from mainline
++	2019-08-22  Kyrylo Tkachov <kyrylo.tkachov@arm.com>
++
++	* config/arm/arm_acle.h: Use arch=armv8-a+crc+simd pragma for CRC32
++	intrinsics if __ARM_FP.
++	Use __ARM_FEATURE_CRC32 ifdef guard.
++
++2019-09-23  Max Filippov  <jcmvbkbc@gmail.com>
++
++	Backport from mainline
++	2019-06-18  Max Filippov  <jcmvbkbc@gmail.com>
++
++	* config/xtensa/xtensa.c (xtensa_expand_prologue): Add stack
++	pointer adjustment for the case of no callee-saved registers and
++	stack frame bigger than 128 bytes.
++
++2019-09-20  John David Anglin  <danglin@gcc.gnu.org>
++
++	* config/pa/pa.c (pa_trampoline_init): Remove spurious extended
++	character.
++
++2019-09-20  Andreas Krebbel  <krebbel@linux.ibm.com>
++
++	Backport from mainline
++	2019-06-06  Andreas Krebbel  <krebbel@linux.ibm.com>
++
++	PR rtl-optimization/88751
++	* ira.c (ira): Use the number of the actually referenced registers
++	when calculating the threshold.
++
++2019-09-11  Eric Botcazou  <ebotcazou@adacore.com>
++
++	PR rtl-optimization/89795
++	* rtlanal.c (nonzero_bits1) <SUBREG>: Do not propagate results from
++	inner REGs to paradoxical SUBREGs if WORD_REGISTER_OPERATIONS is set.
++
 +2019-09-09  Jakub Jelinek  <jakub@redhat.com>
 +
 +	PR target/87853
@@ -9327,7 +9491,7 @@ Index: gcc/ChangeLog
  2019-02-22  Release Manager
  
  	* GCC 8.3.0 released.
-@@ -568,7 +2296,7 @@
+@@ -568,7 +2394,7 @@
  
  	Backport from mainline
  	2018-11-20  Richard Biener  <rguenther@suse.de>
@@ -17714,6 +17878,25 @@ Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-19a.c
 +
 +  return 0;
 +}
+Index: gcc/testsuite/gcc.target/arm/acle/crc_hf_1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/arm/acle/crc_hf_1.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/arm/acle/crc_hf_1.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,14 @@
++/* Test that using an Armv8-a hard-float target doesn't
++   break CRC intrinsics.  */
++
++/* { dg-do compile } */
++/* { dg-require-effective-target arm_hard_vfp_ok }  */
++/* { dg-options "-mfloat-abi=hard -march=armv8-a+simd+crc" } */
++
++#include <arm_acle.h>
++
++uint32_t
++foo (uint32_t a, uint32_t b)
++{
++  return __crc32cw (a, b);
++}
 Index: gcc/testsuite/gcc.target/arm/pr89222.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/arm/pr89222.c	(.../tags/gcc_8_3_0_release)
@@ -18092,6 +18275,16 @@ Index: gcc/testsuite/gcc.target/s390/vector/vec-shift-2.c
 +
 +  return 0;
 +}
+Index: gcc/testsuite/gcc.target/sparc/20161111-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/sparc/20161111-1.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/sparc/20161111-1.c	(.../branches/gcc-8-branch)
+@@ -14,4 +14,4 @@
+   return retval;
+ }
+ 
+-/* { dg-final { scan-assembler-not "and\t%" } } */
++/* { dg-final { scan-assembler-not "and\t%" { xfail *-*-* } } } */
 Index: gcc/testsuite/gcc.target/mips/dwarfregtable-3.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/mips/dwarfregtable-3.c	(.../tags/gcc_8_3_0_release)
@@ -18446,6 +18639,26 @@ Index: gcc/testsuite/gcc.target/aarch64/options_set_9.c
 +    on the parent. e.g. rdma turns on simd+fp, but simd+fp does not turn on
 +    rdma since rdma is it's own group.  crypto however turns on aes and sha2
 +    and turning on sha2 and eas should turn on crypto!.  */
+Index: gcc/testsuite/gcc.target/aarch64/nosplit-di-const-volatile_1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/aarch64/nosplit-di-const-volatile_1.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/aarch64/nosplit-di-const-volatile_1.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,15 @@
++/* Check that storing the 64-bit immediate to a volatile location is done
++   with a single store.  */
++
++/* { dg-do compile } */
++/* { dg-options "-O2" } */
++
++typedef unsigned long long u64;
++
++void bar (u64 *x)
++{
++  *(volatile u64 *)x = 0xabcdef10abcdef10ULL;
++}
++
++/* { dg-final { scan-assembler-times "str\tx..?, .*" 1 } } */
++/* { dg-final { scan-assembler-not "str\tw..?, .*" } } */
 Index: gcc/testsuite/gcc.target/aarch64/options_set_1.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/aarch64/options_set_1.c	(.../tags/gcc_8_3_0_release)
@@ -18697,6 +18910,17 @@ Index: gcc/testsuite/gcc.target/i386/pr52146.c
  /* { dg-options "-O2 -mx32" } */
  
  void
+Index: gcc/testsuite/gcc.target/i386/avx512bw-vpmovswb-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/avx512bw-vpmovswb-1.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/avx512bw-vpmovswb-1.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+ /* { dg-options "-mavx512bw -mavx512vl -O2" } */
++/* { dg-additional-options "-fno-common" { target *-*-darwin* } } */
+ /* { dg-final { scan-assembler-times "vpmovswb\[ \\t\]+\[^\{\n\]*%xmm\[0-9\]+\[^\n\]*%xmm\[0-9\]+(?:\n|\[ \\t\]+#)" 1 } } */
+ /* { dg-final { scan-assembler-times "vpmovswb\[ \\t\]+\[^\{\n\]*%xmm\[0-9\]+\[^\n\]*%xmm\[0-9\]+\{%k\[1-7\]\}(?:\n|\[ \\t\]+#)" 1 } } */
+ /* { dg-final { scan-assembler-times "vpmovswb\[ \\t\]+\[^\{\n\]*%xmm\[0-9\]+\[^\n\]*%xmm\[0-9\]+\{%k\[1-7\]\}{z}(?:\n|\[ \\t\]+#)" 1 } } */
 Index: gcc/testsuite/gcc.target/i386/pr89523-4.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/pr89523-4.c	(.../tags/gcc_8_3_0_release)
@@ -19034,6 +19258,17 @@ Index: gcc/testsuite/gcc.target/i386/pr91704.c
 +{
 +  return _mm256_cmpgt_epi8 (x, y);
 +}
+Index: gcc/testsuite/gcc.target/i386/avx512bw-vpmovuswb-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/avx512bw-vpmovuswb-1.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/avx512bw-vpmovuswb-1.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+ /* { dg-options "-mavx512bw -mavx512vl -O2" } */
++/* { dg-additional-options "-fno-common" { target *-*-darwin* } } */
+ /* { dg-final { scan-assembler-times "vpmovuswb\[ \\t\]+\[^\{\n\]*%xmm\[0-9\]+\[^\n\]*%xmm\[0-9\]+(?:\n|\[ \\t\]+#)" 1 } } */
+ /* { dg-final { scan-assembler-times "vpmovuswb\[ \\t\]+\[^\{\n\]*%xmm\[0-9\]+\[^\n\]*%xmm\[0-9\]+\{%k\[1-7\]\}(?:\n|\[ \\t\]+#)" 1 } } */
+ /* { dg-final { scan-assembler-times "vpmovuswb\[ \\t\]+\[^\{\n\]*%xmm\[0-9\]+\[^\n\]*%xmm\[0-9\]+\{%k\[1-7\]\}{z}(?:\n|\[ \\t\]+#)" 1 } } */
 Index: gcc/testsuite/gcc.target/i386/ret-thunk-9.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/ret-thunk-9.c	(.../tags/gcc_8_3_0_release)
@@ -20048,6 +20283,17 @@ Index: gcc/testsuite/gcc.target/i386/pr52876.c
  /* { dg-options "-O2 -mx32 -maddress-mode=long" } */
  
  extern void abort (void);
+Index: gcc/testsuite/gcc.target/i386/avx512bw-vpmovwb-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/avx512bw-vpmovwb-1.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/avx512bw-vpmovwb-1.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,6 @@
+ /* { dg-do compile } */
+ /* { dg-options "-mavx512bw -mavx512vl -O2" } */
++/* { dg-additional-options "-fno-common" { target *-*-darwin* } } */
+ /* { dg-final { scan-assembler-times "vpmovwb\[ \\t\]+\[^\{\n\]*%xmm\[0-9\]+\[^\n\]*%xmm\[0-9\]+(?:\n|\[ \\t\]+#)" 1 } } */
+ /* { dg-final { scan-assembler-times "vpmovwb\[ \\t\]+\[^\{\n\]*%xmm\[0-9\]+\[^\n\]*%xmm\[0-9\]+\{%k\[1-7\]\}(?:\n|\[ \\t\]+#)" 1 } } */
+ /* { dg-final { scan-assembler-times "vpmovwb\[ \\t\]+\[^\{\n\]*%xmm\[0-9\]+\[^\n\]*%xmm\[0-9\]+\{%k\[1-7\]\}{z}(?:\n|\[ \\t\]+#)" 1 } } */
 Index: gcc/testsuite/gcc.target/i386/cet-notrack-5b.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/cet-notrack-5b.c	(.../tags/gcc_8_3_0_release)
@@ -21648,6 +21894,45 @@ Index: gcc/testsuite/gfortran.dg/transfer_simplify_12.f90
 +  if (x /= "fedcba") stop 8
 +  if (y /= x) stop 9
 +end program test
+Index: gcc/testsuite/gfortran.dg/associate_49.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/associate_49.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/associate_49.f90	(.../branches/gcc-8-branch)
+@@ -0,0 +1,34 @@
++! { dg-do run }
++!
++! Test the fix for PR91588, in which the declaration of 'a' caused
++! an ICE.
++!
++! Contributed by Gerhardt Steinmetz  <gscfq@t-online.de>
++!
++program p
++   character(4), parameter :: parm = '7890'
++   associate (z => '1234')
++      block
++         integer(len(z)) :: a
++         if (kind(a) .ne. 4) stop 1
++      end block
++   end associate
++   associate (z => '123')
++      block
++         integer(len(z)+1) :: a
++         if (kind(a) .ne. 4) stop 2
++      end block
++   end associate
++   associate (z => 1_8)
++      block
++         integer(kind(z)) :: a
++         if (kind(a) .ne. 8) stop 3
++      end block
++   end associate
++   associate (z => parm)
++      block
++         integer(len(z)) :: a
++         if (kind(a) .ne. 4) stop 4
++      end block
++   end associate
++end
 Index: gcc/testsuite/gfortran.dg/gomp/pr89651.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/gomp/pr89651.f90	(.../tags/gcc_8_3_0_release)
@@ -22047,6 +22332,27 @@ Index: gcc/testsuite/gfortran.dg/class_70.f03
 +  if (any (z%idx .ne. [3, 5])) stop 2
 +  deallocate (w, x, y, z)
 +end program
+Index: gcc/testsuite/gfortran.dg/warn_unused_dummy_argument_5.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/warn_unused_dummy_argument_5.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/warn_unused_dummy_argument_5.f90	(.../branches/gcc-8-branch)
+@@ -0,0 +1,16 @@
++! { dg-do compile }
++! { dg-additional-options "-Wunused-dummy-argument" }
++! PR 91557 - this used to generate a bogus warning
++! Test case by Gerhard Steinmetz
++program p
++   integer :: a, b
++   a = 1
++   call g
++contains
++   subroutine g
++      integer :: x, y
++      call h (x, y)
++      if ( a > 0 )   y = y - 1
++      b = y - x + 1
++   end
++end
 Index: gcc/testsuite/gfortran.dg/transpose_optimization_2.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/transpose_optimization_2.f90	(.../tags/gcc_8_3_0_release)
@@ -22299,6 +22605,22 @@ Index: gcc/testsuite/gfortran.dg/transfer_check_5.f90
 +  print *, transfer('',1,size=0) ! No warning
 +  print *, transfer('',1,size=1) ! { dg-warning "has partly undefined result" }
 +end program test
+Index: gcc/testsuite/gfortran.dg/do_subscript_6.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/do_subscript_6.f90	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/do_subscript_6.f90	(.../branches/gcc-8-branch)
+@@ -0,0 +1,11 @@
++! { dg-do compile }
++! { dg-options "-std=legacy" }
++! PR 91550 - this used to cause an ICE
++! Test case by Gerhard Steinmetz
++program p
++   real :: a(3)
++   integer :: i
++   do i = 1, 3, .1 ! { dg-error "cannot be zero" }
++      a(i) = i
++   end do
++end
 Index: gcc/testsuite/gfortran.dg/pr89492.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr89492.f90	(.../tags/gcc_8_3_0_release)
@@ -25421,6 +25743,66 @@ Index: gcc/testsuite/gcc.dg/pr89590.c
 +{
 +  ((void (*)()) free) ();
 +}
+Index: gcc/testsuite/gcc.dg/pr91854.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/pr91854.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.dg/pr91854.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,55 @@
++/* PR target/91854 */
++/* Testcase by Sergei Trofimovich <slyfox@inbox.ru> */
++/* { dg-do assemble } */
++/* { dg-options "-O2 -Wno-int-conversion" }  */
++/* { dg-additional-options "-fPIE -mcpu=niagara4" { target sparc*-*-* } } */
++
++typedef struct {
++  long a;
++} __attribute__((packed)) c;
++void *e, *f;
++int i, j, ab, k, l, m, o;
++inline int g(int p) {
++  if (__builtin_expect(p, 1)) {
++    const int aa = ((c *)e)->a ^ ((c *)f)->a;
++    if (aa)
++      f = sizeof(long);
++    return f;
++  }
++}
++void d();
++int am ();
++inline int n(char p, int u) {
++  int q, r, ac = i;
++  short b = m;
++  while (r && u) {
++    if (l) {
++      if (k) {
++        void *h = i;
++        if (__builtin_expect(p, 1)) {
++          const int aa = ((c *)e)->a ^ ((c *)h)->a;
++          if (aa)
++            h = sizeof(long);
++          q = h;
++        }
++      }
++      ab = q;
++      char s;
++      if (s) {
++        char t = l = g(t);
++      }
++    }
++    if (j && b)
++      if (ac)
++        d();
++  }
++}
++void v() {
++  const int al = am();
++  if (al)
++    n(am, v);
++an:
++  n(am, v);
++  if (o)
++    goto an;
++}
 Index: gcc/testsuite/gcc.dg/tree-ssa/pr89725.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.dg/tree-ssa/pr89725.c	(.../tags/gcc_8_3_0_release)
@@ -25790,7 +26172,58 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,1779 @@
+@@ -1,3 +1,1830 @@
++2019-10-01  Kyrylo Tkachov  <kyrylo.tkachov@arm.com>
++
++	Backport from mainline
++	2019-09-24  Kyrylo Tkachov  <kyrylo.tkachov@arm.com>
++
++	* gcc.target/aarch64/nosplit-di-const-volatile_1.c: New test.
++
++2019-10-01  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* gcc.dg/pr91854.c: New test.
++
++2019-09-28  Paul Thomas  <pault@gcc.gnu.org>
++
++	Backport from mainline
++	PR fortran/91588
++	* gfortran.dg/associate_49.f90 : New test.
++
++2019-09-25  Kyrylo Tkachov  <kyrylo.tkachov@arm.com>
++
++	Backport from mainline
++	2019-08-22  Kyrylo Tkachov  <kyrylo.tkachov@arm.com>
++
++	* gcc.target/arm/acle/crc_hf_1.c: New test.
++
++2019-09-20  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backport from mainline.
++	2019-05-11  Iain Sandoe  <iain@sandoe.co.uk>
++
++	PR testsuite/81058
++	* gcc.target/i386/avx512bw-vpmovswb-1.c: Use regular data section
++	for variables on Darwin, rather than common.
++	* gcc.target/i386/avx512bw-vpmovuswb-1.c: Likewise.
++	* gcc.target/i386/avx512bw-vpmovwb-1.c: Likewise.
++
++2019-09-18  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/91550
++	* gfortran.dg/do_subscript_6.f90: New test.
++
++2019-09-15  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/91557
++	* gfortran.dg/warn_unused_dummy_argument_5.f90: New test.
++
++2019-09-11  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* gcc.target/sparc/20161111-1.c: XFAIL redundant zero-extension test.
++
 +2019-09-09  Jakub Jelinek  <jakub@redhat.com>
 +
 +	PR target/87853
@@ -42068,7 +42501,13 @@ Index: gcc/ada/ChangeLog
 ===================================================================
 --- a/src/gcc/ada/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/ada/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,80 @@
+@@ -1,3 +1,86 @@
++2019-09-23  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* gcc-interface/trans.c (Attribute_to_gnu): Test Can_Use_Internal_Rep
++	on the underlying type of the node.
++	(Call_to_gnu): Likewise with the type of the prefix.
++
 +2019-09-01  Iain Sandoe  <iain@sandoe.co.uk>
 +
 +	Backport from mainline.
@@ -42333,7 +42772,59 @@ Index: gcc/ada/gcc-interface/trans.c
 ===================================================================
 --- a/src/gcc/ada/gcc-interface/trans.c	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/ada/gcc-interface/trans.c	(.../branches/gcc-8-branch)
-@@ -3534,6 +3534,20 @@
+@@ -1720,32 +1720,29 @@
+       /* For other address attributes applied to a nested function,
+ 	 find an inner ADDR_EXPR and annotate it so that we can issue
+ 	 a useful warning with -Wtrampolines.  */
+-      else if (TREE_CODE (TREE_TYPE (gnu_prefix)) == FUNCTION_TYPE)
++      else if (TREE_CODE (TREE_TYPE (gnu_prefix)) == FUNCTION_TYPE
++	       && (gnu_expr = remove_conversions (gnu_result, false))
++	       && TREE_CODE (gnu_expr) == ADDR_EXPR
++	       && decl_function_context (TREE_OPERAND (gnu_expr, 0)))
+ 	{
+-	  gnu_expr = remove_conversions (gnu_result, false);
++	  set_expr_location_from_node (gnu_expr, gnat_node);
+ 
+-	  if (TREE_CODE (gnu_expr) == ADDR_EXPR
+-	      && decl_function_context (TREE_OPERAND (gnu_expr, 0)))
+-	    {
+-	      set_expr_location_from_node (gnu_expr, gnat_node);
++	  /* Also check the inlining status.  */
++	  check_inlining_for_nested_subprog (TREE_OPERAND (gnu_expr, 0));
+ 
+-	      /* Also check the inlining status.  */
+-	      check_inlining_for_nested_subprog (TREE_OPERAND (gnu_expr, 0));
++	  /* Moreover, for 'Access or 'Unrestricted_Access with non-
++	     foreign-compatible representation, mark the ADDR_EXPR so
++	     that we can build a descriptor instead of a trampoline.  */
++	  if ((attribute == Attr_Access
++	       || attribute == Attr_Unrestricted_Access)
++	      && targetm.calls.custom_function_descriptors > 0
++	      && Can_Use_Internal_Rep (Underlying_Type (Etype (gnat_node))))
++	    FUNC_ADDR_BY_DESCRIPTOR (gnu_expr) = 1;
+ 
+-	      /* Moreover, for 'Access or 'Unrestricted_Access with non-
+-		 foreign-compatible representation, mark the ADDR_EXPR so
+-		 that we can build a descriptor instead of a trampoline.  */
+-	      if ((attribute == Attr_Access
+-		   || attribute == Attr_Unrestricted_Access)
+-		  && targetm.calls.custom_function_descriptors > 0
+-		  && Can_Use_Internal_Rep (Etype (gnat_node)))
+-		FUNC_ADDR_BY_DESCRIPTOR (gnu_expr) = 1;
+-
+-	      /* Otherwise, we need to check that we are not violating the
+-		 No_Implicit_Dynamic_Code restriction.  */
+-	      else if (targetm.calls.custom_function_descriptors != 0)
+-	        Check_Implicit_Dynamic_Code_Allowed (gnat_node);
+-	    }
++	  /* Otherwise, we need to check that we are not violating the
++	     No_Implicit_Dynamic_Code restriction.  */
++	  else if (targetm.calls.custom_function_descriptors != 0)
++	    Check_Implicit_Dynamic_Code_Allowed (gnat_node);
+ 	}
+       break;
+ 
+@@ -3534,6 +3531,20 @@
    return NULL_TREE;
  }
  
@@ -42354,7 +42845,7 @@ Index: gcc/ada/gcc-interface/trans.c
  /* Finalize the Named Return Value optimization for FNDECL.  The NRV bitmap
     contains the candidates for Named Return Value and OTHER is a list of
     the other return values.  GNAT_RET is a representative return node.  */
-@@ -3541,7 +3555,6 @@
+@@ -3541,7 +3552,6 @@
  static void
  finalize_nrv (tree fndecl, bitmap nrv, vec<tree, va_gc> *other, Node_Id gnat_ret)
  {
@@ -42362,7 +42853,7 @@ Index: gcc/ada/gcc-interface/trans.c
    struct nrv_data data;
    walk_tree_fn func;
    unsigned int i;
-@@ -3562,10 +3575,7 @@
+@@ -3562,10 +3572,7 @@
      return;
  
    /* Prune also the candidates that are referenced by nested functions.  */
@@ -42374,7 +42865,17 @@ Index: gcc/ada/gcc-interface/trans.c
    if (bitmap_empty_p (nrv))
      return;
  
-@@ -4575,7 +4585,7 @@
+@@ -4308,7 +4315,8 @@
+       /* If the access type doesn't require foreign-compatible representation,
+ 	 be prepared for descriptors.  */
+       if (targetm.calls.custom_function_descriptors > 0
+-	  && Can_Use_Internal_Rep (Etype (Prefix (Name (gnat_node)))))
++	  && Can_Use_Internal_Rep
++	     (Underlying_Type (Etype (Prefix (Name (gnat_node))))))
+ 	by_descriptor = true;
+     }
+   else if (Nkind (Name (gnat_node)) == N_Attribute_Reference)
+@@ -4575,7 +4583,7 @@
  	 since the parent is a procedure call, so put it back here.  Note that
  	 we might have a dummy type here if the actual is the dereference of a
  	 pointer to it, but that's OK if the formal is passed by reference.  */
@@ -42383,7 +42884,7 @@ Index: gcc/ada/gcc-interface/trans.c
        if (TYPE_IS_DUMMY_P (gnu_actual_type))
  	gcc_assert (is_true_formal_parm && DECL_BY_REF_P (gnu_formal));
        else if (suppress_type_conversion
-@@ -8167,8 +8177,9 @@
+@@ -8167,8 +8175,9 @@
    else if (!TYPE_IS_DUMMY_P (t))
      TREE_VISITED (t) = 1;
  
@@ -43503,13 +44004,35 @@ Index: gcc/fortran/ChangeLog
 ===================================================================
 --- a/src/gcc/fortran/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/fortran/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,371 @@
-+2019-09-05  Steven G. Kargl  <kargl@gcc.gnu.org>
+@@ -1,3 +1,393 @@
++2019-09-28  Paul Thomas  <pault@gcc.gnu.org>
 +
-+	PR fortran/91660
-+	* gfortran.dg/pdt_4.f03: Fix invalid code.
-+        * gfortran.dg/pr91660_1.f90: New test.
-+	* gfortran.dg/pr91660_2.f90: Ditto.
++	Backport from mainline
++	PR fortran/91588
++	* expr.c (check_inquiry): Remove extended component refs by
++	using symbol pointers. If a function argument is an associate
++	variable with a constant target, copy the target expression in
++	place of the argument expression. Check that the charlen is not
++	NULL before using the string length.
++
++2019-09-18  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/91550
++	* frontend-passes.c (do_subscript): If step equals
++	zero, a previuos error has been reported; do nothing
++	in this case.
++	* resolve.c (gfc_resolve_iterator): Move error checking
++	after type conversion.
++
++2019-09-15  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/91557
++	* trans-decl.c (generate_local_decl): Do not warn if the symbol
++	is artificial.
++	* trans-types.c (get_formal_from_actual_arglist): Set artificial
++	attribute on dummy arguments.
 +
 +2013-08-13  Thomas Koenig  <tkoenig@gcc.gnu.org>
 +
@@ -43919,6 +44442,120 @@ Index: gcc/fortran/expr.c
  		      else
  			gfc_free_expr (p->ts.u.cl->length);
  
+@@ -2390,6 +2396,8 @@
+ 
+   int i = 0;
+   gfc_actual_arglist *ap;
++  gfc_symbol *sym;
++  gfc_symbol *asym;
+ 
+   if (!e->value.function.isym
+       || !e->value.function.isym->inquiry)
+@@ -2399,20 +2407,22 @@
+   if (e->symtree == NULL)
+     return MATCH_NO;
+ 
+-  if (e->symtree->n.sym->from_intmod)
++  sym = e->symtree->n.sym;
++
++  if (sym->from_intmod)
+     {
+-      if (e->symtree->n.sym->from_intmod == INTMOD_ISO_FORTRAN_ENV
+-	  && e->symtree->n.sym->intmod_sym_id != ISOFORTRAN_COMPILER_OPTIONS
+-	  && e->symtree->n.sym->intmod_sym_id != ISOFORTRAN_COMPILER_VERSION)
++      if (sym->from_intmod == INTMOD_ISO_FORTRAN_ENV
++	  && sym->intmod_sym_id != ISOFORTRAN_COMPILER_OPTIONS
++	  && sym->intmod_sym_id != ISOFORTRAN_COMPILER_VERSION)
+ 	return MATCH_NO;
+ 
+-      if (e->symtree->n.sym->from_intmod == INTMOD_ISO_C_BINDING
+-	  && e->symtree->n.sym->intmod_sym_id != ISOCBINDING_C_SIZEOF)
++      if (sym->from_intmod == INTMOD_ISO_C_BINDING
++	  && sym->intmod_sym_id != ISOCBINDING_C_SIZEOF)
+ 	return MATCH_NO;
+     }
+   else
+     {
+-      name = e->symtree->n.sym->name;
++      name = sym->name;
+ 
+       functions = (gfc_option.warn_std & GFC_STD_F2003)
+ 		? inquiry_func_f2003 : inquiry_func_f95;
+@@ -2434,41 +2444,48 @@
+       if (!ap->expr)
+ 	continue;
+ 
++      asym = ap->expr->symtree ? ap->expr->symtree->n.sym : NULL;
++
+       if (ap->expr->ts.type == BT_UNKNOWN)
+ 	{
+-	  if (ap->expr->symtree->n.sym->ts.type == BT_UNKNOWN
+-	      && !gfc_set_default_type (ap->expr->symtree->n.sym, 0, gfc_current_ns))
++	  if (asym && asym->ts.type == BT_UNKNOWN
++	      && !gfc_set_default_type (asym, 0, gfc_current_ns))
+ 	    return MATCH_NO;
+ 
+-	  ap->expr->ts = ap->expr->symtree->n.sym->ts;
++	  ap->expr->ts = asym->ts;
+ 	}
+ 
+-	/* Assumed character length will not reduce to a constant expression
+-	   with LEN, as required by the standard.  */
+-	if (i == 5 && not_restricted && ap->expr->symtree
+-	    && ap->expr->symtree->n.sym->ts.type == BT_CHARACTER
+-	    && (ap->expr->symtree->n.sym->ts.u.cl->length == NULL
+-		|| ap->expr->symtree->n.sym->ts.deferred))
+-	  {
+-	    gfc_error ("Assumed or deferred character length variable %qs "
+-			"in constant expression at %L",
+-			ap->expr->symtree->n.sym->name,
+-			&ap->expr->where);
+-	      return MATCH_ERROR;
+-	  }
+-	else if (not_restricted && !gfc_check_init_expr (ap->expr))
+-	  return MATCH_ERROR;
++      if (asym && asym->assoc && asym->assoc->target
++	  && asym->assoc->target->expr_type == EXPR_CONSTANT)
++	{
++	  gfc_free_expr (ap->expr);
++	  ap->expr = gfc_copy_expr (asym->assoc->target);
++	}
+ 
+-	if (not_restricted == 0
+-	      && ap->expr->expr_type != EXPR_VARIABLE
+-	      && !check_restricted (ap->expr))
++      /* Assumed character length will not reduce to a constant expression
++	 with LEN, as required by the standard.  */
++      if (i == 5 && not_restricted && asym
++	  && asym->ts.type == BT_CHARACTER
++	  && ((asym->ts.u.cl && asym->ts.u.cl->length == NULL)
++	      || asym->ts.deferred))
++	{
++	  gfc_error ("Assumed or deferred character length variable %qs "
++		     "in constant expression at %L",
++		      asym->name, &ap->expr->where);
+ 	  return MATCH_ERROR;
++	}
++      else if (not_restricted && !gfc_check_init_expr (ap->expr))
++	return MATCH_ERROR;
+ 
+-	if (not_restricted == 0
+-	    && ap->expr->expr_type == EXPR_VARIABLE
+-	    && ap->expr->symtree->n.sym->attr.dummy
+-	    && ap->expr->symtree->n.sym->attr.optional)
+-	  return MATCH_NO;
++      if (not_restricted == 0
++	  && ap->expr->expr_type != EXPR_VARIABLE
++	  && !check_restricted (ap->expr))
++	return MATCH_ERROR;
++
++      if (not_restricted == 0
++	  && ap->expr->expr_type == EXPR_VARIABLE
++	  && asym->attr.dummy && asym->attr.optional)
++	return MATCH_NO;
+     }
+ 
+   return MATCH_YES;
 Index: gcc/fortran/trans-types.c
 ===================================================================
 --- a/src/gcc/fortran/trans-types.c	(.../tags/gcc_8_3_0_release)
@@ -43953,7 +44590,7 @@ Index: gcc/fortran/trans-types.c
  	  spec[spec_len++] = '.';
  	else if (f->sym->attr.intent == INTENT_IN)
  	  spec[spec_len++] = 'r';
-@@ -2991,9 +2996,64 @@
+@@ -2991,9 +2996,65 @@
    return build_type_attribute_variant (fntype, tmp);
  }
  
@@ -44003,6 +44640,7 @@ Index: gcc/fortran/trans-types.c
 +		}
 +	    }
 +	  s->attr.dummy = 1;
++	  s->attr.artificial = 1;
 +	  s->attr.intent = INTENT_UNKNOWN;
 +	  (*f)->sym = s;
 +	}
@@ -44019,7 +44657,7 @@ Index: gcc/fortran/trans-types.c
  {
    tree type;
    vec<tree, va_gc> *typelist = NULL;
-@@ -3051,6 +3111,10 @@
+@@ -3051,6 +3112,10 @@
  	    vec_safe_push (typelist, build_pointer_type(gfc_charlen_type_node));
  	}
      }
@@ -44083,6 +44721,49 @@ Index: gcc/fortran/frontend-passes.c
  
    if (n->expr_type == EXPR_CONSTANT)
      {
+@@ -2511,6 +2516,7 @@
+ 	      bool have_do_start, have_do_end;
+ 	      bool error_not_proven;
+ 	      int warn;
++	      int sgn;
+ 
+ 	      dl = lp->c;
+ 	      if (dl == NULL)
+@@ -2539,7 +2545,16 @@
+ 		 Do not warn in this case.  */
+ 	  
+ 	      if (dl->ext.iterator->step->expr_type == EXPR_CONSTANT)
+-		mpz_init_set (do_step, dl->ext.iterator->step->value.integer);
++		{
++		  sgn = mpz_cmp_ui (dl->ext.iterator->step->value.integer, 0);
++		  /* This can happen, but then the error has been
++		     reported previusly.  */
++		  if (sgn == 0)
++		    continue;
++
++		  mpz_init_set (do_step, dl->ext.iterator->step->value.integer);
++		}
++
+ 	      else
+ 		continue;
+ 
+@@ -2563,6 +2578,16 @@
+ 	      if (!have_do_start && !have_do_end)
+ 		return 0;
+ 
++	      /* No warning inside a zero-trip loop.  */
++	      if (have_do_start && have_do_end)
++		{
++		  int cmp;
++
++		  cmp = mpz_cmp (do_end, do_start);
++		  if ((sgn > 0 && cmp < 0) || (sgn < 0 && cmp > 0))
++		    break;
++		}
++
+ 	      /* May have to correct the end value if the step does not equal
+ 		 one.  */
+ 	      if (have_do_start && have_do_end && mpz_cmp_ui (do_step, 1) != 0)
 Index: gcc/fortran/resolve.c
 ===================================================================
 --- a/src/gcc/fortran/resolve.c	(.../tags/gcc_8_3_0_release)
@@ -44340,6 +45021,46 @@ Index: gcc/fortran/resolve.c
      }
    /* This might have changed!  */
    return e->expr_type == EXPR_FUNCTION;
+@@ -6888,6 +6929,19 @@
+ 				  "Step expression in DO loop"))
+     return false;
+ 
++  /* Convert start, end, and step to the same type as var.  */
++  if (iter->start->ts.kind != iter->var->ts.kind
++      || iter->start->ts.type != iter->var->ts.type)
++    gfc_convert_type (iter->start, &iter->var->ts, 1);
++
++  if (iter->end->ts.kind != iter->var->ts.kind
++      || iter->end->ts.type != iter->var->ts.type)
++    gfc_convert_type (iter->end, &iter->var->ts, 1);
++
++  if (iter->step->ts.kind != iter->var->ts.kind
++      || iter->step->ts.type != iter->var->ts.type)
++    gfc_convert_type (iter->step, &iter->var->ts, 1);
++
+   if (iter->step->expr_type == EXPR_CONSTANT)
+     {
+       if ((iter->step->ts.type == BT_INTEGER
+@@ -6901,19 +6955,6 @@
+ 	}
+     }
+ 
+-  /* Convert start, end, and step to the same type as var.  */
+-  if (iter->start->ts.kind != iter->var->ts.kind
+-      || iter->start->ts.type != iter->var->ts.type)
+-    gfc_convert_type (iter->start, &iter->var->ts, 1);
+-
+-  if (iter->end->ts.kind != iter->var->ts.kind
+-      || iter->end->ts.type != iter->var->ts.type)
+-    gfc_convert_type (iter->end, &iter->var->ts, 1);
+-
+-  if (iter->step->ts.kind != iter->var->ts.kind
+-      || iter->step->ts.type != iter->var->ts.type)
+-    gfc_convert_type (iter->step, &iter->var->ts, 1);
+-
+   if (iter->start->expr_type == EXPR_CONSTANT
+       && iter->end->expr_type == EXPR_CONSTANT
+       && iter->step->expr_type == EXPR_CONSTANT)
 @@ -7640,13 +7681,54 @@
  
    if (codimension)
@@ -44679,6 +45400,21 @@ Index: gcc/fortran/trans-decl.c
        sym->attr.pointer = 1;
        tmp = gfc_trans_assignment (gfc_lval_expr_from_sym (sym), sym->value,
  				  true, false);
+@@ -5628,9 +5724,11 @@
+ 	    }
+ 	  else if (warn_unused_dummy_argument)
+ 	    {
+-	      gfc_warning (OPT_Wunused_dummy_argument,
+-			   "Unused dummy argument %qs at %L", sym->name,
+-			   &sym->declared_at);
++	      if (!sym->attr.artificial)
++		gfc_warning (OPT_Wunused_dummy_argument,
++			     "Unused dummy argument %qs at %L", sym->name,
++			     &sym->declared_at);
++
+ 	      if (sym->backend_decl != NULL_TREE)
+ 		TREE_NO_WARNING(sym->backend_decl) = 1;
+ 	    }
 Index: gcc/fortran/target-memory.c
 ===================================================================
 --- a/src/gcc/fortran/target-memory.c	(.../tags/gcc_8_3_0_release)
@@ -46544,6 +47280,38 @@ Index: gcc/varasm.c
  	}
  
        next_offset += this_time;
+Index: gcc/ira.c
+===================================================================
+--- a/src/gcc/ira.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/ira.c	(.../branches/gcc-8-branch)
+@@ -5147,6 +5147,8 @@
+   int ira_max_point_before_emit;
+   bool saved_flag_caller_saves = flag_caller_saves;
+   enum ira_region saved_flag_ira_region = flag_ira_region;
++  unsigned int i;
++  int num_used_regs = 0;
+ 
+   clear_bb_flags ();
+ 
+@@ -5162,12 +5164,17 @@
+ 
+   ira_conflicts_p = optimize > 0;
+ 
++  /* Determine the number of pseudos actually requiring coloring.  */
++  for (i = FIRST_PSEUDO_REGISTER; i < DF_REG_SIZE (df); i++)
++    num_used_regs += !!(DF_REG_USE_COUNT (i) + DF_REG_DEF_COUNT (i));
++
+   /* If there are too many pseudos and/or basic blocks (e.g. 10K
+      pseudos and 10K blocks or 100K pseudos and 1K blocks), we will
+      use simplified and faster algorithms in LRA.  */
+   lra_simple_p
+     = (ira_use_lra_p
+-       && max_reg_num () >= (1 << 26) / last_basic_block_for_fn (cfun));
++       && num_used_regs >= (1 << 26) / last_basic_block_for_fn (cfun));
++
+   if (lra_simple_p)
+     {
+       /* It permits to skip live range splitting in LRA.  */
 Index: gcc/rtl.c
 ===================================================================
 --- a/src/gcc/rtl.c	(.../tags/gcc_8_3_0_release)
@@ -47752,6 +48520,571 @@ Index: gcc/config/sparc/sparc.c
        && ORIGINAL_REGNO (x) == REGNO (pic_offset_table_rtx))
      return true;
  
+Index: gcc/config/sparc/sparc.h
+===================================================================
+--- a/src/gcc/config/sparc/sparc.h	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/sparc/sparc.h	(.../branches/gcc-8-branch)
+@@ -748,6 +748,13 @@
+    register window instruction in the prologue.  */
+ #define HARD_REGNO_RENAME_OK(FROM, TO) ((FROM) != 1)
+ 
++/* Select a register mode required for caller save of hard regno REGNO.
++   Contrary to what is documented, the default is not the smallest suitable
++   mode but the largest suitable mode for the given (REGNO, NREGS) pair and
++   it quickly creates paradoxical subregs that can be problematic.  */
++#define HARD_REGNO_CALLER_SAVE_MODE(REGNO, NREGS, MODE) \
++  ((MODE) == VOIDmode ? choose_hard_reg_mode (REGNO, NREGS, false) : (MODE))
++
+ /* Specify the registers used for certain standard purposes.
+    The values of these macros are register numbers.  */
+ 
+Index: gcc/config/darwin.opt
+===================================================================
+--- a/src/gcc/config/darwin.opt	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/darwin.opt	(.../branches/gcc-8-branch)
+@@ -18,241 +18,379 @@
+ ; along with GCC; see the file COPYING3.  If not see
+ ; <http://www.gnu.org/licenses/>.
+ 
+-; Various linker options have a -Z added so that they can get to specs
+-; processing without interference.  Note that an option name with a
+-; prefix that matches another option name, that also takes an
+-; argument, being mapped to a -Z linker option, needs to be modified
+-; so the prefix is different, otherwise a '*' after the shorter option
+-; will match with the longer one.
++; We have a lot of Driver options, many of which are obsolete or very very
++; rarely used so, to keep this file easier to manage:
+ 
++; Please place all Non-driver options first (in alphabetical order), followed
++; by Driver-only options.
++
++; Non-driver options.
++
++dependency-file
++C ObjC C++ ObjC++ Separate Alias(MF) MissingArgError(missing filename after %qs)
++
++fapple-kext
++Target Report C++ Var(flag_apple_kext)
++Generate code for darwin loadable kernel extensions.
++
++iframework
++Target RejectNegative C ObjC C++ ObjC++ Joined Separate
++-iframework <dir>	Add <dir> to the end of the system framework include path.
++
++mconstant-cfstrings
++Target Report Var(darwin_constant_cfstrings) Init(1)
++Generate compile-time CFString objects.
++
++Wnonportable-cfstrings
++Target Report Var(darwin_warn_nonportable_cfstrings) Init(1) Warning
++Warn if constant CFString objects contain non-portable characters.
++
++; Use new-style pic stubs if this is true, x86 only so far.
++matt-stubs
++Target Report Var(darwin_macho_att_stub) Init(1)
++Generate AT&T-style stubs for Mach-O.
++
++mdynamic-no-pic
++Target Common Report Mask(MACHO_DYNAMIC_NO_PIC)
++Generate code suitable for executables (NOT shared libs).
++
++mfix-and-continue
++Target Report Var(darwin_fix_and_continue)
++Generate code suitable for fast turn around debugging.
++
++mkernel
++Target Report Var(flag_mkernel)
++Generate code for the kernel or loadable kernel extensions.
++
++; The Init here is for the convenience of GCC developers, so that cc1
++; and cc1plus don't crash if no -mmacosx-version-min is passed.  The
++; driver will always pass a -mmacosx-version-min, so in normal use the
++; Init is never used.
++mmacosx-version-min=
++Target RejectNegative Joined Report Var(darwin_macosx_version_min) Init(DEF_MIN_OSX_VERSION)
++The earliest MacOS X version on which this program will run.
++
++; Really, only relevant to PowerPC which has a 4 byte bool by default.
++mone-byte-bool
++Target RejectNegative Report Var(darwin_one_byte_bool)
++Set sizeof(bool) to 1.
++
++; Some code-gen may be improved / adjusted if the linker is sufficiently modern.
++mtarget-linker=
++Target RejectNegative Joined Report Alias(mtarget-linker)
++
++mtarget-linker
++Target RejectNegative Joined Separate Report Var(darwin_target_linker) Init(LD64_VERSION)
++The version of ld64 in use for this toolchain.
++
++; Driver options.
++
+ all_load
+-Driver Alias(Zall_load)
++Driver RejectNegative Alias(Zall_load)
++Loads all members of archive libraries
+ 
+ allowable_client
+-Driver Separate Alias(Zallowable_client)
++Driver RejectNegative Separate Alias(Zallowable_client)
++-allowable_client <name>	The output dylib is private to the client(s) named
+ 
+ arch
+ Driver RejectNegative Separate
++-arch <name>	Specify that the output file should be generated for architecture  \"name\"
+ 
+ arch_errors_fatal
+-Driver Alias(Zarch_errors_fatal)
++Driver RejectNegative Alias(Zarch_errors_fatal)
++Mismatches between file architecture and the \"-arch\" are errors instead of warnings
+ 
+ asm_macosx_version_min=
+ Driver RejectNegative Joined
++The earliest MacOS X version on which this program will run (formatted for the assembler)
+ 
+ bind_at_load
+-Driver Alias(Zbind_at_load)
++Driver RejectNegative Alias(Zbind_at_load)
++Produce an output file that will bind symbols on load, rather than lazily.
+ 
+ bundle
+-Driver Alias(Zbundle)
++Driver RejectNegative Alias(Zbundle)
++Produce a Mach-O bundle (file type MH_BUNDLE)
+ 
+ bundle_loader
+-Driver Separate Alias(Zbundle_loader)
++Driver RejectNegative Separate Alias(Zbundle_loader)
++-bundle_loader <executable>	Treat \"executable\" (that will be loading this bundle) as if it was one of the dynamic libraries the bundle is linked against for symbol resolution
+ 
++client_name
++Driver RejectNegative Separate
++-client_name <name>	Enable the executable being built to link against a private dylib (using allowable_client)
++
++compatibility_version
++Driver RejectNegative Separate
++-compatibility_version <number>	Set the minimum version for the client interface.  Clients must record a greater number than this or the binding will fail at runtime
++
++current_version
++Driver RejectNegative Separate
++-current_version <number>	Set the current version for the library.
++
+ dead_strip
+-Driver Alias(Zdead_strip)
++Driver RejectNegative Alias(Zdead_strip)
++Remove code and data that is unreachable from any exported symbol (including the entry point)
+ 
+-dependency-file
+-C ObjC C++ ObjC++ Separate Alias(MF) MissingArgError(missing filename after %qs)
+-
+ dylib_file
+ Driver Separate Alias(Zdylib_file)
+ 
+ dylinker
+-Driver
++Driver RejectNegative
++Produce a Mach-O dylinker (file type MH_DYLINKER), only used for building dyld.
+ 
++dylinker_install_name
++Driver RejectNegative Separate
++-dylinker_install_name <path>	Only used for building dyld.
++
+ dynamic
+-Driver Alias(Zdynamic)
++Driver RejectNegative Alias(Zdynamic)
++The default (and opposite of -static), implied by user mode executables, shared libraries and bundles.
+ 
+ dynamiclib
+-Driver Alias(Zdynamiclib)
++Driver RejectNegative Alias(Zdynamiclib)
++Produce a Mach-O shared library (file type MH_DYLIB), synonym for -shared
+ 
+ exported_symbols_list
+-Driver Separate Alias(Zexported_symbols_list)
++Driver RejectNegative Separate Alias(Zexported_symbols_list)
++-exported_symbols_list <filename>	Global symbols in \"filename\" will be exported from the linked output file, any symbols not mentioned will be treated as hidden.
+ 
+ filelist
+ Driver RejectNegative Separate
++Supply a list of objects to be linked from a file, rather than the command line
+ 
+ findirect-virtual-calls
+ Driver RejectNegative
++Used for generating code for some older kernel revisions.
+ 
+ flat_namespace
+ Driver RejectNegative Alias(Zflat_namespace)
++Ignore the normal two-level namespace; resolve symbols in command line order and do not record which library provided the resolved symbol.
+ 
+ force_cpusubtype_ALL
+ Driver RejectNegative Alias(Zforce_cpusubtype_ALL)
++For the assembler (and linker) permit any architecture sub-variant to be used without error.
+ 
+ force_flat_namespace
+ Driver RejectNegative Alias(Zforce_flat_namespace)
++Set the output object such that, on loading, dyld  will ignore any two-level information and resolve symbols in the discovery order for loaded libs.
+ 
+ framework
+ Driver RejectNegative Separate
++-framework <name>	The linker should search for the named framework in the framework search path.
+ 
+ fterminated-vtables
+ Driver RejectNegative
++Used for generating code for some older kernel revisions.
+ 
+ gfull
+ Driver RejectNegative
++Abbreviation for \"-g -fno-eliminate-unused-debug-symbols\"
+ 
+ gused
+ Driver RejectNegative
++Abbreviation for \"-g -feliminate-unused-debug-symbols\"
+ 
+ headerpad_max_install_names
+-Driver
++Driver RejectNegative
++Automatically adds space for longer path names in load commands (up to MAXPATHLEN)
+ 
+ image_base
+-Driver Separate Alias(Zimage_base)
++Driver RejectNegative Separate Alias(Zimage_base)
++-image_base <address>	Choose a base address for a dylib or bundle.
+ 
+ init
+-Driver Separate Alias(Zinit)
++Driver RejectNegative Separate Alias(Zinit)
++-init <symbol_name>	The symbol \"symbol_name\" will be used as the first initialiser for a dylib.
+ 
+ install_name
+-Driver Separate Alias(Zinstall_name)
++Driver RejectNegative Separate Alias(Zinstall_name)
++-install_name <name>	Set the install name for a dylib.
+ 
+ keep_private_externs
+-Driver
++Driver RejectNegative
++Usually \"private extern\" (hidden) symbols are made local when linking, this command suppresses that such that they remain exported.
+ 
+-mconstant-cfstrings
+-Target Report Var(darwin_constant_cfstrings) Init(1)
+-Generate compile-time CFString objects.
+-
+ multi_module
+ Driver RejectNegative Alias(Zmulti_module)
++(Obsolete after 10.4) Multi modules are ignored at runtime since MacOS 10.4
+ 
+ multiply_defined
+ Driver RejectNegative Separate Alias(Zmultiply_defined)
++(Obsolete after 10.4) -multiply_defined <treatment> Provided a mechanism for warning about symbols defined in multiple dylibs.
+ 
+ multiply_defined_unused
+ Driver RejectNegative Separate Alias(Zmultiplydefinedunused)
++(Obsolete after 10.4) -multiply_defined_unused <treatment>	Provided a mechanism for warning about symbols defined in the current executable also being defined in linked dylibs.
+ 
+ no_dead_strip_inits_and_terms
+-Driver Alias(Zno_dead_strip_inits_and_terms)
++Driver RejectNegative Alias(Zno_dead_strip_inits_and_terms)
++(Obsolete) The linker never dead strips these items, so the option is not needed.
+ 
+ nofixprebinding
+-Driver
++Driver RejectNegative
++(Obsolete after 10.3.9) Set MH_NOPREFIXBINDING, in an exectuable.
+ 
+ nomultidefs
+-Driver
++Driver RejectNegative
++(Obsolete after 10.4)	Set MH_NOMULTIDEFS in an umbrella framework.
+ 
+ noprebind
+-Driver
++Driver RejectNegative Negative(prebind)
++(Obsolete) LD_PREBIND is no longer supported.
+ 
+ noseglinkedit
+-Driver
++Driver RejectNegative Negative(seglinkedit)
++(Obsolete) This is the default.
+ 
+ object
+-Driver
++Driver RejectNegative
+ 
++pagezero_size
++Driver RejectNegative Separate
++-pagezero_size size	Allows setting the page 0 size to 4kb for certain special cases.
++
+ prebind
+-Driver
++Driver RejectNegative Negative(noprebind)
++(Obsolete) LD_PREBIND is no longer supported.
+ 
+ prebind_all_twolevel_modules
+-Driver
++Driver RejectNegative
++(Obsolete) LD_PREBIND is no longer supported.
+ 
+ preload
+-Driver
++Driver RejectNegative
++Produces a Mach-O file suitable for embedded/ROM use.
+ 
+ private_bundle
+-Driver
++Driver RejectNegative
++(Obsolete) Allowed linking to proceed with \"-flat_namespace\" when a linked bundle contained a symbol also exported from the main executable.
+ 
+ pthread
+-Driver
++Driver RejectNegative
+ 
+ rdynamic
+-Driver
++Driver RejectNegative
++Synonym for \"-export-dynamic\" for linker versions that support it.
+ 
++read_only_relocs
++Driver RejectNegative Separate
++-read_only_relocs <treatment>	This will allow relocs in read-only pages (not advisable).
++
++sectalign
++Driver RejectNegative Separate Args(3)
++-sectalign <segname> <sectname> <value>	Set section \"sectname\" in segment \"segname\" to have alignment \"value\" which must be an integral power of two expressed in hexadecimal form.
++
++sectcreate
++Driver RejectNegative Separate Args(3)
++-sectcreate <segname> <sectname> <file>	Create section \"sectname\" in segment \"segname\" from the contents of \"file\".
++
++sectobjectsymbols
++Driver RejectNegative Separate Args(2)
++(Obsolete) -sectobjectsymbols <segname> <sectname>	Setting a local symbol at the start of a section is no longer supported.
++
++sectorder
++Driver RejectNegative Separate Args(3)
++(Obsolete) -sectorder <segname> <sectname> orderfile	Replaced by a more general option \"-order_file\".
++
+ seg_addr_table
+-Driver Separate Alias(Zseg_addr_table)
++Driver RejectNegative Separate Alias(Zseg_addr_table)
++-seg_addr_table <file>	Specify the base addresses for dynamic libraries, \"file\" contains a line for each library.
+ 
++; This is only usable by the ld_classic linker.
+ seg_addr_table_filename
+-Driver Separate Alias(Zfn_seg_addr_table_filename)
++Driver RejectNegative Separate Alias(Zfn_seg_addr_table_filename)
++(Obsolete, ld_classic only) -seg_addr_table_filename <path>
+ 
++seg1addr
++Driver RejectNegative Separate
++Synonym for \"image_base\"
++
+ segaddr
+-Driver Separate Args(2) Alias(Zsegaddr)
++Driver RejectNegative Separate Args(2) Alias(Zsegaddr)
++-segaddr <name> <address>	Set the base address of segment \"name\" to \"address\" which must be aligned to a page boundary (currently 4kb).
+ 
++; This is only usable by the ld_classic linker.
++segcreate
++Driver RejectNegative Separate Args(3)
++(Obsolete, ld_classic only) -sectcreate segname sectname file
++
+ seglinkedit
+-Driver
++Driver RejectNegative Negative(noseglinkedit)
++(Obsolete) Object files with LINKEDIT sections are no longer supported.
+ 
++segprot
++Driver RejectNegative Separate Args(3)
++-segprot <segname> max_prot init_prot	The protection values are \"r\", \"w\", \"x\" or \"-\" the latter meaning \"no access\".
++
+ segs_read_only_addr
+-Driver Separate Alias(Zsegs_read_only_addr)
++Driver RejectNegative Separate Alias(Zsegs_read_only_addr)
++-segs_read_only_addr address 	Allows specifying the address of the read only portion of a dylib.
+ 
+ segs_read_write_addr
+-Driver Separate Alias(Zsegs_read_write_addr)
++Driver RejectNegative Separate Alias(Zsegs_read_write_addr)
++-segs_read_write_addr address 	Allows specifying the address of the read/write portion of a dylib.
+ 
+ single_module
+-Driver Alias(Zsingle_module)
++Driver RejectNegative Alias(Zsingle_module)
++(Obsolete)	This is the default.
+ 
++sub_library
++Driver RejectNegative Separate
++-sub_library <name>	Library named \"name\" will be re-exported (only useful for dylibs).
++
++sub_umbrella
++Driver RejectNegative Separate
++-sub_umbrella <name>	Framework named \"name\" will be re-exported (only useful for dylibs).
++
+ twolevel_namespace
+-Driver
++Driver RejectNegative
++This is the default
+ 
+ twolevel_namespace_hints
+-Driver
++Driver RejectNegative
++Specifies content that can speed up dynamic loading when the binaries are unchanged.
+ 
+ umbrella
+-Driver Separate Alias(Zumbrella)
++Driver RejectNegative Separate Alias(Zumbrella)
++-umbrella <framework>	The specified framework will be re-exported.
+ 
++undefined
++Driver RejectNegative Separate
++-undefined <treatment>	Specify the handling for undefined symbols (default is error).
++
+ unexported_symbols_list
+-Driver Separate Alias(Zunexported_symbols_list)
++Driver RejectNegative Separate Alias(Zunexported_symbols_list)
++-unexported_symbols_list <filename>	Don't export global symbols listed in filename.
+ 
+ weak_reference_mismatches
+-Driver Separate Alias(Zweak_reference_mismatches)
++Driver RejectNegative Separate Alias(Zweak_reference_mismatches)
++-weak_reference_mismatches <treatment>	Specifies what to do if a symbol import conflicts between file (weak in one and not in another) the default is to treat the symbol as non-weak.
+ 
+ whatsloaded
+-Driver
++Driver RejectNegative
++Logs the object files the linker loads
+ 
+ whyload
+-Driver
++Driver RejectNegative
++Logs which symbol(s) caused an object to be loaded.
+ 
++;(Obsolete, ignored)	Strip symbols starting with "L", this is the default.
++X
++Driver RejectNegative
++
+ y
+-Driver Joined
++Driver RejectNegative Joined
++(Obsolete, ignored)	Old support similar to whyload.
+ 
+ Mach
+-Driver
++Driver RejectNegative
++(Obsolete and unhandled by ld64, ignored)	ld should produce an executable (only handled by ld_classic).
+ 
+-Wnonportable-cfstrings
+-Target Report Var(darwin_warn_nonportable_cfstrings) Init(1) Warning
+-Warn if constant CFString objects contain non-portable characters.
++;; These are not "real" options, but placeholders used to hide the real options
++;; from generic options processing... FIXME: they can be eliminated now.
+ 
+-; Use new-style pic stubs if this is true, x86 only so far.
+-matt-stubs
+-Target Report Var(darwin_macho_att_stub) Init(1)
+-Generate AT&T-style stubs for Mach-O.
+-
+-mdynamic-no-pic
+-Target Common Report Mask(MACHO_DYNAMIC_NO_PIC)
+-Generate code suitable for executables (NOT shared libs).
+-
+-mfix-and-continue
+-Target Report Var(darwin_fix_and_continue)
+-Generate code suitable for fast turn around debugging.
+-
+-; The Init here is for the convenience of GCC developers, so that cc1
+-; and cc1plus don't crash if no -mmacosx-version-min is passed.  The
+-; driver will always pass a -mmacosx-version-min, so in normal use the
+-; Init is never used.
+-mmacosx-version-min=
+-Target Joined Report Var(darwin_macosx_version_min) Init(DEF_MIN_OSX_VERSION)
+-The earliest MacOS X version on which this program will run.
+-
+-mone-byte-bool
+-Target RejectNegative Report Var(darwin_one_byte_bool)
+-Set sizeof(bool) to 1.
+-
+-fapple-kext
+-Target Report C++ Var(flag_apple_kext)
+-Generate code for darwin loadable kernel extensions.
+-
+-mkernel
+-Target Report Var(flag_mkernel)
+-Generate code for the kernel or loadable kernel extensions.
+-
+-iframework
+-Target RejectNegative C ObjC C++ ObjC++ Joined Separate 
+--iframework <dir>	Add <dir> to the end of the system framework include path.
+-
+-X
+-Driver
+-
+ Zall_load
+ Driver
+ 
+@@ -343,62 +481,3 @@
+ Zweak_reference_mismatches
+ Driver Separate
+ 
+-client_name
+-Driver Separate
+-
+-compatibility_version
+-Driver Separate
+-
+-current_version
+-Driver Separate
+-
+-dylinker_install_name
+-Driver Separate
+-
+-pagezero_size
+-Driver Separate
+-
+-read_only_relocs
+-Driver Separate
+-
+-sectalign
+-Driver Separate Args(3)
+-
+-sectcreate
+-Driver Separate Args(3)
+-
+-sectobjectsymbols
+-Driver Separate Args(2)
+-
+-sectorder
+-Driver Separate Args(3)
+-
+-seg1addr
+-Driver Separate
+-
+-segcreate
+-Driver Separate Args(3)
+-
+-segprot
+-Driver Separate Args(3)
+-
+-segs_read_only_addr
+-Driver Separate
+-
+-segs_read_write_addr
+-Driver Separate
+-
+-sub_library
+-Driver Separate
+-
+-sub_umbrella
+-Driver Separate
+-
+-; Certain aspects of code-gen may be improved / adjusted if the version of ld64
+-; is sufficiently modern.
+-mtarget-linker
+-Target RejectNegative Joined Separate Report Var(darwin_target_linker) Init(LD64_VERSION)
+-The version of ld64 in use for this toolchain.
+-
+-undefined
+-Driver Separate
 Index: gcc/config/darwin-c.c
 ===================================================================
 --- a/src/gcc/config/darwin-c.c	(.../tags/gcc_8_3_0_release)
@@ -48963,6 +50296,60 @@ Index: gcc/config/i386/i386.c
  	      return FLT_EVAL_METHOD_PROMOTE_TO_LONG_DOUBLE;
  	    else if (TARGET_SSE2)
  	      return FLT_EVAL_METHOD_PROMOTE_TO_FLOAT;
+Index: gcc/config/sh/sh.c
+===================================================================
+--- a/src/gcc/config/sh/sh.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/sh/sh.c	(.../branches/gcc-8-branch)
+@@ -736,7 +736,7 @@
+     {
+       if (tokens[i] == "strict")
+ 	ret.strict = true;
+-      else if (tokens[i].find ("gbr-offset=") == 0)
++      else if (!tokens[i].compare (0, strlen ("gbr-offset="), "gbr-offset="))
+ 	{
+ 	  std::string offset_str = tokens[i].substr (strlen ("gbr-offset="));
+ 	  ret.tcb_gbr_offset = integral_argument (offset_str.c_str ());
+@@ -10875,12 +10875,6 @@
+ 	  emit_insn (gen_add2_insn (scratch0, GEN_INT (vcall_offset)));
+ 	  offset_addr = scratch0;
+ 	}
+-      else if (scratch0 != scratch1)
+-	{
+-	  emit_move_insn (scratch1, GEN_INT (vcall_offset));
+-	  emit_insn (gen_add2_insn (scratch0, scratch1));
+-	  offset_addr = scratch0;
+-	}
+       else
+ 	gcc_unreachable (); /* FIXME */
+       emit_load_ptr (scratch0, offset_addr);
+@@ -12077,9 +12071,11 @@
+ 	rtx r = gen_reg_rtx (SImode);
+ 	rtx_insn* i0;
+ 	if (from_mode == QImode)
+-	  i0 = emit_insn_after (gen_extendqisi2 (r, set_src), insn);
++	  i0 = sh_check_add_incdec_notes (
++			emit_insn_after (gen_extendqisi2 (r, set_src), insn));
+ 	else if (from_mode == HImode)
+-	  i0 = emit_insn_after (gen_extendhisi2 (r, set_src), insn);
++	  i0 = sh_check_add_incdec_notes (
++			emit_insn_after (gen_extendhisi2 (r, set_src), insn));
+ 	else
+ 	  gcc_unreachable ();
+ 
+Index: gcc/config/xtensa/xtensa.c
+===================================================================
+--- a/src/gcc/config/xtensa/xtensa.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/xtensa/xtensa.c	(.../branches/gcc-8-branch)
+@@ -2862,7 +2862,8 @@
+ 			    gen_rtx_SET (mem, reg));
+ 	    }
+ 	}
+-      if (total_size > 1024)
++      if (total_size > 1024
++	  || (!callee_save_size && total_size > 128))
+ 	{
+ 	  rtx tmp_reg = gen_rtx_REG (Pmode, A9_REG);
+ 	  emit_move_insn (tmp_reg, GEN_INT (total_size -
 Index: gcc/config/riscv/riscv.c
 ===================================================================
 --- a/src/gcc/config/riscv/riscv.c	(.../tags/gcc_8_3_0_release)
@@ -49120,6 +50507,17 @@ Index: gcc/config/aarch64/aarch64.md
  ])
  
  (define_c_enum "unspecv" [
+@@ -974,8 +975,8 @@
+ 	(match_operand:GPI 1 "general_operand" ""))]
+   ""
+   "
+-    if (MEM_P (operands[0]) && CONST_INT_P (operands[1])
+-	&& <MODE>mode == DImode
++    if (MEM_P (operands[0]) && !MEM_VOLATILE_P (operands[0])
++	&& CONST_INT_P (operands[1]) && <MODE>mode == DImode
+ 	&& aarch64_split_dimode_const_store (operands[0], operands[1]))
+       DONE;
+ 
 @@ -5412,7 +5413,7 @@
    [(match_operand:GPI 0 "register_operand")
     (match_operand:GPF 1 "register_operand")]
@@ -50864,6 +52262,33 @@ Index: gcc/config/arm/arm.h
  
  /* FPU supports fused-multiply-add operations.  */
  #define TARGET_FMA (bitmap_bit_p (arm_active_target.isa, isa_bit_vfpv4))
+Index: gcc/config/arm/arm_acle.h
+===================================================================
+--- a/src/gcc/config/arm/arm_acle.h	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/arm/arm_acle.h	(.../branches/gcc-8-branch)
+@@ -174,8 +174,12 @@
+ #endif /* (!__thumb__ || __thumb2__) &&  __ARM_ARCH >= 4.  */
+ 
+ #pragma GCC push_options
+-#if __ARM_ARCH >= 8
++#ifdef __ARM_FEATURE_CRC32
++#ifdef __ARM_FP
++#pragma GCC target ("arch=armv8-a+crc+simd")
++#else
+ #pragma GCC target ("arch=armv8-a+crc")
++#endif
+ 
+ __extension__ static __inline uint32_t __attribute__ ((__always_inline__))
+ __crc32b (uint32_t __a, uint8_t __b)
+@@ -235,7 +239,7 @@
+ }
+ #endif
+ 
+-#endif /* __ARM_ARCH >= 8.  */
++#endif /* __ARM_FEATURE_CRC32  */
+ #pragma GCC pop_options
+ 
+ #ifdef __cplusplus
 Index: gcc/config/arm/neon.md
 ===================================================================
 --- a/src/gcc/config/arm/neon.md	(.../tags/gcc_8_3_0_release)
@@ -51557,6 +52982,15 @@ Index: gcc/config/pa/pa.c
  
    /* TARGET_HARD_REGNO_MODE_OK places modes with sizes larger than a word
       in specific sets of registers.  Thus, we cannot allow changing
+@@ -10234,7 +10234,7 @@
+     }
+ 
+ #ifdef HAVE_ENABLE_EXECUTE_STACK
+-  emit_library_call (gen_rtx_SYMBOL_REF (Pmode, "__enable_execute_stack"),
++  emit_library_call (gen_rtx_SYMBOL_REF (Pmode, "__enable_execute_stack"),
+ 		     LCT_NORMAL, VOIDmode, XEXP (m_tramp, 0), Pmode);
+ #endif
+ }
 Index: gcc/config/pa/pa-linux.h
 ===================================================================
 --- a/src/gcc/config/pa/pa-linux.h	(.../tags/gcc_8_3_0_release)
