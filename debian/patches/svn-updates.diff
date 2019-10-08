@@ -1,10 +1,10 @@
-# DP: updates from the 8 branch upto 20191002 (r276439).
+# DP: updates from the 8 branch upto 20191008 (r276700).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Wed Oct  2 06:09:43 CEST 2019
-Wed Oct  2 04:09:43 UTC 2019 (revision 276439)
+Tue Oct  8 15:39:48 CEST 2019
+Tue Oct  8 13:39:48 UTC 2019 (revision 276700)
 EOF
 }
 
@@ -6528,7 +6528,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-8-branch)
 @@ -1 +1 @@
 -20190222
-+20191002
++20191008
 Index: gcc/tree-ssa-loop-ch.c
 ===================================================================
 --- a/src/gcc/tree-ssa-loop-ch.c	(.../tags/gcc_8_3_0_release)
@@ -7665,7 +7665,16 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,1825 @@
+@@ -1,3 +1,1834 @@
++2019-10-07  Bill Schmidt  <wschmidt@linux.ibm.com>
++
++	Backport from mainline
++	2019-10-01  Bill Schmidt  <wschmidt@linux.ibm.com>
++
++	PR target/91275
++	* config/rs6000/rs6000-p8swap.c (rtx_is_swappable_p): Don't swap
++	vpmsumd.
++
 +2019-10-01  Oleg Endo  <olegendo@gcc.gnu.org>
 +
 +	Backport from mainline
@@ -9491,7 +9500,7 @@ Index: gcc/ChangeLog
  2019-02-22  Release Manager
  
  	* GCC 8.3.0 released.
-@@ -568,7 +2394,7 @@
+@@ -568,7 +2403,7 @@
  
  	Backport from mainline
  	2018-11-20  Richard Biener  <rguenther@suse.de>
@@ -13587,6 +13596,32 @@ Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-19b.c
 +  d = mei (&dv, 3);
 +  if (d != CONST1)
 +    abort ();
++
++  return 0;
++}
+Index: gcc/testsuite/gcc.target/powerpc/pr91275.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/pr91275.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/pr91275.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,21 @@
++/* Test that we generate vpmsumd correctly without a swap error.  */
++
++/* { dg-do run { target { p8vector_hw } } } */
++/* { dg-options "-O2 -std=gnu11" } */
++
++#include <altivec.h>
++
++int main() {
++
++  const unsigned long long r0l = 0x8e7dfceac070e3a0;
++  vector unsigned long long r0 = (vector unsigned long long) {r0l, 0}, v;
++  const vector unsigned long long pd
++    = (vector unsigned long) {0xc2LLU << 56, 0};
++
++  v = __builtin_crypto_vpmsumd ((vector unsigned long long) {r0[0], 0}, pd);
++
++  if (v[0] != 0x4000000000000000 || v[1] != 0x65bd7ab605a4a8ff)
++    __builtin_abort ();
 +
 +  return 0;
 +}
@@ -22123,6 +22158,16 @@ Index: gcc/testsuite/gfortran.dg/pointer_array_11.f90
 +    if (norm2(a - b) .gt. 1d-3) stop 2
 +    end subroutine
 +end program test
+Index: gcc/testsuite/gfortran.dg/typebound_call_22.f03
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/typebound_call_22.f03	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/typebound_call_22.f03	(.../branches/gcc-8-branch)
+@@ -26,4 +26,4 @@
+   call x%bar ()
+ end program
+ 
+-! { dg-final { scan-tree-dump-times "base \\(\\);" 1 "optimized" } }
++! { dg-final { scan-tree-dump-times "base \\(\\);" 1 "optimized" { xfail *-*-* } } }
 Index: gcc/testsuite/gfortran.dg/c_ptr_tests_19.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/c_ptr_tests_19.f90	(.../tags/gcc_8_3_0_release)
@@ -26172,7 +26217,21 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,1830 @@
+@@ -1,3 +1,1844 @@
++2019-10-07  Thomas Koenig <tkoenig@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/84487
++	* gfortran.dg/typebound_call_22.f03: xfail.
++
++2019-10-07  Bill Schmidt  <wschmidt@linux.ibm.com>
++
++	Backport from mainline
++	2019-10-01  Bill Schmidt  <wschmdit@linux.ibm.com>
++
++	PR target/91275
++	* gcc.target/powerpc/pr91275.c: New.
++
 +2019-10-01  Kyrylo Tkachov  <kyrylo.tkachov@arm.com>
 +
 +	Backport from mainline
@@ -44004,7 +44063,14 @@ Index: gcc/fortran/ChangeLog
 ===================================================================
 --- a/src/gcc/fortran/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/fortran/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,393 @@
+@@ -1,3 +1,400 @@
++2019-10-07  Thomas Koenig <tkoenig@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/84487
++	* trans-decl.c (gfc_get_symbol_decl): For __def_init, set
++	DECL_ARTIFICAL and do not set TREE_READONLY.
++
 +2019-09-28  Paul Thomas  <pault@gcc.gnu.org>
 +
 +	Backport from mainline
@@ -45280,6 +45346,15 @@ Index: gcc/fortran/trans-decl.c
  	      gsym->type = GSYM_MODULE;
  	      gsym->ns = gfc_get_namespace (NULL, 0);
  	    }
+@@ -1865,7 +1894,7 @@
+ 
+   if (sym->attr.vtab
+       || (sym->name[0] == '_' && strncmp ("__def_init", sym->name, 10) == 0))
+-    TREE_READONLY (decl) = 1;
++    DECL_ARTIFICIAL (decl) = 1;
+ 
+   return decl;
+ }
 @@ -1905,6 +1934,22 @@
    tree decl;
    tree attributes;
@@ -51088,7 +51163,19 @@ Index: gcc/config/rs6000/rs6000-p8swap.c
 ===================================================================
 --- a/src/gcc/config/rs6000/rs6000-p8swap.c	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/config/rs6000/rs6000-p8swap.c	(.../branches/gcc-8-branch)
-@@ -2317,7 +2317,14 @@
+@@ -792,6 +792,11 @@
+ 	  case UNSPEC_REDUC_PLUS:
+ 	  case UNSPEC_REDUC:
+ 	    return 1;
++	  case UNSPEC_VPMSUM:
++	    /* vpmsumd is not swappable, but vpmsum[bhw] are.  */
++	    if (GET_MODE (op) == V2DImode)
++	      return 0;
++	    break;
+ 	  }
+       }
+ 
+@@ -2317,7 +2322,14 @@
  
    /* Pre-pass to recombine lvx and stvx patterns so we don't lose info.  */
    recombine_lvx_stvx_patterns (fun);
