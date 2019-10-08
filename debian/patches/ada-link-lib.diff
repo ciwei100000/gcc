@@ -8,7 +8,8 @@ Description: adapt libgnat build for Debian
  Instead of building libada as a target library only, build it as
  both a host and, if different, target library.
  .
- Compile with -gnatn, link with --as-needed -z defs.
+ Compile with -gnatn for efficiency.
+ Double-check the link since Debian moves some symbols.
  .
  Please read ada-changes-in-autogen-output.diff about src/Makefile.def.
 Bug-Debian: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=786692
@@ -58,12 +59,13 @@ Author: Matthias Klose <doko@debian.org>
  const char *__gnat_object_library_extension = ".a";
 --- a/src/libada/Makefile.in
 +++ b/src/libada/Makefile.in
-@@ -77,10 +77,10 @@ ADA_RTS_DIR=$(GCC_DIR)/ada/rts$(subst /,
+@@ -77,10 +77,11 @@ ADA_RTS_DIR=$(GCC_DIR)/ada/rts$(subst /,
  # by recursive make invocations in gcc/ada/Makefile.in
  LIBADA_FLAGS_TO_PASS = \
          "MAKEOVERRIDES=" \
 -        "LDFLAGS=$(LDFLAGS)" \
-+        "LDFLAGS=$(LDFLAGS) -Wl,--as-needed -Wl,-z,defs" \
++        "LDFLAGS=$(LDFLAGS) -Wl,--no-allow-shlib-undefined \
++          -Wl,--no-copy-dt-needed-entries -Wl,--no-undefined" \
          "LN_S=$(LN_S)" \
          "SHELL=$(SHELL)" \
 -        "GNATLIBFLAGS=$(GNATLIBFLAGS) $(MULTIFLAGS)" \
@@ -150,12 +152,14 @@ Author: Matthias Klose <doko@debian.org>
  ifeq ($(TREECHECKING),)
  CHECKING_ADAFLAGS=
  else
-@@ -233,7 +233,7 @@ else
+@@ -233,7 +233,9 @@ else
  endif
  
  # Strip -Werror during linking for the LTO bootstrap
 -GCC_LINKERFLAGS = $(filter-out -Werror, $(ALL_LINKERFLAGS))
-+GCC_LINKERFLAGS = $(filter-out -Werror, $(ALL_LINKERFLAGS)) -Wl,--as-needed -Wl,-z,defs
++GCC_LINKERFLAGS = $(filter-out -Werror, $(ALL_LINKERFLAGS)) \
++  -Wl,--no-allow-shlib-undefined -Wl,--no-copy-dt-needed-entries \
++  -Wl,--no-undefined
  
  GCC_LINK=$(LINKER) $(GCC_LINKERFLAGS) $(LDFLAGS)
  GCC_LLINK=$(LLINKER) $(GCC_LINKERFLAGS) $(LDFLAGS)

@@ -15,7 +15,8 @@ to stamp-gnatlib2 is not necessary anymore with gcc-9.
 * Link libgnat/gnarl with LDFLAGS.
 * Create libgnat-BV.so symbolic link, use it and -L to link libgnarl.
   This prevents undefined symbols or unwanted usage of host libgnat.
-* Compile with -gnatn, link with --as-needed -z defs.
+* Compile with -gnatn for efficiency.
+  Double-check the link since Debian moves some symbols.
 * set LD_LIBRARY_PATH so that rebuilt tools can be executed.
 
 This patch depends on ada-libgnatvsn.diff.
@@ -213,7 +214,7 @@ This patch depends on ada-libgnatvsn.diff.
  # the GNATLIBFLAGS when this will be supported by GNAT. At this point we will
 --- a/src/gnattools/Makefile.in
 +++ b/src/gnattools/Makefile.in
-@@ -75,16 +75,23 @@ CXX_LFLAGS = \
+@@ -75,16 +75,24 @@ CXX_LFLAGS = \
   -L../../../$(target_noncanonical)/libstdc++-v3/src/.libs \
   -L../../../$(target_noncanonical)/libstdc++-v3/libsupc++/.libs
  
@@ -227,7 +228,8 @@ This patch depends on ada-libgnatvsn.diff.
  	"CFLAGS=$(CFLAGS) $(WARN_CFLAGS)" \
 -	"LDFLAGS=$(LDFLAGS)" \
 -	"ADAFLAGS=$(ADAFLAGS)" \
-+	"LDFLAGS=$(LDFLAGS) -Wl,--as-needed -Wl,-z,defs" \
++	"LDFLAGS=$(LDFLAGS) -Wl,--no-allow-shlib-undefined \
++	  -Wl,--no-copy-dt-needed-entries -Wl,--no-undefined" \
 +	"ADAFLAGS=$(ADAFLAGS) -gnatn" \
  	"ADA_CFLAGS=$(ADA_CFLAGS)" \
  	"INCLUDES=$(INCLUDES_FOR_SUBDIR)" \
