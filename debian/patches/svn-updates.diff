@@ -3,8 +3,8 @@
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Sun Sep 29 10:00:30 CEST 2019
-Sun Sep 29 08:00:30 UTC 2019 (revision 276266)
+Tue Oct  8 10:00:22 CEST 2019
+Tue Oct  8 08:00:22 UTC 2019 (revision 276687)
 EOF
 }
 
@@ -3907,7 +3907,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-9-branch)
 @@ -1 +1 @@
 -20190812
-+20190929
++20191008
 Index: gcc/lra.c
 ===================================================================
 --- a/src/gcc/lra.c	(.../tags/gcc_9_2_0_release)
@@ -4030,6 +4030,16 @@ Index: gcc/tree.h
  extern wide_int vector_cst_int_elt (const_tree, unsigned int);
  extern tree vector_cst_elt (const_tree, unsigned int);
  
+Index: gcc/ipa-cp.c
+===================================================================
+--- a/src/gcc/ipa-cp.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/ipa-cp.c	(.../branches/gcc-9-branch)
+@@ -5190,4 +5190,5 @@
+   max_count = profile_count::uninitialized ();
+   overall_size = 0;
+   max_new_size = 0;
++  ipcp_free_transformation_sum ();
+ }
 Index: gcc/rtlanal.c
 ===================================================================
 --- a/src/gcc/rtlanal.c	(.../tags/gcc_9_2_0_release)
@@ -4454,7 +4464,83 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,426 @@
+@@ -1,3 +1,502 @@
++2019-10-07  Bill Schmidt  <wschmidt@linux.ibm.com>
++
++	Backport from mainline
++	2019-10-01  Bill Schmidt  <wschmidt@linux.ibm.com>
++
++	PR target/91275
++	* config/rs6000/rs6000-p8swap.c (rtx_is_swappable_p): Don't swap
++	vpmsumd.
++
++2019-10-05  Andrea Corallo  <andrea.corallo@arm.com>
++
++	Backport from mainline
++	2019-10-03  Andrea Corallo  <andrea.corallo@arm.com>
++	* gcc/ipa-cp.c (ipa_cp_c_finalize): Release ipcp_transformation_sum
++	when finished.
++	* ipa-prop.c (ipcp_free_transformation_sum): New function.
++	* ipa-prop.h (ipcp_free_transformation_sum): Add declaration.
++
++2019-10-04  Dragan Mladjenovic <dmladjenovic@wavecomp.com>
++
++	Backport from mainline
++	2019-10-03  Dragan Mladjenovic  <dmladjenovic@wavecomp.com>
++
++	PR target/91769
++	* config/mips/mips.c (mips_split_move): Use reg_overlap_mentioned_p
++	instead of REGNO equality check on addr.reg.
++
++2019-10-04  Dragan Mladjenovic <dmladjenovic@wavecomp.com>
++
++	Backport from mainline
++	2019-07-07  Richard Sandiford  <richard.sandiford@arm.com>
++
++	* config/mips/mips.c (mips_split_move): Zero-initialize addr
++	and check whether addr.reg is nonnull before using it.
++
++2019-10-02  Bernd Edlinger  <bernd.edlinger@hotmail.de>
++
++	Backport from mainline
++
++	2019-09-13  Bernd Edlinger  <bernd.edlinger@hotmail.de>
++
++	PR fortran/91716
++	* trans-array.c (gfc_conv_array_initializer): Always assign the
++	array type of the field to the string constant.
++
++2019-10-01  Oleg Endo  <olegendo@gcc.gnu.org>
++
++	Backport from mainline
++
++	2019-10-01  Oleg Endo  <olegendo@gcc.gnu.org>
++
++	PR target/88562
++	* config/sh/sh.c (sh_extending_set_of_reg::use_as_extended_reg): Use
++	sh_check_add_incdec_notes to preserve REG_INC notes when replacing
++	a memory access insn.
++
++
++2019-10-01  Kyrylo Tkachov  <kyrylo.tkachov@arm.com>
++
++	Backport from mainline
++	2019-09-24  Kyrylo Tkachov  <kyrylo.tkachov@arm.com>
++
++	* config/aarch64/aarch64.md (mov<mode>): Don't call
++	aarch64_split_dimode_const_store on volatile MEM.
++
++2019-10-01  Kyrylo Tkachov  <kyrylo.tkachov@arm.com>
++
++	Backport from mainline
++	2019-09-26  Matt Turner  <mattst88@gmail.com>
++
++	PR driver/69471
++	* config/aarch64/aarch64.opt (march=): Add Negative(march=).
++	(mtune=): Add Negative(mtune=).
++	(mcpu=): Add Negative(mcpu=).
++	* config/arm/arm.opt: Likewise.
++
 +2019-09-28  Oleg Endo  <olegendo@gcc.gnu.org>
 +
 +	Backport from mainline
@@ -4881,7 +4967,7 @@ Index: gcc/ChangeLog
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -513,7 +936,7 @@
+@@ -513,7 +1012,7 @@
  
  2019-07-11  Uroš Bizjak  <ubizjak@gmail.com>
  
@@ -4911,6 +4997,32 @@ Index: gcc/testsuite/gcc.target/powerpc/darn-3.c
 +}
 +
 +/* { dg-final { scan-assembler-times {(?n)\mdarn .*,0\M} 4 } } */
+Index: gcc/testsuite/gcc.target/powerpc/pr91275.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/pr91275.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/pr91275.c	(.../branches/gcc-9-branch)
+@@ -0,0 +1,21 @@
++/* Test that we generate vpmsumd correctly without a swap error.  */
++
++/* { dg-do run { target { p8vector_hw } } } */
++/* { dg-options "-O2 -std=gnu11" } */
++
++#include <altivec.h>
++
++int main() {
++
++  const unsigned long long r0l = 0x8e7dfceac070e3a0;
++  vector unsigned long long r0 = (vector unsigned long long) {r0l, 0}, v;
++  const vector unsigned long long pd
++    = (vector unsigned long) {0xc2LLU << 56, 0};
++
++  v = __builtin_crypto_vpmsumd ((vector unsigned long long) {r0[0], 0}, pd);
++
++  if (v[0] != 0x4000000000000000 || v[1] != 0x65bd7ab605a4a8ff)
++    __builtin_abort ();
++
++  return 0;
++}
 Index: gcc/testsuite/gcc.target/arm/acle/crc_hf_1.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/arm/acle/crc_hf_1.c	(.../tags/gcc_9_2_0_release)
@@ -4954,6 +5066,30 @@ Index: gcc/testsuite/gcc.target/mips/get-fcsr-3.c
 +}
 +
 +/* { dg-final { scan-assembler "cfc1" } } */
+Index: gcc/testsuite/gcc.target/mips/pr91769.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/mips/pr91769.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gcc.target/mips/pr91769.c	(.../branches/gcc-9-branch)
+@@ -0,0 +1,19 @@
++/* PR target/91769 */
++/* { dg-do compile } */
++/* { dg-skip-if "naming registers makes this a code quality test" { *-*-* } { "-O0" "-g" } { "" } } */
++/* { dg-options "-EL -mgp32 -mhard-float" } */
++
++NOCOMPRESSION double
++foo (void)
++{
++  register double* pf __asm__ ("$a1");
++  __asm__ __volatile__ ("":"=r"(pf));
++  double f = *pf;
++
++  if (f != f)
++    f = -f;
++  return f;
++}
++
++/* { dg-final { scan-assembler-not "lw\t\\\$4,0\\(\\\$5\\)\n\tlw\t\\\$5,4\\(\\\$5\\)\n\tldc1\t\\\$.*,0\\(\\\$5\\)" } } */
++/* { dg-final { scan-assembler "lw\t\\\$4,0\\(\\\$5\\)\n\tlw\t\\\$5,4\\(\\\$5\\)\n\tmtc1\t\\\$4,\\\$.*\n\tmthc1\t\\\$5,\\\$.*" } } */
 Index: gcc/testsuite/gcc.target/riscv/shift-shift-4.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/riscv/shift-shift-4.c	(.../tags/gcc_9_2_0_release)
@@ -4993,6 +5129,26 @@ Index: gcc/testsuite/gcc.target/riscv/shift-shift-5.c
 +  return u.s.b;
 +}
 +/* { dg-final { scan-assembler "srliw" } } */
+Index: gcc/testsuite/gcc.target/aarch64/nosplit-di-const-volatile_1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/aarch64/nosplit-di-const-volatile_1.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gcc.target/aarch64/nosplit-di-const-volatile_1.c	(.../branches/gcc-9-branch)
+@@ -0,0 +1,15 @@
++/* Check that storing the 64-bit immediate to a volatile location is done
++   with a single store.  */
++
++/* { dg-do compile } */
++/* { dg-options "-O2" } */
++
++typedef unsigned long long u64;
++
++void bar (u64 *x)
++{
++  *(volatile u64 *)x = 0xabcdef10abcdef10ULL;
++}
++
++/* { dg-final { scan-assembler-times "str\tx..?, .*" 1 } } */
++/* { dg-final { scan-assembler-not "str\tw..?, .*" } } */
 Index: gcc/testsuite/gcc.target/aarch64/no-inline-lrint_3.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/aarch64/no-inline-lrint_3.c	(.../tags/gcc_9_2_0_release)
@@ -5254,9 +5410,9 @@ Index: gcc/testsuite/gfortran.dg/pr91587.f90
 +! PR fortran/91587
 +! Code contributed by Gerhard Steinmetz
 +program p
-+   backspace(err=!)  ! { dg-error "Syntax error in" }
-+   flush(err=!)      ! { dg-error "Syntax error in" }
-+   rewind(err=!)     ! { dg-error "Syntax error in" }
++   backspace(err=!)  ! { dg-error "Invalid value for" }
++   flush(err=!)      ! { dg-error "Invalid value for" }
++   rewind(err=!)     ! { dg-error "Invalid value for" }
 +end
 +
 +subroutine bar       ! An other matcher runs, and gives a different error.
@@ -5299,6 +5455,16 @@ Index: gcc/testsuite/gfortran.dg/pr78719_3.f90
 +      end
 +
 +end program p        ! { dg-error "Syntax error" }
+Index: gcc/testsuite/gfortran.dg/typebound_call_22.f03
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/typebound_call_22.f03	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/typebound_call_22.f03	(.../branches/gcc-9-branch)
+@@ -26,4 +26,4 @@
+   call x%bar ()
+ end program
+ 
+-! { dg-final { scan-tree-dump-times "base \\(\\);" 1 "optimized" } }
++! { dg-final { scan-tree-dump-times "base \\(\\);" 1 "optimized" { xfail *-*-* } } }
 Index: gcc/testsuite/gfortran.dg/use_rename_8.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/use_rename_8.f90	(.../tags/gcc_9_2_0_release)
@@ -5357,6 +5523,52 @@ Index: gcc/testsuite/gfortran.dg/warn_unused_dummy_argument_5.f90
 +      b = y - x + 1
 +   end
 +end
+Index: gcc/testsuite/gfortran.dg/pr47054_2.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr47054_2.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr47054_2.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,41 @@
++! { dg-do compile }
++! { dg-options "-fcray-pointer" }
++! PR fortran/47054
++! Code contributed by Deji Akingunola <deji_aking at yahoo dot ca>
++subroutine host_sub(F_su,F_nk)
++   implicit none
++   
++   integer :: F_nk
++   real,dimension(F_nk) :: F_su
++      integer G_ni, G_nj
++      real*8 G_xg_8, G_yg_8
++      pointer (paxg_8, G_xg_8(G_ni))
++      pointer (payg_8, G_yg_8(G_nj))
++      common / G_p / paxg_8,payg_8
++      common / G / G_ni, G_nj
++   
++   call internal_sub(F_su,F_nk)
++   return
++contains 
++   
++   subroutine internal_sub(F_su,F_nk)
++      implicit none
++      integer G_ni, G_nj
++      real*8 G_xg_8, G_yg_8
++      pointer (paxg_8, G_xg_8(G_ni))
++      pointer (payg_8, G_yg_8(G_nj))
++      common / G_p / paxg_8,payg_8
++      common / G / G_ni, G_nj
++     
++      integer :: F_nk
++      real,dimension(F_nk) :: F_su 
++      integer k,k2
++      
++      k2 = 0
++      do k = 1, F_nk, 2
++         k2 = k2+1
++               F_su(k) = F_su(k) + 1.0
++      enddo
++      return
++   end subroutine internal_sub
++end subroutine host_sub
 Index: gcc/testsuite/gfortran.dg/pr91553.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr91553.f90	(.../tags/gcc_9_2_0_release)
@@ -5434,6 +5646,18 @@ Index: gcc/testsuite/gfortran.dg/do_subscript_6.f90
 +      a(i) = i
 +   end do
 +end
+Index: gcc/testsuite/gfortran.dg/pr91641.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr91641.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr91641.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,7 @@
++! { dg-do compile }
++! PR fortran/91641
++! Code conyributed by Gerhard Steinmetz
++program p
++   real, pointer :: z(:)
++   print *, is_contiguous (null(z))    ! { dg-error "shall be an associated" }
++end
 Index: gcc/testsuite/gfortran.dg/pr91471.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr91471.f90	(.../tags/gcc_9_2_0_release)
@@ -5490,6 +5714,19 @@ Index: gcc/testsuite/gfortran.dg/pr78719_2.f90
 +      end
 +
 +end program p        ! { dg-error "Syntax error" }
+Index: gcc/testsuite/gfortran.dg/pr91785.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr91785.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr91785.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,8 @@
++! { dg-do compile }
++! PR fortran/91785
++! Code contributed by Gerhard Steinmetz
++program p
++   complex :: a(*)   ! { dg-error "Assumed size array at" }
++   real :: b(2)
++   b = a%im          ! { dg-error "upper bound in the last dimension" }
++end
 Index: gcc/testsuite/gfortran.dg/use_15.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/use_15.f90	(.../tags/gcc_9_2_0_release)
@@ -5543,6 +5780,26 @@ Index: gcc/testsuite/gfortran.dg/pr91568.f
 +         hder(i)=hvec(i-1)-ztmp*hvec(i)
 +      enddo
 +      end
+Index: gcc/testsuite/gfortran.dg/pr47054_1.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr47054_1.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr47054_1.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,15 @@
++! { dg-do compile }
++! { dg-options "-fcray-pointer" }
++! PR fortran/47054
++subroutine host_sub
++   implicit none
++   real xg
++   pointer (paxg, xg)
++   call internal_sub
++   contains 
++      subroutine internal_sub
++         implicit none
++         real xg
++         pointer (paxg, xg)
++      end subroutine internal_sub
++end subroutine host_sub
 Index: gcc/testsuite/gfortran.dg/pr91552.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr91552.f90	(.../tags/gcc_9_2_0_release)
@@ -5827,6 +6084,21 @@ Index: gcc/testsuite/gfortran.dg/pr91496.f90
 +  call bar (a)
 +end subroutine foo
 +! { dg-final { scan-tree-dump-times "ANNOTATE_EXPR" 6 "original" } }
+Index: gcc/testsuite/gfortran.dg/pr91714.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr91714.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr91714.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,10 @@
++! { dg-do compile }
++! Contributed by Gerhard Steinmetz
++program p
++   typea          ! { dg-error "Mangled derived type" }
++      integer b
++   end type       ! { dg-error "Expecting END PROGRAM" }
++   type(a) :: c   ! { dg-error "is being used before it" }
++   c = a(1)
++   print *, c
++end
 Index: gcc/testsuite/gfortran.dg/allocated_2.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/allocated_2.f90	(.../tags/gcc_9_2_0_release)
@@ -5880,6 +6152,21 @@ Index: gcc/testsuite/gfortran.dg/do_subscript_4.f90
 +  end do
 +  print *,a
 +end program main
+Index: gcc/testsuite/gfortran.dg/pr91942.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr91942.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr91942.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,10 @@
++! { dg-do compile }
++! PR fortran/91942
++! Code contributed by Gerhard Steinmetz
++program p
++   integer :: i
++   backspace (iostat=i%kind) ! { dg-error "Expecting a variable at" }
++   endfile (iostat=i%kind) ! { dg-error "Expecting END PROGRAM" }
++   flush (iostat=i%kind) ! { dg-error "Expecting a variable at" }
++   rewind (iostat=i%kind) ! { dg-error "Expecting a variable at" }
++end
 Index: gcc/testsuite/gfortran.dg/pr91566.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr91566.f90	(.../tags/gcc_9_2_0_release)
@@ -5912,6 +6199,20 @@ Index: gcc/testsuite/gfortran.dg/pr91660_1.f90
 +   end type
 +   type (t x    ! { dg-error "Malformed type-spec" }
 +   x = t()      ! { dg-error "Cannot convert" }
++end
+Index: gcc/testsuite/gfortran.dg/pr91802.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr91802.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr91802.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,9 @@
++! { dg-do compile }
++! { dg-options "-fcoarray=single" }
++! Code contributed by Gerhard Steinmetz
++! PR fortran/91802
++module m
++   real :: x
++   dimension ::   x(1,2,1,2,1,2,1,2)
++   codimension :: x[1,2,1,2,1,2,1,*] ! { dg-error "exceeds 15" }
 +end
 Index: gcc/testsuite/gfortran.dg/directive_unroll_5.f90
 ===================================================================
@@ -5948,6 +6249,49 @@ Index: gcc/testsuite/gfortran.dg/pr91359_1.f
 +         if (zero()) stop 'FAIL:  zero() returned .TRUE.'
 +         stop 'OKAY:  zero() returned .FALSE.'
 +      end
+Index: gcc/testsuite/gfortran.dg/dec_type_print_3.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/dec_type_print_3.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/dec_type_print_3.f90	(.../branches/gcc-9-branch)
+@@ -8,9 +8,9 @@
+ 
+ include 'dec_type_print.f90'
+ 
+-! { dg-error "Invalid character in name" "" { target *-*-* } 52 }
++! { dg-error "Mangled derived type definition" "" { target *-*-* } 52 }
+ ! { dg-error "Invalid character in name" "" { target *-*-* } 53 }
+-! { dg-error "Invalid character in name" "" { target *-*-* } 54 }
++! { dg-error "Mangled derived type definition" "" { target *-*-* } 54 }
+ ! { dg-error "Invalid character in name" "" { target *-*-* } 55 }
+ ! { dg-error "Invalid character in name" "" { target *-*-* } 56 }
+ ! { dg-error "Invalid character in name" "" { target *-*-* } 57 }
+Index: gcc/testsuite/gfortran.dg/pr91864.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr91864.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr91864.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,22 @@
++program p
++   integer :: i
++   read (*,*) i%kind   ! { dg-error "Expecting variable or io-implied-do" }
++end
++
++subroutine t
++   integer, allocatable :: x(:)
++   integer :: stat
++   allocate (x(3), stat=stat%kind)   ! { dg-error "cannot be a constant" }
++end
++
++subroutine u
++   integer, allocatable :: x(:)
++   integer :: stat
++   allocate (x(3), stat%kind=stat)   ! { dg-error "Unexpected constant" }
++end
++
++subroutine v
++   integer, allocatable :: x(:)
++   integer :: stat
++   deallocate (x, stat%kind=stat)   ! { dg-error "Unexpected constant" }
++end
 Index: gcc/testsuite/gfortran.dg/allocated_1.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/allocated_1.f90	(.../tags/gcc_9_2_0_release)
@@ -6428,7 +6772,83 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,307 @@
+@@ -1,3 +1,383 @@
++2019-10-07  Thomas Koenig <tkoenig@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/84487
++	* gfortran.dg/typebound_call_22.f03: xfail.
++
++2019-10-07  Bill Schmidt  <wschmidt@linux.ibm.com>
++
++	Backport from mainline
++	2019-10-01  Bill Schmidt  <wschmdit@linux.ibm.com>
++
++	PR target/91275
++	* gcc.target/powerpc/pr91275.c: New.
++
++2019-10-05  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/47054
++	* gfortran.dg/pr47054_1.f90: New test
++	* gfortran.dg/pr47054_2.f90: Ditto.
++
++2019-10-05  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91942
++	* gfortran.dg/pr91587.f90: Update dg-error regex.
++	* gfortran.dg/pr91942.f90: New test.
++
++2019-10-04  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91785
++	* gfortran.dg/pr91785.f90: New test.
++
++2019-10-04  Dragan Mladjenovic <dmladjenovic@wavecomp.com>
++
++	Backport from mainline
++	2019-10-03  Dragan Mladjenovic  <dmladjenovic@wavecomp.com>
++
++	PR target/91769
++	* gcc.target/mips/pr91769.c: New test.
++
++2019-10-02  Bernd Edlinger  <bernd.edlinger@hotmail.de>
++
++	Backport from mainline
++
++	2019-09-13  Bernd Edlinger  <bernd.edlinger@hotmail.de>
++
++	PR fortran/91716
++	* gfortran.dg/pr91716.f90: New test.
++
++2019-10-01 Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91864
++	* gcc/testsuite/gfortran.dg/pr91864.f90
++
++2019-10-01  Steven G. Kargl  <kargl@gcc.ngu.org>
++
++	PR fortran/91802
++	* gfortran.dg/pr91802.f90: New test.
++
++2019-10-01  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91714
++	* gfortran.dg/dec_type_print_3.f90: Update dg-error regex.
++	* gfortran.dg/pr91714.f90: New test.
++
++2019-10-01  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91641
++	* gfortran.dg/pr91641.f90: New test.
++
++2019-10-01  Kyrylo Tkachov  <kyrylo.tkachov@arm.com>
++
++	Backport from mainline
++	2019-09-24  Kyrylo Tkachov  <kyrylo.tkachov@arm.com>
++
++	* gcc.target/aarch64/nosplit-di-const-volatile_1.c: New test.
++
 +2019-09-25  Kyrylo Tkachov  <kyrylo.tkachov@arm.com>
 +
 +	Backport from mainline
@@ -6736,7 +7156,7 @@ Index: gcc/testsuite/ChangeLog
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -427,7 +731,7 @@
+@@ -427,7 +807,7 @@
  	Backport from mainline.
  	2019-05-15  Iain Sandoe  <iain@sandoe.co.uk>
  
@@ -9076,6 +9496,36 @@ Index: gcc/fortran/trans-expr.c
        string_length = rse.string_length;
      }
    else
+Index: gcc/fortran/trans-array.c
+===================================================================
+--- a/src/gcc/fortran/trans-array.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/fortran/trans-array.c	(.../branches/gcc-9-branch)
+@@ -6110,9 +6110,12 @@
+ 		  tree atype = type;
+ 		  while (TREE_CODE (TREE_TYPE (atype)) == ARRAY_TYPE)
+ 		    atype = TREE_TYPE (atype);
+-		  if (TREE_CODE (TREE_TYPE (atype)) == INTEGER_TYPE
+-		      && tree_to_uhwi (TYPE_SIZE_UNIT (TREE_TYPE (se.expr)))
+-			 > tree_to_uhwi (TYPE_SIZE_UNIT (atype)))
++		  gcc_checking_assert (TREE_CODE (TREE_TYPE (atype))
++				       == INTEGER_TYPE);
++		  gcc_checking_assert (TREE_TYPE (TREE_TYPE (se.expr))
++				       == TREE_TYPE (atype));
++		  if (tree_to_uhwi (TYPE_SIZE_UNIT (TREE_TYPE (se.expr)))
++		      > tree_to_uhwi (TYPE_SIZE_UNIT (atype)))
+ 		    {
+ 		      unsigned HOST_WIDE_INT size
+ 			= tree_to_uhwi (TYPE_SIZE_UNIT (atype));
+@@ -6119,8 +6122,8 @@
+ 		      const char *p = TREE_STRING_POINTER (se.expr);
+ 
+ 		      se.expr = build_string (size, p);
+-		      TREE_TYPE (se.expr) = atype;
+ 		    }
++		  TREE_TYPE (se.expr) = atype;
+ 		}
+ 	      break;
+ 
 Index: gcc/fortran/decl.c
 ===================================================================
 --- a/src/gcc/fortran/decl.c	(.../tags/gcc_9_2_0_release)
@@ -9105,6 +9555,15 @@ Index: gcc/fortran/decl.c
  	  && !sym->attr.implicit_type
  	  && sym->attr.proc == 0
  	  && gfc_current_ns->parent != NULL
+@@ -2644,7 +2649,7 @@
+       then we want to set the type & bail out.  */
+   if (flag_cray_pointer && !gfc_comp_struct (gfc_current_state ()))
+     {
+-      gfc_find_symbol (name, gfc_current_ns, 1, &sym);
++      gfc_find_symbol (name, gfc_current_ns, 0, &sym);
+       if (sym != NULL && sym->attr.cray_pointee)
+ 	{
+ 	  m = MATCH_YES;
 @@ -3991,7 +3996,6 @@
        return MATCH_YES;
      }
@@ -9166,7 +9625,72 @@ Index: gcc/fortran/decl.c
      }
  
    if (m != MATCH_YES)
-@@ -11472,3 +11492,53 @@
+@@ -4397,6 +4417,7 @@
+ 	      gfc_next_ascii_char ();
+ 	      return MATCH_YES;
+ 	    }
++	  gfc_error ("Malformed type-spec at %C");
+ 	  return MATCH_NO;
+ 	}
+     }
+@@ -4410,7 +4431,10 @@
+     }
+ 
+   if (matched_type && gfc_match_char (')') != MATCH_YES)
+-    return MATCH_ERROR;
++    {
++      gfc_error ("Malformed type-spec at %C");
++      return MATCH_ERROR;
++    }
+ 
+   /* Defer association of the KIND expression of function results
+      until after USE and IMPORT statements.  */
+@@ -8420,6 +8444,14 @@
+       goto cleanup;
+     }
+ 
++  /* Check F2018:C822.  */
++  if (sym->attr.dimension && sym->attr.codimension
++      && sym->as && sym->as->rank + sym->as->corank > 15)
++    {
++      gfc_error ("rank + corank of %qs exceeds 15 at %C", sym->name);
++      return MATCH_ERROR;
++    }
++
+   if (sym->attr.cray_pointee && sym->as != NULL)
+     {
+       /* Fix the array spec.  */
+@@ -10161,6 +10193,20 @@
+       return MATCH_ERROR;
+     }
+ 
++  /*  In free source form, need to check for TYPE XXX as oppose to TYPEXXX.
++      But, we need to simply return for TYPE(.  */ 
++  if (m == MATCH_NO && gfc_current_form == FORM_FREE)
++    {
++      char c = gfc_peek_ascii_char ();
++      if (c == '(')
++	return m;
++      if (!gfc_is_whitespace (c))
++	{
++	  gfc_error ("Mangled derived type definition at %C");
++	  return MATCH_NO;
++	}
++    }
++
+   m = gfc_match (" %n ", name);
+   if (m != MATCH_YES)
+     return m;
+@@ -10168,7 +10214,7 @@
+   /* Make sure that we don't identify TYPE IS (...) as a parameterized
+      derived type named 'is'.
+      TODO Expand the check, when 'name' = "is" by matching " (tname) "
+-     and checking if this is a(n intrinsic) typename. his picks up
++     and checking if this is a(n intrinsic) typename.  This picks up
+      misplaced TYPE IS statements such as in select_type_1.f03.  */
+   if (gfc_peek_ascii_char () == '(')
+     {
+@@ -11472,3 +11518,53 @@
  
    return MATCH_YES;
  }
@@ -9314,7 +9838,60 @@ Index: gcc/fortran/ChangeLog
 ===================================================================
 --- a/src/gcc/fortran/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/fortran/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,214 @@
+@@ -1,3 +1,267 @@
++2019-10-07  Thomas Koenig <tkoenig@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/84487
++	* trans-decl.c (gfc_get_symbol_decl): For __def_init, set
++	DECL_ARTIFICAL and do not set TREE_READONLY.
++
++2019-10-05  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/47054
++	* decl.c (variable_decl): Do not search parent namespace for symbol.
++
++2019-10-04  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91942
++	* io.c (match_vtag): Check for non-NULL result->symtree.
++	(match_out_tag): Check for invalid constant due to inquiry parameter.
++	(match_filepos): Instead of a syntax error, go to cleanup to get better
++	error messages.
++
++2019-10-04  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91785
++	* primary.c (gfc_match_varspec): Ensure an inquiry parameter has
++	it locus set.
++
++2019-10-01  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91864
++	* gcc/fortran/io.c (match_io_element): An inquiry parameter cannot be
++	read into.
++	* gcc/fortran/match.c (gfc_match_allocate): An inquiry parameter
++	can be neither an allocate-object nor stat variable.
++	(gfc_match_deallocate): An inquiry parameter cannot be deallocated.
++
++2019-10-01  Steven G. Kargl  <kargl@gcc.ngu.org>
++
++	Backport of r276254+276265
++	PR fortran/91802
++	* decl.c (attr_decl1): Check if rank+corank > 15.
++
++2019-10-01  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91714
++	* decl.c (gfc_match_decl_type_spec):  Issue errors for a few
++	mangled types.
++
++2019-10-01  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91641
++	* check.c (gfc_check_is_contiguous): null() cannot be an actual
++	argument to is_contiguous().
++
 +2019-09-21  Paul Thomas  <pault@gcc.gnu.org>
 +
 +	Backport from mainline
@@ -9798,16 +10375,109 @@ Index: gcc/fortran/io.c
 ===================================================================
 --- a/src/gcc/fortran/io.c	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/fortran/io.c	(.../branches/gcc-9-branch)
-@@ -2804,7 +2804,7 @@
+@@ -1441,25 +1441,30 @@
+       return MATCH_ERROR;
+     }
+ 
+-  if (result->symtree->n.sym->attr.intent == INTENT_IN)
++  if (result->symtree)
+     {
+-      gfc_error ("Variable %s cannot be INTENT(IN) at %C", tag->name);
+-      gfc_free_expr (result);
+-      return MATCH_ERROR;
+-    }
++      bool impure;
+ 
+-  bool impure = gfc_impure_variable (result->symtree->n.sym);
+-  if (impure && gfc_pure (NULL))
+-    {
+-      gfc_error ("Variable %s cannot be assigned in PURE procedure at %C",
+-		 tag->name);
+-      gfc_free_expr (result);
+-      return MATCH_ERROR;
++      if (result->symtree->n.sym->attr.intent == INTENT_IN)
++	{
++	  gfc_error ("Variable %s cannot be INTENT(IN) at %C", tag->name);
++	  gfc_free_expr (result);
++	  return MATCH_ERROR;
++	}
++
++      impure = gfc_impure_variable (result->symtree->n.sym);
++      if (impure && gfc_pure (NULL))
++	{
++	  gfc_error ("Variable %s cannot be assigned in PURE procedure at %C",
++		     tag->name);
++	  gfc_free_expr (result);
++	  return MATCH_ERROR;
++	}
++
++      if (impure)
++	gfc_unset_implicit_pure (NULL);
+     }
+ 
+-  if (impure)
+-    gfc_unset_implicit_pure (NULL);
+-
+   *v = result;
+   return MATCH_YES;
+ }
+@@ -1474,8 +1479,17 @@
+ 
+   m = match_vtag (tag, result);
+   if (m == MATCH_YES)
+-    gfc_check_do_variable ((*result)->symtree);
++    {
++      if ((*result)->symtree)
++	gfc_check_do_variable ((*result)->symtree);
+ 
++      if ((*result)->expr_type == EXPR_CONSTANT)
++	{
++	  gfc_error ("Expecting a variable at %L", &(*result)->where);
++	  return MATCH_ERROR;
++	}
++    }
++
+   return m;
+ }
+ 
+@@ -2804,7 +2818,7 @@
  
    m = match_file_element (fp);
    if (m == MATCH_ERROR)
 -    goto done;
-+    goto syntax;
++    goto cleanup;
    if (m == MATCH_NO)
      {
        m = gfc_match_expr (&fp->unit);
-@@ -4583,6 +4583,17 @@
+@@ -3608,8 +3622,18 @@
+     {
+       m = gfc_match_variable (&expr, 0);
+       if (m == MATCH_NO)
+-	gfc_error ("Expected variable in READ statement at %C");
++	{
++	  gfc_error ("Expecting variable in READ statement at %C");
++	  m = MATCH_ERROR;
++	}
+ 
++      if (m == MATCH_YES && expr->expr_type == EXPR_CONSTANT)
++	{
++	  gfc_error ("Expecting variable or io-implied-do in READ statement "
++		   "at %L", &expr->where);
++	  m = MATCH_ERROR;
++	}
++
+       if (m == MATCH_YES
+ 	  && expr->expr_type == EXPR_VARIABLE
+ 	  && expr->symtree->n.sym->attr.external)
+@@ -3618,7 +3642,6 @@
+ 		     &expr->where);
+ 	  m = MATCH_ERROR;
+ 	}
+-
+     }
+   else
+     {
+@@ -4583,6 +4606,17 @@
        if (m == MATCH_NO)
  	goto syntax;
  
@@ -10062,7 +10732,46 @@ Index: gcc/fortran/match.c
 ===================================================================
 --- a/src/gcc/fortran/match.c	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/fortran/match.c	(.../branches/gcc-9-branch)
-@@ -5698,7 +5698,29 @@
+@@ -4219,6 +4219,12 @@
+       if (m == MATCH_ERROR)
+ 	goto cleanup;
+ 
++      if (tail->expr->expr_type == EXPR_CONSTANT)
++	{
++	  gfc_error ("Unexpected constant at %C");
++	  goto cleanup;
++	}
++
+       if (gfc_check_do_variable (tail->expr->symtree))
+ 	goto cleanup;
+ 
+@@ -4351,6 +4357,12 @@
+ 	  tmp = NULL;
+ 	  saw_stat = true;
+ 
++	  if (stat->expr_type == EXPR_CONSTANT)
++	    {
++	      gfc_error ("STAT tag at %L cannot be a constant", &stat->where);
++	      goto cleanup;
++	    }
++
+ 	  if (gfc_check_do_variable (stat->symtree))
+ 	    goto cleanup;
+ 
+@@ -4627,6 +4639,12 @@
+       if (m == MATCH_NO)
+ 	goto syntax;
+ 
++      if (tail->expr->expr_type == EXPR_CONSTANT)
++	{
++	  gfc_error ("Unexpected constant at %C");
++	  goto cleanup;
++	}
++
+       if (gfc_check_do_variable (tail->expr->symtree))
+ 	goto cleanup;
+ 
+@@ -5698,7 +5716,29 @@
    gfc_symbol *sym;
    gfc_expr *expr;
    match m;
@@ -10092,7 +10801,7 @@ Index: gcc/fortran/match.c
    m = gfc_match_symbol (&sym, 0);
    if (m != MATCH_YES)
      return m;
-@@ -5726,6 +5748,13 @@
+@@ -5726,6 +5766,13 @@
        return MATCH_ERROR;
      }
  
@@ -10110,7 +10819,22 @@ Index: gcc/fortran/trans-decl.c
 ===================================================================
 --- a/src/gcc/fortran/trans-decl.c	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/fortran/trans-decl.c	(.../branches/gcc-9-branch)
-@@ -5862,9 +5862,11 @@
+@@ -1892,9 +1892,13 @@
+   if (sym->attr.associate_var)
+     GFC_DECL_ASSOCIATE_VAR_P (decl) = 1;
+ 
++  /* We no longer mark __def_init as read-only so it does not take up
++     space in the read-only section and dan go into the BSS instead,
++     see PR 84487.  Marking this as artificial means that OpenMP will
++     treat this as predetermined shared.  */
+   if (sym->attr.vtab
+       || (sym->name[0] == '_' && gfc_str_startswith (sym->name, "__def_init")))
+-    TREE_READONLY (decl) = 1;
++    DECL_ARTIFICIAL (decl) = 1;
+ 
+   return decl;
+ }
+@@ -5862,9 +5866,11 @@
  	    }
  	  else if (warn_unused_dummy_argument)
  	    {
@@ -10125,7 +10849,7 @@ Index: gcc/fortran/trans-decl.c
  	      if (sym->backend_decl != NULL_TREE)
  		TREE_NO_WARNING(sym->backend_decl) = 1;
  	    }
-@@ -6440,6 +6442,20 @@
+@@ -6440,6 +6446,20 @@
  				    TREE_TYPE (result), DECL_RESULT (fndecl),
  				    result);
  	}
@@ -10269,6 +10993,29 @@ Index: gcc/fortran/check.c
      }
  
    return true;
+@@ -6549,6 +6569,14 @@
+ bool
+ gfc_check_is_contiguous (gfc_expr *array)
+ {
++  if (array->expr_type == EXPR_NULL
++      && array->symtree->n.sym->attr.pointer == 1)
++    {
++      gfc_error ("Actual argument at %L of %qs intrinsic shall be an "
++		 "associated pointer", &array->where, gfc_current_intrinsic);
++      return false;
++    }
++
+   if (!array_check (array, 0))
+     return false;
+ 
+@@ -6556,7 +6584,6 @@
+ }
+ 
+ 
+-
+ bool
+ gfc_check_isatty (gfc_expr *unit)
+ {
 Index: gcc/fortran/primary.c
 ===================================================================
 --- a/src/gcc/fortran/primary.c	(.../tags/gcc_9_2_0_release)
@@ -10316,7 +11063,16 @@ Index: gcc/fortran/primary.c
  	return MATCH_ERROR;
  
        /* Extend the reference chain determined by gfc_find_component or
-@@ -2559,12 +2568,10 @@
+@@ -2284,6 +2293,8 @@
+ 
+       if (tmp && tmp->type == REF_INQUIRY)
+ 	{
++	  if (!primary->where.lb || !primary->where.nextc)
++	    primary->where = gfc_current_locus;
+ 	  gfc_simplify_expr (primary, 0);
+ 
+ 	  if (primary->expr_type == EXPR_CONSTANT)
+@@ -2559,12 +2570,10 @@
  	    break;
  
  	  case AR_UNKNOWN:
@@ -10513,6 +11269,41 @@ Index: gcc/tree-ssa-pre.c
  	  if (visited)
  	    BITMAP_FREE (visited);
  	}
+Index: gcc/ipa-prop.c
+===================================================================
+--- a/src/gcc/ipa-prop.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/ipa-prop.c	(.../branches/gcc-9-branch)
+@@ -3725,6 +3725,18 @@
+     ipcp_transformation_sum = ipcp_transformation_t::create_ggc (symtab);
+ }
+ 
++/* Release the IPA CP transformation summary.  */
++
++void
++ipcp_free_transformation_sum (void)
++{
++  if (!ipcp_transformation_sum)
++    return;
++
++  ipcp_transformation_sum->release ();
++  ipcp_transformation_sum = NULL;
++}
++
+ /* Set the aggregate replacements of NODE to be AGGVALS.  */
+ 
+ void
+Index: gcc/ipa-prop.h
+===================================================================
+--- a/src/gcc/ipa-prop.h	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/ipa-prop.h	(.../branches/gcc-9-branch)
+@@ -558,6 +558,7 @@
+ void ipa_set_node_agg_value_chain (struct cgraph_node *node,
+ 				   struct ipa_agg_replacement_value *aggvals);
+ void ipcp_transformation_initialize (void);
++void ipcp_free_transformation_sum (void);
+ 
+ /* ipa_edge_args stores information related to a callsite and particularly its
+    arguments.  It can be accessed by the IPA_EDGE_REF macro.  */
 Index: gcc/po/es.po
 ===================================================================
 --- a/src/gcc/po/es.po	(.../tags/gcc_9_2_0_release)
@@ -10522,7 +11313,7 @@ Index: gcc/po/es.po
  "Report-Msgid-Bugs-To: https://gcc.gnu.org/bugs/\n"
  "POT-Creation-Date: 2019-05-02 20:28+0000\n"
 -"PO-Revision-Date: 2019-05-17 05:23+0200\n"
-+"PO-Revision-Date: 2019-08-31 18:04+0200\n"
++"PO-Revision-Date: 2019-09-30 17:16+0200\n"
  "Last-Translator: Antonio Ceballos Roa <aceballos@gmail.com>\n"
  "Language-Team: Spanish <es@tp.org.es>\n"
  "Language: es\n"
@@ -11230,6 +12021,51 @@ Index: gcc/po/es.po
  
  #: c-family/c.opt:642
  msgid "Warn about implicit declarations."
+@@ -6864,7 +6795,7 @@
+ 
+ #: c-family/c.opt:677
+ msgid "Warn for suspicious integer expressions in boolean context."
+-msgstr ""
++msgstr "Advierte de expresiones enteras sospechosas en contexto booleano."
+ 
+ #: c-family/c.opt:681
+ msgid "Warn when there is a cast to a pointer from an integer of a different size."
+@@ -6928,7 +6859,7 @@
+ 
+ #: c-family/c.opt:745
+ msgid "Warn about unsafe macros expanding to multiple statements used as a body of a clause such as if, else, while, switch, or for."
+-msgstr ""
++msgstr "Advierte de expansiones de macros no seguras a sentencias múltiples utilizadas como cuerpo de una cláusula como if, while, switch o for."
+ 
+ #: c-family/c.opt:749
+ msgid "Warn on direct multiple inheritance."
+@@ -6940,7 +6871,7 @@
+ 
+ #: c-family/c.opt:757
+ msgid "Warn when fields in a struct with the packed attribute are misaligned."
+-msgstr ""
++msgstr "Avisa cuando un struct con el atributo «packed» tiene campos desalineados."
+ 
+ #: c-family/c.opt:761
+ msgid "Warn about missing sized deallocation functions."
+@@ -6948,7 +6879,7 @@
+ 
+ #: c-family/c.opt:765
+ msgid "Warn about suspicious divisions of two sizeof expressions that don't work correctly with pointers."
+-msgstr ""
++msgstr "Advierte de divisiones sospechosas de dos expresiones sizeof que no funcionan correctamente con punteros."
+ 
+ #: c-family/c.opt:769
+ msgid "Warn about suspicious length parameters to certain string functions if the argument uses sizeof."
+@@ -6960,7 +6891,7 @@
+ 
+ #: c-family/c.opt:777
+ msgid "Warn about buffer overflow in string manipulation functions like memcpy and strcpy."
+-msgstr ""
++msgstr "Advierte de desbordamiento de búfer en funciones que manipulan cadenas, como memcpy y strcpy."
+ 
+ #: c-family/c.opt:782
+ msgid "Under the control of Object Size type, warn about buffer overflow in string manipulation functions like memcpy and strcpy."
 @@ -7039,14 +6970,12 @@
  msgstr "Avisa cuando las funciones friend sin plantillas se declaran dentro de una plantilla."
  
@@ -11247,6 +12083,24 @@ Index: gcc/po/es.po
  
  #: c-family/c.opt:876
  msgid "Warn about non-virtual destructors."
+@@ -7130,7 +7059,7 @@
+ 
+ #: c-family/c.opt:991
+ msgid "Warn if constructor or destructors with priorities from 0 to 100 are used."
+-msgstr ""
++msgstr "Avisa si se usan constructores o destructores con prioridades entre 0 y 100."
+ 
+ #: c-family/c.opt:995
+ msgid "Warn if a property for an Objective-C object has no assign semantics specified."
+@@ -7150,7 +7079,7 @@
+ 
+ #: c-family/c.opt:1015
+ msgid "Warn about redundant calls to std::move."
+-msgstr ""
++msgstr "Advierte de llamadas redundantes a std::move."
+ 
+ #: c-family/c.opt:1019
+ msgid "Warn about uses of register storage specifier."
 @@ -7293,14 +7222,12 @@
  msgstr "Avisa si se usa una matriz de longitud variable."
  
@@ -11264,6 +12118,29 @@ Index: gcc/po/es.po
  
  #: c-family/c.opt:1210
  msgid "Warn when a register variable is declared volatile."
+@@ -7356,11 +7283,11 @@
+ 
+ #: c-family/c.opt:1267
+ msgid "Support C++17 allocation of over-aligned types."
+-msgstr ""
++msgstr "Admite alojamiento C++17 de tipos sobrealineados."
+ 
+ #: c-family/c.opt:1271
+ msgid "-faligned-new=<N> Use C++17 over-aligned type allocation for alignments greater than N."
+-msgstr ""
++msgstr "-faligned-new=<N> Usa alojamiento de tipo sobrealineado de C++17 para alineamientos mayores que N."
+ 
+ #: c-family/c.opt:1278
+ msgid "Allow variadic functions without named parameter."
+@@ -7385,7 +7312,7 @@
+ 
+ #: c-family/c.opt:1305
+ msgid "Enable the char8_t fundamental type and use it as the type for UTF-8 string and character literals."
+-msgstr ""
++msgstr "Habilita el tipo fundamental char8_t y lo usa como el tipo para los literales de cadenas UTF-8 y de caracteres."
+ 
+ #: c-family/c.opt:1393
+ msgid "Deprecated in GCC 8.  This switch has no effect."
 @@ -7412,10 +7339,8 @@
  msgstr "-fconstexpr-loop-limit=<número>\tEspecifica el número de iteraciones de bucle constexpr máximo."
  
@@ -11276,6 +12153,24 @@ Index: gcc/po/es.po
  
  #: c-family/c.opt:1425
  msgid "Emit debug annotations during preprocessing."
+@@ -7431,7 +7356,7 @@
+ 
+ #: c-family/c.opt:1441
+ msgid "Print hierarchical comparisons when template types are mismatched."
+-msgstr ""
++msgstr "Imprime comparaciones jerárquicas cuando los tipos de plantilla no coinciden."
+ 
+ #: c-family/c.opt:1445
+ msgid "Preprocess directives only."
+@@ -7443,7 +7368,7 @@
+ 
+ #: c-family/c.opt:1453
+ msgid "-fmacro-prefix-map=<old>=<new> Map one directory name to another in __FILE__, __BASE_FILE__, and __builtin_FILE()."
+-msgstr ""
++msgstr "-fmacro-prefix-map=<viejo>=<nuevo> Asocia un nombre de directorio a otro en __FILE__, __BASE_FILE__, y __builtin_FILE()."
+ 
+ #: c-family/c.opt:1457
+ msgid "Write all declarations as Ada code transitively."
 @@ -7851,16 +7776,12 @@
  
  #: c-family/c.opt:2017 c-family/c.opt:2021 c-family/c.opt:2139
@@ -11314,8 +12209,19 @@ Index: gcc/po/es.po
  
  #: c-family/c.opt:2103 c-family/c.opt:2107
  msgid "Conform to the ISO 1990 C standard with GNU extensions."
-@@ -8001,10 +7918,8 @@
- msgstr "-o <fichero>\tColoca la salida en el <fichero>."
+@@ -7992,19 +7909,15 @@
+ 
+ #: d/lang.opt:51
+ msgid "-Hd <dir>\tWrite D interface files to directory <dir>."
+-msgstr ""
++msgstr "-Hd <dir>\tEscribe los ficheros de interfaz de D en el directorio <dir>."
+ 
+ #: d/lang.opt:55
+-#, fuzzy
+-#| msgid "-o <file>\tPlace output into <file>."
+ msgid "-Hf <file>\tWrite D interface to <file>."
+-msgstr "-o <fichero>\tColoca la salida en el <fichero>."
++msgstr "-Hf <fichero>\tEscribe el interfaz de D en el <fichero>."
  
  #: d/lang.opt:123
 -#, fuzzy
@@ -11326,7 +12232,7 @@ Index: gcc/po/es.po
  
  #: d/lang.opt:139
  msgid "Warn from speculative compiles such as __traits(compiles)."
-@@ -8011,24 +7926,20 @@
+@@ -8011,24 +7924,20 @@
  msgstr ""
  
  #: d/lang.opt:151
@@ -11355,7 +12261,7 @@ Index: gcc/po/es.po
  
  #: d/lang.opt:167
  msgid "Do link the standard D startup files in the compilation."
-@@ -8035,10 +7946,8 @@
+@@ -8035,56 +7944,44 @@
  msgstr ""
  
  #: d/lang.opt:174
@@ -11366,8 +12272,11 @@ Index: gcc/po/es.po
 +msgstr "Genera código para todas las instanciaciones de plantillas."
  
  #: d/lang.opt:178
- #, fuzzy
-@@ -8048,43 +7957,35 @@
+-#, fuzzy
+-#| msgid "Generate code for GNU assembler (gas)."
+ msgid "Generate code for assert contracts."
+-msgstr "Genera código para el ensamblador de GNU (gas)."
++msgstr "Genera código para contratos de assert."
  
  #: d/lang.opt:186
  msgid "-fbounds-check=[on|safeonly|off]\tTurn array bounds checks on, in @safe code only, or off."
@@ -11419,7 +12328,7 @@ Index: gcc/po/es.po
  
  #: d/lang.opt:238
  #, fuzzy
-@@ -8094,7 +7995,7 @@
+@@ -8094,7 +7991,7 @@
  
  #: d/lang.opt:242
  msgid "Ignore unsupported pragmas."
@@ -11428,7 +12337,7 @@ Index: gcc/po/es.po
  
  #: d/lang.opt:246
  #, fuzzy
-@@ -8104,11 +8005,11 @@
+@@ -8104,11 +8001,11 @@
  
  #: d/lang.opt:250
  msgid "Generate a default D main() function when compiling."
@@ -11442,11 +12351,154 @@ Index: gcc/po/es.po
  
  #: d/lang.opt:258
  #, fuzzy
+@@ -8118,19 +8015,15 @@
+ 
+ #: d/lang.opt:262
+ msgid "Process all modules specified on the command line, but only generate code for the module specified by the argument."
+-msgstr ""
++msgstr "Procesa todos los módulos especificados en la línea de órdenes, pero solo genera código para el módulo especificado por el argumento."
+ 
+ #: d/lang.opt:266
+-#, fuzzy
+-#| msgid "Generate code for built-in atomic operations."
+ msgid "Generate code for postcondition contracts."
+-msgstr "Genera código para operaciones atómicas internas."
++msgstr "Genera código para contratos de postcondiciones."
+ 
+ #: d/lang.opt:270
+-#, fuzzy
+-#| msgid "Generate code for built-in atomic operations."
+ msgid "Generate code for precondition contracts."
+-msgstr "Genera código para operaciones atómicas internas."
++msgstr "Genera código para contratos de precondiciones."
+ 
+ #: d/lang.opt:274
+ #, fuzzy
+@@ -8139,14 +8032,12 @@
+ msgstr "Muestra la versión del compilador."
+ 
+ #: d/lang.opt:282
+-#, fuzzy
+-#| msgid "Generate code for the supervisor mode (default)."
+ msgid "Generate code for switches without a default case."
+-msgstr "Genera código para el modo supervisor (predeterminado)."
++msgstr "Genera código para las opciones sin caso predefinido."
+ 
+ #: d/lang.opt:286
+ msgid "List information on all language changes."
+-msgstr ""
++msgstr "Muestra información sobre todos los cambios del lenguaje."
+ 
+ #: d/lang.opt:290
+ msgid "Give deprecation messages about -ftransition=import anomalies."
+@@ -8154,7 +8045,7 @@
+ 
+ #: d/lang.opt:294
+ msgid "List all usages of complex or imaginary types."
+-msgstr ""
++msgstr "Enumera todos los usos de los tipos complejo o imaginario."
+ 
+ #: d/lang.opt:298
+ msgid "Implement DIP1000: Scoped pointers (experimental)."
+@@ -8166,11 +8057,11 @@
+ 
+ #: d/lang.opt:306
+ msgid "List all non-mutable fields which occupy an object instance."
+-msgstr ""
++msgstr "Enumera todos los campos no mutables que ocupan la instancia de un objeto."
+ 
+ #: d/lang.opt:310
+ msgid "Revert to single phase name lookup."
+-msgstr ""
++msgstr "Revierta a búsqueda de nombres de una sola fase."
+ 
+ #: d/lang.opt:314
+ msgid "List all hidden GC allocations."
+@@ -8177,10 +8068,8 @@
+ msgstr ""
+ 
+ #: d/lang.opt:318
+-#, fuzzy
+-#| msgid "Use given thread-local storage dialect."
+ msgid "List all variables going into thread local storage."
+-msgstr "Usa el dialecto de almacenamiento thread-local dado."
++msgstr "Enumera todas las variables que van al almacenamiento local del hilo."
+ 
+ #: d/lang.opt:322
+ #, fuzzy
+@@ -8193,18 +8082,16 @@
+ msgstr ""
+ 
+ #: d/lang.opt:350
+-#, fuzzy
+-#| msgid "Do not assume that standard C libraries and \"main\" exist."
+ msgid "Do not link the standard D library in the compilation."
+-msgstr "No asume que existen las bibliotecas C estándar y \"main\"."
++msgstr "No enlaza la biblioteca D estándar en la compilación."
+ 
+ #: d/lang.opt:358
+ msgid "Link the standard D library statically in the compilation."
+-msgstr ""
++msgstr "Enlaza la biblioteca D estándar estáticamente en la compilación."
+ 
+ #: d/lang.opt:362
+ msgid "Link the standard D library dynamically in the compilation."
+-msgstr ""
++msgstr "Enlaza la biblioteca D estándar dinámicamente en la compilación."
+ 
+ #: go/lang.opt:42
+ msgid "-fgo-c-header=<file>\tWrite Go struct definitions to file as C code."
+@@ -8271,16 +8158,12 @@
+ msgstr "-mpointer-size=[no,32,short,64,long]\tEstablece el tamaña predeterminado de los punteros."
+ 
+ #: config/mcore/mcore.opt:23
+-#, fuzzy
+-#| msgid "Generate code for the M*Core M210"
+ msgid "Generate code for the M*Core M210."
+-msgstr "Genera código para el M*Core M210"
++msgstr "Genera código para el M*Core M210."
+ 
+ #: config/mcore/mcore.opt:27
+-#, fuzzy
+-#| msgid "Generate code for the M*Core M340"
+ msgid "Generate code for the M*Core M340."
+-msgstr "Genera código para el M*Core M340"
++msgstr "Genera código para el M*Core M340."
+ 
+ #: config/mcore/mcore.opt:31
+ msgid "Force functions to be aligned to a 4 byte boundary."
+@@ -8650,7 +8533,7 @@
+ 
+ #: config/m68k/m68k.opt:147
+ msgid "Use 32-bit offsets in jump tables rather than 16-bit offsets."
+-msgstr ""
++msgstr "Usa desplazamientos de 32 bits en las tablas de saltos en lugar de desplazamientos de 16 bits."
+ 
+ #: config/m68k/m68k.opt:151
+ msgid "Do not use the bit-field instructions."
+@@ -8761,11 +8644,11 @@
+ 
+ #: config/riscv/riscv.opt:114
+ msgid "Take advantage of linker relaxations to reduce the number of instructions required to materialize symbol addresses."
+-msgstr ""
++msgstr "Aprovecha los descansos del enlazador para reducir el número de instrucciones requeridas para materializar direcciones de símbolos."
+ 
+ #: config/riscv/riscv.opt:133
+ msgid "Emit RISC-V ELF attribute."
+-msgstr ""
++msgstr "Emite el atributo ELF de RISC-V."
+ 
+ #: config/m32c/m32c.opt:23
+ msgid "-msim\tUse simulator runtime."
 Index: gcc/po/ChangeLog
 ===================================================================
 --- a/src/gcc/po/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/po/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,15 @@
+@@ -1,3 +1,19 @@
++2019-09-30  Joseph Myers  <joseph@codesourcery.com>
++
++	* es.po: Update.
++
 +2019-08-31  Joseph Myers  <joseph@codesourcery.com>
 +
 +	* es.po: Update.
@@ -13254,6 +14306,20 @@ Index: gcc/config/sh/sh.c
  	{
  	  std::string offset_str = tokens[i].substr (strlen ("gbr-offset="));
  	  ret.tcb_gbr_offset = integral_argument (offset_str.c_str ());
+@@ -12087,9 +12090,11 @@
+ 	rtx r = gen_reg_rtx (SImode);
+ 	rtx_insn* i0;
+ 	if (from_mode == QImode)
+-	  i0 = emit_insn_after (gen_extendqisi2 (r, set_src), insn);
++	  i0 = sh_check_add_incdec_notes (
++			emit_insn_after (gen_extendqisi2 (r, set_src), insn));
+ 	else if (from_mode == HImode)
+-	  i0 = emit_insn_after (gen_extendhisi2 (r, set_src), insn);
++	  i0 = sh_check_add_incdec_notes (
++			emit_insn_after (gen_extendhisi2 (r, set_src), insn));
+ 	else
+ 	  gcc_unreachable ();
+ 
 Index: gcc/config/xtensa/xtensa.c
 ===================================================================
 --- a/src/gcc/config/xtensa/xtensa.c	(.../tags/gcc_9_2_0_release)
@@ -13538,6 +14604,17 @@ Index: gcc/config/aarch64/aarch64.md
 ===================================================================
 --- a/src/gcc/config/aarch64/aarch64.md	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/config/aarch64/aarch64.md	(.../branches/gcc-9-branch)
+@@ -1059,8 +1059,8 @@
+ 	(match_operand:GPI 1 "general_operand" ""))]
+   ""
+   "
+-    if (MEM_P (operands[0]) && CONST_INT_P (operands[1])
+-	&& <MODE>mode == DImode
++    if (MEM_P (operands[0]) && !MEM_VOLATILE_P (operands[0])
++	&& CONST_INT_P (operands[1]) && <MODE>mode == DImode
+ 	&& aarch64_split_dimode_const_store (operands[0], operands[1]))
+       DONE;
+ 
 @@ -6304,7 +6304,7 @@
    [(match_operand:GPI 0 "register_operand")
     (match_operand:GPF 1 "register_operand")]
@@ -13547,6 +14624,29 @@ Index: gcc/config/aarch64/aarch64.md
     || !flag_trapping_math || flag_fp_int_builtin_inexact)"
  {
    rtx cvt = gen_reg_rtx (<GPF:MODE>mode);
+Index: gcc/config/aarch64/aarch64.opt
+===================================================================
+--- a/src/gcc/config/aarch64/aarch64.opt	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/config/aarch64/aarch64.opt	(.../branches/gcc-9-branch)
+@@ -119,15 +119,15 @@
+ Enum(aarch64_tls_size) String(48) Value(48)
+ 
+ march=
+-Target RejectNegative ToLower Joined Var(aarch64_arch_string)
++Target RejectNegative Negative(march=) ToLower Joined Var(aarch64_arch_string)
+ Use features of architecture ARCH.
+ 
+ mcpu=
+-Target RejectNegative ToLower Joined Var(aarch64_cpu_string)
++Target RejectNegative Negative(mcpu=) ToLower Joined Var(aarch64_cpu_string)
+ Use features of and optimize for CPU.
+ 
+ mtune=
+-Target RejectNegative ToLower Joined Var(aarch64_tune_string)
++Target RejectNegative Negative(mtune=) ToLower Joined Var(aarch64_tune_string)
+ Optimize for CPU.
+ 
+ mabi=
 Index: gcc/config/aarch64/aarch64.c
 ===================================================================
 --- a/src/gcc/config/aarch64/aarch64.c	(.../tags/gcc_9_2_0_release)
@@ -13580,6 +14680,22 @@ Index: gcc/config/aarch64/aarch64.c
 +      mem_4 = copy_rtx (temp_operands[6]);
        gcc_assert (code == UNKNOWN);
      }
+ 
+Index: gcc/config/rs6000/rs6000-p8swap.c
+===================================================================
+--- a/src/gcc/config/rs6000/rs6000-p8swap.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/config/rs6000/rs6000-p8swap.c	(.../branches/gcc-9-branch)
+@@ -791,6 +791,11 @@
+ 	  case UNSPEC_REDUC_PLUS:
+ 	  case UNSPEC_REDUC:
+ 	    return 1;
++	  case UNSPEC_VPMSUM:
++	    /* vpmsumd is not swappable, but vpmsum[bhw] are.  */
++	    if (GET_MODE (op) == V2DImode)
++	      return 0;
++	    break;
+ 	  }
+       }
  
 Index: gcc/config/rs6000/darwin.h
 ===================================================================
@@ -14138,6 +15254,37 @@ Index: gcc/config/arm/arm_acle.h
  #pragma GCC pop_options
  
  #ifdef __cplusplus
+Index: gcc/config/arm/arm.opt
+===================================================================
+--- a/src/gcc/config/arm/arm.opt	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/config/arm/arm.opt	(.../branches/gcc-9-branch)
+@@ -82,7 +82,7 @@
+ Target Report Mask(APCS_STACK) Undocumented
+ 
+ march=
+-Target RejectNegative ToLower Joined Var(arm_arch_string)
++Target RejectNegative Negative(march=) ToLower Joined Var(arm_arch_string)
+ Specify the name of the target architecture.
+ 
+ ; Other arm_arch values are loaded from arm-tables.opt
+@@ -107,7 +107,7 @@
+ Thumb: Assume function pointers may go to non-Thumb aware code.
+ 
+ mcpu=
+-Target RejectNegative ToLower Joined Var(arm_cpu_string)
++Target RejectNegative Negative(mcpu=) ToLower Joined Var(arm_cpu_string)
+ Specify the name of the target CPU.
+ 
+ mfloat-abi=
+@@ -232,7 +232,7 @@
+ Thumb: Generate (leaf) stack frames even if not needed.
+ 
+ mtune=
+-Target RejectNegative ToLower Joined Var(arm_tune_string)
++Target RejectNegative Negative(mtune=) ToLower Joined Var(arm_tune_string)
+ Tune code for the given processor.
+ 
+ mprint-tune-info
 Index: gcc/config/pa/pa.c
 ===================================================================
 --- a/src/gcc/config/pa/pa.c	(.../tags/gcc_9_2_0_release)
@@ -14173,6 +15320,28 @@ Index: gcc/config/mips/mips.md
    "TARGET_HARD_FLOAT"
    "cfc1\t%0,$31")
  
+Index: gcc/config/mips/mips.c
+===================================================================
+--- a/src/gcc/config/mips/mips.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/config/mips/mips.c	(.../branches/gcc-9-branch)
+@@ -4849,7 +4849,7 @@
+      can forward SRC for DEST.  This is most useful if the next insn is a
+      simple store.   */
+   rtx_insn *insn = (rtx_insn *)insn_;
+-  struct mips_address_info addr;
++  struct mips_address_info addr = {};
+   if (insn)
+     {
+       rtx_insn *next = next_nonnote_nondebug_insn_bb (insn);
+@@ -4862,7 +4862,7 @@
+ 		{
+ 		  rtx tmp = XEXP (src, 0);
+ 		  mips_classify_address (&addr, tmp, GET_MODE (tmp), true);
+-		  if (REGNO (addr.reg) != REGNO (dest))
++		  if (addr.reg && !reg_overlap_mentioned_p (dest, addr.reg))
+ 		    validate_change (next, &SET_SRC (set), src, false);
+ 		}
+ 	      else
 Index: gcc/tree-vect-slp.c
 ===================================================================
 --- a/src/gcc/tree-vect-slp.c	(.../tags/gcc_9_2_0_release)
