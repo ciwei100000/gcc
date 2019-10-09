@@ -147,12 +147,11 @@ endif
 
 $(binary_stamp)-libgnatvsn: $(install_stamp)
 	: # $(p_lgnatvsn_dev)
-	dh_install -p$(p_lgnatvsn_dev) $(usr_lib)/ada/adalib/gnatvsn
-	$(dh_compat2) dh_movefiles -p$(p_lgnatvsn_dev) usr/share/ada/adainclude/gnatvsn
-	dh_install -p$(p_lgnatvsn_dev) usr/share/gpr/gnatvsn.gpr
-	$(dh_compat2) dh_movefiles -p$(p_lgnatvsn_dev) $(usr_lib)/libgnatvsn.a
-	dh_link -p$(p_lgnatvsn_dev) \
-	   $(usr_lib)/libgnatvsn.so.$(GNAT_VERSION) \
+	dh_install -p$(p_lgnatvsn_dev) --autodest \
+	   $(usr_lib)/ada/adalib/gnatvsn \
+	   usr/share/ada/adainclude/gnatvsn \
+	   usr/share/gpr/gnatvsn.gpr usr/share/gpr/gnat_util.gpr \
+	   $(usr_lib)/libgnatvsn.a \
 	   $(usr_lib)/libgnatvsn.so
 	debian/dh_doclink -p$(p_lgnatvsn_dev) $(p_glbase)
 	dh_strip -p$(p_lgnatvsn_dev) -X.a --keep-debug
@@ -161,7 +160,7 @@ $(binary_stamp)-libgnatvsn: $(install_stamp)
 	mkdir -p $(d_lgnatvsn)/usr/share/lintian/overrides
 	echo missing-dependency-on-libc \
 	  > $(d_lgnatvsn)/usr/share/lintian/overrides/$(p_lgnatvsn)
-	$(dh_compat2) dh_movefiles -p$(p_lgnatvsn) $(usr_lib)/libgnatvsn.so.$(GNAT_VERSION)
+	dh_install -p$(p_lgnatvsn) --autodest $(usr_lib)/libgnatvsn.so.*
 	debian/dh_doclink -p$(p_lgnatvsn) $(p_glbase)
 	dh_strip -p$(p_lgnatvsn) --dbg-package=$(p_lgnatvsn_dbg)
 	$(cross_makeshlibs) dh_makeshlibs $(ldconfig_arg) -p$(p_lgnatvsn) \
