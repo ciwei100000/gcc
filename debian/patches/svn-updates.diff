@@ -1,10 +1,10 @@
-# DP: updates from the 9 branch upto 20190929 (r276266).
+# DP: updates from the 9 branch upto 20191016 (r277057).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Tue Oct  8 10:00:22 CEST 2019
-Tue Oct  8 08:00:22 UTC 2019 (revision 276687)
+Wed Oct 16 12:20:38 CEST 2019
+Wed Oct 16 10:20:38 UTC 2019 (revision 277057)
 EOF
 }
 
@@ -3724,6 +3724,151 @@ Index: contrib/test_summary
  /tests ===/ || /^(Target|Host|Native)/ || $2 == "version" { print; blanks=1; }
  /^(XPASS|FAIL|UNRESOLVED|WARNING|ERROR|# of )/ { sub ("\r", ""); print; }
  /^using:/ { print ""; print; print ""; }
+Index: libgcc/ChangeLog
+===================================================================
+--- a/src/libgcc/ChangeLog	(.../tags/gcc_9_2_0_release)
++++ b/src/libgcc/ChangeLog	(.../branches/gcc-9-branch)
+@@ -1,3 +1,20 @@
++2019-10-15  John David Anglin  <danglin@gcc.gnu.org>
++
++	* config/pa/fptr.c (_dl_read_access_allowed): Change argument to
++	unsigned int.  Adjust callers.
++	(__canonicalize_funcptr_for_compare): Change plabel type to volatile
++	unsigned int *.  Load relocation offset before function pointer.
++	Add barrier to ensure ordering.
++
++2019-10-12  John David Anglin  <danglin@gcc.gnu.org>
++
++	* config/pa/lib2funcs.S (__gcc_plt_call): Load branch target to %r21.
++	Load PIC register after branch target.  Fix white space.
++	* config/pa/milli64.S ($$dyncall): Separate LINUX and non LINUX
++	implementations.  Load PIC register after branch target.  Don't
++	clobber function pointer when it points to function descriptor.
++	Use nullification instead of branch in LINUX implementation.
++
+ 2019-08-12  Release Manager
+ 
+ 	* GCC 9.2.0 released.
+Index: libgcc/config/pa/milli64.S
+===================================================================
+--- a/src/libgcc/config/pa/milli64.S	(.../tags/gcc_9_2_0_release)
++++ b/src/libgcc/config/pa/milli64.S	(.../branches/gcc-9-branch)
+@@ -222,19 +222,26 @@
+ 	.proc
+ 	.callinfo	millicode
+ 	.entry
++#ifdef LINUX
++	extru,<>	%r22,30,1,%r0	; nullify if plabel bit set
++	bv,n	%r0(%r22)		; branch to target
++	ldw	-2(%r22),%r21		; load address of target
++	bv	%r0(%r21)		; branch to the real target
++	ldw	2(%r22),%r19		; load new LTP value
++#else
+ 	bb,>=,n %r22,30,LREF(1)		; branch if not plabel address
+-	depi	0,31,2,%r22		; clear the two least significant bits
+-	ldw	4(%r22),%r19		; load new LTP value
+-	ldw	0(%r22),%r22		; load address of target
++	ldw	-2(%r22),%r21		; load address of target to r21
++	ldsid	(%sr0,%r21),%r1		; get the "space ident" selected by r21
++	ldw	2(%r22),%r19		; load new LTP value
++	mtsp	%r1,%sr0		; move that space identifier into sr0
++	be	0(%sr0,%r21)		; branch to the real target
++	stw	%r2,-24(%r30)		; save return address into frame marker
+ LSYM(1)
+-#ifdef LINUX
+-	bv	%r0(%r22)		; branch to the real target
+-#else
+ 	ldsid	(%sr0,%r22),%r1		; get the "space ident" selected by r22
+ 	mtsp	%r1,%sr0		; move that space identifier into sr0
+-	be	0(%sr0,%r22)		; branch to the real target
++	be	0(%sr0,%r22)		; branch to the target
++	stw	%r2,-24(%r30)		; save return address into frame marker
+ #endif
+-	stw	%r2,-24(%r30)		; save return address into frame marker
+ 	.exit
+ 	.procend
+ #endif
+Index: libgcc/config/pa/lib2funcs.S
+===================================================================
+--- a/src/libgcc/config/pa/lib2funcs.S	(.../tags/gcc_9_2_0_release)
++++ b/src/libgcc/config/pa/lib2funcs.S	(.../branches/gcc-9-branch)
+@@ -55,13 +55,13 @@
+ 	; An inline version of dyncall so we don't have to worry
+ 	; about long calls to millicode, PIC and other complexities.
+ 	bb,>=,n %r22,30,L$foo
+-        depi 0,31,2,%r22
+-        ldw 4(%r22),%r19
+-        ldw 0(%r22),%r22
++	depi 0,31,2,%r22
++	ldw 0(%r22),%r21
++	ldw 4(%r22),%r19
+ L$foo
+-        ldsid (%r22),%r1
+-        mtsp %r1,%sr0
+-        ble 0(%sr0,%r22)
++	ldsid (%r21),%r1
++	mtsp %r1,%sr0
++	ble 0(%sr0,%r21)
+ 	copy %r31,%r2
+ 	ldw -8(%r30),%r2
+ 
+Index: libgcc/config/pa/fptr.c
+===================================================================
+--- a/src/libgcc/config/pa/fptr.c	(.../tags/gcc_9_2_0_release)
++++ b/src/libgcc/config/pa/fptr.c	(.../branches/gcc-9-branch)
+@@ -53,7 +53,7 @@
+ extern unsigned int _GLOBAL_OFFSET_TABLE_;
+ 
+ static inline int
+-_dl_read_access_allowed (unsigned int *addr)
++_dl_read_access_allowed (unsigned int addr)
+ {
+   int result;
+ 
+@@ -76,7 +76,8 @@
+ {
+   static unsigned int fixup_plabel[2] __attribute__((used));
+   fixup_t fixup;
+-  unsigned int *got, *iptr, *plabel;
++  volatile unsigned int *plabel;
++  unsigned int *got, *iptr, reloc_offset;
+   int i;
+ 
+   /* -1 and page 0 are special.  -1 is used in crtend to mark the end of
+@@ -91,8 +92,8 @@
+      to the entry of the PLT stub just before the global offset table.
+      The second word in the plabel contains the relocation offset for the
+      function.  */
+-  plabel = (unsigned int *) ((unsigned int) fptr & ~3);
+-  if (!_dl_read_access_allowed (plabel))
++  plabel = (volatile unsigned int *) ((unsigned int) fptr & ~3);
++  if (!_dl_read_access_allowed ((unsigned int)plabel))
+     return (unsigned int) fptr;
+ 
+   /* Load first word of candidate descriptor.  It should be a pointer
+@@ -99,9 +100,12 @@
+      with word alignment and point to memory that can be read.  */
+   got = (unsigned int *) plabel[0];
+   if (((unsigned int) got & 3) != 0
+-      || !_dl_read_access_allowed (got))
++      || !_dl_read_access_allowed ((unsigned int)got))
+     return (unsigned int) fptr;
+ 
++  /* We need to load the relocation offset before the function address.  */
++  reloc_offset = plabel[1];
++  __sync_synchronize();
+   got = (unsigned int *) (plabel[0] + GOT_FROM_PLT_STUB);
+ 
+   /* Return the address of the function if the plabel has been resolved.  */
+@@ -137,7 +141,7 @@
+ 
+   /* Call fixup to resolve the function address.  got[1] contains the
+      link_map pointer and plabel[1] the relocation offset.  */
+-  fixup ((struct link_map *) got[1], plabel[1]);
++  fixup ((struct link_map *) got[1], reloc_offset);
+ 
+   return plabel[0];
+ }
 Index: gcc/tree-vrp.c
 ===================================================================
 --- a/src/gcc/tree-vrp.c	(.../tags/gcc_9_2_0_release)
@@ -3907,7 +4052,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-9-branch)
 @@ -1 +1 @@
 -20190812
-+20191008
++20191016
 Index: gcc/lra.c
 ===================================================================
 --- a/src/gcc/lra.c	(.../tags/gcc_9_2_0_release)
@@ -3939,7 +4084,19 @@ Index: gcc/tree.c
  	    TYPE_BINFO (type) = NULL;
  	}
      }
-@@ -11357,6 +11356,73 @@
+@@ -5937,8 +5936,9 @@
+     {
+       for (tree *tem = &BLOCK_VARS (t); *tem; )
+ 	{
+-	  if (TREE_CODE (*tem) != VAR_DECL
+-	      || !auto_var_in_fn_p (*tem, DECL_CONTEXT (*tem)))
++	  if (TREE_CODE (*tem) != LABEL_DECL
++	      && (TREE_CODE (*tem) != VAR_DECL
++		  || !auto_var_in_fn_p (*tem, DECL_CONTEXT (*tem))))
+ 	    {
+ 	      gcc_assert (TREE_CODE (*tem) != RESULT_DECL
+ 			  && TREE_CODE (*tem) != PARM_DECL);
+@@ -11357,6 +11357,73 @@
      }
  }
  
@@ -4464,7 +4621,109 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,502 @@
+@@ -1,3 +1,604 @@
++2019-10-16  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2019-10-04  Richard Biener  <rguenther@suse.de>
++
++	PR lto/91968
++	* tree.c (find_decls_types_r): Do not remove LABEL_DECLs from
++	BLOCK_VARS.
++
++	2019-09-19  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/91812
++	* tree-ssa-phiprop.c (propagate_with_phi): Do not replace
++	volatile loads.
++
++	2019-09-17  Richard Biener  <rguenther@suse.de>
++
++	PR debug/91772
++	* dwarf2out.c (dwarf2out_late_global_decl): If early dwarf
++	was missing generate locations only once.
++
++	2019-09-17  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/91790
++	* tree-vect-stmts.c (vectorizable_load): For BB vectorization
++	use the correct DR for setting up realignment.
++
++2019-10-14  Will Schmidt  <will_schmidt@vnet.ibm.com>
++
++	Backport from trunk
++	2019-09-26  Will Schmidt <will_schmidt@vnet.ibm.com>
++
++	* config/rs6000/rs6000-builtin.def: (LVSL, LVSR, LVEBX, LVEHX,
++	LVEWX, LVXL, LVXL_V2DF, LVXL_V2DI, LVXL_V4SF, LVXL_V4SI, LVXL_V8HI,
++	LVXL_V16QI, LVX, LVX_V1TI, LVX_V2DF, LVX_V2DI, LVX_V4SF, LVX_V4SI,
++	LVX_V8HI, LVX_V16QI, LVLX, LVLXL, LVRX, LVRXL, LXSDX, LXVD2X_V1TI,
++	LXVD2X_V2DF, LXVD2X_V2DI, LXVDSX, LXVW4X_V4SF, LXVW4X_V4SI,
++	LXVW4X_V8HI, LXVW4X_V16QI, LD_ELEMREV_V1TI, LD_ELEMREV_V2DF,
++	LD_ELEMREV_V2DI, LD_ELEMREV_V4SF, LD_ELEMREV_V4SI, LD_ELEMREV_V8HI,
++	LD_ELEMREV_V16QI): Use the PURE attribute.
++
++2019-10-10  Uroš Bizjak  <ubizjak@gmail.com>
++
++	PR target/92022
++	* config/alpha/alpha.c (alpha_handle_trap_shadows): Skip DEBUG_INSN.
++
++2019-10-10  Oleg Endo  <olegendo@gcc.gnu.org>
++
++	Backport from mainline
++	2019-10-10  Oleg Endo  <olegendo@gcc.gnu.org>
++
++	PR target/88630
++	* config/sh/sh.h (TARGET_FPU_SH4_300): New macro.
++	* config/sh/sh.c (sh_option_override): Enable fsca and fsrra insns
++	also for TARGET_FPU_SH4_300.
++	(sh_emit_mode_set): Check for TARGET_FPU_SH4_300 instead of
++	TARGET_SH4_300.
++	* config/sh/sh.md (toggle_pr): Add TARGET_FPU_SH4_300 condition.
++	(negsf2): Expand to either negsf2_fpscr or negsf2_no_fpscr.
++	(*negsf2_i): Split into ...
++	(negsf2_fpscr, negsf2_no_fpscr): ... these new patterns.
++	(abssf2): Expand to either abssf2_fpsc or abssf2_no_fpsc.
++	(**abssf2_i): Split into ...
++	(abssf2_fpscr, abssf2_no_fpscr): ... these new patterns.
++	(negdf2): Expand to either negdf2_fpscr or negdf2_no_fpscr.
++	(*negdf2_i): Split into ...
++	(negdf2_fpscr, negdf2_no_fpscr): ... these new patterns.
++	(absdf2): Expand to either absdf2_fpscr or absdf2_no_fpsc.
++	(**abssf2_i): Split into ...
++	(absdf2_fpscr, absdf2_no_fpscr): ... these new patterns.
++
++2019-10-10  Andreas Krebbel  <krebbel@linux.ibm.com>
++
++	Backport from mainline
++	2019-10-10  Andreas Krebbel  <krebbel@linux.ibm.com>
++
++	* common/config/s390/s390-common.c (PF_ARCH13): Rename to...
++	(PF_Z15): ... this.
++	* config.gcc: Add z15 as option for --with-arch and --with-tune
++	configure switches.
++	* config/s390/s390-c.c (s390_resolve_overloaded_builtin): Add
++	error reporting for unsupported builtins.
++	* config/s390/s390-opts.h (enum processor_type): Rename
++	PROCESSOR_8561_ARCH13 to PROCESSOR_8561_Z15.
++	* config/s390/8561.md: Rename arch13 to z15 throughout the file.
++	* config/s390/driver-native.c (s390_host_detect_local_cpu):
++	Likewise.
++	* config/s390/s390-builtins.def: Likewise.
++	* config/s390/s390.c (processor_table): Add z15 as option and keep arch13 as alternative.
++	(s390_expand_builtin): Add missing check for unsupported builtins.
++	(s390_canonicalize_comparison): Rename TARGET_ARCH13 to TARGET_Z15.
++	(s390_rtx_costs): Likewise.
++	(s390_get_sched_attrmask): Rename arch13 to z15.
++	(s390_get_unit_mask): Likewise.
++	(s390_is_fpd): Likewise.
++	(s390_is_fxd): Likewise.
++	* config/s390/s390.h (enum processor_flags): Likewise.
++	* config/s390/s390.md: Likewise.
++	* config/s390/vector.md: Likewise.
++	* config/s390/vx-builtins.md: Likewise.
++	* config/s390/s390.opt: Add z15 to processor_type value.
++
 +2019-10-07  Bill Schmidt  <wschmidt@linux.ibm.com>
 +
 +	Backport from mainline
@@ -4967,7 +5226,7 @@ Index: gcc/ChangeLog
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -513,7 +1012,7 @@
+@@ -513,7 +1114,7 @@
  
  2019-07-11  Uroš Bizjak  <ubizjak@gmail.com>
  
@@ -4997,6 +5256,58 @@ Index: gcc/testsuite/gcc.target/powerpc/darn-3.c
 +}
 +
 +/* { dg-final { scan-assembler-times {(?n)\mdarn .*,0\M} 4 } } */
+Index: gcc/testsuite/gcc.target/powerpc/pure-builtin-redundant-load.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/pure-builtin-redundant-load.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/pure-builtin-redundant-load.c	(.../branches/gcc-9-branch)
+@@ -0,0 +1,47 @@
++/* { dg-do compile } */
++/* { dg-require-effective-target powerpc_vsx_ok } */
++/* { dg-options "-O2 -fdump-tree-fre-all -mvsx" } */
++
++/* Verify we remove a redundant load that occurs both before and after
++we call a vector load builtin.
++This testcase is introduced as we updated a number of our vector load
++built-ins with the attribute of PURE instead of MEM, to indicate that
++those builtins only read from memory, versus reading from and writing
++to the same.
++This means we can identify the redundant load instructions in an earlier
++pass, and optimize them away.  */
++
++#include <altivec.h>
++
++vector signed short load_data;
++
++vector signed short foo()
++{
++	vector signed short r11,r12,r13;
++	r11 = load_data;
++	r12 = vec_xl (0, &load_data[0]);
++	r13 = load_data;
++	return (r11 + r12 + r13);
++}
++
++vector signed short biz()
++{
++	vector signed short r21,r22,r23;
++	r21 = load_data;
++	r22 = vec_lvehx (0, &load_data[0]);
++	r23 = load_data;
++	return (r21 + r22 + r23);
++}
++
++vector signed short bar()
++{
++	vector signed short r31,r32,r33;
++	r31 = load_data;
++	r32 = vec_lvx (0, &load_data[0]);
++	r33 = load_data;
++	return (r31 + r32 + r33);
++}
++
++/* { dg-final { scan-tree-dump-times "Removing dead stmt r13_. = load_data;" 1 "fre1" } } */
++/* { dg-final { scan-tree-dump-times "Removing dead stmt r23_. = load_data;" 1 "fre1" } } */
++/* { dg-final { scan-tree-dump-times "Removing dead stmt r33_. = load_data;" 1 "fre1" } } */
 Index: gcc/testsuite/gcc.target/powerpc/pr91275.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/powerpc/pr91275.c	(.../tags/gcc_9_2_0_release)
@@ -5324,6 +5635,27 @@ Index: gcc/testsuite/gfortran.dg/associate_49.f90
 +         if (kind(a) .ne. 4) stop 4
 +      end block
 +   end associate
++end
+Index: gcc/testsuite/gfortran.dg/pr85543.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr85543.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr85543.f90	(.../branches/gcc-9-branch)
+@@ -6,3 +6,4 @@
+    real(z()) function f()  ! { dg-error "in initialization expression at" }
+    end
+ end
++! { dg-prune-output "Bad kind expression for function" }
+Index: gcc/testsuite/gfortran.dg/pr91801.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr91801.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr91801.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,7 @@
++! { dg-do compile }
++! PR fortran/91801
++! Code contributed by Gerhard Steinmetz
++program p
++   integer, parameter :: a(2) = [2,0]              ! { dg-error "Element with a value of" }
++   print *, reshape([1,2,3,4,5,6], [2,3], order=a) ! { dg-error "for the RESHAPE intrinsic near" }
 +end
 Index: gcc/testsuite/gfortran.dg/unlimited_polymorphic_28.f90
 ===================================================================
@@ -5800,6 +6132,34 @@ Index: gcc/testsuite/gfortran.dg/pr47054_1.f90
 +         pointer (paxg, xg)
 +      end subroutine internal_sub
 +end subroutine host_sub
+Index: gcc/testsuite/gfortran.dg/pr91649.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr91649.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr91649.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,23 @@
++! { dg-do compile }
++! PR fortran/91649
++! Code originally contributed by Gerhard Steinmetz
++subroutine p
++   logical :: back = .true.
++   integer :: x(1) = findloc([1, 2, 1], '1', back=back) ! { dg-error "must be in type conformance" }
++   print *, x
++end
++
++subroutine q
++   type t
++   end type
++   logical :: back = .false.
++   integer :: x(1) = findloc([1, 2, 1], t(), back=back) ! { dg-error "must be of intrinsic type" }
++   print *, x
++end
++
++subroutine s
++   character(4) :: c = '1234'
++   integer :: x(1) = findloc([1, 2, 1], c, back=.true.) ! { dg-error "must be in type conformance" }
++   print *, x
++end
++
 Index: gcc/testsuite/gfortran.dg/pr91552.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr91552.f90	(.../tags/gcc_9_2_0_release)
@@ -5815,6 +6175,16 @@ Index: gcc/testsuite/gfortran.dg/pr91552.f90
 +   if (any(y /= [2., 4., 6.])) stop 1
 +   if (any(z /= [2., 4., 8., 6.])) stop 2
 +end
+Index: gcc/testsuite/gfortran.dg/pr91715.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr91715.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr91715.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,5 @@
++! { dg-do compile }
++! PR fortran/91715
++! Code contributed Gerhard Steinmetz
++character(1function f()  ! { dg-error "Syntax error in CHARACTER" }
++end
 Index: gcc/testsuite/gfortran.dg/allocated_3.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/allocated_3.f90	(.../tags/gcc_9_2_0_release)
@@ -5826,6 +6196,15 @@ Index: gcc/testsuite/gfortran.dg/allocated_3.f90
 +program p
 +   if (allocated()) stop 1 ! { dg-error "requires an array or scalar allocatable" }
 +end
+Index: gcc/testsuite/gfortran.dg/function_kinds_5.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/function_kinds_5.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/function_kinds_5.f90	(.../branches/gcc-9-branch)
+@@ -8,3 +8,4 @@
+ real (bad_kind(0d0)) function foo () ! { dg-error "must be an intrinsic function" }
+   foo = real (kind (foo))
+ end function
++! { dg-prune-output "Bad kind expression for function" }
 Index: gcc/testsuite/gfortran.dg/pr88072.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr88072.f90	(.../tags/gcc_9_2_0_release)
@@ -6730,6 +7109,37 @@ Index: gcc/testsuite/gcc.dg/torture/pr91445.c
 +    __builtin_abort ();
 +  return 0;
 +}
+Index: gcc/testsuite/gcc.dg/torture/pr91812.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/torture/pr91812.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gcc.dg/torture/pr91812.c	(.../branches/gcc-9-branch)
+@@ -0,0 +1,26 @@
++/* { dg-do compile } */
++/* { dg-skip-if "" { *-*-* } { "-fno-fat-lto-objects" } { "" } } */
++/* { dg-options "-fdump-tree-optimized-blocks" } */
++
++unsigned register1;
++unsigned register2;
++
++void busy_wait_for_register (int x)
++{
++  volatile unsigned* ptr;
++  switch(x) {
++    case 0x1111:
++    ptr = &register1;
++    break;
++
++    case 0x2222:
++    ptr = &register2;
++    break;
++
++    default:
++    return;
++  }
++  while (*ptr) {}
++}
++
++/* { dg-final { scan-tree-dump "loop depth 1" "optimized" } } */
 Index: gcc/testsuite/gcc.dg/torture/pr90278.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.dg/torture/pr90278.c	(.../tags/gcc_9_2_0_release)
@@ -6772,7 +7182,49 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,383 @@
+@@ -1,3 +1,425 @@
++2019-10-16  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2019-10-02  Richard Biener  <rguenther@suse.de>
++
++	PR c++/91606
++	* g++.dg/torture/pr91606.C: New testcase.
++
++	2019-09-19  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/91812
++	* gcc.dg/torture/pr91812.c: New testcase.
++
++2019-10-14  Will Schmidt  <will_schmidt@vnet.ibm.com>
++
++	Backport from trunk.
++	2019-09-26  Will Schmidt <will_schmidt@vnet.ibm.com>
++
++	* gcc.target/powerpc/pure-builtin-redundant-load.c:  New.
++
++2019-10-11  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91715
++	* gfortran.dg/function_kinds_5.f90: Prune run-on error.
++	* gfortran.dg/pr85543.f90: Ditto.
++	* gfortran.dg/pr91715.f90: New test.
++
++2019-10-11  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91649
++	* gfortran.dg/pr91649.f90: New test.
++
++2019-10-10  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91801
++	* gfortran.dg/pr91801.f90: New test.
++
++2019-10-10  Uroš Bizjak  <ubizjak@gmail.com>
++
++	PR target/92022
++	* g++.dg/pr92022.C: New test.
++
 +2019-10-07  Thomas Koenig <tkoenig@gcc.gnu.org>
 +
 +	Backport from trunk
@@ -7156,7 +7608,7 @@ Index: gcc/testsuite/ChangeLog
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -427,7 +807,7 @@
+@@ -427,7 +849,7 @@
  	Backport from mainline.
  	2019-05-15  Iain Sandoe  <iain@sandoe.co.uk>
  
@@ -7258,6 +7710,24 @@ Index: gcc/testsuite/g++.dg/warn/ctor-dtor-privacy-4.h
 +  __nonesuch(__nonesuch const &);
 +};
 +} // namespace std
+Index: gcc/testsuite/g++.dg/pr92022.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/pr92022.C	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/g++.dg/pr92022.C	(.../branches/gcc-9-branch)
+@@ -0,0 +1,13 @@
++// { dg-do compile { target alpha*-*-* } }
++// { dg-options "-O1 -g -fno-var-tracking -mcpu=ev4 -mieee" }
++
++struct a {
++  a(long);
++};
++long b;
++void c() {
++  a d(1);
++  double e = b;
++  for (; b;)
++    d = e;
++}
 Index: gcc/testsuite/g++.dg/parse/operator8.C
 ===================================================================
 --- a/src/gcc/testsuite/g++.dg/parse/operator8.C	(.../tags/gcc_9_2_0_release)
@@ -7467,6 +7937,120 @@ Index: gcc/testsuite/g++.dg/torture/pr91155.C
 +    {};//      __builtin_abort ();
 +    return 0;
 +}
+Index: gcc/testsuite/g++.dg/torture/pr91606.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/torture/pr91606.C	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/g++.dg/torture/pr91606.C	(.../branches/gcc-9-branch)
+@@ -0,0 +1,109 @@
++/* { dg-do run } */
++/* { dg-additional-options "-fstrict-aliasing" } */
++
++#include <cstdlib>
++#include <array>
++#include <type_traits>
++
++template <typename T1, typename T2>
++struct variant
++{
++  constexpr variant(T1 arg)
++      : f1(arg),
++      index(0)
++  {}
++
++  constexpr variant(T2 arg)
++      : f2(arg),
++      index(1)
++  {}
++
++  union
++    {
++      T1 f1;
++      T2 f2;
++    };
++  std::size_t index = 0;
++};
++
++template <typename T1, typename T2>
++constexpr const T1* get_if(const variant<T1, T2>* v)
++{
++  if (v->index != 0)
++    {
++      return nullptr;
++    }
++  return &v->f1;
++}
++
++template <typename T2, typename T1>
++constexpr const T2* get_if(const variant<T1, T2>* v)
++{
++  if (v->index != 1)
++    {
++      return nullptr;
++    }
++  return &v->f2;
++}
++
++template <typename T, size_t N>
++struct my_array
++{
++  constexpr const T* begin() const
++    {
++      return data;
++    }
++
++  constexpr const T* end() const
++    {
++      return data + N;
++    }
++
++  T data[N];
++};
++
++template <typename ...Ts>
++constexpr auto get_array_of_variants(Ts ...ptrs)
++{
++  return std::array<variant<std::decay_t<Ts>...>, sizeof...(Ts)>{ ptrs... };
++}
++
++template <typename T>
++constexpr auto get_member_functions();
++
++template <typename Member, typename Class>
++constexpr int getFuncId(Member (Class::*memFuncPtr))
++{
++  int idx = 0u;
++  for (auto &anyFunc : get_member_functions<Class>())
++    {
++      if (auto *specificFunc = get_if<Member (Class::*)>(&anyFunc))
++	{
++	  if (*specificFunc == memFuncPtr)
++	    {
++	      return idx;
++	    }
++	}
++      ++idx;
++    }
++  std::abort();
++}
++
++struct MyStruct
++{
++  void fun1(int /*a*/) {}
++
++  int fun2(char /*b*/, short /*c*/, bool /*d*/) { return 0; }
++
++};
++
++template <>
++constexpr auto get_member_functions<MyStruct>()
++{
++  return get_array_of_variants(&MyStruct::fun1, &MyStruct::fun2);
++}
++
++int main()
++{
++  return getFuncId(&MyStruct::fun1);
++}
 Index: gcc/testsuite/g++.dg/cpp1y/dr1560.C
 ===================================================================
 --- a/src/gcc/testsuite/g++.dg/cpp1y/dr1560.C	(.../tags/gcc_9_2_0_release)
@@ -7570,6 +8154,16 @@ Index: gcc/testsuite/g++.dg/cpp1y/lambda-init16.C
  }
  
  int main ()
+Index: gcc/testsuite/g++.dg/cpp1y/var-templ63.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp1y/var-templ63.C	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp1y/var-templ63.C	(.../branches/gcc-9-branch)
+@@ -0,0 +1,5 @@
++// PR c++/91740 - ICE with constexpr call and ?: in ARRAY_REF.
++// { dg-do compile { target c++14 } }
++
++constexpr bool f(const char*) { return true; }
++template<typename T> const char c = "FOO"[f("BAR") ? 1 : 0];
 Index: gcc/testsuite/g++.dg/cpp1y/nontype1.C
 ===================================================================
 --- a/src/gcc/testsuite/g++.dg/cpp1y/nontype1.C	(.../tags/gcc_9_2_0_release)
@@ -8465,7 +9059,20 @@ Index: gcc/cp/decl.c
  
        /* This can happen with an invalid initializer (c++/54501).  */
        if (d->cur == old_cur && !sized_array_p)
-@@ -11435,6 +11450,8 @@
+@@ -9539,10 +9554,12 @@
+   TYPE_PTRMEMFUNC_FLAG (t) = 1;
+ 
+   field = build_decl (input_location, FIELD_DECL, pfn_identifier, type);
++  DECL_NONADDRESSABLE_P (field) = 1;
+   fields = field;
+ 
+   field = build_decl (input_location, FIELD_DECL, delta_identifier, 
+ 		      delta_type_node);
++  DECL_NONADDRESSABLE_P (field) = 1;
+   DECL_CHAIN (field) = fields;
+   fields = field;
+ 
+@@ -11435,6 +11452,8 @@
  		else if (late_return_type
  			 && sfk != sfk_conversion)
  		  {
@@ -8474,7 +9081,7 @@ Index: gcc/cp/decl.c
  		    if (cxx_dialect < cxx11)
  		      /* Not using maybe_warn_cpp0x because this should
  			 always be an error.  */
-@@ -13042,7 +13059,9 @@
+@@ -13042,7 +13061,9 @@
    /* Avoid redundant -Wzero-as-null-pointer-constant warnings at
       the call sites.  */
    if (TYPE_PTR_OR_PTRMEM_P (decl_type)
@@ -8504,7 +9111,25 @@ Index: gcc/cp/ChangeLog
 ===================================================================
 --- a/src/gcc/cp/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/cp/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,122 @@
+@@ -1,3 +1,140 @@
++2019-10-16  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2019-10-02  Richard Biener  <rguenther@suse.de>
++
++	PR c++/91606
++	* decl.c (build_ptrmemfunc_type): Mark pointer-to-member
++	fat pointer structure members as DECL_NONADDRESSABLE_P.
++
++2019-10-08  Marek Polacek  <polacek@redhat.com>
++
++	Backported from mainline
++	2019-09-15  Marek Polacek  <polacek@redhat.com>
++
++	PR c++/91740 - ICE with constexpr call and ?: in ARRAY_REF.
++	* pt.c (build_non_dependent_expr): Call build_non_dependent_expr for
++	the first operand.
++
 +2019-09-28  Marek Polacek  <polacek@redhat.com>
 +
 +	Backported from mainline
@@ -8627,7 +9252,7 @@ Index: gcc/cp/ChangeLog
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -16,7 +135,7 @@
+@@ -16,7 +153,7 @@
  
  	Backported from mainline
  	2019-08-02  Marek Polacek  <polacek@redhat.com>
@@ -8813,6 +9438,15 @@ Index: gcc/cp/pt.c
  	  return true;
  	}
        if (dependent_type_p (type))
+@@ -26715,7 +26715,7 @@
+   if (TREE_CODE (expr) == COND_EXPR)
+     return build3 (COND_EXPR,
+ 		   TREE_TYPE (expr),
+-		   TREE_OPERAND (expr, 0),
++		   build_non_dependent_expr (TREE_OPERAND (expr, 0)),
+ 		   (TREE_OPERAND (expr, 1)
+ 		    ? build_non_dependent_expr (TREE_OPERAND (expr, 1))
+ 		    : build_non_dependent_expr (TREE_OPERAND (expr, 0))),
 @@ -27615,6 +27615,9 @@
      }
    else
@@ -9289,11 +9923,78 @@ Index: gcc/tree-ssa-sink.c
  
  	  return true;
  	}
+Index: gcc/dwarf2out.c
+===================================================================
+--- a/src/gcc/dwarf2out.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/dwarf2out.c	(.../branches/gcc-9-branch)
+@@ -26647,17 +26647,13 @@
+     {
+       dw_die_ref die = lookup_decl_die (decl);
+ 
+-      /* We may have to generate early debug late for LTO in case debug
++      /* We may have to generate full debug late for LTO in case debug
+          was not enabled at compile-time or the target doesn't support
+ 	 the LTO early debug scheme.  */
+       if (! die && in_lto_p)
++	dwarf2out_decl (decl);
++      else if (die)
+ 	{
+-	  dwarf2out_decl (decl);
+-	  die = lookup_decl_die (decl);
+-	}
+-
+-      if (die)
+-	{
+ 	  /* We get called via the symtab code invoking late_global_decl
+ 	     for symbols that are optimized out.
+ 
+Index: gcc/ada/sem_spark.adb
+===================================================================
+--- a/src/gcc/ada/sem_spark.adb	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/ada/sem_spark.adb	(.../branches/gcc-9-branch)
+@@ -804,7 +804,7 @@
+ 
+       if Present (SPARK_Pragma (Defining_Entity (Body_N))) then
+          if Get_SPARK_Mode_From_Annotation
+-           (SPARK_Pragma (Defining_Entity (Body_N, False))) /= Opt.On
++           (SPARK_Pragma (Defining_Entity (Body_N))) /= Opt.On
+          then
+             return;
+          end if;
+@@ -1914,7 +1914,7 @@
+       CorSp : Node_Id;
+ 
+    begin
+-      if Present (SPARK_Pragma (Defining_Entity (Pack, False))) then
++      if Present (SPARK_Pragma (Defining_Entity (Pack))) then
+          if Get_SPARK_Mode_From_Annotation
+            (SPARK_Pragma (Defining_Entity (Pack))) /= Opt.On
+          then
 Index: gcc/ada/ChangeLog
 ===================================================================
 --- a/src/gcc/ada/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/ada/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,9 @@
+@@ -1,3 +1,29 @@
++2019-10-12  Eric Botcazou  <ebotcazou@adacore.com>
++
++	PR ada/91995
++	* sem_ch8.adb (Chain_Use_Clause): Remove second argument in calls
++	to Defining_Entity.
++	* sem_elab.adb (Find_Unit_Entity): Likewise.  Deal with N_Subunit
++	here in lieu of in Defining_Entity.
++	* sem_spark.adb (Check_Callable_Body): Likewise.
++	(Check_Package_Body): Likewise.
++	* sem_util.ads (Defining_Entity): Remove 2nd and 3th parameters.
++	* sem_util.adb (Defining_Entity): Remove 2nd and 3th parameters,
++	and adjust accordingly.  Deal with N_Compilation_Unit.
++
++2019-10-11  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* gcc-interface/decl.c (annotate_value) <INTEGER_CST>: Really test the
++	sign of the value when deciding to build a NEGATE_EXPR.
++	<PLUS_EXPR>: Remove redundant line.
++	<BIT_AND_EXPR>: Do the negation here.
++
 +2019-09-23  Eric Botcazou  <ebotcazou@adacore.com>
 +
 +	* gcc-interface/trans.c (Attribute_to_gnu): Test Can_Use_Internal_Rep
@@ -9303,6 +10004,47 @@ Index: gcc/ada/ChangeLog
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
+Index: gcc/ada/gcc-interface/decl.c
+===================================================================
+--- a/src/gcc/ada/gcc-interface/decl.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/ada/gcc-interface/decl.c	(.../branches/gcc-9-branch)
+@@ -8255,9 +8255,8 @@
+     {
+     case INTEGER_CST:
+       /* For negative values, build NEGATE_EXPR of the opposite.  Such values
+-	 can appear for discriminants in expressions for variants.  Note that,
+-	 sizetype being unsigned, we don't directly use tree_int_cst_sgn.  */
+-      if (tree_int_cst_sign_bit (gnu_size))
++	 can appear for discriminants in expressions for variants.  */
++      if (tree_int_cst_sgn (gnu_size) < 0)
+ 	{
+ 	  tree t = wide_int_to_tree (sizetype, -wi::to_wide (gnu_size));
+ 	  tcode = Negate_Expr;
+@@ -8335,9 +8334,8 @@
+ 	  && tree_int_cst_sign_bit (TREE_OPERAND (gnu_size, 1)))
+ 	{
+ 	  tcode = Minus_Expr;
+-	  ops[0] = annotate_value (TREE_OPERAND (gnu_size, 0));
+-	  wide_int op1 = -wi::to_wide (TREE_OPERAND (gnu_size, 1));
+-	  ops[1] = annotate_value (wide_int_to_tree (sizetype, op1));
++	  wide_int wop1 = -wi::to_wide (TREE_OPERAND (gnu_size, 1));
++	  ops[1] = annotate_value (wide_int_to_tree (sizetype, wop1));
+ 	  break;
+ 	}
+ 
+@@ -8378,9 +8376,9 @@
+ 	 Such values can appear in expressions with aligning patterns.  */
+       if (TREE_CODE (TREE_OPERAND (gnu_size, 1)) == INTEGER_CST)
+ 	{
+-	  wide_int op1 = wi::sext (wi::to_wide (TREE_OPERAND (gnu_size, 1)),
+-				   TYPE_PRECISION (sizetype));
+-	  ops[1] = annotate_value (wide_int_to_tree (sizetype, op1));
++	  wide_int wop1 = -wi::to_wide (TREE_OPERAND (gnu_size, 1));
++	  tree op1 = wide_int_to_tree (sizetype, wop1);
++	  ops[1] = annotate_value (build1 (NEGATE_EXPR, sizetype, op1));
+ 	}
+       break;
+ 
 Index: gcc/ada/gcc-interface/trans.c
 ===================================================================
 --- a/src/gcc/ada/gcc-interface/trans.c	(.../tags/gcc_9_2_0_release)
@@ -9369,6 +10111,194 @@ Index: gcc/ada/gcc-interface/trans.c
  	by_descriptor = true;
      }
    else if (Nkind (Name (gnat_node)) == N_Attribute_Reference)
+Index: gcc/ada/sem_util.adb
+===================================================================
+--- a/src/gcc/ada/sem_util.adb	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/ada/sem_util.adb	(.../branches/gcc-9-branch)
+@@ -5827,11 +5827,7 @@
+    -- Defining_Entity --
+    ---------------------
+ 
+-   function Defining_Entity
+-     (N                  : Node_Id;
+-      Empty_On_Errors    : Boolean := False;
+-      Concurrent_Subunit : Boolean := False) return Entity_Id
+-   is
++   function Defining_Entity (N : Node_Id) return Entity_Id is
+    begin
+       case Nkind (N) is
+          when N_Abstract_Subprogram_Declaration
+@@ -5882,25 +5878,12 @@
+          =>
+             return Defining_Identifier (N);
+ 
++         when N_Compilation_Unit =>
++            return Defining_Entity (Unit (N));
++
+          when N_Subunit =>
+-            declare
+-               Bod      : constant Node_Id := Proper_Body (N);
+-               Orig_Bod : constant Node_Id := Original_Node (Bod);
++            return Defining_Entity (Proper_Body (N));
+ 
+-            begin
+-               --  Retrieve the entity of the original protected or task body
+-               --  if requested by the caller.
+-
+-               if Concurrent_Subunit
+-                 and then Nkind (Bod) = N_Null_Statement
+-                 and then Nkind_In (Orig_Bod, N_Protected_Body, N_Task_Body)
+-               then
+-                  return Defining_Entity (Orig_Bod);
+-               else
+-                  return Defining_Entity (Bod);
+-               end if;
+-            end;
+-
+          when N_Function_Instantiation
+             | N_Function_Specification
+             | N_Generic_Function_Renaming_Declaration
+@@ -5925,14 +5908,10 @@
+                --  can continue semantic analysis.
+ 
+                elsif Nam = Error then
+-                  if Empty_On_Errors then
+-                     return Empty;
+-                  else
+-                     Err := Make_Temporary (Sloc (N), 'T');
+-                     Set_Defining_Unit_Name (N, Err);
++                  Err := Make_Temporary (Sloc (N), 'T');
++                  Set_Defining_Unit_Name (N, Err);
+ 
+-                     return Err;
+-                  end if;
++                  return Err;
+ 
+                --  If not an entity, get defining identifier
+ 
+@@ -5947,11 +5926,7 @@
+             return Entity (Identifier (N));
+ 
+          when others =>
+-            if Empty_On_Errors then
+-               return Empty;
+-            else
+-               raise Program_Error;
+-            end if;
++            raise Program_Error;
+       end case;
+    end Defining_Entity;
+ 
+Index: gcc/ada/sem_util.ads
+===================================================================
+--- a/src/gcc/ada/sem_util.ads	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/ada/sem_util.ads	(.../branches/gcc-9-branch)
+@@ -543,10 +543,7 @@
+    --  in the case of a descendant of a generic formal type (returns Int'Last
+    --  instead of 0).
+ 
+-   function Defining_Entity
+-     (N                  : Node_Id;
+-      Empty_On_Errors    : Boolean := False;
+-      Concurrent_Subunit : Boolean := False) return Entity_Id;
++   function Defining_Entity (N : Node_Id) return Entity_Id;
+    --  Given a declaration N, returns the associated defining entity. If the
+    --  declaration has a specification, the entity is obtained from the
+    --  specification. If the declaration has a defining unit name, then the
+@@ -557,22 +554,6 @@
+    --  local entities declared during loop expansion. These entities need
+    --  debugging information, generated through Qualify_Entity_Names, and
+    --  the loop declaration must be placed in the table Name_Qualify_Units.
+-   --
+-   --  Set flag Empty_On_Error to change the behavior of this routine as
+-   --  follows:
+-   --
+-   --    * True  - A declaration that lacks a defining entity returns Empty.
+-   --      A node that does not allow for a defining entity returns Empty.
+-   --
+-   --    * False - A declaration that lacks a defining entity is given a new
+-   --      internally generated entity which is subsequently returned. A node
+-   --      that does not allow for a defining entity raises Program_Error.
+-   --
+-   --  The former semantics is appropriate for the back end; the latter
+-   --  semantics is appropriate for the front end.
+-   --
+-   --  Set flag Concurrent_Subunit to handle rewritings of concurrent bodies
+-   --  which act as subunits. Such bodies are generally rewritten as null.
+ 
+    function Denotes_Discriminant
+      (N                : Node_Id;
+Index: gcc/ada/sem_ch8.adb
+===================================================================
+--- a/src/gcc/ada/sem_ch8.adb	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/ada/sem_ch8.adb	(.../branches/gcc-9-branch)
+@@ -4256,9 +4256,7 @@
+ 
+       --  Common case for compilation unit
+ 
+-      elsif Defining_Entity (N               => Parent (N),
+-                             Empty_On_Errors => True) = Current_Scope
+-      then
++      elsif Defining_Entity (Parent (N)) = Current_Scope then
+          null;
+ 
+       else
+@@ -4265,7 +4263,7 @@
+          --  If declaration appears in some other scope, it must be in some
+          --  parent unit when compiling a child.
+ 
+-         Pack := Defining_Entity (Parent (N), Empty_On_Errors => True);
++         Pack := Defining_Entity (Parent (N));
+ 
+          if not In_Open_Scopes (Pack) then
+             null;
+Index: gcc/ada/sem_elab.adb
+===================================================================
+--- a/src/gcc/ada/sem_elab.adb	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/ada/sem_elab.adb	(.../branches/gcc-9-branch)
+@@ -5544,13 +5544,23 @@
+                                    N_Procedure_Instantiation)
+         and then Nkind (Context) = N_Compilation_Unit
+       then
+-         return
+-           Related_Instance (Defining_Entity (N, Concurrent_Subunit => True));
++         return Related_Instance (Defining_Entity (N));
+ 
++      --  The unit denotes a concurrent body acting as a subunit. Such bodies
++      --  are generally rewritten into null statements. The proper entity is
++      --  that of the "original node".
++
++      elsif Nkind (N) = N_Subunit
++        and then Nkind (Proper_Body (N)) = N_Null_Statement
++        and then Nkind_In (Original_Node (Proper_Body (N)), N_Protected_Body,
++                                                            N_Task_Body)
++      then
++         return Defining_Entity (Original_Node (Proper_Body (N)));
++
+       --  Otherwise the proper entity is the defining entity
+ 
+       else
+-         return Defining_Entity (N, Concurrent_Subunit => True);
++         return Defining_Entity (N);
+       end if;
+    end Find_Unit_Entity;
+ 
+Index: gcc/common/config/s390/s390-common.c
+===================================================================
+--- a/src/gcc/common/config/s390/s390-common.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/common/config/s390/s390-common.c	(.../branches/gcc-9-branch)
+@@ -47,9 +47,9 @@
+     /* z14 */    PF_IEEE_FLOAT | PF_ZARCH | PF_LONG_DISPLACEMENT
+ 		 | PF_EXTIMM | PF_DFP | PF_Z10 | PF_Z196 | PF_ZEC12 | PF_TX
+ 		 | PF_Z13 | PF_VX | PF_VXE | PF_Z14,
+-    /* arch13 */ PF_IEEE_FLOAT | PF_ZARCH | PF_LONG_DISPLACEMENT
++    /* z15 */    PF_IEEE_FLOAT | PF_ZARCH | PF_LONG_DISPLACEMENT
+ 		 | PF_EXTIMM | PF_DFP | PF_Z10 | PF_Z196 | PF_ZEC12 | PF_TX
+-		 | PF_Z13 | PF_VX | PF_VXE | PF_Z14 | PF_VXE2 | PF_ARCH13
++		 | PF_Z13 | PF_VX | PF_VXE | PF_Z14 | PF_VXE2 | PF_Z15
+   };
+ 
+ /* Change optimizations to be performed, depending on the
 Index: gcc/dse.c
 ===================================================================
 --- a/src/gcc/dse.c	(.../tags/gcc_9_2_0_release)
@@ -9645,7 +10575,31 @@ Index: gcc/fortran/decl.c
  
    /* Defer association of the KIND expression of function results
       until after USE and IMPORT statements.  */
-@@ -8420,6 +8444,14 @@
+@@ -6145,13 +6169,17 @@
+ 	  found_prefix = true;
+ 	}
+ 
+-      if (!seen_type && ts != NULL
+-	  && gfc_match_decl_type_spec (ts, 0) == MATCH_YES
+-	  && gfc_match_space () == MATCH_YES)
++      if (!seen_type && ts != NULL)
+ 	{
+-
+-	  seen_type = true;
+-	  found_prefix = true;
++	  match m;
++	  m = gfc_match_decl_type_spec (ts, 0);
++	  if (m == MATCH_ERROR)
++	    goto error;
++	  if (m == MATCH_YES && gfc_match_space () == MATCH_YES)
++	    {
++	      seen_type = true;
++	      found_prefix = true;
++	    }
+ 	}
+ 
+       if (gfc_match ("elemental% ") == MATCH_YES)
+@@ -8420,6 +8448,14 @@
        goto cleanup;
      }
  
@@ -9660,7 +10614,7 @@ Index: gcc/fortran/decl.c
    if (sym->attr.cray_pointee && sym->as != NULL)
      {
        /* Fix the array spec.  */
-@@ -10161,6 +10193,20 @@
+@@ -10161,6 +10197,20 @@
        return MATCH_ERROR;
      }
  
@@ -9681,7 +10635,7 @@ Index: gcc/fortran/decl.c
    m = gfc_match (" %n ", name);
    if (m != MATCH_YES)
      return m;
-@@ -10168,7 +10214,7 @@
+@@ -10168,7 +10218,7 @@
    /* Make sure that we don't identify TYPE IS (...) as a parameterized
       derived type named 'is'.
       TODO Expand the check, when 'name' = "is" by matching " (tname) "
@@ -9690,7 +10644,7 @@ Index: gcc/fortran/decl.c
       misplaced TYPE IS statements such as in select_type_1.f03.  */
    if (gfc_peek_ascii_char () == '(')
      {
-@@ -11472,3 +11518,53 @@
+@@ -11472,3 +11522,53 @@
  
    return MATCH_YES;
  }
@@ -9838,7 +10792,24 @@ Index: gcc/fortran/ChangeLog
 ===================================================================
 --- a/src/gcc/fortran/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/fortran/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,267 @@
+@@ -1,3 +1,284 @@
++2019-10-11  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91715
++	* decl.c (gfc_match_prefix): If matching a type-spec returns an error,
++	it's an error so re-act correctly.
++
++2019-10-11  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91649
++	check.c (gfc_check_findloc): Additional checking for valid arguments
++
++2019-10-10  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/91801
++	* simplify.c (gfc_simplify_reshape): Convert a gcc_assert into a
++	gfc_error as a user can easily hit the condition.
++
 +2019-10-07  Thomas Koenig <tkoenig@gcc.gnu.org>
 +
 +	Backport from trunk
@@ -10993,7 +11964,62 @@ Index: gcc/fortran/check.c
      }
  
    return true;
-@@ -6549,6 +6569,14 @@
+@@ -3343,6 +3363,7 @@
+ gfc_check_findloc (gfc_actual_arglist *ap)
+ {
+   gfc_expr *a, *v, *m, *d, *k, *b;
++  bool a1, v1;
+ 
+   a = ap->expr;
+   if (!intrinsic_type_check (a, 0) || !array_check (a, 0))
+@@ -3349,20 +3370,20 @@
+     return false;
+ 
+   v = ap->next->expr;
+-  if (!scalar_check (v,1))
++  if (!intrinsic_type_check (v, 1) || !scalar_check (v,1))
+     return false;
+ 
+-  /* Check if the type is compatible.  */
++  /* Check if the type are both logical.  */
++  a1 = a->ts.type == BT_LOGICAL;
++  v1 = v->ts.type == BT_LOGICAL;
++  if ((a1 && !v1) || (!a1 && v1))
++    goto incompat;
+ 
+-  if ((a->ts.type == BT_LOGICAL && v->ts.type != BT_LOGICAL)
+-      || (a->ts.type != BT_LOGICAL && v->ts.type == BT_LOGICAL))
+-    {
+-      gfc_error ("Argument %qs of %qs intrinsic at %L must be in type "
+-		 "conformance to argument %qs at %L",
+-		 gfc_current_intrinsic_arg[0]->name,
+-		 gfc_current_intrinsic, &a->where,
+-		 gfc_current_intrinsic_arg[1]->name, &v->where);
+-    }
++  /* Check if the type are both character.  */
++  a1 = a->ts.type == BT_CHARACTER;
++  v1 = v->ts.type == BT_CHARACTER;
++  if ((a1 && !v1) || (!a1 && v1))
++    goto incompat;
+ 	 
+   d = ap->next->next->expr;
+   m = ap->next->next->next->expr;
+@@ -3410,6 +3431,14 @@
+     return false;
+ 
+   return true;
++
++incompat:
++  gfc_error ("Argument %qs of %qs intrinsic at %L must be in type "
++	     "conformance to argument %qs at %L",
++	     gfc_current_intrinsic_arg[0]->name,
++	     gfc_current_intrinsic, &a->where,
++	     gfc_current_intrinsic_arg[1]->name, &v->where);
++  return false;
+ }
+ 
+ 
+@@ -6549,6 +6578,14 @@
  bool
  gfc_check_is_contiguous (gfc_expr *array)
  {
@@ -11008,7 +12034,7 @@ Index: gcc/fortran/check.c
    if (!array_check (array, 0))
      return false;
  
-@@ -6556,7 +6584,6 @@
+@@ -6556,7 +6593,6 @@
  }
  
  
@@ -11174,9 +12200,20 @@ Index: gcc/fortran/simplify.c
        for (i = 0; i < rank; i++)
  	{
  	  e = gfc_constructor_lookup_expr (order_exp->value.constructor, i);
-@@ -6720,7 +6747,12 @@
+@@ -6718,9 +6745,22 @@
  
- 	  gcc_assert (order[i] >= 1 && order[i] <= rank);
+ 	  gfc_extract_int (e, &order[i]);
+ 
+-	  gcc_assert (order[i] >= 1 && order[i] <= rank);
++	  if (order[i] < 1 || order[i] > rank)
++	    {
++	      gfc_error ("Element with a value of %d in ORDER at %L must be "
++			 "in the range [1, ..., %d] for the RESHAPE intrinsic "
++			 "near %L", order[i], &order_exp->where, rank,
++			 &shape_exp->where);
++	      return &gfc_bad_expr;
++	    }
++
  	  order[i]--;
 -	  gcc_assert (x[order[i]] == 0);
 +	  if (x[order[i]] != 0)
@@ -11188,7 +12225,7 @@ Index: gcc/fortran/simplify.c
  	  x[order[i]] = 1;
  	}
      }
-@@ -8494,6 +8526,12 @@
+@@ -8494,6 +8534,12 @@
  	    {
  	      if (c->expr->expr_type == EXPR_ARRAY)
  		tmp = gfc_convert_constant (c->expr, type, kind);
@@ -12494,7 +13531,11 @@ Index: gcc/po/ChangeLog
 ===================================================================
 --- a/src/gcc/po/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/po/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,19 @@
+@@ -1,3 +1,23 @@
++2019-10-11  Joseph Myers  <joseph@codesourcery.com>
++
++	* fi.po: Update.
++
 +2019-09-30  Joseph Myers  <joseph@codesourcery.com>
 +
 +	* es.po: Update.
@@ -12514,6 +13555,231 @@ Index: gcc/po/ChangeLog
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
+Index: gcc/po/fi.po
+===================================================================
+--- a/src/gcc/po/fi.po	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/po/fi.po	(.../branches/gcc-9-branch)
+@@ -33,7 +33,7 @@
+ "Project-Id-Version: gcc 9.1.0\n"
+ "Report-Msgid-Bugs-To: https://gcc.gnu.org/bugs/\n"
+ "POT-Creation-Date: 2019-05-02 20:28+0000\n"
+-"PO-Revision-Date: 2019-05-29 18:58+0300\n"
++"PO-Revision-Date: 2019-10-11 20:03+0300\n"
+ "Last-Translator: Lauri Nurmi <lanurmi@iki.fi>\n"
+ "Language-Team: Finnish <translation-team-fi@lists.sourceforge.net>\n"
+ "Language: fi\n"
+@@ -67,9 +67,9 @@
+ msgstr "lähdetiedostoa %s ei löydy"
+ 
+ #: collect2.c:1632
+-#, fuzzy, c-format
++#, c-format
+ msgid "collect2 version %s\n"
+-msgstr "gcc-versio %s %s\n"
++msgstr "collect2-versio %s\n"
+ 
+ #: collect2.c:1737
+ #, c-format
+@@ -118,9 +118,9 @@
+ msgstr "const-/kopioinnin-eteneminen poistettu käytöstä"
+ 
+ #: diagnostic.c:145
+-#, fuzzy, c-format
++#, c-format
+ msgid "%s: all warnings being treated as errors"
+-msgstr "Käsittele kaikki varoitukset virheinä"
++msgstr "%s: kaikki varoitukset käsitellään virheinä"
+ 
+ #: diagnostic.c:150
+ #, c-format
+@@ -6142,9 +6142,8 @@
+ msgstr "gfortran ei tue valitsinta -E ilman valitsinta -cpp"
+ 
+ #: objc/lang-specs.h:30 objc/lang-specs.h:41
+-#, fuzzy
+ msgid "GNU Objective C no longer supports traditional compilation"
+-msgstr "GCC ei enää tue valitsinta -traditional ilman valitsinta -E"
++msgstr "GNU Objective C ei enää tue perinteistä kääntämistä"
+ 
+ #: objc/lang-specs.h:55
+ msgid "objc-cpp-output is deprecated; please use objective-c-cpp-output instead"
+@@ -6688,9 +6687,8 @@
+ msgstr "Noudata ISO Fortran 95 -standardia"
+ 
+ #: fortran/lang.opt:827
+-#, fuzzy
+ msgid "Conform to nothing in particular."
+-msgstr "Älä noudata mitään erityisesti"
++msgstr "Älä noudata mitään erityisesti."
+ 
+ #: fortran/lang.opt:831
+ msgid "Accept extensions to support legacy code."
+@@ -6732,24 +6730,20 @@
+ msgstr "-isystem <hakemisto>\tLisää <hakemisto> järjestelmän include-polun alkuun"
+ 
+ #: c-family/c.opt:217
+-#, fuzzy
+ msgid "Generate make dependencies."
+-msgstr "Luo make-riippuvuudet"
++msgstr "Luo make-riippuvuudet."
+ 
+ #: c-family/c.opt:221
+-#, fuzzy
+ msgid "Generate make dependencies and compile."
+-msgstr "Luo make-riippuvuudet ja käännä"
++msgstr "Luo make-riippuvuudet ja käännä."
+ 
+ #: c-family/c.opt:225
+-#, fuzzy
+ msgid "-MF <file>\tWrite dependency output to the given file."
+-msgstr "Kirjoita riippuvuustuloste annettuun tiedostoon"
++msgstr "-MF <tiedosto>\tKirjoita riippuvuustuloste annettuun tiedostoon."
+ 
+ #: c-family/c.opt:229
+-#, fuzzy
+ msgid "Treat missing header files as generated files."
+-msgstr "Käsittele puuttuvia otsikkotiedostoja luotavina tiedostoina"
++msgstr "Käsittele puuttuvia otsikkotiedostoja luotavina tiedostoina."
+ 
+ #: c-family/c.opt:233
+ msgid "Like -M but ignore system header files."
+@@ -6773,9 +6767,8 @@
+ msgstr ""
+ 
+ #: c-family/c.opt:253
+-#, fuzzy
+ msgid "Do not generate #line directives."
+-msgstr "Älä luo #line-direktiivejä"
++msgstr "Älä luo #line-direktiivejä."
+ 
+ #: c-family/c.opt:257
+ #, fuzzy
+@@ -6817,11 +6810,9 @@
+ msgid "Enable most warning messages."
+ msgstr "Subject: Fetchmailin varoitus liian suuresta viestistä"
+ 
+-# vähän fuzzy
+ #: c-family/c.opt:308
+-#, fuzzy
+ msgid "Warn on any use of alloca."
+-msgstr "Varoita pragmain väärästä käytöstä."
++msgstr "Varoita kaikesta allocan käytöstä."
+ 
+ #: c-family/c.opt:312
+ #, fuzzy
+@@ -6931,9 +6922,8 @@
+ #: c-family/c.opt:1369 c-family/c.opt:1373 c-family/c.opt:1377
+ #: c-family/c.opt:1381 c-family/c.opt:1385 c-family/c.opt:1389
+ #: config/i386/i386.opt:967
+-#, fuzzy
+ msgid "Deprecated in GCC 9.  This switch has no effect."
+-msgstr "Vanhentunut. Tämä valitsin ei vaikuta mihinkään."
++msgstr "Vanhentunut GCC 9:ssä. Tämä valitsin ei vaikuta mihinkään."
+ 
+ #: c-family/c.opt:429
+ msgid "Warn about variables that might be changed by \"longjmp\" or \"vfork\"."
+@@ -6964,9 +6954,8 @@
+ msgstr "Varoita kun kaikki muodostimet ja hajottimet ovat yksityisiä."
+ 
+ #: c-family/c.opt:461
+-#, fuzzy
+ msgid "Warn about dangling else."
+-msgstr "Varoita implisiittisistä funktioesittelyistä."
++msgstr "Varoita orvosta elsestä."
+ 
+ #: c-family/c.opt:465
+ msgid "Warn about __TIME__, __DATE__ and __TIMESTAMP__ usage."
+@@ -7119,9 +7108,8 @@
+ msgstr "Varoita tyyppimääreiden huomiotta jättämisestä."
+ 
+ #: c-family/c.opt:622
+-#, fuzzy
+ msgid "Warn whenever attributes are ignored."
+-msgstr "Varoita tyyppimääreiden huomiotta jättämisestä."
++msgstr "Varoita attribuuttien huomiotta jättämisestä."
+ 
+ #: c-family/c.opt:626
+ #, fuzzy
+@@ -7196,9 +7184,8 @@
+ msgstr ""
+ 
+ #: c-family/c.opt:701
+-#, fuzzy
+ msgid "Warn when a logical operator is suspiciously always evaluating to true or false."
+-msgstr "Varoita vertailusta, joka on aina tosi tai aina epätosi."
++msgstr "Varoita, kun looginen operaattori on aina tosi tai aina epätosi."
+ 
+ #: c-family/c.opt:705
+ msgid "Warn when logical not is used on the left hand side operand of a comparison."
+@@ -7429,9 +7416,8 @@
+ msgstr "Varoita pakatuista bittikentistä, joiden siirrososoite vaihtui GCC 4.4:ssä"
+ 
+ #: c-family/c.opt:955
+-#, fuzzy
+ msgid "Warn about possibly missing parentheses."
+-msgstr "Varoita mahdollisesti puuttuvista sulkeista"
++msgstr "Varoita mahdollisesti puuttuvista sulkeista."
+ 
+ #: c-family/c.opt:963
+ msgid "Warn about calling std::move on a local object in a return statement preventing copy elision."
+@@ -7975,9 +7961,8 @@
+ msgstr "Luokittelematon lause IF-lauseessa kohdassa %C"
+ 
+ #: c-family/c.opt:1681
+-#, fuzzy
+ msgid "Recognize C++ keywords like \"compl\" and \"xor\"."
+-msgstr "Tunnista C++:n avainsanat kuten ”compl” ja ”xor”"
++msgstr "Tunnista C++:n avainsanat kuten ”compl” ja ”xor”."
+ 
+ #: c-family/c.opt:1692
+ msgid "Look for and use PCH files even when preprocessing."
+@@ -8732,9 +8717,8 @@
+ msgstr ""
+ 
+ #: config/mcore/mcore.opt:75
+-#, fuzzy
+ msgid "Always treat bitfields as int-sized."
+-msgstr "Käsittele bittikenttiä aina int-kokoisina"
++msgstr "Käsittele bittikenttiä aina int-kokoisina."
+ 
+ #: config/linux-android.opt:23
+ msgid "Generate code for the Android platform."
+@@ -19730,7 +19714,7 @@
+ #: cgraphunit.c:976 c/c-decl.c:11507
+ #, fuzzy, gcc-internal-format
+ msgid "%q+F used but never defined"
+-msgstr "nimike %q+D määritelty mutta käytettämättä"
++msgstr "nimike %q+D määritelty mutta käyttämättä"
+ 
+ #: cgraphunit.c:978 c/c-decl.c:11517
+ #, fuzzy, gcc-internal-format
+@@ -29294,7 +29278,7 @@
+ #: c-family/c-warn.c:2021
+ #, gcc-internal-format
+ msgid "label %q+D defined but not used"
+-msgstr "nimike %q+D määritelty mutta käytettämättä"
++msgstr "nimike %q+D määritelty mutta käyttämättä"
+ 
+ #: c-family/c-warn.c:2023
+ #, gcc-internal-format
+@@ -68642,7 +68626,7 @@
+ 
+ #, fuzzy
+ #~ msgid "variable %q+D set but not used"
+-#~ msgstr "nimike %q+D määritelty mutta käytettämättä"
++#~ msgstr "nimike %q+D määritelty mutta käyttämättä"
+ 
+ #~ msgid "jump to label %q+D"
+ #~ msgstr "hyppy nimiöön %q+D"
+@@ -68659,7 +68643,7 @@
+ 
+ #, fuzzy
+ #~ msgid "parameter %q+D set but not used"
+-#~ msgstr "nimike %q+D määritelty mutta käytettämättä"
++#~ msgstr "nimike %q+D määritelty mutta käyttämättä"
+ 
+ #~ msgid "%q+D declared here"
+ #~ msgstr "%q+D esitelty täällä"
 Index: gcc/po/zh_CN.po
 ===================================================================
 --- a/src/gcc/po/zh_CN.po	(.../tags/gcc_9_2_0_release)
@@ -13421,6 +14687,21 @@ Index: gcc/ira.c
    if (lra_simple_p)
      {
        /* It permits to skip live range splitting in LRA.  */
+Index: gcc/tree-vect-stmts.c
+===================================================================
+--- a/src/gcc/tree-vect-stmts.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/tree-vect-stmts.c	(.../branches/gcc-9-branch)
+@@ -8276,7 +8276,9 @@
+        || alignment_support_scheme == dr_explicit_realign)
+       && !compute_in_loop)
+     {
+-      msq = vect_setup_realignment (first_stmt_info, gsi, &realignment_token,
++      msq = vect_setup_realignment (first_stmt_info_for_drptr
++				    ? first_stmt_info_for_drptr
++				    : first_stmt_info, gsi, &realignment_token,
+ 				    alignment_support_scheme, NULL_TREE,
+ 				    &at_loop);
+       if (alignment_support_scheme == dr_explicit_realign_optimized)
 Index: gcc/omp-simd-clone.c
 ===================================================================
 --- a/src/gcc/omp-simd-clone.c	(.../tags/gcc_9_2_0_release)
@@ -13503,6 +14784,41 @@ Index: gcc/symtab.c
  
    /* We have real symbol that should be in symbol table.  However try to trim
       down the refernces to libraries bit more because linker will otherwise
+Index: gcc/tree-ssa-phiprop.c
+===================================================================
+--- a/src/gcc/tree-ssa-phiprop.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/tree-ssa-phiprop.c	(.../branches/gcc-9-branch)
+@@ -338,8 +338,15 @@
+ 	    && (!type
+ 		|| types_compatible_p
+ 		     (TREE_TYPE (gimple_assign_lhs (use_stmt)), type))
+-	    /* We cannot replace a load that may throw or is volatile.  */
+-	    && !stmt_can_throw_internal (cfun, use_stmt)))
++	    /* We cannot replace a load that may throw or is volatile.
++	       For volatiles the transform can change the number of
++	       executions if the load is inside a loop but the address
++	       computations outside (PR91812).  We could relax this
++	       if we guard against that appropriately.  For loads that can
++	       throw we could relax things if the moved loads all are
++	       known to not throw.  */
++	    && !stmt_can_throw_internal (cfun, use_stmt)
++	    && !gimple_has_volatile_ops (use_stmt)))
+ 	continue;
+ 
+       /* Check if we can move the loads.  The def stmt of the virtual use
+Index: gcc/config.gcc
+===================================================================
+--- a/src/gcc/config.gcc	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/config.gcc	(.../branches/gcc-9-branch)
+@@ -4743,7 +4743,7 @@
+ 		for which in arch tune; do
+ 			eval "val=\$with_$which"
+ 			case ${val} in
+-			"" | native | z900 | z990 | z9-109 | z9-ec | z10 | z196 | zEC12 | z13 | z14 | arch5 | arch6 | arch7 | arch8 | arch9 | arch10 | arch11 | arch12 | arch13 )
++			"" | native | z900 | z990 | z9-109 | z9-ec | z10 | z196 | zEC12 | z13 | z14 | z15 | arch5 | arch6 | arch7 | arch8 | arch9 | arch10 | arch11 | arch12 | arch13 )
+ 				# OK
+ 				;;
+ 			*)
 Index: gcc/passes.c
 ===================================================================
 --- a/src/gcc/passes.c	(.../tags/gcc_9_2_0_release)
@@ -13621,6 +14937,817 @@ Index: gcc/passes.c
  }
 -
 -#include "gt-passes.h"
+Index: gcc/config/alpha/alpha.c
+===================================================================
+--- a/src/gcc/config/alpha/alpha.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/config/alpha/alpha.c	(.../branches/gcc-9-branch)
+@@ -8839,6 +8839,9 @@
+ 		    case CODE_LABEL:
+ 		      goto close_shadow;
+ 
++		    case DEBUG_INSN:
++		      break;
++
+ 		    default:
+ 		      gcc_unreachable ();
+ 		    }
+Index: gcc/config/s390/s390.md
+===================================================================
+--- a/src/gcc/config/s390/s390.md	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/config/s390/s390.md	(.../branches/gcc-9-branch)
+@@ -513,11 +513,11 @@
+ ;; Processor type.  This attribute must exactly match the processor_type
+ ;; enumeration in s390.h.
+ 
+-(define_attr "cpu" "z900,z990,z9_109,z9_ec,z10,z196,zEC12,z13,z14,arch13"
++(define_attr "cpu" "z900,z990,z9_109,z9_ec,z10,z196,zEC12,z13,z14,z15"
+   (const (symbol_ref "s390_tune_attr")))
+ 
+ (define_attr "cpu_facility"
+-  "standard,ieee,zarch,cpu_zarch,longdisp,extimm,dfp,z10,z196,zEC12,vx,z13,z14,vxe,arch13,vxe2"
++  "standard,ieee,zarch,cpu_zarch,longdisp,extimm,dfp,z10,z196,zEC12,vx,z13,z14,vxe,z15,vxe2"
+   (const_string "standard"))
+ 
+ (define_attr "enabled" ""
+@@ -575,8 +575,8 @@
+ 	      (match_test "TARGET_VXE"))
+ 	 (const_int 1)
+ 
+-	 (and (eq_attr "cpu_facility" "arch13")
+-	      (match_test "TARGET_ARCH13"))
++	 (and (eq_attr "cpu_facility" "z15")
++	      (match_test "TARGET_Z15"))
+ 	 (const_int 1)
+ 
+          (and (eq_attr "cpu_facility" "vxe2")
+@@ -613,7 +613,7 @@
+ ;; Pipeline description for z14
+ (include "3906.md")
+ 
+-;; Pipeline description for arch13
++;; Pipeline description for z15
+ (include "8561.md")
+ 
+ ;; Predicates
+@@ -642,7 +642,7 @@
+ (define_mode_iterator DD_DF [DF DD])
+ (define_mode_iterator TD_TF [TF TD])
+ 
+-; 32 bit int<->fp conversion instructions are available since VXE2 (arch13).
++; 32 bit int<->fp conversion instructions are available since VXE2 (z15).
+ (define_mode_iterator VX_CONV_BFP [DF (SF "TARGET_VXE2")])
+ (define_mode_iterator VX_CONV_INT [DI (SI "TARGET_VXE2")])
+ 
+@@ -6749,7 +6749,7 @@
+    stoc<g>%C1\t%3,%0
+    stoc<g>%D1\t%4,%0"
+   [(set_attr "op_type" "RRF,RRF,RRF,RSY,RSY,RIE,RIE,RSY,RSY")
+-   (set_attr "cpu_facility" "*,*,arch13,*,*,z13,z13,*,*")])
++   (set_attr "cpu_facility" "*,*,z15,*,*,z13,z13,*,*")])
+ 
+ ;;
+ ;;- Multiply instructions.
+@@ -7568,7 +7568,7 @@
+ 	(and:GPR (not:GPR (match_operand:GPR 1 "nonimmediate_operand" ""))
+ 		 (match_operand:GPR 2 "general_operand" "")))
+    (clobber (reg:CC CC_REGNUM))]
+-  "!TARGET_ARCH13
++  "!TARGET_Z15
+    && ! reload_completed
+    && (GET_CODE (operands[0]) != MEM
+       /* Ensure that s390_logical_operator_ok_p will succeed even
+@@ -7925,7 +7925,7 @@
+    (set (match_operand:GPR 0 "register_operand" "=d")
+ 	(ANDOR:GPR (not:GPR (match_dup 1))
+ 		   (match_dup 2)))]
+-  "TARGET_ARCH13 && s390_match_ccmode(insn, CCTmode)"
++  "TARGET_Z15 && s390_match_ccmode(insn, CCTmode)"
+   "<ANDOR:noxa>c<GPR:g>rk\t%0,%2,%1"
+   [(set_attr "op_type" "RRF")])
+ 
+@@ -7937,7 +7937,7 @@
+ 		    (match_operand:GPR 2 "register_operand" "d"))
+ 	 (const_int 0)))
+    (clobber (match_scratch:GPR 0 "=d"))]
+-  "TARGET_ARCH13 && s390_match_ccmode(insn, CCTmode)"
++  "TARGET_Z15 && s390_match_ccmode(insn, CCTmode)"
+   "<ANDOR:noxa>c<GPR:g>rk\t%0,%2,%1"
+   [(set_attr "op_type" "RRF")])
+ 
+@@ -7947,7 +7947,7 @@
+ 	(ANDOR:GPR (not:GPR (match_operand:GPR 1 "register_operand" "d"))
+ 		   (match_operand:GPR 2 "register_operand" "d")))
+    (clobber (reg:CC CC_REGNUM))]
+-  "TARGET_ARCH13"
++  "TARGET_Z15"
+   "<ANDOR:noxa>c<GPR:g>rk\t%0,%2,%1"
+   [(set_attr "op_type" "RRF")])
+ 
+@@ -7965,7 +7965,7 @@
+    (set (match_operand:GPR 0 "register_operand" "=d")
+ 	(ANDOR:GPR (not:GPR (match_dup 1))
+ 		   (not:GPR (match_dup 2))))]
+-  "TARGET_ARCH13 && s390_match_ccmode(insn, CCTmode)"
++  "TARGET_Z15 && s390_match_ccmode(insn, CCTmode)"
+   "n<ANDOR:inv_no><GPR:g>rk\t%0,%1,%2"
+   [(set_attr "op_type" "RRF")])
+ 
+@@ -7977,7 +7977,7 @@
+ 		    (not:GPR (match_operand:GPR 2 "register_operand" "d")))
+ 	 (const_int 0)))
+    (clobber (match_scratch:GPR 0 "=d"))]
+-  "TARGET_ARCH13 && s390_match_ccmode(insn, CCTmode)"
++  "TARGET_Z15 && s390_match_ccmode(insn, CCTmode)"
+   "n<ANDOR:inv_no><GPR:g>rk\t%0,%1,%2"
+   [(set_attr "op_type" "RRF")])
+ 
+@@ -7987,7 +7987,7 @@
+ 	(ANDOR:GPR (not:GPR (match_operand:GPR 1 "register_operand" "d"))
+ 		   (not:GPR (match_operand:GPR 2 "register_operand" "d"))))
+    (clobber (reg:CC CC_REGNUM))]
+-  "TARGET_ARCH13"
++  "TARGET_Z15"
+   "n<ANDOR:inv_no><GPR:g>rk\t%0,%1,%2"
+   [(set_attr "op_type" "RRF")])
+ 
+@@ -8371,7 +8371,7 @@
+    (set (match_operand:GPR 0 "register_operand" "=d")
+ 	(xor:GPR (not:GPR (match_dup 1))
+ 		    (match_dup 2)))]
+-  "TARGET_ARCH13 && s390_match_ccmode(insn, CCTmode)"
++  "TARGET_Z15 && s390_match_ccmode(insn, CCTmode)"
+   "nx<GPR:g>rk\t%0,%1,%2"
+   [(set_attr "op_type" "RRF")])
+ 
+@@ -8383,7 +8383,7 @@
+ 			   (match_operand:GPR 2 "register_operand" "d")))
+ 	 (const_int 0)))
+    (clobber (match_scratch:GPR 0 "=d"))]
+-  "TARGET_ARCH13 && s390_match_ccmode(insn, CCTmode)"
++  "TARGET_Z15 && s390_match_ccmode(insn, CCTmode)"
+   "nx<GPR:g>rk\t%0,%1,%2"
+   [(set_attr "op_type" "RRF")])
+ 
+@@ -8393,7 +8393,7 @@
+ 	(not:GPR (xor:GPR (match_operand:GPR 1 "register_operand" "d")
+ 			  (match_operand:GPR 2 "register_operand" "d"))))
+    (clobber (reg:CC CC_REGNUM))]
+-  "TARGET_ARCH13"
++  "TARGET_Z15"
+   "nx<GPR:g>rk\t%0,%1,%2"
+   [(set_attr "op_type" "RRF")])
+ 
+@@ -11351,34 +11351,34 @@
+ ; Population count instruction
+ ;
+ 
+-(define_insn "*popcountdi_arch13_cc"
++(define_insn "*popcountdi_z15_cc"
+   [(set (reg CC_REGNUM)
+ 	(compare (popcount:DI (match_operand:DI 1 "register_operand" "d"))
+ 		 (const_int 0)))
+    (set (match_operand:DI 0 "register_operand" "=d")
+ 	(match_dup 1))]
+-  "TARGET_ARCH13 && s390_match_ccmode (insn, CCTmode)"
++  "TARGET_Z15 && s390_match_ccmode (insn, CCTmode)"
+   "popcnt\t%0,%1,8"
+   [(set_attr "op_type" "RRF")])
+ 
+-(define_insn "*popcountdi_arch13_cconly"
++(define_insn "*popcountdi_z15_cconly"
+   [(set (reg CC_REGNUM)
+ 	(compare (popcount:DI (match_operand:DI 1 "register_operand" "d"))
+ 		 (const_int 0)))
+    (clobber (match_scratch:DI 0 "=d"))]
+-  "TARGET_ARCH13 && s390_match_ccmode(insn, CCTmode)"
++  "TARGET_Z15 && s390_match_ccmode(insn, CCTmode)"
+   "popcnt\t%0,%1,8"
+   [(set_attr "op_type" "RRF")])
+ 
+-(define_insn "*popcountdi_arch13"
++(define_insn "*popcountdi_z15"
+   [(set (match_operand:DI 0 "register_operand" "=d")
+ 	(popcount:DI (match_operand:DI 1 "register_operand" "d")))
+    (clobber (reg:CC CC_REGNUM))]
+-  "TARGET_ARCH13"
++  "TARGET_Z15"
+   "popcnt\t%0,%1,8"
+   [(set_attr "op_type" "RRF")])
+ 
+-; The pre-arch13 popcount instruction counts the bits of op1 in 8 byte
++; The pre-z15 popcount instruction counts the bits of op1 in 8 byte
+ ; portions and stores the result in the corresponding bytes in op0.
+ (define_insn "*popcount<mode>_z196"
+   [(set (match_operand:INT 0 "register_operand" "=d")
+@@ -11422,7 +11422,7 @@
+      (clobber (reg:CC CC_REGNUM))])]
+   "TARGET_Z196"
+ {
+-  if (!TARGET_ARCH13)
++  if (!TARGET_Z15)
+     {
+       emit_insn (gen_popcountdi2_z196 (operands[0], operands[1]));
+       DONE;
+@@ -11453,7 +11453,7 @@
+ 
+ ; popcount always counts on the full 64 bit. With the z196 version
+ ; counting bits per byte we just ignore the upper 4 bytes.  With the
+-; arch13 version we have to zero out the upper 32 bits first.
++; z15 version we have to zero out the upper 32 bits first.
+ (define_expand "popcountsi2"
+   [(set (match_dup 2)
+ 	(zero_extend:DI (match_operand:SI 1 "register_operand")))
+@@ -11463,7 +11463,7 @@
+ 	(subreg:SI (match_dup 3) 4))]
+   "TARGET_Z196"
+ {
+-  if (!TARGET_ARCH13)
++  if (!TARGET_Z15)
+     {
+       emit_insn (gen_popcountsi2_z196 (operands[0], operands[1]));
+       DONE;
+@@ -11501,7 +11501,7 @@
+ 	(subreg:HI (match_dup 3) 6))]
+   "TARGET_Z196"
+ {
+-  if (!TARGET_ARCH13)
++  if (!TARGET_Z15)
+     {
+       emit_insn (gen_popcounthi2_z196 (operands[0], operands[1]));
+       DONE;
+@@ -11516,7 +11516,7 @@
+ ; For popcount on a single byte the old z196 style popcount
+ ; instruction is ideal.  Since it anyway does a byte-wise popcount we
+ ; just use it instead of zero extending the QImode input to DImode and
+-; using the arch13 popcount variant.
++; using the z15 popcount variant.
+ (define_expand "popcountqi2"
+   [; popcnt op0, op1
+    (parallel [(set (match_operand:QI 0 "register_operand" "")
+Index: gcc/config/s390/s390.opt
+===================================================================
+--- a/src/gcc/config/s390/s390.opt	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/config/s390/s390.opt	(.../branches/gcc-9-branch)
+@@ -110,9 +110,12 @@
+ Enum(processor_type) String(arch12) Value(PROCESSOR_3906_Z14)
+ 
+ EnumValue
+-Enum(processor_type) String(arch13) Value(PROCESSOR_8561_ARCH13)
++Enum(processor_type) String(z15) Value(PROCESSOR_8561_Z15)
+ 
+ EnumValue
++Enum(processor_type) String(arch13) Value(PROCESSOR_8561_Z15)
++
++EnumValue
+ Enum(processor_type) String(native) Value(PROCESSOR_NATIVE) DriverOnly
+ 
+ mbackchain
+Index: gcc/config/s390/s390-c.c
+===================================================================
+--- a/src/gcc/config/s390/s390-c.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/config/s390/s390-c.c	(.../branches/gcc-9-branch)
+@@ -905,6 +905,12 @@
+       return error_mark_node;
+     }
+ 
++  if (!TARGET_VXE2 && (ob_flags & B_VXE2))
++    {
++      error_at (loc, "%qF requires z15 or higher", ob_fndecl);
++      return error_mark_node;
++    }
++
+   ob_fcode -= S390_BUILTIN_MAX;
+ 
+   for (b_arg_chain = TYPE_ARG_TYPES (TREE_TYPE (ob_fndecl));
+@@ -983,6 +989,15 @@
+       return error_mark_node;
+     }
+ 
++
++  if (!TARGET_VXE2
++      && bflags_overloaded_builtin_var[last_match_index] & B_VXE2)
++    {
++      error_at (loc, "%qs matching variant requires z15 or higher",
++		IDENTIFIER_POINTER (DECL_NAME (ob_fndecl)));
++      return error_mark_node;
++    }
++
+   if (bflags_overloaded_builtin_var[last_match_index] & B_DEP)
+     warning_at (loc, 0, "%qs matching variant is deprecated.",
+ 		IDENTIFIER_POINTER (DECL_NAME (ob_fndecl)));
+Index: gcc/config/s390/driver-native.c
+===================================================================
+--- a/src/gcc/config/s390/driver-native.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/config/s390/driver-native.c	(.../branches/gcc-9-branch)
+@@ -121,10 +121,10 @@
+ 	      break;
+ 	    case 0x8561:
+ 	    case 0x8562:
+-	      cpu = "arch13";
++	      cpu = "z15";
+ 	      break;
+ 	    default:
+-	      cpu = "arch13";
++	      cpu = "z15";
+ 	      break;
+ 	    }
+ 	}
+Index: gcc/config/s390/vector.md
+===================================================================
+--- a/src/gcc/config/s390/vector.md	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/config/s390/vector.md	(.../branches/gcc-9-branch)
+@@ -70,7 +70,7 @@
+ 
+ (define_mode_iterator V_128_NOSINGLE [V16QI V8HI V4SI V4SF V2DI V2DF])
+ 
+-; 32 bit int<->fp vector conversion instructions are available since VXE2 (arch13).
++; 32 bit int<->fp vector conversion instructions are available since VXE2 (z15).
+ (define_mode_iterator VX_VEC_CONV_BFP [V2DF (V4SF "TARGET_VXE2")])
+ (define_mode_iterator VX_VEC_CONV_INT [V2DI (V4SI "TARGET_VXE2")])
+ 
+Index: gcc/config/s390/s390-opts.h
+===================================================================
+--- a/src/gcc/config/s390/s390-opts.h	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/config/s390/s390-opts.h	(.../branches/gcc-9-branch)
+@@ -37,7 +37,7 @@
+   PROCESSOR_2827_ZEC12,
+   PROCESSOR_2964_Z13,
+   PROCESSOR_3906_Z14,
+-  PROCESSOR_8561_ARCH13,
++  PROCESSOR_8561_Z15,
+   PROCESSOR_NATIVE,
+   PROCESSOR_max
+ };
+Index: gcc/config/s390/s390.c
+===================================================================
+--- a/src/gcc/config/s390/s390.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/config/s390/s390.c	(.../branches/gcc-9-branch)
+@@ -337,7 +337,7 @@
+   { "zEC12",  "zEC12",  PROCESSOR_2827_ZEC12,  &zEC12_cost,  10 },
+   { "z13",    "z13",    PROCESSOR_2964_Z13,    &zEC12_cost,  11 },
+   { "z14",    "arch12", PROCESSOR_3906_Z14,    &zEC12_cost,  12 },
+-  { "arch13", "",       PROCESSOR_8561_ARCH13, &zEC12_cost,  13 },
++  { "z15",    "arch13", PROCESSOR_8561_Z15,    &zEC12_cost,  13 },
+   { "native", "",       PROCESSOR_NATIVE,      NULL,         0  }
+ };
+ 
+@@ -811,6 +811,12 @@
+ 	  error ("Builtin %qF requires z14 or higher.", fndecl);
+ 	  return const0_rtx;
+ 	}
++
++      if ((bflags & B_VXE2) && !TARGET_VXE2)
++	{
++	  error ("Builtin %qF requires z15 or higher.", fndecl);
++	  return const0_rtx;
++	}
+     }
+   if (fcode >= S390_OVERLOADED_BUILTIN_VAR_OFFSET
+       && fcode < S390_ALL_BUILTIN_MAX)
+@@ -1795,7 +1801,7 @@
+     }
+ 
+   /* ~a==b -> ~(a^b)==0   ~a!=b -> ~(a^b)!=0 */
+-  if (TARGET_ARCH13
++  if (TARGET_Z15
+       && (*code == EQ || *code == NE)
+       && (GET_MODE (*op0) == DImode || GET_MODE (*op0) == SImode)
+       && GET_CODE (*op0) == NOT)
+@@ -1807,7 +1813,7 @@
+     }
+ 
+   /* a&b == -1 -> ~a|~b == 0    a|b == -1 -> ~a&~b == 0  */
+-  if (TARGET_ARCH13
++  if (TARGET_Z15
+       && (*code == EQ || *code == NE)
+       && (GET_CODE (*op0) == AND || GET_CODE (*op0) == IOR)
+       && (GET_MODE (*op0) == DImode || GET_MODE (*op0) == SImode)
+@@ -3529,7 +3535,7 @@
+ 
+ 	/* It is a real IF-THEN-ELSE.  An additional move will be
+ 	   needed to implement that.  */
+-	if (!TARGET_ARCH13
++	if (!TARGET_Z15
+ 	    && reload_completed
+ 	    && !rtx_equal_p (dst, then)
+ 	    && !rtx_equal_p (dst, els))
+@@ -3551,7 +3557,7 @@
+     case IOR:
+ 
+       /* nnrk, nngrk */
+-      if (TARGET_ARCH13
++      if (TARGET_Z15
+ 	  && (mode == SImode || mode == DImode)
+ 	  && GET_CODE (XEXP (x, 0)) == NOT
+ 	  && GET_CODE (XEXP (x, 1)) == NOT)
+@@ -3598,7 +3604,7 @@
+ 
+     case AND:
+       /* nork, nogrk */
+-      if (TARGET_ARCH13
++      if (TARGET_Z15
+ 	  && (mode == SImode || mode == DImode)
+ 	  && GET_CODE (XEXP (x, 0)) == NOT
+ 	  && GET_CODE (XEXP (x, 1)) == NOT)
+@@ -3770,7 +3776,7 @@
+       *total = COSTS_N_INSNS (1);
+ 
+       /* nxrk, nxgrk ~(a^b)==0 */
+-      if (TARGET_ARCH13
++      if (TARGET_Z15
+ 	  && GET_CODE (XEXP (x, 0)) == NOT
+ 	  && XEXP (x, 1) == const0_rtx
+ 	  && GET_CODE (XEXP (XEXP (x, 0), 0)) == XOR
+@@ -3785,7 +3791,7 @@
+ 	}
+ 
+       /* nnrk, nngrk, nork, nogrk */
+-      if (TARGET_ARCH13
++      if (TARGET_Z15
+ 	  && (GET_CODE (XEXP (x, 0)) == AND || GET_CODE (XEXP (x, 0)) == IOR)
+ 	  && XEXP (x, 1) == const0_rtx
+ 	  && (GET_MODE (XEXP (x, 0)) == SImode || GET_MODE (XEXP (x, 0)) == DImode)
+@@ -14440,16 +14446,16 @@
+       if (get_attr_z14_groupoftwo (insn))
+ 	mask |= S390_SCHED_ATTR_MASK_GROUPOFTWO;
+       break;
+-    case PROCESSOR_8561_ARCH13:
+-      if (get_attr_arch13_cracked (insn))
++    case PROCESSOR_8561_Z15:
++      if (get_attr_z15_cracked (insn))
+ 	mask |= S390_SCHED_ATTR_MASK_CRACKED;
+-      if (get_attr_arch13_expanded (insn))
++      if (get_attr_z15_expanded (insn))
+ 	mask |= S390_SCHED_ATTR_MASK_EXPANDED;
+-      if (get_attr_arch13_endgroup (insn))
++      if (get_attr_z15_endgroup (insn))
+ 	mask |= S390_SCHED_ATTR_MASK_ENDGROUP;
+-      if (get_attr_arch13_groupalone (insn))
++      if (get_attr_z15_groupalone (insn))
+ 	mask |= S390_SCHED_ATTR_MASK_GROUPALONE;
+-      if (get_attr_arch13_groupoftwo (insn))
++      if (get_attr_z15_groupoftwo (insn))
+ 	mask |= S390_SCHED_ATTR_MASK_GROUPOFTWO;
+       break;
+     default:
+@@ -14487,15 +14493,15 @@
+       if (get_attr_z14_unit_vfu (insn))
+ 	mask |= 1 << 3;
+       break;
+-    case PROCESSOR_8561_ARCH13:
++    case PROCESSOR_8561_Z15:
+       *units = 4;
+-      if (get_attr_arch13_unit_lsu (insn))
++      if (get_attr_z15_unit_lsu (insn))
+ 	mask |= 1 << 0;
+-      if (get_attr_arch13_unit_fxa (insn))
++      if (get_attr_z15_unit_fxa (insn))
+ 	mask |= 1 << 1;
+-      if (get_attr_arch13_unit_fxb (insn))
++      if (get_attr_z15_unit_fxb (insn))
+ 	mask |= 1 << 2;
+-      if (get_attr_arch13_unit_vfu (insn))
++      if (get_attr_z15_unit_vfu (insn))
+ 	mask |= 1 << 3;
+       break;
+     default:
+@@ -14511,7 +14517,7 @@
+     return false;
+ 
+   return get_attr_z13_unit_fpd (insn) || get_attr_z14_unit_fpd (insn)
+-    || get_attr_arch13_unit_fpd (insn);
++    || get_attr_z15_unit_fpd (insn);
+ }
+ 
+ static bool
+@@ -14521,7 +14527,7 @@
+     return false;
+ 
+   return get_attr_z13_unit_fxd (insn) || get_attr_z14_unit_fxd (insn)
+-    || get_attr_arch13_unit_fxd (insn);
++    || get_attr_z15_unit_fxd (insn);
+ }
+ 
+ /* Returns TRUE if INSN is a long-running instruction.  */
+Index: gcc/config/s390/s390-builtins.def
+===================================================================
+--- a/src/gcc/config/s390/s390-builtins.def	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/config/s390/s390-builtins.def	(.../branches/gcc-9-branch)
+@@ -281,7 +281,7 @@
+ #define B_HTM   (1 << 1)  /* Builtins requiring the transactional execution facility.  */
+ #define B_VX    (1 << 2)  /* Builtins requiring the z13 vector extensions.  */
+ #define B_VXE   (1 << 3)  /* Builtins requiring the z14 vector extensions.  */
+-#define B_VXE2  (1 << 4)  /* Builtins requiring the arch13 vector extensions.  */
++#define B_VXE2  (1 << 4)  /* Builtins requiring the z15 vector extensions.  */
+ #define B_DEP   (1 << 5)  /* Builtin has been deprecated and a warning should be issued.  */
+ 
+ /* B_DEF defines a standard (not overloaded) builtin
+Index: gcc/config/s390/vx-builtins.md
+===================================================================
+--- a/src/gcc/config/s390/vx-builtins.md	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/config/s390/vx-builtins.md	(.../branches/gcc-9-branch)
+@@ -2147,7 +2147,7 @@
+   "<vw>fmax<sdx>b\t%v0,%v1,%v2,%b3"
+   [(set_attr "op_type" "VRR")])
+ 
+-; The element reversal builtins introduced with arch13 have been made
++; The element reversal builtins introduced with z15 have been made
+ ; available also for older CPUs down to z13.
+ (define_expand "eltswap<mode>"
+   [(set (match_operand:VEC_HW                 0 "nonimmediate_operand" "")
+@@ -2181,8 +2181,8 @@
+    vster<bhfgq>\t%v1,%v0"
+   [(set_attr "op_type" "*,VRX,VRX")])
+ 
+-; arch13 has instructions for doing element reversal from mem to reg
+-; or the other way around.  For reg to reg or on pre arch13 machines
++; z15 has instructions for doing element reversal from mem to reg
++; or the other way around.  For reg to reg or on pre z15 machines
+ ; we have to emulate it with vector permute.
+ (define_insn_and_split "*eltswap<mode>_emu"
+   [(set (match_operand:VEC_HW                 0 "nonimmediate_operand" "=vR")
+Index: gcc/config/s390/s390.h
+===================================================================
+--- a/src/gcc/config/s390/s390.h	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/config/s390/s390.h	(.../branches/gcc-9-branch)
+@@ -41,12 +41,12 @@
+   PF_Z14 = 2048,
+   PF_VXE = 4096,
+   PF_VXE2 = 8192,
+-  PF_ARCH13 = 16384
++  PF_Z15 = 16384
+ };
+ 
+ /* This is necessary to avoid a warning about comparing different enum
+    types.  */
+-#define s390_tune_attr ((enum attr_cpu)(s390_tune > PROCESSOR_8561_ARCH13 ? PROCESSOR_8561_ARCH13 : s390_tune ))
++#define s390_tune_attr ((enum attr_cpu)(s390_tune > PROCESSOR_8561_Z15 ? PROCESSOR_8561_Z15 : s390_tune ))
+ 
+ /* These flags indicate that the generated code should run on a cpu
+    providing the respective hardware facility regardless of the
+@@ -100,10 +100,10 @@
+ 	(s390_arch_flags & PF_VXE)
+ #define TARGET_CPU_VXE_P(opts) \
+ 	(opts->x_s390_arch_flags & PF_VXE)
+-#define TARGET_CPU_ARCH13 \
+-	(s390_arch_flags & PF_ARCH13)
+-#define TARGET_CPU_ARCH13_P(opts) \
+-	(opts->x_s390_arch_flags & PF_ARCH13)
++#define TARGET_CPU_Z15 \
++	(s390_arch_flags & PF_Z15)
++#define TARGET_CPU_Z15_P(opts) \
++	(opts->x_s390_arch_flags & PF_Z15)
+ #define TARGET_CPU_VXE2 \
+ 	(s390_arch_flags & PF_VXE2)
+ #define TARGET_CPU_VXE2_P(opts) \
+@@ -160,9 +160,9 @@
+ 	(TARGET_VX && TARGET_CPU_VXE)
+ #define TARGET_VXE_P(opts)						\
+ 	(TARGET_VX_P (opts) && TARGET_CPU_VXE_P (opts))
+-#define TARGET_ARCH13 (TARGET_ZARCH && TARGET_CPU_ARCH13)
+-#define TARGET_ARCH13_P(opts)						\
+-	(TARGET_ZARCH_P (opts->x_target_flags) && TARGET_CPU_ARCH13_P (opts))
++#define TARGET_Z15 (TARGET_ZARCH && TARGET_CPU_Z15)
++#define TARGET_Z15_P(opts)						\
++	(TARGET_ZARCH_P (opts->x_target_flags) && TARGET_CPU_Z15_P (opts))
+ #define TARGET_VXE2					\
+ 	(TARGET_VX && TARGET_CPU_VXE2)
+ #define TARGET_VXE2_P(opts)						\
+Index: gcc/config/s390/8561.md
+===================================================================
+--- a/src/gcc/config/s390/8561.md	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/config/s390/8561.md	(.../branches/gcc-9-branch)
+@@ -1,4 +1,4 @@
+-;; Scheduling description for arch13.
++;; Scheduling description for z15.
+ ;;   Copyright (C) 2019 Free Software Foundation, Inc.
+ ;;   Contributed by Robin Dapp (rdapp@linux.ibm.com)
+ ;; This file is part of GCC.
+@@ -17,12 +17,12 @@
+ ;; along with GCC; see the file COPYING3.  If not see
+ ;; <http://www.gnu.org/licenses/>.
+ 
+-(define_attr "arch13_unit_fpd" ""
++(define_attr "z15_unit_fpd" ""
+ (cond [(eq_attr "mnemonic" "ddb,ddbr,deb,debr,dxbr,sqdb,sqdbr,sqeb,\
+ sqebr,sqxbr,vfddb,vfdsb,vfsqdb,vfsqsb,wfddb,wfdsb,wfdxb,wfsqdb,wfsqxb")
+  (const_int 1)] (const_int 0)))
+ 
+-(define_attr "arch13_unit_fxa" ""
++(define_attr "z15_unit_fxa" ""
+ (cond [(eq_attr "mnemonic" "a,afi,ag,agf,agfi,agfr,agh,aghi,aghik,\
+ agr,agrk,ah,ahi,ahik,ahy,al,alc,alcg,alcgr,alcr,alfi,alg,algf,algfi,algfr,\
+ alghsik,algr,algrk,alhsik,alr,alrk,aly,ar,ark,ay,bras,brasl,etnd,exrl,flogr,\
+@@ -39,7 +39,7 @@
+ xgr,xgrk,xihf,xilf,xr,xrk,xy")
+  (const_int 1)] (const_int 0)))
+ 
+-(define_attr "arch13_unit_fxb" ""
++(define_attr "z15_unit_fxb" ""
+ (cond [(eq_attr "mnemonic" "agsi,algsi,alsi,asi,b,bc,bcr,bi,br,brcl,\
+ c,cfi,cg,cgf,cgfi,cgfr,cgfrl,cgh,cghi,cghrl,cghsi,cgit,cgr,cgrl,cgrt,ch,\
+ chi,chrl,chsi,chy,cit,cl,clfhsi,clfi,clfit,clg,clgf,clgfi,clgfr,clgfrl,\
+@@ -52,11 +52,11 @@
+ vlvgp,vst,vstef,vsteg,vstl,vstrl,vstrlr,xi,xiy")
+  (const_int 1)] (const_int 0)))
+ 
+-(define_attr "arch13_unit_fxd" ""
++(define_attr "z15_unit_fxd" ""
+ (cond [(eq_attr "mnemonic" "dlgr,dlr,dr,dsgfr,dsgr")
+  (const_int 1)] (const_int 0)))
+ 
+-(define_attr "arch13_unit_lsu" ""
++(define_attr "z15_unit_lsu" ""
+ (cond [(eq_attr "mnemonic" "a,adb,aeb,ag,agf,agh,agsi,ah,ahy,al,alc,\
+ alcg,alg,algf,algsi,alsi,aly,asi,ay,c,cdb,ceb,cg,cgf,cgfrl,cgh,cghrl,cghsi,\
+ cgrl,ch,chrl,chsi,chy,cl,clc,clfhsi,clg,clgf,clgfrl,clghrl,clghsi,clgrl,\
+@@ -73,7 +73,7 @@
+ vstef,vsteg,vstl,vstrl,vstrlr,x,xg,xi,xiy,xy")
+  (const_int 1)] (const_int 0)))
+ 
+-(define_attr "arch13_unit_vfu" ""
++(define_attr "z15_unit_vfu" ""
+ (cond [(eq_attr "mnemonic" "adb,adbr,adtr,aeb,aebr,axbr,axtr,cdb,\
+ cdbr,cdtr,ceb,cebr,cpsdr,cxbr,cxtr,ddtr,dxtr,fidbr,fidbra,fidtr,fiebr,\
+ fiebra,fixbr,fixbra,fixtr,lcdbr,lcebr,lcxbr,ldeb,ldebr,ldetr,le,ledbr,ledtr,\
+@@ -115,7 +115,7 @@
+ wfmxb,wfnmaxb,wfnmsxb,wfsdb,wfssb,wfsxb,wldeb,wledb")
+  (const_int 1)] (const_int 0)))
+ 
+-(define_attr "arch13_cracked" ""
++(define_attr "z15_cracked" ""
+ (cond [(eq_attr "mnemonic" "bas,basr,cdfbr,cdftr,cdgbr,cdgtr,cdlfbr,\
+ cdlftr,cdlgbr,cdlgtr,cefbr,cegbr,celfbr,celgbr,cfdbr,cfebr,cfxbr,cgdbr,cgdtr,\
+ cgebr,cgxbr,cgxtr,chhsi,clfdbr,clfdtr,clfebr,clfxbr,clfxtr,clgdbr,clgdtr,\
+@@ -123,13 +123,13 @@
+ rxsbg,stpq,vgef,vgeg,vscef,vsceg,vsteb,vsteh")
+  (const_int 1)] (const_int 0)))
+ 
+-(define_attr "arch13_expanded" ""
++(define_attr "z15_expanded" ""
+ (cond [(eq_attr "mnemonic" "cds,cdsg,cdsy,cxfbr,cxftr,cxgbr,cxgtr,\
+ cxlfbr,cxlftr,cxlgbr,cxlgtr,dl,dlg,dsg,dsgf,lam,lm,lmg,lmy,sldl,srda,srdl,\
+ stam,stm,stmg,stmy,tbegin,tbeginc")
+  (const_int 1)] (const_int 0)))
+ 
+-(define_attr "arch13_groupalone" ""
++(define_attr "z15_groupalone" ""
+ (cond [(eq_attr "mnemonic" "alc,alcg,alcgr,alcr,axbr,axtr,clc,cxbr,\
+ cxtr,dlgr,dlr,dr,dsgfr,dsgr,dxbr,dxtr,fixbr,fixbra,fixtr,flogr,lcxbr,lnxbr,\
+ lpxbr,ltxbr,ltxtr,lxdb,lxdbr,lxdtr,lxeb,lxebr,m,madb,maeb,maebr,mfy,mg,mgrk,\
+@@ -137,11 +137,11 @@
+ slbgr,slbr,sqxbr,sxbr,sxtr,tabort,tcxb,tdcxt,tend,xc")
+  (const_int 1)] (const_int 0)))
+ 
+-(define_attr "arch13_endgroup" ""
++(define_attr "z15_endgroup" ""
+ (cond [(eq_attr "mnemonic" "bras,brasl,exrl,ipm")
+  (const_int 1)] (const_int 0)))
+ 
+-(define_attr "arch13_groupoftwo" ""
++(define_attr "z15_groupoftwo" ""
+ (cond [(eq_attr "mnemonic" "vacccq,vacq,vfmadb,vfmasb,vfmsdb,vfmssb,\
+ vfnmadb,vfnmasb,vfnmsdb,vfnmssb,vgfmab,vgfmaf,vgfmag,vgfmah,vmaeb,vmaef,vmaeh,\
+ vmahb,vmahf,vmahh,vmalb,vmaleb,vmalef,vmaleh,vmalf,vmalhb,vmalhf,vmalhh,\
+@@ -149,8 +149,8 @@
+ wfmadb,wfmasb,wfmaxb,wfmsdb,wfmssb,wfmsxb,wfnmaxb,wfnmsxb")
+  (const_int 1)] (const_int 0)))
+ 
+-(define_insn_reservation "arch13_0" 0
+-  (and (eq_attr "cpu" "arch13")
++(define_insn_reservation "z15_0" 0
++  (and (eq_attr "cpu" "z15")
+ (eq_attr "mnemonic" "a,afi,ag,agfi,aghi,aghik,agr,agrk,ahi,ahik,al,\
+ alfi,alg,algf,algfi,algfr,alghsik,algr,algrk,alhsik,alr,alrk,aly,ar,ark,ay,\
+ b,bc,bcr,bi,br,bras,brasl,brcl,c,cfi,cg,cgfi,cghi,cghsi,cgit,cgr,cgrl,\
+@@ -168,8 +168,8 @@
+ tmhh,tmhl,tml,tmlh,tmll,tmy,vlr,vlvgb,vlvgf,vlvgg,vlvgh,x,xg,xgr,xgrk,xihf,\
+ xilf,xr,xrk,xy")) "nothing")
+ 
+-(define_insn_reservation "arch13_1" 1
+-  (and (eq_attr "cpu" "arch13")
++(define_insn_reservation "z15_1" 1
++  (and (eq_attr "cpu" "z15")
+ (eq_attr "mnemonic" "agf,agfr,agh,agsi,ah,ahy,algsi,alsi,asi,cgf,\
+ cgfr,cgfrl,cgh,cghrl,ch,chrl,chy,clm,clmy,cpsdr,laa,laag,lan,lang,lao,laog,\
+ lax,laxg,le,ler,ley,loc,locg,locghi,locgr,lochi,locr,mvghi,mvhhi,mvhi,mvi,\
+@@ -196,8 +196,8 @@
+ wflcsb,wflcxb,wflndb,wflnsb,wflnxb,wflpdb,wflpsb,wflpxb,wfmaxxb,wfminxb,xi,\
+ xiy")) "nothing")
+ 
+-(define_insn_reservation "arch13_2" 2
+-  (and (eq_attr "cpu" "arch13")
++(define_insn_reservation "z15_2" 2
++  (and (eq_attr "cpu" "z15")
+ (eq_attr "mnemonic" "cdb,cdbr,ceb,cebr,ear,ipm,l,lcbb,lcdbr,lcebr,ld,\
+ lde,ldy,lg,lgdr,lgrl,llc,llgc,llgf,llgfrl,llgh,llghrl,llgt,llh,llhrl,lm,\
+ lmg,lmy,lndbr,lnebr,lpdbr,lpebr,lrl,ltdbr,ltebr,ly,popcnt,sar,tcdb,tceb,\
+@@ -208,8 +208,8 @@
+ vlrepf,vlrepg,vlreph,vlrl,vlvgp,vpklsfs,vpklsgs,vpklshs,vpksfs,vpksgs,vpkshs,\
+ wfcdb,wfcexbs,wfchexbs,wfchxbs,wfcsb")) "nothing")
+ 
+-(define_insn_reservation "arch13_3" 3
+-  (and (eq_attr "cpu" "arch13")
++(define_insn_reservation "z15_3" 3
++  (and (eq_attr "cpu" "z15")
+ (eq_attr "mnemonic" "cds,cdsy,mgh,mghi,mh,mhi,mhy,std,stdy,ste,stey,\
+ vcksm,vfeezbs,vfeezfs,vfeezhs,vgfmab,vgfmaf,vgfmag,vgfmah,vgfmb,vgfmf,vgfmg,\
+ vgfmh,vistrbs,vistrfs,vistrhs,vl,vlbb,vll,vlrlr,vmaeb,vmaef,vmaeh,vmahb,\
+@@ -218,14 +218,14 @@
+ vmleb,vmlef,vmleh,vmlf,vmlhb,vmlhf,vmlhh,vmlhw,vmlob,vmlof,vmloh,vmob,vmof,\
+ vmoh,vsumb,vsumgf,vsumgh,vsumh,vsumqf,vsumqg,vtm")) "nothing")
+ 
+-(define_insn_reservation "arch13_4" 4
+-  (and (eq_attr "cpu" "arch13")
++(define_insn_reservation "z15_4" 4
++  (and (eq_attr "cpu" "z15")
+ (eq_attr "mnemonic" "bas,basr,chhsi,clc,ex,lam,lcgfr,lngfr,lpgfr,lxr,\
+ lzxr,ms,msfi,msgf,msgfi,msgfr,msr,msy,mvc,nc,oc,ppa,rxsbg,tabort,tbegin,\
+ tbeginc,tend,vst,vstef,vsteg,vstl,vstrl,vstrlr,xc")) "nothing")
+ 
+-(define_insn_reservation "arch13_5" 5
+-  (and (eq_attr "cpu" "arch13")
++(define_insn_reservation "z15_5" 5
++  (and (eq_attr "cpu" "z15")
+ (eq_attr "mnemonic" "adb,adbr,aeb,aebr,alc,alcg,alcgr,alcr,cs,csg,\
+ csy,fidbr,fidbra,fiebr,fiebra,ldeb,ldebr,ledbr,madbr,mdb,mdbr,meeb,meebr,\
+ msdbr,msrkc,sdb,sdbr,seb,sebr,slb,slbg,slbgr,slbr,stm,stmg,stmy,vfadb,vfasb,\
+@@ -233,53 +233,53 @@
+ vfnmssb,vfsdb,vfssb,vldeb,vledb,vmslg,wfadb,wfasb,wfidb,wfisb,wflld,wfmadb,\
+ wfmasb,wfmdb,wfmsb,wfmsdb,wfmssb,wfsdb,wfssb,wldeb,wledb")) "nothing")
+ 
+-(define_insn_reservation "arch13_6" 6
+-  (and (eq_attr "cpu" "arch13")
++(define_insn_reservation "z15_6" 6
++  (and (eq_attr "cpu" "z15")
+ (eq_attr "mnemonic" "msg,msgr,sfpc")) "nothing")
+ 
+-(define_insn_reservation "arch13_7" 7
+-  (and (eq_attr "cpu" "arch13")
++(define_insn_reservation "z15_7" 7
++  (and (eq_attr "cpu" "z15")
+ (eq_attr "mnemonic" "adtr,cdtr,fidtr,ldetr,ltdtr,msgrkc,sdtr,tdcdt,\
+ tdcet,vgef,vgeg")) "nothing")
+ 
+-(define_insn_reservation "arch13_8" 8
+-  (and (eq_attr "cpu" "arch13")
++(define_insn_reservation "z15_8" 8
++  (and (eq_attr "cpu" "z15")
+ (eq_attr "mnemonic" "cdsg,flogr,lpq,stpq,vsteb,vsteh")) "nothing")
+ 
+-(define_insn_reservation "arch13_9" 9
+-  (and (eq_attr "cpu" "arch13")
++(define_insn_reservation "z15_9" 9
++  (and (eq_attr "cpu" "z15")
+ (eq_attr "mnemonic" "cdfbr,cdgbr,cdlfbr,cdlgbr,cefbr,cegbr,celfbr,\
+ celgbr,cxfbr,cxgbr,cxlfbr,cxlgbr,m,madb,maeb,maebr,mfy,ml,mlr,mr,msdb,mseb,\
+ msebr,stam,wfaxb,wfixb,wfsxb")) "nothing")
+ 
+-(define_insn_reservation "arch13_10" 10
+-  (and (eq_attr "cpu" "arch13")
++(define_insn_reservation "z15_10" 10
++  (and (eq_attr "cpu" "z15")
+ (eq_attr "mnemonic" "lxdb,lxdbr,lxeb,lxebr,vscef,vsceg")) "nothing")
+ 
+-(define_insn_reservation "arch13_11" 11
+-  (and (eq_attr "cpu" "arch13")
++(define_insn_reservation "z15_11" 11
++  (and (eq_attr "cpu" "z15")
+ (eq_attr "mnemonic" "cfdbr,cfebr,cgdbr,cgebr,clfdbr,clfebr,clgdbr,\
+ clgebr,mg,mgrk,mlg,mlgr")) "nothing")
+ 
+-(define_insn_reservation "arch13_12" 12
+-  (and (eq_attr "cpu" "arch13")
++(define_insn_reservation "z15_12" 12
++  (and (eq_attr "cpu" "z15")
+ (eq_attr "mnemonic" "cxbr,cxftr,cxlftr,cxtr,tcxb,tdcxt")) "nothing")
+ 
+-(define_insn_reservation "arch13_13" 13
+-  (and (eq_attr "cpu" "arch13")
++(define_insn_reservation "z15_13" 13
++  (and (eq_attr "cpu" "z15")
+ (eq_attr "mnemonic" "axbr,axtr,fixbr,fixbra,fixtr,lcxbr,lnxbr,lpxbr,\
+ ltxbr,ltxtr,lxdtr,sxbr,sxtr")) "nothing")
+ 
+-(define_insn_reservation "arch13_14" 14
+-  (and (eq_attr "cpu" "arch13")
++(define_insn_reservation "z15_14" 14
++  (and (eq_attr "cpu" "z15")
+ (eq_attr "mnemonic" "cfxbr,cgxbr,clfxbr,clgxbr,ledtr")) "nothing")
+ 
+-(define_insn_reservation "arch13_16" 16
+-  (and (eq_attr "cpu" "arch13")
++(define_insn_reservation "z15_16" 16
++  (and (eq_attr "cpu" "z15")
+ (eq_attr "mnemonic" "cdftr,cdlftr")) "nothing")
+ 
+-(define_insn_reservation "arch13_20" 20
+-  (and (eq_attr "cpu" "arch13")
++(define_insn_reservation "z15_20" 20
++  (and (eq_attr "cpu" "z15")
+ (eq_attr "mnemonic" "cdgtr,cdlgtr,cgdtr,cgxtr,clfdtr,clfxtr,clgdtr,\
+ clgxtr,cxgtr,cxlgtr,d,ddb,ddbr,ddtr,deb,debr,dl,dlg,dlgr,dlr,dr,dsg,dsgf,\
+ dsgfr,dsgr,dxbr,dxtr,efpc,mdtr,mxbr,mxtr,sqdb,sqdbr,sqeb,sqebr,sqxbr,vfddb,\
 Index: gcc/config/sparc/sparc.c
 ===================================================================
 --- a/src/gcc/config/sparc/sparc.c	(.../tags/gcc_9_2_0_release)
@@ -14306,7 +16433,23 @@ Index: gcc/config/sh/sh.c
  	{
  	  std::string offset_str = tokens[i].substr (strlen ("gbr-offset="));
  	  ret.tcb_gbr_offset = integral_argument (offset_str.c_str ());
-@@ -12087,9 +12090,11 @@
+@@ -958,11 +961,13 @@
+   if (flag_unsafe_math_optimizations)
+     {
+       /* Enable fsca insn for SH4A if not otherwise specified by the user.  */
+-      if (global_options_set.x_TARGET_FSCA == 0 && TARGET_SH4A_FP)
++      if (global_options_set.x_TARGET_FSCA == 0
++	  && (TARGET_SH4A_FP || TARGET_FPU_SH4_300))
+ 	TARGET_FSCA = 1;
+ 
+       /* Enable fsrra insn for SH4A if not otherwise specified by the user.  */
+-      if (global_options_set.x_TARGET_FSRRA == 0 && TARGET_SH4A_FP)
++      if (global_options_set.x_TARGET_FSRRA == 0
++	  && (TARGET_SH4A_FP || TARGET_FPU_SH4_300))
+ 	TARGET_FSRRA = 1;
+     }
+ 
+@@ -12087,9 +12092,11 @@
  	rtx r = gen_reg_rtx (SImode);
  	rtx_insn* i0;
  	if (from_mode == QImode)
@@ -14320,6 +16463,178 @@ Index: gcc/config/sh/sh.c
  	else
  	  gcc_unreachable ();
  
+@@ -12507,7 +12514,7 @@
+ sh_emit_mode_set (int entity ATTRIBUTE_UNUSED, int mode,
+ 		  int prev_mode, HARD_REG_SET regs_live ATTRIBUTE_UNUSED)
+ {
+-  if ((TARGET_SH4A_FP || TARGET_SH4_300)
++  if ((TARGET_SH4A_FP || TARGET_FPU_SH4_300)
+       && prev_mode != FP_MODE_NONE && prev_mode != mode)
+     {
+       emit_insn (gen_toggle_pr ());
+Index: gcc/config/sh/sh.h
+===================================================================
+--- a/src/gcc/config/sh/sh.h	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/config/sh/sh.h	(.../branches/gcc-9-branch)
+@@ -69,6 +69,8 @@
+    FPU is disabled (which makes it compatible with SH4al-dsp).  */
+ #define TARGET_SH4A_FP (TARGET_SH4A && TARGET_FPU_ANY)
+ 
++/* True if the FPU is a SH4-300 variant.  */
++#define TARGET_FPU_SH4_300 (TARGET_FPU_ANY && TARGET_SH4_300)
+ 
+ /* This is not used by the SH2E calling convention  */
+ #define TARGET_VARARGS_PRETEND_ARGS(FUN_DECL) \
+Index: gcc/config/sh/sh.md
+===================================================================
+--- a/src/gcc/config/sh/sh.md	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/config/sh/sh.md	(.../branches/gcc-9-branch)
+@@ -9163,7 +9163,7 @@
+ 	(xor:SI (reg:SI FPSCR_REG) (const_int FPSCR_PR)))
+    (set (reg:SI FPSCR_MODES_REG)
+ 	(unspec_volatile:SI [(const_int 0)] UNSPECV_FPSCR_MODES))]
+-  "TARGET_SH4A_FP"
++  "TARGET_SH4A_FP || TARGET_FPU_SH4_300"
+   "fpchg"
+   [(set_attr "type" "fpscr_toggle")])
+ 
+@@ -9391,15 +9391,31 @@
+ (define_expand "negsf2"
+   [(set (match_operand:SF 0 "fp_arith_reg_operand")
+ 	(neg:SF (match_operand:SF 1 "fp_arith_reg_operand")))]
+-  "TARGET_SH2E")
++  "TARGET_FPU_ANY"
++{
++  if (TARGET_FPU_SH4_300)
++    emit_insn (gen_negsf2_fpscr (operands[0], operands[1]));
++  else
++    emit_insn (gen_negsf2_no_fpscr (operands[0], operands[1]));
++  DONE;
++})
+ 
+-(define_insn "*negsf2_i"
++(define_insn "negsf2_no_fpscr"
+   [(set (match_operand:SF 0 "fp_arith_reg_operand" "=f")
+ 	(neg:SF (match_operand:SF 1 "fp_arith_reg_operand" "0")))]
+-  "TARGET_SH2E"
++  "TARGET_FPU_ANY && !TARGET_FPU_SH4_300"
+   "fneg	%0"
+   [(set_attr "type" "fmove")])
+ 
++(define_insn "negsf2_fpscr"
++  [(set (match_operand:SF 0 "fp_arith_reg_operand" "=f")
++	(neg:SF (match_operand:SF 1 "fp_arith_reg_operand" "0")))
++   (use (reg:SI FPSCR_MODES_REG))]
++  "TARGET_FPU_SH4_300"
++  "fneg	%0"
++  [(set_attr "type" "fmove")
++   (set_attr "fp_mode" "single")])
++
+ (define_expand "sqrtsf2"
+   [(set (match_operand:SF 0 "fp_arith_reg_operand" "")
+ 	(sqrt:SF (match_operand:SF 1 "fp_arith_reg_operand" "")))]
+@@ -9489,15 +9505,31 @@
+ (define_expand "abssf2"
+   [(set (match_operand:SF 0 "fp_arith_reg_operand")
+ 	(abs:SF (match_operand:SF 1 "fp_arith_reg_operand")))]
+-  "TARGET_SH2E")
++  "TARGET_FPU_ANY"
++{
++  if (TARGET_FPU_SH4_300)
++    emit_insn (gen_abssf2_fpscr (operands[0], operands[1]));
++  else
++    emit_insn (gen_abssf2_no_fpscr (operands[0], operands[1]));
++  DONE;
++})
+ 
+-(define_insn "*abssf2_i"
++(define_insn "abssf2_no_fpscr"
+   [(set (match_operand:SF 0 "fp_arith_reg_operand" "=f")
+ 	(abs:SF (match_operand:SF 1 "fp_arith_reg_operand" "0")))]
+-  "TARGET_SH2E"
++  "TARGET_FPU_ANY && !TARGET_FPU_SH4_300"
+   "fabs	%0"
+   [(set_attr "type" "fmove")])
+ 
++(define_insn "abssf2_fpscr"
++  [(set (match_operand:SF 0 "fp_arith_reg_operand" "=f")
++	(abs:SF (match_operand:SF 1 "fp_arith_reg_operand" "0")))
++   (use (reg:SI FPSCR_MODES_REG))]
++  "TARGET_FPU_SH4_300"
++  "fabs	%0"
++  [(set_attr "type" "fmove")
++   (set_attr "fp_mode" "single")])
++
+ (define_expand "adddf3"
+   [(set (match_operand:DF 0 "fp_arith_reg_operand" "")
+ 	(plus:DF (match_operand:DF 1 "fp_arith_reg_operand" "")
+@@ -9673,12 +9705,28 @@
+ (define_expand "negdf2"
+   [(set (match_operand:DF 0 "fp_arith_reg_operand")
+ 	(neg:DF (match_operand:DF 1 "fp_arith_reg_operand")))]
+-  "TARGET_FPU_DOUBLE")
++  "TARGET_FPU_DOUBLE"
++{
++  if (TARGET_FPU_SH4_300)
++    emit_insn (gen_negdf2_fpscr (operands[0], operands[1]));
++  else
++    emit_insn (gen_negdf2_no_fpscr (operands[0], operands[1]));
++  DONE;
++})
+ 
+-(define_insn "*negdf2_i"
++(define_insn "negdf2_fpscr"
+   [(set (match_operand:DF 0 "fp_arith_reg_operand" "=f")
++	(neg:DF (match_operand:DF 1 "fp_arith_reg_operand" "0")))
++   (use (reg:SI FPSCR_MODES_REG))]
++  "TARGET_FPU_SH4_300"
++  "fneg	%0"
++  [(set_attr "type" "fmove")
++   (set_attr "fp_mode" "double")])
++
++(define_insn "negdf2_no_fpscr"
++  [(set (match_operand:DF 0 "fp_arith_reg_operand" "=f")
+ 	(neg:DF (match_operand:DF 1 "fp_arith_reg_operand" "0")))]
+-  "TARGET_FPU_DOUBLE"
++  "TARGET_FPU_DOUBLE && !TARGET_FPU_SH4_300"
+   "fneg	%0"
+   [(set_attr "type" "fmove")])
+ 
+@@ -9704,15 +9752,31 @@
+ (define_expand "absdf2"
+   [(set (match_operand:DF 0 "fp_arith_reg_operand")
+ 	(abs:DF (match_operand:DF 1 "fp_arith_reg_operand")))]
+-  "TARGET_FPU_DOUBLE")
++  "TARGET_FPU_DOUBLE"
++{
++  if (TARGET_FPU_SH4_300)
++    emit_insn (gen_absdf2_fpscr (operands[0], operands[1]));
++  else
++    emit_insn (gen_absdf2_no_fpscr (operands[0], operands[1]));
++  DONE;
++})
+ 
+-(define_insn "*absdf2_i"
++(define_insn "absdf2_no_fpscr"
+   [(set (match_operand:DF 0 "fp_arith_reg_operand" "=f")
+ 	(abs:DF (match_operand:DF 1 "fp_arith_reg_operand" "0")))]
+-  "TARGET_FPU_DOUBLE"
++  "TARGET_FPU_DOUBLE && !TARGET_FPU_SH4_300"
+   "fabs	%0"
+   [(set_attr "type" "fmove")])
+ 
++(define_insn "absdf2_fpscr"
++  [(set (match_operand:DF 0 "fp_arith_reg_operand" "=f")
++	(abs:DF (match_operand:DF 1 "fp_arith_reg_operand" "0")))
++   (use (reg:SI FPSCR_MODES_REG))]
++  "TARGET_FPU_SH4_300"
++  "fabs	%0"
++  [(set_attr "type" "fmove")
++   (set_attr "fp_mode" "double")])
++
+ (define_expand "extendsfdf2"
+   [(set (match_operand:DF 0 "fp_arith_reg_operand" "")
+ 	(float_extend:DF (match_operand:SF 1 "fpul_operand" "")))]
 Index: gcc/config/xtensa/xtensa.c
 ===================================================================
 --- a/src/gcc/config/xtensa/xtensa.c	(.../tags/gcc_9_2_0_release)
@@ -14681,6 +16996,118 @@ Index: gcc/config/aarch64/aarch64.c
        gcc_assert (code == UNKNOWN);
      }
  
+Index: gcc/config/rs6000/rs6000-builtin.def
+===================================================================
+--- a/src/gcc/config/rs6000/rs6000-builtin.def	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/config/rs6000/rs6000-builtin.def	(.../branches/gcc-9-branch)
+@@ -1177,26 +1177,26 @@
+ BU_ALTIVEC_X (MFVSCR,		"mfvscr",	    MISC)
+ BU_ALTIVEC_X (DSSALL,		"dssall",	    MISC)
+ BU_ALTIVEC_X (DSS,		"dss",		    MISC)
+-BU_ALTIVEC_X (LVSL,		"lvsl",		    MEM)
+-BU_ALTIVEC_X (LVSR,		"lvsr",		    MEM)
+-BU_ALTIVEC_X (LVEBX,		"lvebx",	    MEM)
+-BU_ALTIVEC_X (LVEHX,		"lvehx",	    MEM)
+-BU_ALTIVEC_X (LVEWX,		"lvewx",	    MEM)
+-BU_ALTIVEC_X (LVXL,		"lvxl",		    MEM)
+-BU_ALTIVEC_X (LVXL_V2DF,	"lvxl_v2df",	    MEM)
+-BU_ALTIVEC_X (LVXL_V2DI,	"lvxl_v2di",	    MEM)
+-BU_ALTIVEC_X (LVXL_V4SF,	"lvxl_v4sf",	    MEM)
+-BU_ALTIVEC_X (LVXL_V4SI,	"lvxl_v4si",	    MEM)
+-BU_ALTIVEC_X (LVXL_V8HI,	"lvxl_v8hi",	    MEM)
+-BU_ALTIVEC_X (LVXL_V16QI,	"lvxl_v16qi",	    MEM)
+-BU_ALTIVEC_X (LVX,		"lvx",		    MEM)
+-BU_ALTIVEC_X (LVX_V1TI,		"lvx_v1ti",	    MEM)
+-BU_ALTIVEC_X (LVX_V2DF,		"lvx_v2df",	    MEM)
+-BU_ALTIVEC_X (LVX_V2DI,		"lvx_v2di",	    MEM)
+-BU_ALTIVEC_X (LVX_V4SF,		"lvx_v4sf",	    MEM)
+-BU_ALTIVEC_X (LVX_V4SI,		"lvx_v4si",	    MEM)
+-BU_ALTIVEC_X (LVX_V8HI,		"lvx_v8hi",	    MEM)
+-BU_ALTIVEC_X (LVX_V16QI,	"lvx_v16qi",	    MEM)
++BU_ALTIVEC_X (LVSL,		"lvsl",		    PURE)
++BU_ALTIVEC_X (LVSR,		"lvsr",		    PURE)
++BU_ALTIVEC_X (LVEBX,		"lvebx",	    PURE)
++BU_ALTIVEC_X (LVEHX,		"lvehx",	    PURE)
++BU_ALTIVEC_X (LVEWX,		"lvewx",	    PURE)
++BU_ALTIVEC_X (LVXL,		"lvxl",		    PURE)
++BU_ALTIVEC_X (LVXL_V2DF,	"lvxl_v2df",	    PURE)
++BU_ALTIVEC_X (LVXL_V2DI,	"lvxl_v2di",	    PURE)
++BU_ALTIVEC_X (LVXL_V4SF,	"lvxl_v4sf",	    PURE)
++BU_ALTIVEC_X (LVXL_V4SI,	"lvxl_v4si",	    PURE)
++BU_ALTIVEC_X (LVXL_V8HI,	"lvxl_v8hi",	    PURE)
++BU_ALTIVEC_X (LVXL_V16QI,	"lvxl_v16qi",	    PURE)
++BU_ALTIVEC_X (LVX,		"lvx",		    PURE)
++BU_ALTIVEC_X (LVX_V1TI,		"lvx_v1ti",	    PURE)
++BU_ALTIVEC_X (LVX_V2DF,		"lvx_v2df",	    PURE)
++BU_ALTIVEC_X (LVX_V2DI,		"lvx_v2di",	    PURE)
++BU_ALTIVEC_X (LVX_V4SF,		"lvx_v4sf",	    PURE)
++BU_ALTIVEC_X (LVX_V4SI,		"lvx_v4si",	    PURE)
++BU_ALTIVEC_X (LVX_V8HI,		"lvx_v8hi",	    PURE)
++BU_ALTIVEC_X (LVX_V16QI,	"lvx_v16qi",	    PURE)
+ BU_ALTIVEC_X (STVX,		"stvx",		    MEM)
+ BU_ALTIVEC_X (STVX_V2DF,	"stvx_v2df",	    MEM)
+ BU_ALTIVEC_X (STVX_V2DI,	"stvx_v2di",	    MEM)
+@@ -1204,10 +1204,10 @@
+ BU_ALTIVEC_X (STVX_V4SI,	"stvx_v4si",	    MEM)
+ BU_ALTIVEC_X (STVX_V8HI,	"stvx_v8hi",	    MEM)
+ BU_ALTIVEC_X (STVX_V16QI,	"stvx_v16qi",	    MEM)
+-BU_ALTIVEC_C (LVLX,		"lvlx",		    MEM)
+-BU_ALTIVEC_C (LVLXL,		"lvlxl",	    MEM)
+-BU_ALTIVEC_C (LVRX,		"lvrx",		    MEM)
+-BU_ALTIVEC_C (LVRXL,		"lvrxl",	    MEM)
++BU_ALTIVEC_C (LVLX,		"lvlx",		    PURE)
++BU_ALTIVEC_C (LVLXL,		"lvlxl",	    PURE)
++BU_ALTIVEC_C (LVRX,		"lvrx",		    PURE)
++BU_ALTIVEC_C (LVRXL,		"lvrxl",	    PURE)
+ BU_ALTIVEC_X (STVEBX,		"stvebx",	    MEM)
+ BU_ALTIVEC_X (STVEHX,		"stvehx",	    MEM)
+ BU_ALTIVEC_X (STVEWX,		"stvewx",	    MEM)
+@@ -1718,15 +1718,15 @@
+ BU_VSX_P (XVCMPGTDP_P,	      "xvcmpgtdp_p",	CONST,	vector_gt_v2df_p)
+ 
+ /* VSX builtins that are handled as special cases.  */
+-BU_VSX_X (LXSDX,	      "lxsdx",		MEM)
+-BU_VSX_X (LXVD2X_V1TI,	      "lxvd2x_v1ti",	MEM)
+-BU_VSX_X (LXVD2X_V2DF,	      "lxvd2x_v2df",	MEM)
+-BU_VSX_X (LXVD2X_V2DI,	      "lxvd2x_v2di",	MEM)
+-BU_VSX_X (LXVDSX,	      "lxvdsx",		MEM)
+-BU_VSX_X (LXVW4X_V4SF,	      "lxvw4x_v4sf",	MEM)
+-BU_VSX_X (LXVW4X_V4SI,        "lxvw4x_v4si",	MEM)
+-BU_VSX_X (LXVW4X_V8HI,        "lxvw4x_v8hi",	MEM)
+-BU_VSX_X (LXVW4X_V16QI,	      "lxvw4x_v16qi",	MEM)
++BU_VSX_X (LXSDX,	      "lxsdx",		PURE)
++BU_VSX_X (LXVD2X_V1TI,	      "lxvd2x_v1ti",	PURE)
++BU_VSX_X (LXVD2X_V2DF,	      "lxvd2x_v2df",	PURE)
++BU_VSX_X (LXVD2X_V2DI,	      "lxvd2x_v2di",	PURE)
++BU_VSX_X (LXVDSX,	      "lxvdsx",		PURE)
++BU_VSX_X (LXVW4X_V4SF,	      "lxvw4x_v4sf",	PURE)
++BU_VSX_X (LXVW4X_V4SI,	      "lxvw4x_v4si",	PURE)
++BU_VSX_X (LXVW4X_V8HI,	      "lxvw4x_v8hi",	PURE)
++BU_VSX_X (LXVW4X_V16QI,	      "lxvw4x_v16qi",	PURE)
+ BU_VSX_X (STXSDX,	      "stxsdx",		MEM)
+ BU_VSX_X (STXVD2X_V1TI,	      "stxvd2x_v1ti",	MEM)
+ BU_VSX_X (STXVD2X_V2DF,	      "stxvd2x_v2df",	MEM)
+@@ -1735,13 +1735,13 @@
+ BU_VSX_X (STXVW4X_V4SI,	      "stxvw4x_v4si",	MEM)
+ BU_VSX_X (STXVW4X_V8HI,	      "stxvw4x_v8hi",	MEM)
+ BU_VSX_X (STXVW4X_V16QI,      "stxvw4x_v16qi",	MEM)
+-BU_VSX_X (LD_ELEMREV_V1TI,    "ld_elemrev_v1ti",  MEM)
+-BU_VSX_X (LD_ELEMREV_V2DF,    "ld_elemrev_v2df",  MEM)
+-BU_VSX_X (LD_ELEMREV_V2DI,    "ld_elemrev_v2di",  MEM)
+-BU_VSX_X (LD_ELEMREV_V4SF,    "ld_elemrev_v4sf",  MEM)
+-BU_VSX_X (LD_ELEMREV_V4SI,    "ld_elemrev_v4si",  MEM)
+-BU_VSX_X (LD_ELEMREV_V8HI,    "ld_elemrev_v8hi",  MEM)
+-BU_VSX_X (LD_ELEMREV_V16QI,   "ld_elemrev_v16qi", MEM)
++BU_VSX_X (LD_ELEMREV_V1TI,    "ld_elemrev_v1ti",  PURE)
++BU_VSX_X (LD_ELEMREV_V2DF,    "ld_elemrev_v2df",  PURE)
++BU_VSX_X (LD_ELEMREV_V2DI,    "ld_elemrev_v2di",  PURE)
++BU_VSX_X (LD_ELEMREV_V4SF,    "ld_elemrev_v4sf",  PURE)
++BU_VSX_X (LD_ELEMREV_V4SI,    "ld_elemrev_v4si",  PURE)
++BU_VSX_X (LD_ELEMREV_V8HI,    "ld_elemrev_v8hi",  PURE)
++BU_VSX_X (LD_ELEMREV_V16QI,   "ld_elemrev_v16qi", PURE)
+ BU_VSX_X (ST_ELEMREV_V1TI,    "st_elemrev_v1ti",  MEM)
+ BU_VSX_X (ST_ELEMREV_V2DF,    "st_elemrev_v2df",  MEM)
+ BU_VSX_X (ST_ELEMREV_V2DI,    "st_elemrev_v2di",  MEM)
 Index: gcc/config/rs6000/rs6000-p8swap.c
 ===================================================================
 --- a/src/gcc/config/rs6000/rs6000-p8swap.c	(.../tags/gcc_9_2_0_release)
@@ -15289,7 +17716,271 @@ Index: gcc/config/pa/pa.c
 ===================================================================
 --- a/src/gcc/config/pa/pa.c	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/config/pa/pa.c	(.../branches/gcc-9-branch)
-@@ -10206,7 +10206,7 @@
+@@ -8052,20 +8052,22 @@
+ 		    {
+ 		      output_asm_insn ("addil LT'%0,%%r19", xoperands);
+ 		      output_asm_insn ("ldw RT'%0(%%r1),%%r1", xoperands);
+-		      output_asm_insn ("ldw 0(%%r1),%%r1", xoperands);
++		      output_asm_insn ("ldw 0(%%r1),%%r22", xoperands);
+ 		    }
+ 		  else
+ 		    {
+ 		      output_asm_insn ("addil LR'%0-$global$,%%r27",
+ 				       xoperands);
+-		      output_asm_insn ("ldw RR'%0-$global$(%%r1),%%r1",
++		      output_asm_insn ("ldw RR'%0-$global$(%%r1),%%r22",
+ 				       xoperands);
+ 		    }
+ 
+-		  output_asm_insn ("bb,>=,n %%r1,30,.+16", xoperands);
+-		  output_asm_insn ("depi 0,31,2,%%r1", xoperands);
+-		  output_asm_insn ("ldw 4(%%sr0,%%r1),%%r19", xoperands);
+-		  output_asm_insn ("ldw 0(%%sr0,%%r1),%%r1", xoperands);
++		  output_asm_insn ("bb,>=,n %%r22,30,.+16", xoperands);
++		  output_asm_insn ("depi 0,31,2,%%r22", xoperands);
++		  /* Should this be an ordered load to ensure the target
++	             address is loaded before the global pointer?  */
++		  output_asm_insn ("ldw 0(%%r22),%%r1", xoperands);
++		  output_asm_insn ("ldw 4(%%r22),%%r19", xoperands);
+ 
+ 		  if (!sibcall && !TARGET_PA_20)
+ 		    {
+@@ -8158,10 +8160,6 @@
+   if (TARGET_PORTABLE_RUNTIME)
+     return 16;
+ 
+-  /* Inline version of $$dyncall.  */
+-  if ((TARGET_NO_SPACE_REGS || TARGET_PA_20) && !optimize_size)
+-    return 20;
+-
+   if (!TARGET_LONG_CALLS
+       && ((TARGET_PA_20 && !TARGET_SOM && distance < 7600000)
+ 	  || distance < MAX_PCREL17F_OFFSET))
+@@ -8171,13 +8169,16 @@
+   if (!flag_pic)
+     return 12;
+ 
+-  /* Inline version of $$dyncall.  */
+-  if (TARGET_NO_SPACE_REGS || TARGET_PA_20)
+-    return 20;
+-
++  /* Inline versions of $$dyncall.  */
+   if (!optimize_size)
+-    return 36;
++    {
++      if (TARGET_NO_SPACE_REGS)
++	return 28;
+ 
++      if (TARGET_PA_20)
++	return 32;
++    }
++
+   /* Long PIC pc-relative call.  */
+   return 20;
+ }
+@@ -8214,22 +8215,6 @@
+       return "blr %%r0,%%r2\n\tbv,n %%r0(%%r31)";
+     }
+ 
+-  /* Maybe emit a fast inline version of $$dyncall.  */
+-  if ((TARGET_NO_SPACE_REGS || TARGET_PA_20) && !optimize_size)
+-    {
+-      output_asm_insn ("bb,>=,n %%r22,30,.+12\n\t"
+-		       "ldw 2(%%r22),%%r19\n\t"
+-		       "ldw -2(%%r22),%%r22", xoperands);
+-      pa_output_arg_descriptor (insn);
+-      if (TARGET_NO_SPACE_REGS)
+-	{
+-	  if (TARGET_PA_20)
+-	    return "bve,l,n (%%r22),%%r2\n\tnop";
+-	  return "ble 0(%%sr4,%%r22)\n\tcopy %%r31,%%r2";
+-	}
+-      return "bve,l (%%r22),%%r2\n\tstw %%r2,-24(%%sp)";
+-    }
+-
+   /* Now the normal case -- we can reach $$dyncall directly or
+      we're sure that we can get there via a long-branch stub. 
+ 
+@@ -8258,35 +8243,40 @@
+       return "ble R'$$dyncall(%%sr4,%%r2)\n\tcopy %%r31,%%r2";
+     }
+ 
+-  /* Maybe emit a fast inline version of $$dyncall.  The long PIC
+-     pc-relative call sequence is five instructions.  The inline PA 2.0
+-     version of $$dyncall is also five instructions.  The PA 1.X versions
+-     are longer but still an overall win.  */
+-  if (TARGET_NO_SPACE_REGS || TARGET_PA_20 || !optimize_size)
++  /* The long PIC pc-relative call sequence is five instructions.  So,
++     let's use an inline version of $$dyncall when the calling sequence
++     has a roughly similar number of instructions and we are not optimizing
++     for size.  We need two instructions to load the return pointer plus
++     the $$dyncall implementation.  */
++  if (!optimize_size)
+     {
+-      output_asm_insn ("bb,>=,n %%r22,30,.+12\n\t"
+-		       "ldw 2(%%r22),%%r19\n\t"
+-		       "ldw -2(%%r22),%%r22", xoperands);
+       if (TARGET_NO_SPACE_REGS)
+ 	{
+ 	  pa_output_arg_descriptor (insn);
+-	  if (TARGET_PA_20)
+-	    return "bve,l,n (%%r22),%%r2\n\tnop";
+-	  return "ble 0(%%sr4,%%r22)\n\tcopy %%r31,%%r2";
++	  output_asm_insn ("bl .+8,%rp\b\t"
++			   "ldo 20(%r2),%r2\n\t"
++			   "extru,<> %r22,30,1,%r0\n\t"
++			   "bv,n %%r0(%r22)\n\t"
++			   "ldw -2(%%r22),%%r21\n\t"
++			   "bv %%r0(%r21)\n\t"
++			   "ldw 2(%%r22),%%r19", xoperands);
++	  return "";
+ 	}
+       if (TARGET_PA_20)
+ 	{
+ 	  pa_output_arg_descriptor (insn);
+-	  return "bve,l (%%r22),%%r2\n\tstw %%r2,-24(%%sp)";
++	  output_asm_insn ("bl .+8,%%r2\b\t"
++			   "ldo 24(%%r2),%%r2\n\t"
++			   "stw %%r2,-24(%%sp)\n\t"
++			   "extru,<> %r22,30,1,%r0\n\t"
++			   "bve,n (%%r22)\n\t"
++			   "ldw -2(%%r22),%%r21\n\t"
++			   "bve (%%r21)\n\t"
++			   "ldw 2(%%r22),%%r19", xoperands);
++	  return "";
+ 	}
+-      output_asm_insn ("bl .+8,%%r2\n\t"
+-		       "ldo 16(%%r2),%%r2\n\t"
+-		       "ldsid (%%r22),%%r1\n\t"
+-		       "mtsp %%r1,%%sr0", xoperands);
+-      pa_output_arg_descriptor (insn);
+-      return "be 0(%%sr0,%%r22)\n\tstw %%r2,-24(%%sp)";
+     }
+- 
++
+   /* We need a long PIC call to $$dyncall.  */
+   xoperands[0] = gen_rtx_SYMBOL_REF (Pmode, "$$dyncall");
+   xoperands[1] = gen_rtx_REG (Pmode, 2);
+@@ -10048,7 +10038,7 @@
+ 
+ /* Length in units of the trampoline instruction code.  */
+ 
+-#define TRAMPOLINE_CODE_SIZE (TARGET_64BIT ? 24 : (TARGET_PA_20 ? 32 : 40))
++#define TRAMPOLINE_CODE_SIZE (TARGET_64BIT ? 24 : (TARGET_PA_20 ? 36 : 48))
+ 
+ 
+ /* Output assembler code for a block containing the constant parts
+@@ -10069,27 +10059,46 @@
+ {
+   if (!TARGET_64BIT)
+     {
+-      fputs ("\tldw	36(%r22),%r21\n", f);
+-      fputs ("\tbb,>=,n	%r21,30,.+16\n", f);
+-      if (ASSEMBLER_DIALECT == 0)
+-	fputs ("\tdepi	0,31,2,%r21\n", f);
+-      else
+-	fputs ("\tdepwi	0,31,2,%r21\n", f);
+-      fputs ("\tldw	4(%r21),%r19\n", f);
+-      fputs ("\tldw	0(%r21),%r21\n", f);
+       if (TARGET_PA_20)
+ 	{
+-	  fputs ("\tbve	(%r21)\n", f);
+-	  fputs ("\tldw	40(%r22),%r29\n", f);
++	  fputs ("\tmfia	%r20\n", f);
++	  fputs ("\tldw		48(%r20),%r22\n", f);
++	  fputs ("\tcopy	%r22,%r21\n", f);
++	  fputs ("\tbb,>=,n	%r22,30,.+16\n", f);
++	  fputs ("\tdepwi	0,31,2,%r22\n", f);
++	  fputs ("\tldw		0(%r22),%r21\n", f);
++	  fputs ("\tldw		4(%r22),%r19\n", f);
++	  fputs ("\tbve		(%r21)\n", f);
++	  fputs ("\tldw		52(%r1),%r29\n", f);
+ 	  fputs ("\t.word	0\n", f);
+ 	  fputs ("\t.word	0\n", f);
++	  fputs ("\t.word	0\n", f);
+ 	}
+       else
+ 	{
++	  if (ASSEMBLER_DIALECT == 0)
++	    {
++	      fputs ("\tbl	.+8,%r20\n", f);
++	      fputs ("\tdepi	0,31,2,%r20\n", f);
++	    }
++	  else
++	    {
++	      fputs ("\tb,l	.+8,%r20\n", f);
++	      fputs ("\tdepwi	0,31,2,%r20\n", f);
++	    }
++	  fputs ("\tldw		40(%r20),%r22\n", f);
++	  fputs ("\tcopy	%r22,%r21\n", f);
++	  fputs ("\tbb,>=,n	%r22,30,.+16\n", f);
++	  if (ASSEMBLER_DIALECT == 0)
++	    fputs ("\tdepi	0,31,2,%r22\n", f);
++	  else
++	    fputs ("\tdepwi	0,31,2,%r22\n", f);
++	  fputs ("\tldw		0(%r22),%r21\n", f);
++	  fputs ("\tldw		4(%r22),%r19\n", f);
+ 	  fputs ("\tldsid	(%r21),%r1\n", f);
+ 	  fputs ("\tmtsp	%r1,%sr0\n", f);
+-	  fputs ("\tbe	0(%sr0,%r21)\n", f);
+-	  fputs ("\tldw	40(%r22),%r29\n", f);
++	  fputs ("\tbe		0(%sr0,%r21)\n", f);
++	  fputs ("\tldw		44(%r20),%r29\n", f);
+ 	}
+       fputs ("\t.word	0\n", f);
+       fputs ("\t.word	0\n", f);
+@@ -10103,11 +10112,11 @@
+       fputs ("\t.dword 0\n", f);
+       fputs ("\t.dword 0\n", f);
+       fputs ("\tmfia	%r31\n", f);
+-      fputs ("\tldd	24(%r31),%r1\n", f);
+-      fputs ("\tldd	24(%r1),%r27\n", f);
+-      fputs ("\tldd	16(%r1),%r1\n", f);
++      fputs ("\tldd	24(%r31),%r27\n", f);
++      fputs ("\tldd	32(%r31),%r31\n", f);
++      fputs ("\tldd	16(%r27),%r1\n", f);
+       fputs ("\tbve	(%r1)\n", f);
+-      fputs ("\tldd	32(%r31),%r31\n", f);
++      fputs ("\tldd	24(%r27),%r27\n", f);
+       fputs ("\t.dword 0  ; fptr\n", f);
+       fputs ("\t.dword 0  ; static link\n", f);
+     }
+@@ -10117,10 +10126,10 @@
+    FNADDR is an RTX for the address of the function's pure code.
+    CXT is an RTX for the static chain value for the function.
+ 
+-   Move the function address to the trampoline template at offset 36.
+-   Move the static chain value to trampoline template at offset 40.
+-   Move the trampoline address to trampoline template at offset 44.
+-   Move r19 to trampoline template at offset 48.  The latter two
++   Move the function address to the trampoline template at offset 48.
++   Move the static chain value to trampoline template at offset 52.
++   Move the trampoline address to trampoline template at offset 56.
++   Move r19 to trampoline template at offset 60.  The latter two
+    words create a plabel for the indirect call to the trampoline.
+ 
+    A similar sequence is used for the 64-bit port but the plabel is
+@@ -10146,15 +10155,15 @@
+ 
+   if (!TARGET_64BIT)
+     {
+-      tmp = adjust_address (m_tramp, Pmode, 36);
++      tmp = adjust_address (m_tramp, Pmode, 48);
+       emit_move_insn (tmp, fnaddr);
+-      tmp = adjust_address (m_tramp, Pmode, 40);
++      tmp = adjust_address (m_tramp, Pmode, 52);
+       emit_move_insn (tmp, chain_value);
+ 
+       /* Create a fat pointer for the trampoline.  */
+-      tmp = adjust_address (m_tramp, Pmode, 44);
++      tmp = adjust_address (m_tramp, Pmode, 56);
+       emit_move_insn (tmp, r_tramp);
+-      tmp = adjust_address (m_tramp, Pmode, 48);
++      tmp = adjust_address (m_tramp, Pmode, 60);
+       emit_move_insn (tmp, gen_rtx_REG (Pmode, 19));
+ 
+       /* fdc and fic only use registers for the address to flush,
+@@ -10206,7 +10215,7 @@
      }
  
  #ifdef HAVE_ENABLE_EXECUTE_STACK
@@ -15298,6 +17989,35 @@ Index: gcc/config/pa/pa.c
  		     LCT_NORMAL, VOIDmode, XEXP (m_tramp, 0), Pmode);
  #endif
  }
+@@ -10213,13 +10222,13 @@
+ 
+ /* Perform any machine-specific adjustment in the address of the trampoline.
+    ADDR contains the address that was passed to pa_trampoline_init.
+-   Adjust the trampoline address to point to the plabel at offset 44.  */
++   Adjust the trampoline address to point to the plabel at offset 56.  */
+ 
+ static rtx
+ pa_trampoline_adjust_address (rtx addr)
+ {
+   if (!TARGET_64BIT)
+-    addr = memory_address (Pmode, plus_constant (Pmode, addr, 46));
++    addr = memory_address (Pmode, plus_constant (Pmode, addr, 58));
+   return addr;
+ }
+ 
+Index: gcc/config/pa/pa.h
+===================================================================
+--- a/src/gcc/config/pa/pa.h	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/config/pa/pa.h	(.../branches/gcc-9-branch)
+@@ -689,7 +689,7 @@
+ 
+ /* Length in units of the trampoline for entering a nested function.  */
+ 
+-#define TRAMPOLINE_SIZE (TARGET_64BIT ? 72 : 52)
++#define TRAMPOLINE_SIZE (TARGET_64BIT ? 72 : 64)
+ 
+ /* Alignment required by the trampoline.  */
+ 
 Index: gcc/config/mips/mips.md
 ===================================================================
 --- a/src/gcc/config/mips/mips.md	(.../tags/gcc_9_2_0_release)
