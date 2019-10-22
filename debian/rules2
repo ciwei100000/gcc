@@ -540,7 +540,11 @@ endif
 
 ifneq (,$(findstring s390x-linux,$(DEB_TARGET_GNU_TYPE)))
   ifeq ($(derivative),Ubuntu)
-    CONFARGS += --with-arch=zEC12
+    ifneq (,$(filter $(distrelease),xenial bionic disco eoan))
+      CONFARGS += --with-arch=zEC12
+    else
+      CONFARGS += --with-arch=z13 --with-mtune=z15
+    endif
   else # Debian
     CONFARGS += --with-arch=z196
   endif
