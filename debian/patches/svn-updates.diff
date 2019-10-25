@@ -1,10 +1,10 @@
-# DP: updates from the 9 branch upto 20191025 (r277442).
+# DP: updates from the 9 branch upto 20191025 (r277460).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Fri Oct 25 11:34:28 CEST 2019
-Fri Oct 25 09:34:28 UTC 2019 (revision 277442)
+Fri Oct 25 19:17:19 CEST 2019
+Fri Oct 25 17:17:19 UTC 2019 (revision 277460)
 EOF
 }
 
@@ -8623,7 +8623,52 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,831 @@
+@@ -1,3 +1,876 @@
++2019-10-25  Richard Earnshaw  <rearnsha@arm.com>
++
++	Backport from mainline
++	2019-05-08  Mihail Ionescu  <mihail.ionescu@arm.com>
++	    Richard Earnshaw  <rearnsha@arm.com>
++	PR target/88167
++	* config/arm/arm.c (thumb1_prologue_unused_call_clobbered_lo_regs): New
++	function.
++	(thumb1_epilogue_unused_call_clobbered_lo_regs): New function.
++	(thumb1_compute_save_core_reg_mask): Don't force a spare work
++	register if both the epilogue and prologue can use call-clobbered
++	regs.
++	(thumb1_unexpanded_epilogue): Use
++	thumb1_epilogue_unused_call_clobbered_lo_regs.  Reverse the logic for
++	picking temporaries for restoring high regs to match that of the
++	prologue where possible.
++	(thumb1_expand_prologue): Add any usable call-clobbered low registers to
++	the list of work registers.  Detect if the return address is still live
++	at the end of the prologue and avoid using it for a work register if so.
++	If the return address is not live, add LR to the list of pushable regs
++	after the first pass.
++
++2019-10-25  Jan Hubicka  <hubicka@ucw.cz>
++
++	Backport from mainline
++	2019-10-24  Jan Hubicka  <hubicka@ucw.cz>
++	* symbols-summary.h (fast_function_summary<T *, V>::release,
++	fast_call_summary<T *, V>::release): Free m_vector.
++
++2019-10-25  Jan Hubicka  <hubicka@ucw.cz>
++
++	Backport from mainline
++
++	2019-10-18  Jakub Jelinek  <jakub@redhat.com>
++	PR middle-end/92153
++	* ggc-page.c (release_pages): Read g->alloc_size before free rather
++	than after it.
++
++	2019-10-11  Jan Hubicka  <hubicka@ucw.cz>
++	* ggc-page.c (release_pages): Output statistics when !quiet_flag.
++	(ggc_collect): Dump later to not interfere with release_page dump.
++	(ggc_trim): New function.
++	* ggc-none.c (ggc_trim): New.
++	* ggc.h (ggc_trim): Declare.
++
 +2019-10-24  Mihail Ionescu  <mihail.ionescu@arm.com>
 +
 +	Backport from mainline
@@ -9455,7 +9500,7 @@ Index: gcc/ChangeLog
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -513,7 +1341,7 @@
+@@ -513,7 +1386,7 @@
  
  2019-07-11  Uroš Bizjak  <ubizjak@gmail.com>
  
@@ -9586,6 +9631,49 @@ Index: gcc/testsuite/gcc.target/arm/acle/crc_hf_1.c
 +foo (uint32_t a, uint32_t b)
 +{
 +  return __crc32cw (a, b);
++}
+Index: gcc/testsuite/gcc.target/arm/pr88167-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/arm/pr88167-1.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gcc.target/arm/pr88167-1.c	(.../branches/gcc-9-branch)
+@@ -0,0 +1,15 @@
++/* { dg-do compile } */
++/* { dg-require-effective-target arm_thumb1_ok } */
++/* { dg-options "-O2 -mthumb" }  */
++
++void *retaddr;
++
++void foo (void) {
++  retaddr = __builtin_return_address (0);
++
++  /* Used for enforcing registers stacking.  */
++  asm volatile ("" : : : "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7",
++			 "r8", "r9", "r10", "r11", "r12");
++}
++
++/* { dg-final { scan-assembler-not "mov\tlr," } } */
+Index: gcc/testsuite/gcc.target/arm/pr88167-2.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/arm/pr88167-2.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gcc.target/arm/pr88167-2.c	(.../branches/gcc-9-branch)
+@@ -0,0 +1,18 @@
++/* { dg-do run } */
++/* { dg-options "-O2" }  */
++/* { dg-skip-if "" { ! { arm_thumb1 } } } */
++
++int __attribute__((noclone, noinline))
++foo (int a, long long b) {
++  /* Used for enforcing registers stacking.  */
++  asm volatile ("" : : : "r0", "r1", "r2", "r3",
++			 "r8", "r9", "r10", "r11", "r12");
++  return (int) b;
++}
++
++int main ()
++{
++  if (foo (1, 0x1000000000000003LL) != 3)
++    __builtin_abort ();
++  __builtin_exit (0);
 +}
 Index: gcc/testsuite/gcc.target/arm/multilib.exp
 ===================================================================
@@ -12150,7 +12238,16 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,576 @@
+@@ -1,3 +1,585 @@
++2019-10-25  Richard Earnshaw  <rearnsha@arm.com>
++
++	Backport from mainline
++	2019-05-08  Mihail Ionescu  <mihail.ionescu@arm.com>
++	   Richard Earnshaw  <rearnsha@arm.com>
++	PR target/88167
++	* gcc.target/arm/pr88167-1.c: New test.
++	* gcc.target/arm/pr88167-2.c: New test.
++
 +2019-10-24  Mihail Ionescu  <mihail.ionescu@arm.com>
 +
 +	Backport from mainline
@@ -12727,7 +12824,7 @@ Index: gcc/testsuite/ChangeLog
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -427,7 +1000,7 @@
+@@ -427,7 +1009,7 @@
  	Backport from mainline.
  	2019-05-15  Iain Sandoe  <iain@sandoe.co.uk>
  
@@ -18505,6 +18602,20 @@ Index: gcc/tree-vect-loop.c
  	    {
  	      cond_reduc_op_code = MIN_EXPR;
  	      if (tree_int_cst_sgn (base) == -1)
+Index: gcc/ggc.h
+===================================================================
+--- a/src/gcc/ggc.h	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/ggc.h	(.../branches/gcc-9-branch)
+@@ -243,6 +243,9 @@
+    function is called, not during allocations.  */
+ extern void ggc_collect	(void);
+ 
++/* Return unused memory pages to the system.  */
++extern void ggc_trim (void);
++
+ /* Assume that all GGC memory is reachable and grow the limits for next collection. */
+ extern void ggc_grow (void);
+ 
 Index: gcc/gimplify.c
 ===================================================================
 --- a/src/gcc/gimplify.c	(.../tags/gcc_9_2_0_release)
@@ -18579,6 +18690,28 @@ Index: gcc/tree-cfgcleanup.c
        generate_range_test (bb, index, low, high, &lhs, &rhs);
        cond = gimple_build_cond (LE_EXPR, lhs, rhs, NULL_TREE, NULL_TREE);
      }
+Index: gcc/symbol-summary.h
+===================================================================
+--- a/src/gcc/symbol-summary.h	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/symbol-summary.h	(.../branches/gcc-9-branch)
+@@ -461,6 +461,8 @@
+     if ((*m_vector)[i] != NULL)
+       this->release ((*m_vector)[i]);
+ 
++  vec_free (m_vector);
++
+   this->m_released = true;
+ }
+ 
+@@ -926,6 +928,8 @@
+     if ((*m_vector)[i] != NULL)
+       this->release ((*m_vector)[i]);
+ 
++  vec_free (m_vector);
++
+   this->m_released = true;
+ }
+ 
 Index: gcc/tree-ssa-pre.c
 ===================================================================
 --- a/src/gcc/tree-ssa-pre.c	(.../tags/gcc_9_2_0_release)
@@ -18594,6 +18727,33 @@ Index: gcc/tree-ssa-pre.c
  	  if (visited)
  	    BITMAP_FREE (visited);
  	}
+Index: gcc/lto/lto.c
+===================================================================
+--- a/src/gcc/lto/lto.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/lto/lto.c	(.../branches/gcc-9-branch)
+@@ -2446,6 +2446,8 @@
+ 
+   timevar_push (TV_WHOPR_WPA_IO);
+ 
++  ggc_trim ();
++
+   /* Generate a prefix for the LTRANS unit files.  */
+   blen = strlen (ltrans_output_list);
+   temp_filename = (char *) xmalloc (blen + sizeof ("2147483648.o"));
+Index: gcc/lto/ChangeLog
+===================================================================
+--- a/src/gcc/lto/ChangeLog	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/lto/ChangeLog	(.../branches/gcc-9-branch)
+@@ -1,3 +1,9 @@
++2019-10-25  Jan Hubicka  <hubicka@ucw.cz>
++
++	Backport from mainline
++	* lto-partition.c (add_symbol_to_partition_1): Update.
++	(undo_parittion): Update.
++
+ 2019-08-12  Release Manager
+ 
+ 	* GCC 9.2.0 released.
 Index: gcc/ipa-prop.c
 ===================================================================
 --- a/src/gcc/ipa-prop.c	(.../tags/gcc_9_2_0_release)
@@ -20924,7 +21084,119 @@ Index: gcc/ggc-page.c
 ===================================================================
 --- a/src/gcc/ggc-page.c	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/ggc-page.c	(.../branches/gcc-9-branch)
-@@ -2556,6 +2556,9 @@
+@@ -1016,6 +1016,8 @@
+ static void
+ release_pages (void)
+ {
++  size_t n1 = 0;
++  size_t n2 = 0;
+ #ifdef USING_MADVISE
+   page_entry *p, *start_p;
+   char *start;
+@@ -1061,6 +1063,7 @@
+           else
+             G.free_pages = p;
+           G.bytes_mapped -= mapped_len;
++	  n1 += len;
+ 	  continue;
+         }
+       prev = newprev;
+@@ -1092,6 +1095,7 @@
+       /* Don't count those pages as mapped to not touch the garbage collector
+          unnecessarily. */
+       G.bytes_mapped -= len;
++      n2 += len;
+       while (start_p != p)
+         {
+           start_p->discarded = true;
+@@ -1124,6 +1128,7 @@
+ 	}
+ 
+       munmap (start, len);
++      n1 += len;
+       G.bytes_mapped -= len;
+     }
+ 
+@@ -1151,11 +1156,21 @@
+       {
+ 	*gp = g->next;
+ 	G.bytes_mapped -= g->alloc_size;
++	n1 += g->alloc_size;
+ 	free (g->allocation);
+       }
+     else
+       gp = &g->next;
+ #endif
++  if (!quiet_flag && (n1 || n2))
++    {
++      fprintf (stderr, " {GC");
++      if (n1)
++	fprintf (stderr, " released %luk", (unsigned long)(n1 / 1024));
++      if (n2)
++	fprintf (stderr, " madv_dontneed %luk", (unsigned long)(n2 / 1024));
++      fprintf (stderr, "}");
++    }
+ }
+ 
+ /* This table provides a fast way to determine ceil(log_2(size)) for
+@@ -2178,13 +2193,12 @@
+     return;
+ 
+   timevar_push (TV_GC);
+-  if (!quiet_flag)
+-    fprintf (stderr, " {GC %luk -> ", (unsigned long) G.allocated / 1024);
+   if (GGC_DEBUG_LEVEL >= 2)
+     fprintf (G.debug_file, "BEGIN COLLECTING\n");
+ 
+   /* Zero the total allocated bytes.  This will be recalculated in the
+      sweep phase.  */
++  size_t allocated = G.allocated;
+   G.allocated = 0;
+ 
+   /* Release the pages we freed the last time we collected, but didn't
+@@ -2191,6 +2205,10 @@
+      reuse in the interim.  */
+   release_pages ();
+ 
++  /* Output this later so we do not interfere with release_pages.  */
++  if (!quiet_flag)
++    fprintf (stderr, " {GC %luk -> ", (unsigned long) allocated / 1024);
++
+   /* Indicate that we've seen collections at this context depth.  */
+   G.context_depth_collections = ((unsigned long)1 << (G.context_depth + 1)) - 1;
+ 
+@@ -2221,11 +2239,27 @@
+     fprintf (G.debug_file, "END COLLECTING\n");
+ }
+ 
+-/* Assume that all GGC memory is reachable and grow the limits for next collection.
+-   With checking, trigger GGC so -Q compilation outputs how much of memory really is
+-   reachable.  */
++/* Return free pages to the system.  */
+ 
+ void
++ggc_trim ()
++{
++  timevar_push (TV_GC);
++  G.allocated = 0;
++  sweep_pages ();
++  release_pages ();
++  if (!quiet_flag)
++    fprintf (stderr, " {GC trimmed to %luk, %luk mapped}",
++	     (unsigned long) G.allocated / 1024,
++	     (unsigned long) G.bytes_mapped / 1024);
++  timevar_pop (TV_GC);
++}
++
++/* Assume that all GGC memory is reachable and grow the limits for next
++   collection.  With checking, trigger GGC so -Q compilation outputs how much
++   of memory really is reachable.  */
++
++void
+ ggc_grow (void)
+ {
+   if (!flag_checking)
+@@ -2556,6 +2590,9 @@
  
    count_old_page_tables = G.by_depth_in_use;
  
@@ -20934,7 +21206,7 @@ Index: gcc/ggc-page.c
    /* We've just read in a PCH file.  So, every object that used to be
       allocated is now free.  */
    clear_marks ();
-@@ -2584,8 +2587,6 @@
+@@ -2584,8 +2621,6 @@
  
    /* Allocate the appropriate page-table entries for the pages read from
       the PCH file.  */
@@ -21117,6 +21389,19 @@ Index: gcc/tree-object-size.c
    if (TREE_CODE (else_) == SSA_NAME)
      reexamine |= merge_object_sizes (osi, var, else_, 0);
    else
+Index: gcc/ggc-none.c
+===================================================================
+--- a/src/gcc/ggc-none.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/ggc-none.c	(.../branches/gcc-9-branch)
+@@ -72,3 +72,8 @@
+ ggc_grow (void)
+ {
+ }
++
++void
++ggc_trim (void)
++{
++}
 Index: gcc/config.gcc
 ===================================================================
 --- a/src/gcc/config.gcc	(.../tags/gcc_9_2_0_release)
@@ -24299,6 +24584,164 @@ Index: gcc/config/darwin10.h
   %{!nostdlib:%:version-compare(>< 10.6 10.7 mmacosx-version-min= -ld10-uwfef.o)} \
    %G %{!nolibc:%L}"
  
+Index: gcc/config/arm/arm.c
+===================================================================
+--- a/src/gcc/config/arm/arm.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/config/arm/arm.c	(.../branches/gcc-9-branch)
+@@ -19670,6 +19670,35 @@
+   return save_reg_mask;
+ }
+ 
++/* Return a mask for the call-clobbered low registers that are unused
++   at the end of the prologue.  */
++static unsigned long
++thumb1_prologue_unused_call_clobbered_lo_regs (void)
++{
++  unsigned long mask = 0;
++
++  for (int reg = 0; reg <= LAST_LO_REGNUM; reg++)
++    if (!callee_saved_reg_p (reg)
++	&& !REGNO_REG_SET_P (df_get_live_out (ENTRY_BLOCK_PTR_FOR_FN (cfun)),
++			     reg))
++      mask |= 1 << reg;
++  return mask;
++}
++
++/* Similarly for the start of the epilogue.  */
++static unsigned long
++thumb1_epilogue_unused_call_clobbered_lo_regs (void)
++{
++  unsigned long mask = 0;
++
++  for (int reg = 0; reg <= LAST_LO_REGNUM; reg++)
++    if (!callee_saved_reg_p (reg)
++	&& !REGNO_REG_SET_P (df_get_live_in (EXIT_BLOCK_PTR_FOR_FN (cfun)),
++			     reg))
++      mask |= 1 << reg;
++  return mask;
++}
++
+ /* Compute a bit mask of which core registers need to be
+    saved on the stack for the current function.  */
+ static unsigned long
+@@ -19701,10 +19730,19 @@
+   if (mask & 0xff || thumb_force_lr_save ())
+     mask |= (1 << LR_REGNUM);
+ 
+-  /* Make sure we have a low work register if we need one.
+-     We will need one if we are going to push a high register,
+-     but we are not currently intending to push a low register.  */
++  bool call_clobbered_scratch
++    = (thumb1_prologue_unused_call_clobbered_lo_regs ()
++       && thumb1_epilogue_unused_call_clobbered_lo_regs ());
++
++  /* Make sure we have a low work register if we need one.  We will
++     need one if we are going to push a high register, but we are not
++     currently intending to push a low register.  However if both the
++     prologue and epilogue have a spare call-clobbered low register,
++     then we won't need to find an additional work register.  It does
++     not need to be the same register in the prologue and
++     epilogue.  */
+   if ((mask & 0xff) == 0
++      && !call_clobbered_scratch
+       && ((mask & 0x0f00) || TARGET_BACKTRACE))
+     {
+       /* Use thumb_find_work_register to choose which register
+@@ -24930,12 +24968,7 @@
+       unsigned long mask = live_regs_mask & 0xff;
+       int next_hi_reg;
+ 
+-      /* The available low registers depend on the size of the value we are
+-         returning.  */
+-      if (size <= 12)
+-	mask |=  1 << 3;
+-      if (size <= 8)
+-	mask |= 1 << 2;
++      mask |= thumb1_epilogue_unused_call_clobbered_lo_regs ();
+ 
+       if (mask == 0)
+ 	/* Oh dear!  We have no low registers into which we can pop
+@@ -24943,7 +24976,7 @@
+ 	internal_error
+ 	  ("no low registers available for popping high registers");
+ 
+-      for (next_hi_reg = 8; next_hi_reg < 13; next_hi_reg++)
++      for (next_hi_reg = 12; next_hi_reg > LAST_LO_REGNUM; next_hi_reg--)
+ 	if (live_regs_mask & (1 << next_hi_reg))
+ 	  break;
+ 
+@@ -24951,7 +24984,7 @@
+ 	{
+ 	  /* Find lo register(s) into which the high register(s) can
+              be popped.  */
+-	  for (regno = 0; regno <= LAST_LO_REGNUM; regno++)
++	  for (regno = LAST_LO_REGNUM; regno >= 0; regno--)
+ 	    {
+ 	      if (mask & (1 << regno))
+ 		high_regs_pushed--;
+@@ -24959,13 +24992,14 @@
+ 		break;
+ 	    }
+ 
+-	  mask &= (2 << regno) - 1;	/* A noop if regno == 8 */
++	  if (high_regs_pushed == 0 && regno >= 0)
++	    mask &= ~((1 << regno) - 1);
+ 
+ 	  /* Pop the values into the low register(s).  */
+ 	  thumb_pop (asm_out_file, mask);
+ 
+ 	  /* Move the value(s) into the high registers.  */
+-	  for (regno = 0; regno <= LAST_LO_REGNUM; regno++)
++	  for (regno = LAST_LO_REGNUM; regno >= 0; regno--)
+ 	    {
+ 	      if (mask & (1 << regno))
+ 		{
+@@ -24972,7 +25006,8 @@
+ 		  asm_fprintf (asm_out_file, "\tmov\t%r, %r\n", next_hi_reg,
+ 			       regno);
+ 
+-		  for (next_hi_reg++; next_hi_reg < 13; next_hi_reg++)
++		  for (next_hi_reg--; next_hi_reg > LAST_LO_REGNUM;
++		       next_hi_reg--)
+ 		    if (live_regs_mask & (1 << next_hi_reg))
+ 		      break;
+ 		}
+@@ -25354,10 +25389,20 @@
+ 	  break;
+ 
+       /* Here we need to mask out registers used for passing arguments
+-	 even if they can be pushed.  This is to avoid using them to stash the high
+-	 registers.  Such kind of stash may clobber the use of arguments.  */
++	 even if they can be pushed.  This is to avoid using them to
++	 stash the high registers.  Such kind of stash may clobber the
++	 use of arguments.  */
+       pushable_regs = l_mask & (~arg_regs_mask);
+-      if (lr_needs_saving)
++      pushable_regs |= thumb1_prologue_unused_call_clobbered_lo_regs ();
++
++      /* Normally, LR can be used as a scratch register once it has been
++	 saved; but if the function examines its own return address then
++	 the value is still live and we need to avoid using it.  */
++      bool return_addr_live
++	= REGNO_REG_SET_P (df_get_live_out (ENTRY_BLOCK_PTR_FOR_FN (cfun)),
++			   LR_REGNUM);
++
++      if (lr_needs_saving || return_addr_live)
+ 	pushable_regs &= ~(1 << LR_REGNUM);
+ 
+       if (pushable_regs == 0)
+@@ -25398,6 +25443,11 @@
+ 	      push_mask |= 1 << LR_REGNUM;
+ 	      real_regs_mask |= 1 << LR_REGNUM;
+ 	      lr_needs_saving = false;
++	      /* If the return address is not live at this point, we
++		 can add LR to the list of registers that we can use
++		 for pushes.  */
++	      if (!return_addr_live)
++		pushable_regs |= 1 << LR_REGNUM;
+ 	    }
+ 
+ 	  insn = thumb1_emit_multi_reg_push (push_mask, real_regs_mask);
 Index: gcc/config/arm/t-multilib
 ===================================================================
 --- a/src/gcc/config/arm/t-multilib	(.../tags/gcc_9_2_0_release)
