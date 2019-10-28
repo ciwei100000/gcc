@@ -1,10 +1,10 @@
-# DP: updates from the 7 branch upto 20191008 (r276700).
+# DP: updates from the 7 branch upto 20191028 (r277543).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Tue Oct  8 15:51:47 CEST 2019
-Tue Oct  8 13:51:47 UTC 2019 (revision 276700)
+Mon Oct 28 21:21:52 CET 2019
+Mon Oct 28 20:21:52 UTC 2019 (revision 277543)
 EOF
 }
 
@@ -1475,6 +1475,43 @@ Index: libstdc++-v3/configure.ac
  AC_CHECK_PROG([XSLTPROC], xsltproc, yes, no)
  AC_CHECK_PROG([XMLLINT], xmllint, yes, no)
  GLIBCXX_CONFIGURE_DOCBOOK
+Index: libstdc++-v3/doc/xml/manual/allocator.xml
+===================================================================
+--- a/src/libstdc++-v3/doc/xml/manual/allocator.xml	(.../tags/gcc_7_4_0_release)
++++ b/src/libstdc++-v3/doc/xml/manual/allocator.xml	(.../branches/gcc-7-branch)
+@@ -502,12 +502,12 @@
+   </biblioentry>
+ 
+   <biblioentry>
+-      <title>
+-	<link xmlns:xlink="http://www.w3.org/1999/xlink"
+-	      xlink:href="http://www.drdobbs.com/the-standard-librarian-what-are-allocato/184403759">
++    <title>
++      <link xmlns:xlink="http://www.w3.org/1999/xlink"
++	    xlink:href="https://web.archive.org/web/20190622154249/http://www.drdobbs.com/the-standard-librarian-what-are-allocato/184403759">
+       The Standard Librarian: What Are Allocators Good For?
+-	</link>
+-      </title>
++      </link>
++    </title>
+ 
+     <author><personname><firstname>Matt</firstname><surname>Austern</surname></personname></author>
+     <publisher>
+@@ -515,12 +515,13 @@
+ 	C/C++ Users Journal
+       </publishername>
+     </publisher>
++    <pubdate>2000-12</pubdate>
+   </biblioentry>
+ 
+   <biblioentry>
+       <title>
+ 	<link xmlns:xlink="http://www.w3.org/1999/xlink"
+-	      xlink:href="http://www.hoard.org/">
++	      xlink:href="http://hoard.org">
+       The Hoard Memory Allocator
+ 	</link>
+       </title>
 Index: libstdc++-v3/doc/xml/manual/shared_ptr.xml
 ===================================================================
 --- a/src/libstdc++-v3/doc/xml/manual/shared_ptr.xml	(.../tags/gcc_7_4_0_release)
@@ -1563,6 +1600,33 @@ Index: libstdc++-v3/doc/xml/manual/status_cxx2017.xml
    </tbody>
  </tgroup>
  </table>
+Index: libstdc++-v3/doc/xml/manual/documentation_hacking.xml
+===================================================================
+--- a/src/libstdc++-v3/doc/xml/manual/documentation_hacking.xml	(.../tags/gcc_7_4_0_release)
++++ b/src/libstdc++-v3/doc/xml/manual/documentation_hacking.xml	(.../branches/gcc-7-branch)
+@@ -805,7 +805,7 @@
+       </para>
+ 
+       <para>
+-	Generated files are output into separate sub directores of
++	Generated files are output into separate sub-directores of
+ 	<filename class="directory">doc/docbook/</filename> in the
+ 	build directory, based on the output format. For instance, the
+ 	HTML docs will be in <filename
+@@ -813,6 +813,13 @@
+       </para>
+ 
+       <para>
++	The <screen>doc-html-docbook-regenerate</screen> target will generate
++	the HTML files and copy them back to the libstdc++ source tree.
++	This can be used to update the HTML files that are checked in to
++	version control.
++      </para>
++
++      <para>
+ 	If the Docbook stylesheets are installed in a custom location,
+ 	one can use the variable <literal>XSL_STYLE_DIR</literal> to
+ 	override the Makefile defaults. For example:
 Index: libstdc++-v3/doc/Makefile.in
 ===================================================================
 --- a/src/libstdc++-v3/doc/Makefile.in	(.../tags/gcc_7_4_0_release)
@@ -1575,6 +1639,27 @@ Index: libstdc++-v3/doc/Makefile.in
  
  # Validate existing XML structure.
  XMLLINT = xmllint
+@@ -925,7 +926,6 @@
+ 
+ ${docbook_outdir}/html:
+ 	mkdir -p ${docbook_outdir}/html
+-	mkdir -p ${docbook_outdir}/html/ext
+ 	mkdir -p ${docbook_outdir}/html/images
+ 	mkdir -p ${docbook_outdir}/html/manual
+ 
+@@ -977,6 +977,12 @@
+ 	$(STAMP) stamp-html-docbook
+ 
+ doc-html-docbook: stamp-html-docbook-data
++
++# Generate the HTML pages and copy them back to the source tree.
++doc-html-docbook-regenerate: doc-html-docbook
++	$(INSTALL_DATA) ${docbook_outdir}/html/*.html ${top_srcdir}/doc/html
++	$(INSTALL_DATA) ${docbook_outdir}/html/images/* ${top_srcdir}/doc/html/images
++	$(INSTALL_DATA) ${docbook_outdir}/html/manual/*.html ${top_srcdir}/doc/html/manual
+ stamp-html-single-docbook: $(xml_sources) ${docbook_outdir}/html
+ 	@echo "Generating html single file..."
+ 	$(XSLTPROC) $(XSLT_PARAM) $(XSLT_FLAGS) -o ${manual_html} \
 Index: libstdc++-v3/doc/html/manual/status.html
 ===================================================================
 --- a/src/libstdc++-v3/doc/html/manual/status.html	(.../tags/gcc_7_4_0_release)
@@ -1624,6 +1709,25 @@ Index: libstdc++-v3/doc/html/manual/memory.html
 ===================================================================
 --- a/src/libstdc++-v3/doc/html/manual/memory.html	(.../tags/gcc_7_4_0_release)
 +++ b/src/libstdc++-v3/doc/html/manual/memory.html	(.../branches/gcc-7-branch)
+@@ -314,13 +314,13 @@
+     </em>. </span>
+       isoc++_1998
+     <span class="pagenums">20.4 Memory. </span></p></div><div class="biblioentry"><a id="id-1.3.4.4.4.3.9.3"></a><p><span class="title"><em>
+-	<a class="link" href="http://www.drdobbs.com/the-standard-librarian-what-are-allocato/184403759" target="_top">
++      <a class="link" href="https://web.archive.org/web/20190622154249/http://www.drdobbs.com/the-standard-librarian-what-are-allocato/184403759" target="_top">
+       The Standard Librarian: What Are Allocators Good For?
+-	</a>
+-      </em>. </span><span class="author"><span class="firstname">Matt</span> <span class="surname">Austern</span>. </span><span class="publisher"><span class="publishername">
++      </a>
++    </em>. </span><span class="author"><span class="firstname">Matt</span> <span class="surname">Austern</span>. </span><span class="publisher"><span class="publishername">
+ 	C/C++ Users Journal
+-      . </span></span></p></div><div class="biblioentry"><a id="id-1.3.4.4.4.3.9.4"></a><p><span class="title"><em>
+-	<a class="link" href="http://www.hoard.org/" target="_top">
++      . </span></span><span class="pubdate">2000-12. </span></p></div><div class="biblioentry"><a id="id-1.3.4.4.4.3.9.4"></a><p><span class="title"><em>
++	<a class="link" href="http://hoard.org" target="_top">
+       The Hoard Memory Allocator
+ 	</a>
+       </em>. </span><span class="author"><span class="firstname">Emery</span> <span class="surname">Berger</span>. </span></p></div><div class="biblioentry"><a id="id-1.3.4.4.4.3.9.5"></a><p><span class="title"><em>
 @@ -554,7 +554,7 @@
  extra template parameter, even if it had a default value.  The
  available policies are:
@@ -1649,6 +1753,53 @@ Index: libstdc++-v3/doc/html/manual/memory.html
         </p><p>
  This policy uses a non-reentrant add_ref_lock() with no locking. It is
  used when libstdc++ is built without <code class="literal">--enable-threads</code>.
+Index: libstdc++-v3/doc/html/manual/documentation_hacking.html
+===================================================================
+--- a/src/libstdc++-v3/doc/html/manual/documentation_hacking.html	(.../tags/gcc_7_4_0_release)
++++ b/src/libstdc++-v3/doc/html/manual/documentation_hacking.html	(.../branches/gcc-7-branch)
+@@ -381,11 +381,16 @@
+       </p><p>
+       </p><pre class="screen"><strong class="userinput"><code>make doc-xml-single-docbook</code></strong></pre><p>
+       </p><p>
+-	Generated files are output into separate sub directores of
++	Generated files are output into separate sub-directores of
+ 	<code class="filename">doc/docbook/</code> in the
+ 	build directory, based on the output format. For instance, the
+ 	HTML docs will be in <code class="filename">doc/docbook/html</code>.
+       </p><p>
++	The </p><pre class="screen">doc-html-docbook-regenerate</pre><p> target will generate
++	the HTML files and copy them back to the libstdc++ source tree.
++	This can be used to update the HTML files that are checked in to
++	version control.
++      </p><p>
+ 	If the Docbook stylesheets are installed in a custom location,
+ 	one can use the variable <code class="literal">XSL_STYLE_DIR</code> to
+ 	override the Makefile defaults. For example:
+Index: libstdc++-v3/doc/Makefile.am
+===================================================================
+--- a/src/libstdc++-v3/doc/Makefile.am	(.../tags/gcc_7_4_0_release)
++++ b/src/libstdc++-v3/doc/Makefile.am	(.../branches/gcc-7-branch)
+@@ -477,7 +477,6 @@
+ 
+ ${docbook_outdir}/html:
+ 	mkdir -p ${docbook_outdir}/html
+-	mkdir -p ${docbook_outdir}/html/ext
+ 	mkdir -p ${docbook_outdir}/html/images
+ 	mkdir -p ${docbook_outdir}/html/manual
+ 
+@@ -546,6 +545,12 @@
+ 
+ doc-html-docbook: stamp-html-docbook-data
+ 
++# Generate the HTML pages and copy them back to the source tree.
++doc-html-docbook-regenerate: doc-html-docbook
++	$(INSTALL_DATA) ${docbook_outdir}/html/*.html ${top_srcdir}/doc/html
++	$(INSTALL_DATA) ${docbook_outdir}/html/images/* ${top_srcdir}/doc/html/images
++	$(INSTALL_DATA) ${docbook_outdir}/html/manual/*.html ${top_srcdir}/doc/html/manual
++
+ # HTML, all one page
+ # NB: Have to generate customization XSL for UTF-8 output.
+ manual_html = ${docbook_outdir}/html/libstdc++-manual-single.html
 Index: libstdc++-v3/po/Makefile.in
 ===================================================================
 --- a/src/libstdc++-v3/po/Makefile.in	(.../tags/gcc_7_4_0_release)
@@ -2056,6 +2207,23 @@ Index: libstdc++-v3/libsupc++/guard_error.cc
 +  recursive_init_error::~recursive_init_error() noexcept { }
  }
 -
+Index: libstdc++-v3/libsupc++/new_opa.cc
+===================================================================
+--- a/src/libstdc++-v3/libsupc++/new_opa.cc	(.../tags/gcc_7_4_0_release)
++++ b/src/libstdc++-v3/libsupc++/new_opa.cc	(.../branches/gcc-7-branch)
+@@ -114,9 +114,10 @@
+     sz = 1;
+ 
+ #if _GLIBCXX_HAVE_ALIGNED_ALLOC
+-# ifdef _AIX
++# if defined _AIX || defined __APPLE__
+   /* AIX 7.2.0.0 aligned_alloc incorrectly has posix_memalign's requirement
+-   * that alignment is a multiple of sizeof(void*).  */
++   * that alignment is a multiple of sizeof(void*).
++   * OS X 10.15 has the same requirement.  */
+   if (align < sizeof(void*))
+     align = sizeof(void*);
+ # endif
 Index: libstdc++-v3/libsupc++/hash_bytes.cc
 ===================================================================
 --- a/src/libstdc++-v3/libsupc++/hash_bytes.cc	(.../tags/gcc_7_4_0_release)
@@ -2100,7 +2268,32 @@ Index: libstdc++-v3/ChangeLog
 ===================================================================
 --- a/src/libstdc++-v3/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/libstdc++-v3/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,253 @@
+@@ -1,3 +1,278 @@
++2019-10-24  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backport from mainline
++	2019-10-18  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/92143
++	* libsupc++/new_opa.cc (operator new) [__APPLE__]: Increase alignment
++	to at least sizeof(void*).
++
++	Backport from mainline
++	2019-10-08  Jonathan Wakely  <jwakely@redhat.com>
++
++	* doc/Makefile.am (doc-html-docbook-regenerate): New target.
++	(${docbook_outdir}/html): Do not create unused 'html/ext' directory.
++	* doc/Makefile.in: Regenerate.
++	* doc/xml/manual/documentation_hacking.xml: Document new target.
++	* doc/html/*: Regenerate.
++
++	* doc/xml/manual/allocator.xml: Use archived copy of CUJ article.
++
++	Backport from mainline
++	2019-05-31  Gerald Pfeifer  <gerald@pfeifer.com>
++
++	* doc/xml/manual/allocator.xml: Move hoard.org back to http.
++
 +2019-09-11  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	* python/libstdcxx/v6/xmethods.py (SharedPtrUseCountWorker.__call__):
@@ -3410,6 +3603,28 @@ Index: libgcc/config/rs6000/darwin-vecsave.S
  	.align 2
  
  .private_extern saveVEC
+Index: gcc/tree-vrp.c
+===================================================================
+--- a/src/gcc/tree-vrp.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/tree-vrp.c	(.../branches/gcc-7-branch)
+@@ -2535,10 +2535,13 @@
+ 		max_ovf = 1;
+ 	    }
+ 
+-	  /* If we have overflow for the constant part and the resulting
+-	     range will be symbolic, drop to VR_VARYING.  */
+-	  if ((min_ovf && sym_min_op0 != sym_min_op1)
+-	      || (max_ovf && sym_max_op0 != sym_max_op1))
++	  /* If the resulting range will be symbolic, we need to eliminate any
++	     explicit or implicit overflow introduced in the above computation
++	     because compare_values could make an incorrect use of it.  That's
++	     why we require one of the ranges to be a singleton.  */
++	  if ((sym_min_op0 != sym_min_op1 || sym_max_op0 != sym_max_op1)
++	      && (min_ovf || max_ovf
++		  || (min_op0 != max_op0 && min_op1 != max_op1)))
+ 	    {
+ 	      set_value_range_to_varying (vr);
+ 	      return;
 Index: gcc/tree-complex.c
 ===================================================================
 --- a/src/gcc/tree-complex.c	(.../tags/gcc_7_4_0_release)
@@ -4127,7 +4342,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-7-branch)
 @@ -1 +1 @@
 -20181206
-+20191008
++20191028
 Index: gcc/valtrack.c
 ===================================================================
 --- a/src/gcc/valtrack.c	(.../tags/gcc_7_4_0_release)
@@ -5116,7 +5331,114 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,1897 @@
+@@ -1,3 +1,2004 @@
++2019-10-25  Richard Earnshaw  <rearnsha@arm.com>
++
++	Backport from mainline
++	2019-05-08  Mihail Ionescu  <mihail.ionescu@arm.com>
++	    Richard Earnshaw  <rearnsha@arm.com>
++	PR target/88167
++	* config/arm/arm.c (thumb1_prologue_unused_call_clobbered_lo_regs): New
++	function.
++	(thumb1_epilogue_unused_call_clobbered_lo_regs): New function.
++	(thumb1_compute_save_core_reg_mask): Don't force a spare work
++	register if both the epilogue and prologue can use call-clobbered
++	regs.
++	(thumb1_unexpanded_epilogue): Use
++	thumb1_epilogue_unused_call_clobbered_lo_regs.  Reverse the logic for
++	picking temporaries for restoring high regs to match that of the
++	prologue where possible.
++	(thumb1_expand_prologue): Add any usable call-clobbered low registers to
++	the list of work registers.  Detect if the return address is still live
++	at the end of the prologue and avoid using it for a work register if so.
++	If the return address is not live, add LR to the list of pushable regs
++	after the first pass.
++
++2019-10-24  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2019-10-17  Richard Biener  <rguenther@suse.de>
++
++	PR debug/91887
++	* dwarf2out.c (gen_formal_parameter_die): Also try to match
++	context_die against a DW_TAG_GNU_formal_parameter_pack parent.
++
++	2019-09-19  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/91812
++	* tree-ssa-phiprop.c (propagate_with_phi): Do not replace
++	volatile loads.
++
++2019-10-23  Eric Botcazou  <ebotcazou@adacore.com>
++
++	PR tree-optimization/92131
++	* tree-vrp.c (extract_range_from_plus_minus_expr): If the resulting
++	range would be symbolic, drop to varying for any explicit overflow
++	in the constant part or if neither range is a singleton.
++
++2019-10-18  Georg-Johann Lay  <avr@gjlay.de>
++
++	Backport from trunk
++	2019-10-18  Georg-Johann Lay  <avr@gjlay.de>
++
++	PR target/86040
++	* config/avr/avr.c (avr_out_lpm): Do not shortcut-return.
++
++2019-10-17  Segher Boessenkool  <segher@kernel.crashing.org>
++
++	Backport from trunk
++	2019-03-15  Segher Boessenkool  <segher@kernel.crashing.org>
++
++	PR rtl-optimization/89721
++	* lra-constraints (invariant_p): Return false if side_effects_p holds.
++
++2019-10-17  Richard Earnshaw  <rearnsha@arm.com>
++
++	Backport from mainline
++	2019-05-03  Richard Earnshaw  <rearnsha@arm.com>
++
++	PR target/89400
++	* config/arm/arm.md (unaligned_loadsi): Add variant for thumb1.
++	Restrict 'all' variant to 32-bit configurations.
++	(unaligned_loadhiu): Likewise.
++	(unaligned_storehi): Likewise.
++	(unaligned_storesi): Likewise.
++	(unaligned_loadhis): Disable when compiling for thumb1.
++
++2019-10-16  Peter Bergner  <bergner@linux.ibm.com>
++
++	Backport from mainline
++	2019-10-08  Tulio Magno Quites Machado Filho  <tuliom@linux.ibm.com>
++
++	* config.gcc: Move -L usage from LINK_OS_EXTRA_SPEC32 and
++	LINK_OS_EXTRA_SPEC64 to MD_STARTFILE_PREFIX and
++	MD_STARTFILE_PREFIX_1 when using --with-advance-toolchain.
++
++2019-10-11  Oleg Endo  <olegendo@gcc.gnu.org>
++
++	Backport from mainline
++	2019-10-10  Oleg Endo  <olegendo@gcc.gnu.org>
++
++	PR target/88630
++	* config/sh/sh.h (TARGET_FPU_SH4_300): New macro.
++	* config/sh/sh.c (sh_option_override): Enable fsca and fsrra insns
++	also for TARGET_FPU_SH4_300.
++	(sh_emit_mode_set): Check for TARGET_FPU_SH4_300 instead of
++	TARGET_SH4_300.
++	* config/sh/sh.md (toggle_pr): Add TARGET_FPU_SH4_300 condition.
++	(negsf2): Expand to either negsf2_fpscr or negsf2_no_fpscr.
++	(*negsf2_i): Split into ...
++	(negsf2_fpscr, negsf2_no_fpscr): ... these new patterns.
++	(abssf2): Expand to either abssf2_fpsc or abssf2_no_fpsc.
++	(**abssf2_i): Split into ...
++	(abssf2_fpscr, abssf2_no_fpscr): ... these new patterns.
++	(negdf2): Expand to either negdf2_fpscr or negdf2_no_fpscr.
++	(*negdf2_i): Split into ...
++	(negdf2_fpscr, negdf2_no_fpscr): ... these new patterns.
++	(absdf2): Expand to either absdf2_fpscr or absdf2_no_fpsc.
++	(**abssf2_i): Split into ...
++	(absdf2_fpscr, absdf2_no_fpscr): ... these new patterns.
++
 +2019-10-07  Bill Schmidt  <wschmidt@linux.ibm.com>
 +
 +	Backport from mainline
@@ -7014,7 +7336,7 @@ Index: gcc/ChangeLog
  2018-12-06  Release Manager
  
  	* GCC 7.4.0 released.
-@@ -19,13 +1917,13 @@
+@@ -19,13 +2024,13 @@
  	* gcc/dwarf2out.c (FUNC_SECOND_SECT_LABEL): New.
  	(dwarf2out_switch_text_section): Generate a local label for the second
  	function sub-section and apply it as the second FDE start label.
@@ -7591,7 +7913,7 @@ Index: gcc/testsuite/gcc.target/powerpc/pr91275.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/powerpc/pr91275.c	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/testsuite/gcc.target/powerpc/pr91275.c	(.../branches/gcc-7-branch)
-@@ -0,0 +1,21 @@
+@@ -0,0 +1,26 @@
 +/* Test that we generate vpmsumd correctly without a swap error.  */
 +
 +/* { dg-do run { target { p8vector_hw } } } */
@@ -7604,12 +7926,17 @@ Index: gcc/testsuite/gcc.target/powerpc/pr91275.c
 +  const unsigned long long r0l = 0x8e7dfceac070e3a0;
 +  vector unsigned long long r0 = (vector unsigned long long) {r0l, 0}, v;
 +  const vector unsigned long long pd
-+    = (vector unsigned long) {0xc2LLU << 56, 0};
++    = (vector unsigned long long) {0xc2LLU << 56, 0};
 +
 +  v = __builtin_crypto_vpmsumd ((vector unsigned long long) {r0[0], 0}, pd);
 +
++#if __LITTLE_ENDIAN__
 +  if (v[0] != 0x4000000000000000 || v[1] != 0x65bd7ab605a4a8ff)
 +    __builtin_abort ();
++#else
++  if (v[1] != 0x4000000000000000 || v[0] != 0x65bd7ab605a4a8ff)
++    __builtin_abort ();
++#endif
 +
 +  return 0;
 +}
@@ -17130,6 +17457,49 @@ Index: gcc/testsuite/gcc.target/arm/pr88648-asm-syntax-unified.c
 +/* { dg-final { scan-assembler-times {\.syntax\sunified} 3 } } */
 +/* { dg-final { scan-assembler-not {\.syntax\sdivided} } } */
 +
+Index: gcc/testsuite/gcc.target/arm/pr88167-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/arm/pr88167-1.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/arm/pr88167-1.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,15 @@
++/* { dg-do compile } */
++/* { dg-require-effective-target arm_thumb1_ok } */
++/* { dg-options "-O2 -mthumb" }  */
++
++void *retaddr;
++
++void foo (void) {
++  retaddr = __builtin_return_address (0);
++
++  /* Used for enforcing registers stacking.  */
++  asm volatile ("" : : : "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7",
++			 "r8", "r9", "r10", "r11", "r12");
++}
++
++/* { dg-final { scan-assembler-not "mov\tlr," } } */
+Index: gcc/testsuite/gcc.target/arm/pr88167-2.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/arm/pr88167-2.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.target/arm/pr88167-2.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,18 @@
++/* { dg-do run } */
++/* { dg-options "-O2" }  */
++/* { dg-skip-if "" { ! { arm_thumb1 } } } */
++
++int __attribute__((noclone, noinline))
++foo (int a, long long b) {
++  /* Used for enforcing registers stacking.  */
++  asm volatile ("" : : : "r0", "r1", "r2", "r3",
++			 "r8", "r9", "r10", "r11", "r12");
++  return (int) b;
++}
++
++int main ()
++{
++  if (foo (1, 0x1000000000000003LL) != 3)
++    __builtin_abort ();
++  __builtin_exit (0);
++}
 Index: gcc/testsuite/gcc.target/arm/pr89222.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/arm/pr89222.c	(.../tags/gcc_7_4_0_release)
@@ -20905,6 +21275,29 @@ Index: gcc/testsuite/gfortran.dg/pr35031.f90
 +   integer, intent(in) :: x
 +   entry func2_c(x) bind(c)   ! { dg-error "prohibited in an elemental" }
 +end function func2
+Index: gcc/testsuite/gfortran.dg/char_result_mod_19.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/char_result_mod_19.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/char_result_mod_19.f90	(.../branches/gcc-7-branch)
+@@ -0,0 +1,18 @@
++! { dg-do  run }
++! { dg-additional-sources char_result_19.f90 }
++!
++! Module for char_result_19.f90
++! Tests fix for PR86248
++!
++module test_module
++  implicit none
++  public :: func_1
++  private
++  character(len=*),dimension(0:2),parameter :: darray = (/"el0 ","el11","el2 "/)
++contains
++  function func_1 (func_1_input) result(f)
++    integer, intent(in) :: func_1_input
++    character(len = len_trim (darray(func_1_input))) :: f
++    f = darray(func_1_input)
++  end function func_1
++end module test_module
 Index: gcc/testsuite/gfortran.dg/c_funptr_1.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/c_funptr_1.f90	(.../tags/gcc_7_4_0_release)
@@ -21507,6 +21900,35 @@ Index: gcc/testsuite/gfortran.dg/charlen_17.f90
 +    bar = 1
 +  end function bar
 +end module x
+Index: gcc/testsuite/gfortran.dg/char_result_19.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/char_result_19.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/char_result_19.f90	(.../branches/gcc-7-branch)
+@@ -0,0 +1,24 @@
++! { dg-do preprocess }
++! { dg-additional-options "-cpp" }
++!
++! Test the fix for PR86248
++!
++! Contributed by Bill Long  <longb@cray.com>
++!
++program test
++  use test_module
++  implicit none
++  integer :: i
++  character(:), allocatable :: chr
++  do i = 0, 2
++    chr = func_1 (i)
++    select case (i)
++      case (0)
++        if (chr .ne. 'el0') stop i
++      case (1)
++        if (chr .ne. 'el11') stop i
++      case (2)
++        if (chr .ne. 'el2') stop i
++    end select
++  end do
++end program test
 Index: gcc/testsuite/gfortran.dg/coarray_lock_7.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/coarray_lock_7.f90	(.../tags/gcc_7_4_0_release)
@@ -21634,6 +22056,24 @@ Index: gcc/testsuite/gfortran.dg/pr78259.f90
  ! { dg-options "-fdec-structure" }
  !
  ! PR fortran/78259
+Index: gcc/testsuite/gfortran.dg/pr69455_2.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr69455_2.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr69455_2.f90	(.../branches/gcc-7-branch)
+@@ -0,0 +1,13 @@
++! { dg-do run }
++program foo
++   block
++      use, intrinsic :: ISO_FORTRAN_ENV, only: wp => REAL32, ik => INT32
++      if (ik /= 4) stop 1
++      if (wp /= 4) stop 2
++   end block
++   block
++      use, intrinsic :: ISO_FORTRAN_ENV, only: wp => REAL64, ik => INT64
++      if (ik /= 8) stop 3
++      if (wp /= 8) stop 4
++   end block
++end program foo
 Index: gcc/testsuite/gfortran.dg/finalize_28.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/finalize_28.f90	(.../tags/gcc_7_4_0_release)
@@ -22184,6 +22624,25 @@ Index: gcc/testsuite/gfortran.dg/no_arg_check_2.f90
 -! { dg-final { scan-tree-dump-times "sub_array_assumed \\(\\(struct t1.0:. .\\) array_class_t1_ptr._data.data\\);" 1 "original" } }
 +! { dg-final { scan-tree-dump-times "sub_array_assumed \\(\\(struct t1.0:. .\\) array_class_t1_ptr._data.data\\);" 0 "original" } }
  
+Index: gcc/testsuite/gfortran.dg/pr69455_1.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr69455_1.f90	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr69455_1.f90	(.../branches/gcc-7-branch)
+@@ -0,0 +1,14 @@
++! { dg-do run }
++program foo
++   block
++      use, intrinsic :: iso_c_binding, only: wp => c_float, ik => c_int
++      if (ik /= 4) stop 1
++      if (wp /= 4) stop 2
++   end block
++   block
++      use, intrinsic :: iso_c_binding, only: wp => c_double, ik => c_int64_t
++      if (ik /= 8) stop 3
++      if (wp /= 8) stop 4
++   end block
++end program foo
++
 Index: gcc/testsuite/gfortran.dg/pointer_init_9.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pointer_init_9.f90	(.../tags/gcc_7_4_0_release)
@@ -22570,6 +23029,84 @@ Index: gcc/testsuite/gcc.c-torture/execute/20190820-1.c
 +  struct printf_spec spec;
 +  char *s = pointer_string (0, 0, 0, spec);
 +  return 0;
++}
+Index: gcc/testsuite/gcc.c-torture/execute/20191023-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.c-torture/execute/20191023-1.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.c-torture/execute/20191023-1.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,73 @@
++/* PR tree-optimization/92131 */
++/* Testcase by Armin Rigo <arigo@tunes.org> */
++
++long b, c, d, e, f, i;
++char g, h, j, k;
++int *aa;
++
++static void error (void) __attribute__((noipa));
++static void error (void) { __builtin_abort(); }
++
++static void see_me_here (void) __attribute__((noipa));
++static void see_me_here (void) {}
++
++static void aaa (void) __attribute__((noipa));
++static void aaa (void) {}
++
++static void a (void) __attribute__((noipa));
++static void a (void) {
++  long am, ao;
++  if (aa == 0) {
++    aaa();
++    if (j)
++      goto ay;
++  }
++  return;
++ay:
++  aaa();
++  if (k) {
++    aaa();
++    goto az;
++  }
++  return;
++az:
++  if (i)
++    if (g)
++      if (h)
++        if (e)
++          goto bd;
++  return;
++bd:
++  am = 0;
++  while (am < e) {
++    switch (c) {
++    case 8:
++      goto bh;
++    case 4:
++      return;
++    }
++  bh:
++    if (am >= 0)
++      b = -am;
++    ao = am + b;
++    f = ao & 7;
++    if (f == 0)
++      see_me_here();
++    if (ao >= 0)
++      am++;
++    else
++      error();
++  }
++}
++
++int main (void)
++{
++    j++;
++    k++;
++    i++;
++    g++;
++    h++;
++    e = 1;
++    a();
++    return 0;
 +}
 Index: gcc/testsuite/gcc.c-torture/execute/pr91137.c
 ===================================================================
@@ -24680,6 +25217,37 @@ Index: gcc/testsuite/gcc.dg/torture/pr86554-1.c
 +  bar(&f);
 +  return 0;
 +}
+Index: gcc/testsuite/gcc.dg/torture/pr91812.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/torture/pr91812.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/gcc.dg/torture/pr91812.c	(.../branches/gcc-7-branch)
+@@ -0,0 +1,26 @@
++/* { dg-do compile } */
++/* { dg-skip-if "" { *-*-* } { "-fno-fat-lto-objects" } { "" } } */
++/* { dg-options "-fdump-tree-optimized-blocks" } */
++
++unsigned register1;
++unsigned register2;
++
++void busy_wait_for_register (int x)
++{
++  volatile unsigned* ptr;
++  switch(x) {
++    case 0x1111:
++    ptr = &register1;
++    break;
++
++    case 0x2222:
++    ptr = &register2;
++    break;
++
++    default:
++    return;
++  }
++  while (*ptr) {}
++}
++
++/* { dg-final { scan-tree-dump "loop depth 1" "optimized" } } */
 Index: gcc/testsuite/gcc.dg/torture/pr91200.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.dg/torture/pr91200.c	(.../tags/gcc_7_4_0_release)
@@ -25759,7 +26327,59 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,2133 @@
+@@ -1,3 +1,2185 @@
++2019-10-27  Paul Thomas  <pault@gcc.gnu.org>
++
++	Backport from mainline
++	PR fortran/86248
++	* gfortran.dg/char_result_19.f90 : New test.
++	* gfortran.dg/char_result_mod_19.f90 : Module for the new test.
++
++2019-10-26  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* config/rs6000/darwin.h (ASM_OUTPUT_MAX_SKIP_ALIGN):Guard
++	against out of range max skip or log values.
++
++2019-10-25  Richard Earnshaw  <rearnsha@arm.com>
++
++	Backport from mainline
++	2019-05-08  Mihail Ionescu  <mihail.ionescu@arm.com>
++	   Richard Earnshaw  <rearnsha@arm.com>
++	PR target/88167
++	* gcc.target/arm/pr88167-1.c: New test.
++	* gcc.target/arm/pr88167-2.c: New test.
++
++2019-10-24  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2019-10-17  Richard Biener  <rguenther@suse.de>
++
++	PR debug/91887
++	* g++.dg/debug/dwarf2/pr91887.C: New testcase.
++
++	2019-09-19  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/91812
++	* gcc.dg/torture/pr91812.c: New testcase.
++
++2019-10-23  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* gcc.c-torture/execute/20191023-1.c: New test.
++
++2019-10-18  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/69455
++	* gfortran.dg/pr69455_1.f90: New test.
++	* gfortran.dg/pr69455_2.f90: Ditto.
++
++2019-10-17  Bill Schmidt  <wschmidt@linux.ibm.com>
++
++	Backport from mainline
++	2019-10-15  Bill Schmidt  <wschmidt@linux.ibm.com>
++
++	PR target/92093
++	* gcc.target/powerpc/pr91275.c: Fix type and endian issues.
++
 +2019-10-07  Bill Schmidt  <wschmidt@linux.ibm.com>
 +
 +	Backport from mainline
@@ -37527,6 +38147,23 @@ Index: gcc/testsuite/g++.dg/debug/pr88181.C
 +  G g;
 +  constexpr C<F, G> c(f, g);
 +}
+Index: gcc/testsuite/g++.dg/debug/dwarf2/pr91887.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/debug/dwarf2/pr91887.C	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/testsuite/g++.dg/debug/dwarf2/pr91887.C	(.../branches/gcc-7-branch)
+@@ -0,0 +1,12 @@
++// { dg-do compile }
++// { dg-require-effective-target c++11 }
++// { dg-options "-g -fdebug-types-section" }
++class A {
++public:
++  A();
++  template <typename U> A(U);
++};
++template <class> struct B { typedef A type; };
++template <class R, typename... Args>
++int Bind(R(Args...), typename B<Args>::type...) { return 0; }
++void KeepBufferRefs(A, A) { A a, b(Bind(KeepBufferRefs, a, b)); }
 Index: gcc/testsuite/g++.dg/debug/dwarf2/pr85550.C
 ===================================================================
 --- a/src/gcc/testsuite/g++.dg/debug/dwarf2/pr85550.C	(.../tags/gcc_7_4_0_release)
@@ -42084,6 +42721,18 @@ Index: gcc/dwarf2out.c
        return false;
  
      case MEM:
+@@ -21207,7 +21212,10 @@
+ 
+       /* If the contexts differ, we may not be talking about the same
+ 	 thing.  */
+-      if (parm_die && parm_die->die_parent != context_die)
++      if (parm_die
++	  && parm_die->die_parent != context_die
++	  && (parm_die->die_parent->die_tag != DW_TAG_GNU_formal_parameter_pack
++	      || parm_die->die_parent->die_parent != context_die))
+ 	{
+ 	  if (!DECL_ABSTRACT_P (node))
+ 	    {
 Index: gcc/match.pd
 ===================================================================
 --- a/src/gcc/match.pd	(.../tags/gcc_7_4_0_release)
@@ -42298,6 +42947,88 @@ Index: gcc/tree-ssa-loop-ivcanon.c
  
        if (TREE_CODE (niter) != INTEGER_CST)
  	exit = NULL;
+Index: gcc/ada/sem_util.adb
+===================================================================
+--- a/src/gcc/ada/sem_util.adb	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/ada/sem_util.adb	(.../branches/gcc-7-branch)
+@@ -5203,10 +5203,7 @@
+    -- Defining_Entity --
+    ---------------------
+ 
+-   function Defining_Entity
+-     (N               : Node_Id;
+-      Empty_On_Errors : Boolean := False) return Entity_Id
+-   is
++   function Defining_Entity (N : Node_Id) return Entity_Id is
+       Err : Entity_Id := Empty;
+ 
+    begin
+@@ -5285,14 +5282,10 @@
+                --  can continue semantic analysis.
+ 
+                elsif Nam = Error then
+-                  if Empty_On_Errors then
+-                     return Empty;
+-                  else
+-                     Err := Make_Temporary (Sloc (N), 'T');
+-                     Set_Defining_Unit_Name (N, Err);
++                  Err := Make_Temporary (Sloc (N), 'T');
++                  Set_Defining_Unit_Name (N, Err);
+ 
+-                     return Err;
+-                  end if;
++                  return Err;
+ 
+                --  If not an entity, get defining identifier
+ 
+@@ -5307,11 +5300,7 @@
+             return Entity (Identifier (N));
+ 
+          when others =>
+-            if Empty_On_Errors then
+-               return Empty;
+-            else
+-               raise Program_Error;
+-            end if;
++            raise Program_Error;
+       end case;
+    end Defining_Entity;
+ 
+Index: gcc/ada/sem_util.ads
+===================================================================
+--- a/src/gcc/ada/sem_util.ads	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/ada/sem_util.ads	(.../branches/gcc-7-branch)
+@@ -474,9 +474,7 @@
+    --  in the case of a descendant of a generic formal type (returns Int'Last
+    --  instead of 0).
+ 
+-   function Defining_Entity
+-     (N               : Node_Id;
+-      Empty_On_Errors : Boolean := False) return Entity_Id;
++   function Defining_Entity (N : Node_Id) return Entity_Id;
+    --  Given a declaration N, returns the associated defining entity. If the
+    --  declaration has a specification, the entity is obtained from the
+    --  specification. If the declaration has a defining unit name, then the
+@@ -487,19 +485,6 @@
+    --  local entities declared during loop expansion. These entities need
+    --  debugging information, generated through Qualify_Entity_Names, and
+    --  the loop declaration must be placed in the table Name_Qualify_Units.
+-   --
+-   --  Set flag Empty_On_Error to change the behavior of this routine as
+-   --  follows:
+-   --
+-   --    * True  - A declaration that lacks a defining entity returns Empty.
+-   --      A node that does not allow for a defining entity returns Empty.
+-   --
+-   --    * False - A declaration that lacks a defining entity is given a new
+-   --      internally generated entity which is subsequently returned. A node
+-   --      that does not allow for a defining entity raises Program_Error.
+-   --
+-   --  The former semantics is appropriate for the back end; the latter
+-   --  semantics is appropriate for the front end.
+ 
+    function Denotes_Discriminant
+      (N                : Node_Id;
 Index: gcc/ada/gnatlink.adb
 ===================================================================
 --- a/src/gcc/ada/gnatlink.adb	(.../tags/gcc_7_4_0_release)
@@ -42400,7 +43131,21 @@ Index: gcc/ada/ChangeLog
 ===================================================================
 --- a/src/gcc/ada/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/ada/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,125 @@
+@@ -1,3 +1,139 @@
++2019-10-12  Eric Botcazou  <ebotcazou@adacore.com>
++
++	PR ada/91995
++	* sem_util.ads (Defining_Entity): Remove 2nd and 3th parameters.
++	* sem_util.adb (Defining_Entity): Remove 2nd and 3th parameters,
++	and adjust accordingly.
++
++2019-10-11  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* gcc-interface/decl.c (annotate_value) <INTEGER_CST>: Really test the
++	sign of the value when deciding to build a NEGATE_EXPR.
++	<PLUS_EXPR>: Remove redundant line.
++	<BIT_AND_EXPR>: Do the negation here.
++
 +2019-09-23  Eric Botcazou  <ebotcazou@adacore.com>
 +
 +	* gcc-interface/trans.c (Attribute_to_gnu): Test Can_Use_Internal_Rep
@@ -42676,7 +43421,7 @@ Index: gcc/ada/gcc-interface/decl.c
  
    /* See if we've already saved the value for this node.  */
    if (EXPR_P (gnu_size))
-@@ -8071,49 +8068,56 @@
+@@ -8071,9 +8068,7 @@
      in.base.from = NULL_TREE;
  
    /* If we do not return inside this switch, TCODE will be set to the
@@ -42687,12 +43432,8 @@ Index: gcc/ada/gcc-interface/decl.c
    switch (TREE_CODE (gnu_size))
      {
      case INTEGER_CST:
-       /* For negative values, build NEGATE_EXPR of the opposite.  Such values
--	 can appear for discriminants in expressions for variants.  */
--      if (tree_int_cst_sgn (gnu_size) < 0)
-+	 can appear for discriminants in expressions for variants.  Note that
-+	 sizetype being unsigned, we don't directly use tree_int_cst_sgn.  */
-+      if (tree_int_cst_sign_bit (gnu_size))
+@@ -8082,38 +8077,46 @@
+       if (tree_int_cst_sgn (gnu_size) < 0)
  	{
  	  tree t = wide_int_to_tree (sizetype, wi::neg (gnu_size));
 -	  return annotate_value (build1 (NEGATE_EXPR, sizetype, t));
@@ -42753,7 +43494,7 @@ Index: gcc/ada/gcc-interface/decl.c
      case TRUNC_DIV_EXPR:	tcode = Trunc_Div_Expr; break;
      case CEIL_DIV_EXPR:		tcode = Ceil_Div_Expr; break;
      case FLOOR_DIV_EXPR:	tcode = Floor_Div_Expr; break;
-@@ -8138,20 +8142,56 @@
+@@ -8138,20 +8141,55 @@
      case EQ_EXPR:		tcode = Eq_Expr; break;
      case NE_EXPR:		tcode = Ne_Expr; break;
  
@@ -42763,9 +43504,8 @@ Index: gcc/ada/gcc-interface/decl.c
 +	  && tree_int_cst_sign_bit (TREE_OPERAND (gnu_size, 1)))
 +	{
 +	  tcode = Minus_Expr;
-+	  ops[0] = annotate_value (TREE_OPERAND (gnu_size, 0));
-+	  wide_int op1 = wi::neg (TREE_OPERAND (gnu_size, 1));
-+	  ops[1] = annotate_value (wide_int_to_tree (sizetype, op1));
++	  wide_int wop1 = wi::neg (TREE_OPERAND (gnu_size, 1));
++	  ops[1] = annotate_value (wide_int_to_tree (sizetype, wop1));
 +	  break;
 +	}
 +
@@ -42813,13 +43553,13 @@ Index: gcc/ada/gcc-interface/decl.c
 -	      op1 = wide_int_to_tree (sizetype, wi::neg (signed_op1));
 -	      pre_op1 = annotate_value (build1 (NEGATE_EXPR, sizetype, op1));
 -	    }
-+	  wide_int op1 = wi::sext (TREE_OPERAND (gnu_size, 1),
-+				   TYPE_PRECISION (sizetype));
-+	  ops[1] = annotate_value (wide_int_to_tree (sizetype, op1));
++	  wide_int wop1 = wi::neg (TREE_OPERAND (gnu_size, 1));
++	  tree op1 = wide_int_to_tree (sizetype, wop1);
++	  ops[1] = annotate_value (build1 (NEGATE_EXPR, sizetype, op1));
  	}
        break;
  
-@@ -8162,14 +8202,11 @@
+@@ -8162,14 +8200,11 @@
        if (List_Representation_Info == 3 || type_annotate_only)
  	{
  	  tree t = maybe_inline_call_in_expr (gnu_size);
@@ -42835,7 +43575,7 @@ Index: gcc/ada/gcc-interface/decl.c
      default:
        return No_Uint;
      }
-@@ -8176,20 +8213,15 @@
+@@ -8176,20 +8211,15 @@
  
    /* Now get each of the operands that's relevant for this code.  If any
       cannot be expressed as a repinfo node, say we can't.  */
@@ -42863,7 +43603,7 @@ Index: gcc/ada/gcc-interface/decl.c
  
    /* Save the result in the cache.  */
    if (in.base.from)
-@@ -8202,7 +8234,7 @@
+@@ -8202,7 +8232,7 @@
        h = annotate_value_cache->find_slot (&in, INSERT);
        gcc_assert (!*h);
        *h = ggc_alloc<tree_int_map> ();
@@ -44020,7 +44760,26 @@ Index: gcc/fortran/ChangeLog
 ===================================================================
 --- a/src/gcc/fortran/ChangeLog	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/fortran/ChangeLog	(.../branches/gcc-7-branch)
-@@ -1,3 +1,445 @@
+@@ -1,3 +1,464 @@
++2019-10-27  Paul Thomas  <pault@gcc.gnu.org>
++
++	Backport from mainline
++	PR fortran/86248
++	* resolve.c (flag_fn_result_spec): Correct a typo before the
++	function declaration.
++	* trans-decl.c (gfc_sym_identifier): Boost the length of 'name'
++	to allow for all variants. Simplify the code by using a pointer
++	to the symbol's proc_name and taking the return out of each of
++	the conditional branches. Allow symbols with fn_result_spec set
++	that do not come from a procedure namespace and have a module
++	name to go through the non-fn_result_spec branch.
++
++2019-10-18  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/69455
++	* trans-decl.c (generate_local_decl): Avoid misconstructed
++	intrinsic modules in a BLOCK construct.
++
 +2019-09-15  Thomas Koenig  <tkoenig@gcc.gnu.org>
 +
 +	Backport from trunk
@@ -45054,7 +45813,18 @@ Index: gcc/fortran/resolve.c
      }
  
    if (sym->ts.type == BT_DERIVED && sym->ts.u.derived->attr.generic)
-@@ -7414,13 +7430,54 @@
+@@ -6989,6 +7005,10 @@
+   for (ref = result->ref; ref; ref = ref->next)
+     if (ref->type == REF_ARRAY && ref->next == NULL)
+       {
++	if (ref->u.ar.dimen == 0
++	    && ref->u.ar.as && ref->u.ar.as->corank)
++	  return result;
++
+ 	ref->u.ar.type = AR_FULL;
+ 
+ 	for (i = 0; i < ref->u.ar.dimen; i++)
+@@ -7414,13 +7434,54 @@
  
    if (codimension)
      for (i = ar->dimen; i < ar->dimen + ar->codimen; i++)
@@ -45115,7 +45885,7 @@ Index: gcc/fortran/resolve.c
    for (i = 0; i < ar->dimen; i++)
      {
        if (ar->type == AR_ELEMENT || ar->type == AR_FULL)
-@@ -10264,6 +10321,11 @@
+@@ -10264,6 +10325,11 @@
    gfc_get_sym_tree (name, ns, &tmp, false);
    gfc_add_type (tmp->n.sym, &e->ts, NULL);
  
@@ -45127,7 +45897,7 @@ Index: gcc/fortran/resolve.c
    as = NULL;
    ref = NULL;
    aref = NULL;
-@@ -10754,6 +10816,9 @@
+@@ -10754,6 +10820,9 @@
    if (!gfc_check_dependency ((*code)->expr1, (*code)->expr2, 1))
      return false;
  
@@ -45137,7 +45907,7 @@ Index: gcc/fortran/resolve.c
    tmp_expr = get_temp_from_expr ((*code)->expr1, ns);
    tmp_expr->where = (*code)->loc;
  
-@@ -11163,7 +11228,7 @@
+@@ -11163,7 +11232,7 @@
  	case EXEC_ENDFILE:
  	case EXEC_REWIND:
  	case EXEC_FLUSH:
@@ -45146,7 +45916,7 @@ Index: gcc/fortran/resolve.c
  	    break;
  
  	  resolve_branch (code->ext.filepos->err, code);
-@@ -11385,7 +11450,7 @@
+@@ -11385,7 +11454,7 @@
  	  && (gsym->type == GSYM_FUNCTION || gsym->type == GSYM_SUBROUTINE)))
      {
        if (!gsym)
@@ -45155,7 +45925,7 @@ Index: gcc/fortran/resolve.c
        gsym->where = sym->declared_at;
        gsym->sym_name = sym->name;
        gsym->binding_label = sym->binding_label;
-@@ -14854,7 +14919,7 @@
+@@ -14854,7 +14923,7 @@
    /* Set the formal_arg_flag so that check_conflict will not throw
       an error for host associated variables in the specification
       expression for an array_valued function.  */
@@ -45164,6 +45934,17 @@ Index: gcc/fortran/resolve.c
      formal_arg_flag = true;
  
    saved_specification_expr = specification_expr;
+@@ -15883,8 +15952,8 @@
+ }
+ 
+ 
+-/* Function called by resolve_fntype to flag other symbol used in the
+-   length type parameter specification of function resuls.  */
++/* Function called by resolve_fntype to flag other symbols used in the
++   length type parameter specification of function results.  */
+ 
+ static bool
+ flag_fn_result_spec (gfc_expr *expr,
 Index: gcc/fortran/iresolve.c
 ===================================================================
 --- a/src/gcc/fortran/iresolve.c	(.../tags/gcc_7_4_0_release)
@@ -45191,7 +45972,7 @@ Index: gcc/fortran/trans-decl.c
 ===================================================================
 --- a/src/gcc/fortran/trans-decl.c	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/fortran/trans-decl.c	(.../branches/gcc-7-branch)
-@@ -334,39 +334,45 @@
+@@ -334,40 +334,45 @@
      }
  }
  
@@ -45229,7 +46010,8 @@ Index: gcc/fortran/trans-decl.c
  {
 -  char name[GFC_MAX_MANGLED_SYMBOL_LEN + 1];
 -
-+  static char name[GFC_MAX_MANGLED_SYMBOL_LEN + 1];
++  gfc_symbol *proc = sym->ns->proc_name;
++  static char name[3*GFC_MAX_MANGLED_SYMBOL_LEN + 14];
    /* Prevent the mangling of identifiers that have an assigned
       binding label (mainly those that are bind(c)).  */
 +
@@ -45237,34 +46019,50 @@ Index: gcc/fortran/trans-decl.c
 -    return get_identifier (sym->binding_label);
 +    return sym->binding_label;
  
-   if (!sym->fn_result_spec)
+-  if (!sym->fn_result_spec)
++  if (!sym->fn_result_spec
++      || (sym->module && !(proc && proc->attr.flavor == FL_PROCEDURE)))
      {
        if (sym->module == NULL)
 -	return gfc_sym_identifier (sym);
 +	return sym_identifier (sym);
        else
- 	{
- 	  snprintf (name, sizeof name, "__%s_MOD_%s", sym->module, sym->name);
+-	{
+-	  snprintf (name, sizeof name, "__%s_MOD_%s", sym->module, sym->name);
 -	  return get_identifier (name);
-+	  return name;
- 	}
+-	}
++	snprintf (name, sizeof name, "__%s_MOD_%s", sym->module, sym->name);
      }
    else
-@@ -381,18 +387,41 @@
- 		    sym->ns->proc_name->module,
- 		    sym->ns->proc_name->name,
- 		    sym->name);
+     {
+@@ -374,25 +379,42 @@
+       /* This is an entity that is actually local to a module procedure
+ 	 that appears in the result specification expression.  Since
+ 	 sym->module will be a zero length string, we use ns->proc_name
+-	 instead. */
+-      if (sym->ns->proc_name && sym->ns->proc_name->module)
+-	{
+-	  snprintf (name, sizeof name, "__%s_MOD__%s_PROC_%s",
+-		    sym->ns->proc_name->module,
+-		    sym->ns->proc_name->name,
+-		    sym->name);
 -	  return get_identifier (name);
-+	  return name;
- 	}
+-	}
++	 to provide the module name instead. */
++      if (proc && proc->module)
++	snprintf (name, sizeof name, "__%s_MOD__%s_PROC_%s",
++		  proc->module, proc->name, sym->name);
        else
- 	{
- 	  snprintf (name, sizeof name, "__%s_PROC_%s",
- 		    sym->ns->proc_name->name, sym->name);
+-	{
+-	  snprintf (name, sizeof name, "__%s_PROC_%s",
+-		    sym->ns->proc_name->name, sym->name);
 -	  return get_identifier (name);
-+	  return name;
- 	}
+-	}
++	snprintf (name, sizeof name, "__%s_PROC_%s",
++		  proc->name, sym->name);
      }
++
++  return name;
  }
  
 +/* Get mangled identifier, adding the symbol to the global table if
@@ -45294,7 +46092,7 @@ Index: gcc/fortran/trans-decl.c
  /* Construct mangled function name from symbol name.  */
  
  static tree
-@@ -831,7 +860,7 @@
+@@ -831,7 +853,7 @@
  	{
  	  if (!gsym)
  	    {
@@ -45303,7 +46101,7 @@ Index: gcc/fortran/trans-decl.c
  	      gsym->type = GSYM_MODULE;
  	      gsym->ns = gfc_get_namespace (NULL, 0);
  	    }
-@@ -1569,13 +1598,17 @@
+@@ -1569,13 +1591,17 @@
  	  if (VAR_P (length) && DECL_FILE_SCOPE_P (length))
  	    {
  	      /* Add the string length to the same context as the symbol.  */
@@ -45327,7 +46125,7 @@ Index: gcc/fortran/trans-decl.c
  
  	      gfc_defer_symbol_init (sym);
  	    }
-@@ -1655,7 +1688,9 @@
+@@ -1655,7 +1681,9 @@
      {
        /* Catch functions. Only used for actual parameters,
  	 procedure pointers and procptr initialization targets.  */
@@ -45338,7 +46136,7 @@ Index: gcc/fortran/trans-decl.c
  	  || sym->attr.if_source != IFSRC_DECL)
  	{
  	  decl = gfc_get_extern_function_decl (sym);
-@@ -1862,6 +1897,22 @@
+@@ -1862,6 +1890,22 @@
    tree decl;
    tree attributes;
  
@@ -45361,7 +46159,7 @@ Index: gcc/fortran/trans-decl.c
    decl = sym->backend_decl;
    if (decl)
      return decl;
-@@ -1934,7 +1985,7 @@
+@@ -1934,7 +1978,7 @@
  /* Get a basic decl for an external function.  */
  
  tree
@@ -45370,7 +46168,7 @@ Index: gcc/fortran/trans-decl.c
  {
    tree type;
    tree fndecl;
-@@ -1959,10 +2010,23 @@
+@@ -1959,10 +2003,23 @@
      return get_proc_pointer_decl (sym);
  
    /* See if this is an external procedure from the same file.  If so,
@@ -45397,7 +46195,7 @@ Index: gcc/fortran/trans-decl.c
    if (gsym && !gsym->defined)
      gsym = NULL;
  
-@@ -2107,7 +2171,7 @@
+@@ -2107,7 +2164,7 @@
        mangled_name = gfc_sym_mangled_function_id (sym);
      }
  
@@ -45406,7 +46204,7 @@ Index: gcc/fortran/trans-decl.c
    fndecl = build_decl (input_location,
  		       FUNCTION_DECL, name, type);
  
-@@ -2457,6 +2521,17 @@
+@@ -2457,6 +2514,17 @@
  	  TREE_READONLY (length) = 1;
  	  gfc_finish_decl (length);
  
@@ -45424,7 +46222,7 @@ Index: gcc/fortran/trans-decl.c
  	  /* Remember the passed value.  */
            if (!f->sym->ts.u.cl ||  f->sym->ts.u.cl->passed_length)
              {
-@@ -5220,6 +5295,33 @@
+@@ -5220,6 +5288,33 @@
    /* Handle "static" initializer.  */
    if (sym->value)
      {
@@ -45458,7 +46256,7 @@ Index: gcc/fortran/trans-decl.c
        sym->attr.pointer = 1;
        tmp = gfc_trans_assignment (gfc_lval_expr_from_sym (sym), sym->value,
  				  true, false);
-@@ -5464,9 +5566,11 @@
+@@ -5464,9 +5559,11 @@
  	    }
  	  else if (warn_unused_dummy_argument)
  	    {
@@ -45473,7 +46271,7 @@ Index: gcc/fortran/trans-decl.c
  	      if (sym->backend_decl != NULL_TREE)
  		TREE_NO_WARNING(sym->backend_decl) = 1;
  	    }
-@@ -5556,10 +5660,7 @@
+@@ -5556,12 +5653,16 @@
  			  "imported at %L", sym->name, &sym->declared_at);
  	}
  
@@ -45483,8 +46281,18 @@ Index: gcc/fortran/trans-decl.c
 -	  && sym->ns->parent->code->op == EXEC_BLOCK)
 +      if (sym->ns && sym->ns->construct_entities)
  	{
- 	  if (sym->attr.referenced)
+-	  if (sym->attr.referenced)
++	  /* Construction of the intrinsic modules within a BLOCK
++	     construct, where ONLY and RENAMED entities are included,
++	     seems to be bogus.  This is a workaround that can be removed
++	     if someone ever takes on the task to creating full-fledge
++	     modules.  See PR 69455.  */
++	  if (sym->attr.referenced
++	      && sym->from_intmod != INTMOD_ISO_C_BINDING
++	      && sym->from_intmod != INTMOD_ISO_FORTRAN_ENV)
  	    gfc_get_symbol_decl (sym);
+ 	  sym->mark = 1;
+ 	}
 Index: gcc/fortran/target-memory.c
 ===================================================================
 --- a/src/gcc/fortran/target-memory.c	(.../tags/gcc_7_4_0_release)
@@ -46097,6 +46905,16 @@ Index: gcc/lra-constraints.c
  		  winreg = true;
  		  if (REG_P (op))
  		    {
+@@ -5657,6 +5657,9 @@
+   enum rtx_code code;
+   int i, j;
+ 
++  if (side_effects_p (x))
++    return false;
++
+   code = GET_CODE (x);
+   mode = GET_MODE (x);
+   if (code == SUBREG)
 Index: gcc/tree-ssa-loop-split.c
 ===================================================================
 --- a/src/gcc/tree-ssa-loop-split.c	(.../tags/gcc_7_4_0_release)
@@ -47026,7 +47844,25 @@ Index: gcc/tree-ssa-phiprop.c
 ===================================================================
 --- a/src/gcc/tree-ssa-phiprop.c	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/tree-ssa-phiprop.c	(.../branches/gcc-7-branch)
-@@ -495,8 +495,14 @@
+@@ -338,8 +338,15 @@
+ 	    && (!type
+ 		|| types_compatible_p
+ 		     (TREE_TYPE (gimple_assign_lhs (use_stmt)), type))
+-	    /* We cannot replace a load that may throw or is volatile.  */
+-	    && !stmt_can_throw_internal (use_stmt)))
++	    /* We cannot replace a load that may throw or is volatile.
++	       For volatiles the transform can change the number of
++	       executions if the load is inside a loop but the address
++	       computations outside (PR91812).  We could relax this
++	       if we guard against that appropriately.  For loads that can
++	       throw we could relax things if the moved loads all are
++	       known to not throw.  */
++	    && !stmt_can_throw_internal (use_stmt)
++	    && !gimple_has_volatile_ops (use_stmt)))
+ 	continue;
+ 
+       /* Check if we can move the loads.  The def stmt of the virtual use
+@@ -495,8 +502,14 @@
    bbs = get_all_dominated_blocks (CDI_DOMINATORS,
  				  single_succ (ENTRY_BLOCK_PTR_FOR_FN (fun)));
    FOR_EACH_VEC_ELT (bbs, i, bb)
@@ -47260,6 +48096,35 @@ Index: gcc/config.gcc
  	extra_headers=altivec.h
  	;;
  powerpc*-*-freebsd*)
+@@ -4316,14 +4332,12 @@
+ 			 echo "#undef  LINK_OS_EXTRA_SPEC32"
+ 			 echo "#define LINK_OS_EXTRA_SPEC32" \
+ 			      "\"%(link_os_new_dtags)" \
+-			      "-rpath $prefix/lib -rpath $at/lib" \
+-			      "-L $prefix/lib -L $at/lib\""
++			      "-rpath $prefix/lib -rpath $at/lib\""
+ 			 echo
+ 			 echo "#undef  LINK_OS_EXTRA_SPEC64"
+ 			 echo "#define LINK_OS_EXTRA_SPEC64" \
+ 			      "\"%(link_os_new_dtags)" \
+-			      "-rpath $prefix/lib64 -rpath $at/lib64" \
+-			      "-L $prefix/lib64 -L $at/lib64\""
++			      "-rpath $prefix/lib64 -rpath $at/lib64\""
+ 			 echo
+ 			 echo "#undef  LINK_OS_NEW_DTAGS_SPEC"
+ 			 echo "#define LINK_OS_NEW_DTAGS_SPEC" \
+@@ -4336,7 +4350,10 @@
+ 			 echo "#define MD_EXEC_PREFIX \"$at/bin/\""
+ 			 echo
+ 			 echo "#undef  MD_STARTFILE_PREFIX"
+-			 echo "#define MD_STARTFILE_PREFIX \"$at/lib/\"") \
++			 echo "#define MD_STARTFILE_PREFIX \"$prefix/lib/\""
++			 echo
++			 echo "#undef  MD_STARTFILE_PREFIX_1"
++			 echo "#define MD_STARTFILE_PREFIX_1 \"$at/lib/\"") \
+ 			    > advance-toolchain.h
+ 		    else
+ 			echo "Unknown advance-toolchain $with_advance_toolchain"
 Index: gcc/opts-global.c
 ===================================================================
 --- a/src/gcc/opts-global.c	(.../tags/gcc_7_4_0_release)
@@ -50738,7 +51603,23 @@ Index: gcc/config/sh/sh.c
  	{
  	  std::string offset_str = tokens[i].substr (strlen ("gbr-offset="));
  	  ret.tcb_gbr_offset = integral_argument (offset_str.c_str ());
-@@ -10814,12 +10814,6 @@
+@@ -934,11 +934,13 @@
+   if (flag_unsafe_math_optimizations)
+     {
+       /* Enable fsca insn for SH4A if not otherwise specified by the user.  */
+-      if (global_options_set.x_TARGET_FSCA == 0 && TARGET_SH4A_FP)
++      if (global_options_set.x_TARGET_FSCA == 0
++	  && (TARGET_SH4A_FP || TARGET_FPU_SH4_300))
+ 	TARGET_FSCA = 1;
+ 
+       /* Enable fsrra insn for SH4A if not otherwise specified by the user.  */
+-      if (global_options_set.x_TARGET_FSRRA == 0 && TARGET_SH4A_FP)
++      if (global_options_set.x_TARGET_FSRRA == 0
++	  && (TARGET_SH4A_FP || TARGET_FPU_SH4_300))
+ 	TARGET_FSRRA = 1;
+     }
+ 
+@@ -10814,12 +10816,6 @@
  	  emit_insn (gen_add2_insn (scratch0, GEN_INT (vcall_offset)));
  	  offset_addr = scratch0;
  	}
@@ -50751,7 +51632,7 @@ Index: gcc/config/sh/sh.c
        else
  	gcc_unreachable (); /* FIXME */
        emit_load_ptr (scratch0, offset_addr);
-@@ -12014,9 +12008,11 @@
+@@ -12014,9 +12010,11 @@
  	rtx r = gen_reg_rtx (SImode);
  	rtx_insn* i0;
  	if (from_mode == QImode)
@@ -50765,6 +51646,214 @@ Index: gcc/config/sh/sh.c
  	else
  	  gcc_unreachable ();
  
+@@ -12434,7 +12432,7 @@
+ sh_emit_mode_set (int entity ATTRIBUTE_UNUSED, int mode,
+ 		  int prev_mode, HARD_REG_SET regs_live ATTRIBUTE_UNUSED)
+ {
+-  if ((TARGET_SH4A_FP || TARGET_SH4_300)
++  if ((TARGET_SH4A_FP || TARGET_FPU_SH4_300)
+       && prev_mode != FP_MODE_NONE && prev_mode != mode)
+     {
+       emit_insn (gen_toggle_pr ());
+Index: gcc/config/sh/sh.h
+===================================================================
+--- a/src/gcc/config/sh/sh.h	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/config/sh/sh.h	(.../branches/gcc-7-branch)
+@@ -69,6 +69,8 @@
+    FPU is disabled (which makes it compatible with SH4al-dsp).  */
+ #define TARGET_SH4A_FP (TARGET_SH4A && TARGET_FPU_ANY)
+ 
++/* True if the FPU is a SH4-300 variant.  */
++#define TARGET_FPU_SH4_300 (TARGET_FPU_ANY && TARGET_SH4_300)
+ 
+ /* This is not used by the SH2E calling convention  */
+ #define TARGET_VARARGS_PRETEND_ARGS(FUN_DECL) \
+Index: gcc/config/sh/sh.md
+===================================================================
+--- a/src/gcc/config/sh/sh.md	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/config/sh/sh.md	(.../branches/gcc-7-branch)
+@@ -9161,7 +9161,7 @@
+ 	(xor:SI (reg:SI FPSCR_REG) (const_int FPSCR_PR)))
+    (set (reg:SI FPSCR_MODES_REG)
+ 	(unspec_volatile:SI [(const_int 0)] UNSPECV_FPSCR_MODES))]
+-  "TARGET_SH4A_FP"
++  "TARGET_SH4A_FP || TARGET_FPU_SH4_300"
+   "fpchg"
+   [(set_attr "type" "fpscr_toggle")])
+ 
+@@ -9389,15 +9389,31 @@
+ (define_expand "negsf2"
+   [(set (match_operand:SF 0 "fp_arith_reg_operand")
+ 	(neg:SF (match_operand:SF 1 "fp_arith_reg_operand")))]
+-  "TARGET_SH2E")
++  "TARGET_FPU_ANY"
++{
++  if (TARGET_FPU_SH4_300)
++    emit_insn (gen_negsf2_fpscr (operands[0], operands[1]));
++  else
++    emit_insn (gen_negsf2_no_fpscr (operands[0], operands[1]));
++  DONE;
++})
+ 
+-(define_insn "*negsf2_i"
++(define_insn "negsf2_no_fpscr"
+   [(set (match_operand:SF 0 "fp_arith_reg_operand" "=f")
+ 	(neg:SF (match_operand:SF 1 "fp_arith_reg_operand" "0")))]
+-  "TARGET_SH2E"
++  "TARGET_FPU_ANY && !TARGET_FPU_SH4_300"
+   "fneg	%0"
+   [(set_attr "type" "fmove")])
+ 
++(define_insn "negsf2_fpscr"
++  [(set (match_operand:SF 0 "fp_arith_reg_operand" "=f")
++	(neg:SF (match_operand:SF 1 "fp_arith_reg_operand" "0")))
++   (use (reg:SI FPSCR_MODES_REG))]
++  "TARGET_FPU_SH4_300"
++  "fneg	%0"
++  [(set_attr "type" "fmove")
++   (set_attr "fp_mode" "single")])
++
+ (define_expand "sqrtsf2"
+   [(set (match_operand:SF 0 "fp_arith_reg_operand" "")
+ 	(sqrt:SF (match_operand:SF 1 "fp_arith_reg_operand" "")))]
+@@ -9487,15 +9503,31 @@
+ (define_expand "abssf2"
+   [(set (match_operand:SF 0 "fp_arith_reg_operand")
+ 	(abs:SF (match_operand:SF 1 "fp_arith_reg_operand")))]
+-  "TARGET_SH2E")
++  "TARGET_FPU_ANY"
++{
++  if (TARGET_FPU_SH4_300)
++    emit_insn (gen_abssf2_fpscr (operands[0], operands[1]));
++  else
++    emit_insn (gen_abssf2_no_fpscr (operands[0], operands[1]));
++  DONE;
++})
+ 
+-(define_insn "*abssf2_i"
++(define_insn "abssf2_no_fpscr"
+   [(set (match_operand:SF 0 "fp_arith_reg_operand" "=f")
+ 	(abs:SF (match_operand:SF 1 "fp_arith_reg_operand" "0")))]
+-  "TARGET_SH2E"
++  "TARGET_FPU_ANY && !TARGET_FPU_SH4_300"
+   "fabs	%0"
+   [(set_attr "type" "fmove")])
+ 
++(define_insn "abssf2_fpscr"
++  [(set (match_operand:SF 0 "fp_arith_reg_operand" "=f")
++	(abs:SF (match_operand:SF 1 "fp_arith_reg_operand" "0")))
++   (use (reg:SI FPSCR_MODES_REG))]
++  "TARGET_FPU_SH4_300"
++  "fabs	%0"
++  [(set_attr "type" "fmove")
++   (set_attr "fp_mode" "single")])
++
+ (define_expand "adddf3"
+   [(set (match_operand:DF 0 "fp_arith_reg_operand" "")
+ 	(plus:DF (match_operand:DF 1 "fp_arith_reg_operand" "")
+@@ -9671,12 +9703,28 @@
+ (define_expand "negdf2"
+   [(set (match_operand:DF 0 "fp_arith_reg_operand")
+ 	(neg:DF (match_operand:DF 1 "fp_arith_reg_operand")))]
+-  "TARGET_FPU_DOUBLE")
++  "TARGET_FPU_DOUBLE"
++{
++  if (TARGET_FPU_SH4_300)
++    emit_insn (gen_negdf2_fpscr (operands[0], operands[1]));
++  else
++    emit_insn (gen_negdf2_no_fpscr (operands[0], operands[1]));
++  DONE;
++})
+ 
+-(define_insn "*negdf2_i"
++(define_insn "negdf2_fpscr"
+   [(set (match_operand:DF 0 "fp_arith_reg_operand" "=f")
++	(neg:DF (match_operand:DF 1 "fp_arith_reg_operand" "0")))
++   (use (reg:SI FPSCR_MODES_REG))]
++  "TARGET_FPU_SH4_300"
++  "fneg	%0"
++  [(set_attr "type" "fmove")
++   (set_attr "fp_mode" "double")])
++
++(define_insn "negdf2_no_fpscr"
++  [(set (match_operand:DF 0 "fp_arith_reg_operand" "=f")
+ 	(neg:DF (match_operand:DF 1 "fp_arith_reg_operand" "0")))]
+-  "TARGET_FPU_DOUBLE"
++  "TARGET_FPU_DOUBLE && !TARGET_FPU_SH4_300"
+   "fneg	%0"
+   [(set_attr "type" "fmove")])
+ 
+@@ -9702,15 +9750,31 @@
+ (define_expand "absdf2"
+   [(set (match_operand:DF 0 "fp_arith_reg_operand")
+ 	(abs:DF (match_operand:DF 1 "fp_arith_reg_operand")))]
+-  "TARGET_FPU_DOUBLE")
++  "TARGET_FPU_DOUBLE"
++{
++  if (TARGET_FPU_SH4_300)
++    emit_insn (gen_absdf2_fpscr (operands[0], operands[1]));
++  else
++    emit_insn (gen_absdf2_no_fpscr (operands[0], operands[1]));
++  DONE;
++})
+ 
+-(define_insn "*absdf2_i"
++(define_insn "absdf2_no_fpscr"
+   [(set (match_operand:DF 0 "fp_arith_reg_operand" "=f")
+ 	(abs:DF (match_operand:DF 1 "fp_arith_reg_operand" "0")))]
+-  "TARGET_FPU_DOUBLE"
++  "TARGET_FPU_DOUBLE && !TARGET_FPU_SH4_300"
+   "fabs	%0"
+   [(set_attr "type" "fmove")])
+ 
++(define_insn "absdf2_fpscr"
++  [(set (match_operand:DF 0 "fp_arith_reg_operand" "=f")
++	(abs:DF (match_operand:DF 1 "fp_arith_reg_operand" "0")))
++   (use (reg:SI FPSCR_MODES_REG))]
++  "TARGET_FPU_SH4_300"
++  "fabs	%0"
++  [(set_attr "type" "fmove")
++   (set_attr "fp_mode" "double")])
++
+ (define_expand "extendsfdf2"
+   [(set (match_operand:DF 0 "fp_arith_reg_operand" "")
+ 	(float_extend:DF (match_operand:SF 1 "fpul_operand" "")))]
+Index: gcc/config/avr/avr.c
+===================================================================
+--- a/src/gcc/config/avr/avr.c	(.../tags/gcc_7_4_0_release)
++++ b/src/gcc/config/avr/avr.c	(.../branches/gcc-7-branch)
+@@ -3579,13 +3579,14 @@
+           gcc_unreachable();
+ 
+         case 1:
+-          return avr_asm_len ("%4lpm %0,%a2", xop, plen, 1);
++          avr_asm_len ("%4lpm %0,%a2", xop, plen, 1);
++          break;
+ 
+         case 2:
+           if (REGNO (dest) == REG_Z)
+-            return avr_asm_len ("%4lpm %5,%a2+" CR_TAB
+-                                "%4lpm %B0,%a2" CR_TAB
+-                                "mov %A0,%5", xop, plen, 3);
++            avr_asm_len ("%4lpm %5,%a2+" CR_TAB
++                         "%4lpm %B0,%a2" CR_TAB
++                         "mov %A0,%5", xop, plen, 3);
+           else
+             {
+               avr_asm_len ("%4lpm %A0,%a2+" CR_TAB
+@@ -3614,9 +3615,9 @@
+                        "%4lpm %B0,%a2+", xop, plen, 2);
+ 
+           if (REGNO (dest) == REG_Z - 2)
+-            return avr_asm_len ("%4lpm %5,%a2+" CR_TAB
+-                                "%4lpm %C0,%a2" CR_TAB
+-                                "mov %D0,%5", xop, plen, 3);
++            avr_asm_len ("%4lpm %5,%a2+" CR_TAB
++                         "%4lpm %C0,%a2" CR_TAB
++                         "mov %D0,%5", xop, plen, 3);
+           else
+             {
+               avr_asm_len ("%4lpm %C0,%a2+" CR_TAB
 Index: gcc/config/xtensa/xtensa.c
 ===================================================================
 --- a/src/gcc/config/xtensa/xtensa.c	(.../tags/gcc_7_4_0_release)
@@ -51535,6 +52624,18 @@ Index: gcc/config/rs6000/darwin.h
  
  /* crt2.o is at least partially required for 10.3.x and earlier.  */
  #define DARWIN_CRT2_SPEC \
+@@ -244,9 +257,9 @@
+ /* This is supported in cctools 465 and later.  The macro test
+    above prevents using it in earlier build environments.  */
+ #define ASM_OUTPUT_MAX_SKIP_ALIGN(FILE,LOG,MAX_SKIP)          \
+-  if ((LOG) != 0)                                             \
++  if ((LOG) > 0)                                             \
+     {                                                         \
+-      if ((MAX_SKIP) == 0)                                    \
++      if ((MAX_SKIP) <= 0)                                    \
+         fprintf ((FILE), "\t.p2align %d\n", (LOG));           \
+       else                                                    \
+         fprintf ((FILE), "\t.p2align %d,,%d\n", (LOG), (MAX_SKIP)); \
 Index: gcc/config/rs6000/rs6000.c
 ===================================================================
 --- a/src/gcc/config/rs6000/rs6000.c	(.../tags/gcc_7_4_0_release)
@@ -52791,6 +53892,162 @@ Index: gcc/config/arm/arm.c
      }
  
    innersize = GET_MODE_UNIT_SIZE (mode);
+@@ -19211,7 +19216,36 @@
+   return save_reg_mask;
+ }
+ 
+-/* Compute a bit mask of which registers need to be
++/* Return a mask for the call-clobbered low registers that are unused
++   at the end of the prologue.  */
++static unsigned long
++thumb1_prologue_unused_call_clobbered_lo_regs (void)
++{
++  unsigned long mask = 0;
++
++  for (int reg = 0; reg <= LAST_LO_REGNUM; reg++)
++    if (!callee_saved_reg_p (reg)
++	&& !REGNO_REG_SET_P (df_get_live_out (ENTRY_BLOCK_PTR_FOR_FN (cfun)),
++			     reg))
++      mask |= 1 << reg;
++  return mask;
++}
++
++/* Similarly for the start of the epilogue.  */
++static unsigned long
++thumb1_epilogue_unused_call_clobbered_lo_regs (void)
++{
++  unsigned long mask = 0;
++
++  for (int reg = 0; reg <= LAST_LO_REGNUM; reg++)
++    if (!callee_saved_reg_p (reg)
++	&& !REGNO_REG_SET_P (df_get_live_in (EXIT_BLOCK_PTR_FOR_FN (cfun)),
++			     reg))
++      mask |= 1 << reg;
++  return mask;
++}
++
++/* Compute a bit mask of which core registers need to be
+    saved on the stack for the current function.  */
+ static unsigned long
+ thumb1_compute_save_reg_mask (void)
+@@ -19242,10 +19276,19 @@
+   if (mask & 0xff || thumb_force_lr_save ())
+     mask |= (1 << LR_REGNUM);
+ 
+-  /* Make sure we have a low work register if we need one.
+-     We will need one if we are going to push a high register,
+-     but we are not currently intending to push a low register.  */
++  bool call_clobbered_scratch
++    = (thumb1_prologue_unused_call_clobbered_lo_regs ()
++       && thumb1_epilogue_unused_call_clobbered_lo_regs ());
++
++  /* Make sure we have a low work register if we need one.  We will
++     need one if we are going to push a high register, but we are not
++     currently intending to push a low register.  However if both the
++     prologue and epilogue have a spare call-clobbered low register,
++     then we won't need to find an additional work register.  It does
++     not need to be the same register in the prologue and
++     epilogue.  */
+   if ((mask & 0xff) == 0
++      && !call_clobbered_scratch
+       && ((mask & 0x0f00) || TARGET_BACKTRACE))
+     {
+       /* Use thumb_find_work_register to choose which register
+@@ -24434,12 +24477,7 @@
+       unsigned long mask = live_regs_mask & 0xff;
+       int next_hi_reg;
+ 
+-      /* The available low registers depend on the size of the value we are
+-         returning.  */
+-      if (size <= 12)
+-	mask |=  1 << 3;
+-      if (size <= 8)
+-	mask |= 1 << 2;
++      mask |= thumb1_epilogue_unused_call_clobbered_lo_regs ();
+ 
+       if (mask == 0)
+ 	/* Oh dear!  We have no low registers into which we can pop
+@@ -24447,7 +24485,7 @@
+ 	internal_error
+ 	  ("no low registers available for popping high registers");
+ 
+-      for (next_hi_reg = 8; next_hi_reg < 13; next_hi_reg++)
++      for (next_hi_reg = 12; next_hi_reg > LAST_LO_REGNUM; next_hi_reg--)
+ 	if (live_regs_mask & (1 << next_hi_reg))
+ 	  break;
+ 
+@@ -24455,7 +24493,7 @@
+ 	{
+ 	  /* Find lo register(s) into which the high register(s) can
+              be popped.  */
+-	  for (regno = 0; regno <= LAST_LO_REGNUM; regno++)
++	  for (regno = LAST_LO_REGNUM; regno >= 0; regno--)
+ 	    {
+ 	      if (mask & (1 << regno))
+ 		high_regs_pushed--;
+@@ -24463,13 +24501,14 @@
+ 		break;
+ 	    }
+ 
+-	  mask &= (2 << regno) - 1;	/* A noop if regno == 8 */
++	  if (high_regs_pushed == 0 && regno >= 0)
++	    mask &= ~((1 << regno) - 1);
+ 
+ 	  /* Pop the values into the low register(s).  */
+ 	  thumb_pop (asm_out_file, mask);
+ 
+ 	  /* Move the value(s) into the high registers.  */
+-	  for (regno = 0; regno <= LAST_LO_REGNUM; regno++)
++	  for (regno = LAST_LO_REGNUM; regno >= 0; regno--)
+ 	    {
+ 	      if (mask & (1 << regno))
+ 		{
+@@ -24476,7 +24515,8 @@
+ 		  asm_fprintf (asm_out_file, "\tmov\t%r, %r\n", next_hi_reg,
+ 			       regno);
+ 
+-		  for (next_hi_reg++; next_hi_reg < 13; next_hi_reg++)
++		  for (next_hi_reg--; next_hi_reg > LAST_LO_REGNUM;
++		       next_hi_reg--)
+ 		    if (live_regs_mask & (1 << next_hi_reg))
+ 		      break;
+ 		}
+@@ -24858,10 +24898,20 @@
+ 	  break;
+ 
+       /* Here we need to mask out registers used for passing arguments
+-	 even if they can be pushed.  This is to avoid using them to stash the high
+-	 registers.  Such kind of stash may clobber the use of arguments.  */
++	 even if they can be pushed.  This is to avoid using them to
++	 stash the high registers.  Such kind of stash may clobber the
++	 use of arguments.  */
+       pushable_regs = l_mask & (~arg_regs_mask);
+-      if (lr_needs_saving)
++      pushable_regs |= thumb1_prologue_unused_call_clobbered_lo_regs ();
++
++      /* Normally, LR can be used as a scratch register once it has been
++	 saved; but if the function examines its own return address then
++	 the value is still live and we need to avoid using it.  */
++      bool return_addr_live
++	= REGNO_REG_SET_P (df_get_live_out (ENTRY_BLOCK_PTR_FOR_FN (cfun)),
++			   LR_REGNUM);
++
++      if (lr_needs_saving || return_addr_live)
+ 	pushable_regs &= ~(1 << LR_REGNUM);
+ 
+       if (pushable_regs == 0)
+@@ -24902,6 +24952,11 @@
+ 	      push_mask |= 1 << LR_REGNUM;
+ 	      real_regs_mask |= 1 << LR_REGNUM;
+ 	      lr_needs_saving = false;
++	      /* If the return address is not live at this point, we
++		 can add LR to the list of registers that we can use
++		 for pushes.  */
++	      if (!return_addr_live)
++		pushable_regs |= 1 << LR_REGNUM;
+ 	    }
+ 
+ 	  insn = thumb1_emit_multi_reg_push (push_mask, real_regs_mask);
 Index: gcc/config/arm/arm.h
 ===================================================================
 --- a/src/gcc/config/arm/arm.h	(.../tags/gcc_7_4_0_release)
@@ -53006,7 +54263,115 @@ Index: gcc/config/arm/arm.md
 ===================================================================
 --- a/src/gcc/config/arm/arm.md	(.../tags/gcc_7_4_0_release)
 +++ b/src/gcc/config/arm/arm.md	(.../branches/gcc-7-branch)
-@@ -5999,52 +5999,29 @@
+@@ -4486,62 +4486,78 @@
+ ; ARMv6+ unaligned load/store instructions (used for packed structure accesses).
+ 
+ (define_insn "unaligned_loadsi"
+-  [(set (match_operand:SI 0 "s_register_operand" "=l,r")
+-	(unspec:SI [(match_operand:SI 1 "memory_operand" "Uw,m")]
++  [(set (match_operand:SI 0 "s_register_operand" "=l,l,r")
++	(unspec:SI [(match_operand:SI 1 "memory_operand" "m,Uw,m")]
+ 		   UNSPEC_UNALIGNED_LOAD))]
+   "unaligned_access"
+-  "ldr%?\t%0, %1\t@ unaligned"
+-  [(set_attr "arch" "t2,any")
+-   (set_attr "length" "2,4")
+-   (set_attr "predicable" "yes")
+-   (set_attr "predicable_short_it" "yes,no")
++  "@
++   ldr\t%0, %1\t@ unaligned
++   ldr%?\t%0, %1\t@ unaligned
++   ldr%?\t%0, %1\t@ unaligned"
++  [(set_attr "arch" "t1,t2,32")
++   (set_attr "length" "2,2,4")
++   (set_attr "predicable" "no,yes,yes")
++   (set_attr "predicable_short_it" "no,yes,no")
+    (set_attr "type" "load1")])
+ 
++;; The 16-bit Thumb1 variant of ldrsh requires two registers in the
++;; address (there's no immediate format).  That's tricky to support
++;; here and we don't really need this pattern for that case, so only
++;; enable for 32-bit ISAs.
+ (define_insn "unaligned_loadhis"
+   [(set (match_operand:SI 0 "s_register_operand" "=r")
+ 	(sign_extend:SI
+ 	  (unspec:HI [(match_operand:HI 1 "memory_operand" "Uh")]
+ 		     UNSPEC_UNALIGNED_LOAD)))]
+-  "unaligned_access"
++  "unaligned_access && TARGET_32BIT"
+   "ldrsh%?\t%0, %1\t@ unaligned"
+   [(set_attr "predicable" "yes")
+    (set_attr "type" "load_byte")])
+ 
+ (define_insn "unaligned_loadhiu"
+-  [(set (match_operand:SI 0 "s_register_operand" "=l,r")
++  [(set (match_operand:SI 0 "s_register_operand" "=l,l,r")
+ 	(zero_extend:SI
+-	  (unspec:HI [(match_operand:HI 1 "memory_operand" "Uw,m")]
++	  (unspec:HI [(match_operand:HI 1 "memory_operand" "m,Uw,m")]
+ 		     UNSPEC_UNALIGNED_LOAD)))]
+   "unaligned_access"
+-  "ldrh%?\t%0, %1\t@ unaligned"
+-  [(set_attr "arch" "t2,any")
+-   (set_attr "length" "2,4")
+-   (set_attr "predicable" "yes")
+-   (set_attr "predicable_short_it" "yes,no")
++  "@
++   ldrh\t%0, %1\t@ unaligned
++   ldrh%?\t%0, %1\t@ unaligned
++   ldrh%?\t%0, %1\t@ unaligned"
++  [(set_attr "arch" "t1,t2,32")
++   (set_attr "length" "2,2,4")
++   (set_attr "predicable" "no,yes,yes")
++   (set_attr "predicable_short_it" "no,yes,no")
+    (set_attr "type" "load_byte")])
+ 
+ (define_insn "unaligned_storesi"
+-  [(set (match_operand:SI 0 "memory_operand" "=Uw,m")
+-	(unspec:SI [(match_operand:SI 1 "s_register_operand" "l,r")]
++  [(set (match_operand:SI 0 "memory_operand" "=m,Uw,m")
++	(unspec:SI [(match_operand:SI 1 "s_register_operand" "l,l,r")]
+ 		   UNSPEC_UNALIGNED_STORE))]
+   "unaligned_access"
+-  "str%?\t%1, %0\t@ unaligned"
+-  [(set_attr "arch" "t2,any")
+-   (set_attr "length" "2,4")
+-   (set_attr "predicable" "yes")
+-   (set_attr "predicable_short_it" "yes,no")
++  "@
++   str\t%1, %0\t@ unaligned
++   str%?\t%1, %0\t@ unaligned
++   str%?\t%1, %0\t@ unaligned"
++  [(set_attr "arch" "t1,t2,32")
++   (set_attr "length" "2,2,4")
++   (set_attr "predicable" "no,yes,yes")
++   (set_attr "predicable_short_it" "no,yes,no")
+    (set_attr "type" "store1")])
+ 
+ (define_insn "unaligned_storehi"
+-  [(set (match_operand:HI 0 "memory_operand" "=Uw,m")
+-	(unspec:HI [(match_operand:HI 1 "s_register_operand" "l,r")]
++  [(set (match_operand:HI 0 "memory_operand" "=m,Uw,m")
++	(unspec:HI [(match_operand:HI 1 "s_register_operand" "l,l,r")]
+ 		   UNSPEC_UNALIGNED_STORE))]
+   "unaligned_access"
+-  "strh%?\t%1, %0\t@ unaligned"
+-  [(set_attr "arch" "t2,any")
+-   (set_attr "length" "2,4")
+-   (set_attr "predicable" "yes")
+-   (set_attr "predicable_short_it" "yes,no")
++  "@
++   strh\t%1, %0\t@ unaligned
++   strh%?\t%1, %0\t@ unaligned
++   strh%?\t%1, %0\t@ unaligned"
++  [(set_attr "arch" "t1,t2,32")
++   (set_attr "length" "2,2,4")
++   (set_attr "predicable" "no,yes,yes")
++   (set_attr "predicable_short_it" "no,yes,no")
+    (set_attr "type" "store1")])
+ 
+ 
+@@ -5999,52 +6015,29 @@
          }
      }
  
