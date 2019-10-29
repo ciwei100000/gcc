@@ -1,11 +1,34 @@
-# DP: gm2 updates up to 20191026
+# DP: gm2 updates up to 20191029
 
-git diff de2034bc023a89e45bec67e54d2a63982080c316 a806c7d939191fdea11c3fcb0b1dc82b58da27a3 | filterdiff --strip=2 --addoldprefix=a/src/ --addnewprefix=b/src/ --remove-timestamp | egrep -v '^(diff|index)'
+git diff de2034bc023a89e45bec67e54d2a63982080c316 bc596dd583d6251e5d34ab5ac092879729a18876 | filterdiff --strip=2 --addoldprefix=a/src/ --addnewprefix=b/src/ --remove-timestamp | egrep -v '^(diff|index)'
 
 --- a/src/gcc/gm2/ChangeLog
 +++ b/src/gcc/gm2/ChangeLog
-@@ -1,4 +1,278 @@
+@@ -1,4 +1,301 @@
 -2019-08-05      Gaius Mulley <gaius.mulley@southwales.ac.uk>
++2019-10-29      Gaius Mulley <gaius.mulley@southwales.ac.uk>
++
++	* gm2/Make-lang.in:  (gm2/gm2-gcc/%.o) added target dependencies.
++          (gm2/gm2-compiler-boot/m2flex.o) added target dependencies.
++          (gm2/gm2-pge-boot/$(SRC_PREFIX)libc.o) explicit rule.
++          (gm2/gm2-pge-boot/$(SRC_PREFIX)mcrts.o) explicit rule.
++          (gm2/gm2-pge-boot/$(SRC_PREFIX)UnixArgs.o) explicit rule.
++          (gm2/gm2-pge-boot/$(SRC_PREFIX)Selective.o) explicit rule.
++          (gm2/gm2-pge-boot/$(SRC_PREFIX)termios.o) explicit rule.
++          (gm2/gm2-pge/boot/$(SRC_PREFIX)SysExceptions.o) explicit rule.
++          (gm2/gm2-pge/boot/$(SRC_PREFIX)ldtoa.o) explicit rule.
++          (gm2/gm2-pge/boot/$(SRC_PREFIX)dtoa.o) explicit rule.
++          (gm2/gm2-pge/boot/$(SRC_PREFIX)wrapc.o) explicit rule.
++          (gm2/gm2-pge/boot/$(SRC_PREFIX)SYSTEM.o) explicit rule.
++          (gm2/gm2-pge/boot/$(SRC_PREFIX)errno.o) explicit rule.
++          (gm2/gm2-pge/boot/$(SRC_PREFIX)pth.o) explicit rule.
++	* testsuite/gm2/iso/run/pass/unbounded.mod:  added many
++          more asserts.
++	* gm2/Make-lang.in:  (gm2/gm2-gcc/%.o) added MCDEPS LIBDEPS.
++          (gm2/gm2-pge-boot/$(SRC_PREFIX)%.o) place C file into
++          gm2/gm2-pge-boot.  (gm2/gm2-pge-boot/%.o) place C file into
++	  gm2/gm2-pge-boot.
++
 +2019-10-23      Gaius Mulley <gaius.mulley@southwales.ac.uk>
 +
 +	* gm2/mc-boot/GArgs.c:  regenerated.
@@ -331,32 +354,32 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 a806c7d939191fdea11c3fcb0b1dc8
 +gm2-libs.texi-check:  gm2/SYSTEM-pim.texi gm2/SYSTEM-iso.texi gm2/Builtins.texi $(objdir)/gm2/gm2-libs-coroutines/SYSTEM.def gm2/gm2-ebnf.texi
 +	python3 $(srcdir)/gm2/tools-src/def2texi.py -uLibraries -s$(srcdir)/gm2 -b$(objdir)/gm2 > $(objdir)/gm2/gm2-libs.texi
 +	$(STAMP) gm2-libs.texi-check
-+
-+gm2/gm2-ebnf.texi: gm2-ebnf.texi-check; @true
-+
-+gm2-ebnf.texi-check: gm2/gm2-auto gm2/ppg$(exeext) $(srcdir)/gm2/bnf/m2.bnf
-+	./gm2/ppg$(exeext) -c -p -t -f $(srcdir)/gm2/bnf/m2.bnf > gm2/gm2-ebnf.texi
-+	$(STAMP) gm2-ebnf.texi-check
  
 -gm2/gm2-ebnf.texi: gm2/gm2-auto gm2/ppg$(exeext) $(srcdir)/gm2/bnf/m2.bnf
 -	./gm2/ppg$(exeext) -c -p -t -f $(srcdir)/gm2/bnf/m2.bnf > $@
-+gm2/SYSTEM-pim.texi: SYSTEM-pim-texi-check; @true
++gm2/gm2-ebnf.texi: gm2-ebnf.texi-check; @true
  
 -gm2/SYSTEM-pim.texi: $(objdir)/gm2/gm2-libs/SYSTEM.def
++gm2-ebnf.texi-check: gm2/gm2-auto gm2/ppg$(exeext) $(srcdir)/gm2/bnf/m2.bnf
++	./gm2/ppg$(exeext) -c -p -t -f $(srcdir)/gm2/bnf/m2.bnf > gm2/gm2-ebnf.texi
++	$(STAMP) gm2-ebnf.texi-check
++
++gm2/SYSTEM-pim.texi: SYSTEM-pim-texi-check; @true
++
 +SYSTEM-pim-texi-check: $(objdir)/gm2/gm2-libs/SYSTEM.def
  	$(srcdir)/gm2/tools-src/def2texi.py -b$(objdir)/gm2 -f$(objdir)/gm2/gm2-libs/SYSTEM.def > $(objdir)/gm2/SYSTEM-pim.texi
 +	$(STAMP) SYSTEM-pim-texi-check
++
++gm2/SYSTEM-iso.texi:  SYSTEM-iso.texi-check; @true
  
 -gm2/SYSTEM-iso.texi: $(objdir)/gm2/gm2-libs-iso/SYSTEM.def
-+gm2/SYSTEM-iso.texi:  SYSTEM-iso.texi-check; @true
-+
 +SYSTEM-iso.texi-check:  $(objdir)/gm2/gm2-libs-iso/SYSTEM.def
  	$(srcdir)/gm2/tools-src/def2texi.py -b$(objdir)/gm2 -f$(objdir)/gm2/gm2-libs-iso/SYSTEM.def > $(objdir)/gm2/SYSTEM-iso.texi
 +	$(STAMP) SYSTEM-iso.texi-check
-+
-+gm2/Builtins.texi:  Builtins.texi-check; @true
  
 -gm2/Builtins.texi: gm2/gm2-libs/Builtins.def
++gm2/Builtins.texi:  Builtins.texi-check; @true
++
 +Builtins.texi-check:  gm2/gm2-libs/Builtins.def
  	$(srcdir)/gm2/tools-src/def2texi.py -b./ -f$(srcdir)/gm2/gm2-libs/Builtins.def > $(objdir)/gm2/Builtins.texi
 +	$(STAMP) Builtins.texi-check
@@ -386,6 +409,15 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 a806c7d939191fdea11c3fcb0b1dc8
  
  $(objdir)/gm2/gm2-libs-pim:
  	mkdir $@
+@@ -654,7 +680,7 @@ gm2-gcc/m2builtins.o : $(srcdir)/gm2/gm2-gcc/m2builtins.c $(CONFIG_H) $(TREE_H)
+ 
+ gm2-gcc/m2except.o : $(srcdir)/gm2/gm2-gcc/m2except.c $(CONFIG_H) $(TREE_H) $(RTL_H) $(TARGET_H) $(srcdir)/flags.h gtype-gm2.h gt-gm2-m2except.h
+ 
+-gm2/gm2-gcc/%.o: $(srcdir)/gm2/gm2-gcc/%.c $(TARGET_H)
++gm2/gm2-gcc/%.o: $(srcdir)/gm2/gm2-gcc/%.c $(MCDEPS) $(LIBDEPS) $(BUILD-BOOT-H) $(TIMEVAR_H) gm2/gm2config.h $(CONFIG_H) $(TREE_H) $(RTL_H) $(TARGET_H) $(srcdir)/flags.h gtype-gm2.h
+ 	$(COMPILER) -c -g $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $< $(OUTPUT_OPTION)
+ 
+ gm2/gm2-lang.o: $(srcdir)/gm2/gm2-lang.c $(CONFIG_H) $(TREE_H) $(RTL_H) $(TARGET_H) $(srcdir)/flags.h gt-gm2-gm2-lang.h
 @@ -998,7 +1024,7 @@ gm2/gm2-libs-boot/%.o: $(srcdir)/gm2/gm2-libs/%.mod $(MCDEPS) $(BUILD-BOOT-H)
  gm2/gm2-libs-boot/$(SRC_PREFIX)%.h: $(srcdir)/gm2/gm2-libs/%.def $(MCDEPS)
  	$(MC) -o=$@ $(srcdir)/gm2/gm2-libs/$*.def
@@ -395,7 +427,17 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 a806c7d939191fdea11c3fcb0b1dc8
  	$(CC) -c -DIN_GCC $(CFLAGS) -Igm2/gm2-libs -I$(srcdir)/gm2 -Igm2 -I. -Igm2/gm2-libs-boot $(INCLUDES) $< -o $@
  
  gm2/gm2-libs-boot/wrapc.o: $(srcdir)/gm2/gm2-libs-ch/wrapc.c gm2/gm2-libs-boot/$(SRC_PREFIX)wrapc.h gm2/gm2-libs/gm2-libs-host.h
-@@ -1150,8 +1176,11 @@ gm2/gm2-compiler-boot/M2Version.o: gm2/gm2-compiler-boot/M2Version.mod $(MCDEPS)
+@@ -1126,7 +1152,8 @@ gm2/gm2-tools/m2flex.o: gm2/gm2-compiler/m2flex.c $(BUILD-BOOT-H) $(TIMEVAR_H)
+           -Igm2 -Igm2/gm2-compiler-boot -Igm2/gm2-libs-boot $< -o $@
+ 
+ gm2/gm2-compiler-boot/m2flex.o: gm2/gm2-compiler/m2flex.c $(BUILD-BOOT-H) $(TIMEVAR_H) \
+-        $(BUILD-LIBS-BOOT-H)  gm2/gm2-compiler-boot/$(SRC_PREFIX)NameKey.h
++        $(BUILD-LIBS-BOOT-H)  gm2/gm2-compiler-boot/$(SRC_PREFIX)NameKey.h \
++        $(CONFIG_H) gm2/gm2config.h $(TARGET_H)
+ 	$(COMPILER) -c -g $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
+           $(GM2GCC) $(INCLUDES) -I$(srcdir)/gm2 \
+           -Igm2 -Igm2/gm2-compiler-boot -Igm2/gm2-libs-boot $< -o $@
+@@ -1150,8 +1177,11 @@ gm2/gm2-compiler-boot/M2Version.o: gm2/gm2-compiler-boot/M2Version.mod $(MCDEPS)
  	$(MC) -o=gm2/gm2-compiler-boot/M2Version.c $<
  	$(COMPILER) -c $(ALL_CPPFLAGS) $(GM2GCC) -I. -Igm2/gm2-libs-boot -Igm2/gm2-compiler-boot -Igm2/gm2-libiberty $(INCLUDES) gm2/gm2-compiler-boot/M2Version.c -o $@
  
@@ -408,7 +450,7 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 a806c7d939191fdea11c3fcb0b1dc8
  
  
  #
-@@ -1757,7 +1786,9 @@ gm2/mc-boot-ch/$(SRC_PREFIX)%.o: gm2/mc-boot-ch/$(SRC_PREFIX)%.c
+@@ -1757,7 +1787,9 @@ gm2/mc-boot-ch/$(SRC_PREFIX)%.o: gm2/mc-boot-ch/$(SRC_PREFIX)%.c
  mc-bootstrap: $(GM2_DIRS) mc-clean gm2/boot-bin/mc$(exeext)
  
  gm2/boot-bin/mc$(exeext): $(BUILD-MC-BOOT-O) $(BUILD-MC-INTERFACE-O) gm2/mc-boot/main.o mcflex.o gm2/gm2-libs-boot/pthdummy.o
@@ -419,7 +461,7 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 a806c7d939191fdea11c3fcb0b1dc8
  
  gm2/mc-boot/main.o: $(M2LINK) $(srcdir)/gm2/init/mcinit
  	unset CC ; $(M2LINK) -s --gcc --exit --name mainmcinit.c $(srcdir)/gm2/init/mcinit
-@@ -2104,7 +2135,7 @@ gm2/gm2-ppg-boot/$(SRC_PREFIX)%.o: $(srcdir)/gm2/gm2-compiler/%.mod $(MCDEPS) $(
+@@ -2104,7 +2136,7 @@ gm2/gm2-ppg-boot/$(SRC_PREFIX)%.o: $(srcdir)/gm2/gm2-compiler/%.mod $(MCDEPS) $(
                -I$(srcdir)/gm2/mc-boot-ch -g -c gm2/gm2-ppg-boot/$(SRC_PREFIX)$*.c -o $@
  
  gm2/ppg$(exeext): gm2/boot-bin/mc $(BUILD-PPG-O) $(BUILD-MC-INTERFACE-O) gm2/gm2-ppg-boot/main.o gm2/gm2-libs-boot/pthdummy.o
@@ -428,7 +470,7 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 a806c7d939191fdea11c3fcb0b1dc8
  
  gm2/gm2-ppg-boot/main.o: $(M2LINK) $(srcdir)/gm2/init/mcinit
  	unset CC ; $(M2LINK) -s --gcc --exit --name mainppginit.c $(srcdir)/gm2/init/ppginit
-@@ -2150,7 +2181,7 @@ gm2/gm2-pg-boot/$(SRC_PREFIX)pg.o:  gm2/gm2-auto/pg.mod $(MCDEPS) $(BUILD-BOOT-H
+@@ -2150,7 +2182,7 @@ gm2/gm2-pg-boot/$(SRC_PREFIX)pg.o:  gm2/gm2-auto/pg.mod $(MCDEPS) $(BUILD-BOOT-H
  gm2/pg$(exeext): gm2/boot-bin/mc \
      $(BUILD-PG-O) $(GM2-PPG-MODS:%.mod=gm2/gm2-pg-boot/%.o) \
      $(BUILD-MC-INTERFACE-O) gm2/gm2-pg-boot/main.o gm2/gm2-libs-boot/pthdummy.o
@@ -437,16 +479,65 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 a806c7d939191fdea11c3fcb0b1dc8
  
  gm2/gm2-auto/pginit:
  	sed -e 's/ppg/pg/' < $(srcdir)/gm2/init/ppginit > $@
-@@ -2192,7 +2223,7 @@ gm2/gm2-auto/pge.mod: gm2/pg$(exeext)
+@@ -2192,18 +2224,51 @@ gm2/gm2-auto/pge.mod: gm2/pg$(exeext)
  gm2/gm2-pge-boot/$(SRC_PREFIX)%.h: $(srcdir)/gm2/gm2-libs/%.def $(MCDEPS)
  	$(MCC) -o=$@ $(srcdir)/gm2/gm2-libs/$*.def
  
 -gm2/gm2-pge-boot/$(SRC_PREFIX)%.o: gm2/mc-boot-ch/$(SRC_PREFIX)%.c
-+gm2/gm2-pge-boot/$(SRC_PREFIX)%.o: $(srcdir)/gm2/mc-boot-ch/$(SRC_PREFIX)%.c
++gm2/gm2-pge-boot/$(SRC_PREFIX)libc.o: $(srcdir)/gm2/mc-boot-ch/Glibc.c
++	$(CC) -I$(srcdir)/gm2/mc-boot-ch -g -c $< -o $@
++
++gm2/gm2-pge-boot/$(SRC_PREFIX)mcrts.o:  $(srcdir)/gm2/mc-boot-ch/Gmcrts.c
++	$(CC) -I$(srcdir)/gm2/mc-boot-ch -g -c $< -o $@
++
++gm2/gm2-pge-boot/$(SRC_PREFIX)UnixArgs.o:  $(srcdir)/gm2/mc-boot-ch/GUnixArgs.c
++	$(CC) -I$(srcdir)/gm2/mc-boot-ch -g -c $< -o $@
++
++gm2/gm2-pge-boot/$(SRC_PREFIX)Selective.o:  $(srcdir)/gm2/mc-boot-ch/GSelective.c
++	$(CC) -I$(srcdir)/gm2/mc-boot-ch -g -c $< -o $@
++
++gm2/gm2-pge-boot/$(SRC_PREFIX)termios.o:  $(srcdir)/gm2/mc-boot-ch/Gtermios.c
++	$(CC) -I$(srcdir)/gm2/mc-boot-ch -g -c $< -o $@
++
++gm2/gm2-pge-boot/$(SRC_PREFIX)SysExceptions.o:  $(srcdir)/gm2/mc-boot-ch/GSysExceptions.c
++	$(CC) -I$(srcdir)/gm2/mc-boot-ch -g -c $< -o $@
++
++gm2/gm2-pge-boot/$(SRC_PREFIX)ldtoa.o:  $(srcdir)/gm2/mc-boot-ch/Gldtoa.c
++	$(CC) -I$(srcdir)/gm2/mc-boot-ch -g -c $< -o $@
++
++gm2/gm2-pge-boot/$(SRC_PREFIX)dtoa.o:  $(srcdir)/gm2/mc-boot-ch/Gdtoa.c
++	$(CC) -I$(srcdir)/gm2/mc-boot-ch -g -c $< -o $@
++
++gm2/gm2-pge-boot/$(SRC_PREFIX)wrapc.o:  $(srcdir)/gm2/mc-boot-ch/Gwrapc.c
++	$(CC) -I$(srcdir)/gm2/mc-boot-ch -g -c $< -o $@
++
++gm2/gm2-pge-boot/$(SRC_PREFIX)SYSTEM.o:  $(srcdir)/gm2/mc-boot-ch/GSYSTEM.c
++	$(CC) -I$(srcdir)/gm2/mc-boot-ch -g -c $< -o $@
++
++gm2/gm2-pge-boot/$(SRC_PREFIX)errno.o:  $(srcdir)/gm2/mc-boot-ch/Gerrno.c
++	$(CC) -I$(srcdir)/gm2/mc-boot-ch -g -c $< -o $@
++
++gm2/gm2-pge-boot/$(SRC_PREFIX)pth.o:  $(srcdir)/gm2/mc-boot-ch/Gpth.c
  	$(CC) -I$(srcdir)/gm2/mc-boot-ch -g -c $< -o $@
  
  gm2/gm2-pge-boot/$(SRC_PREFIX)%.o: $(srcdir)/gm2/gm2-libs/%.mod $(MCDEPS) $(BUILD-BOOT-H)
-@@ -2213,7 +2244,7 @@ gm2/gm2-pge-boot/$(SRC_PREFIX)pge.o:  gm2/gm2-auto/pge.mod $(MCDEPS) $(BUILD-BOO
+-	$(MCC) -o=gm2/gm2-pg-boot/$(SRC_PREFIX)$*.c $(srcdir)/gm2/gm2-libs/$*.mod
+-	$(CC) -Igm2/gm2-pg-boot	-I$(srcdir)/gm2/mc-boot -I$(srcdir)/gm2/mc-boot-ch \
+-              -g -c gm2/gm2-pg-boot/$(SRC_PREFIX)$*.c -o $@
++	$(MCC) -o=gm2/gm2-pge-boot/$(SRC_PREFIX)$*.c $(srcdir)/gm2/gm2-libs/$*.mod
++	$(CC) -Igm2/gm2-pge-boot -I$(srcdir)/gm2/mc-boot -I$(srcdir)/gm2/mc-boot-ch \
++              -g -c gm2/gm2-pge-boot/$(SRC_PREFIX)$*.c -o $@
+ 
+ gm2/gm2-pge-boot/$(SRC_PREFIX)%.o: $(srcdir)/gm2/gm2-compiler/%.mod $(MCDEPS) $(BUILD-BOOT-H)
+-	$(MCC) -o=gm2/gm2-pg-boot/$(SRC_PREFIX)$*.c $(srcdir)/gm2/gm2-compiler/$*.mod
++	$(MCC) -o=gm2/gm2-pge-boot/$(SRC_PREFIX)$*.c $(srcdir)/gm2/gm2-compiler/$*.mod
+ 	$(CC) -Igm2/mc-boot -Igm2/gm2-compiler-boot -Igm2/gm2-libs-boot \
+-              -I$(srcdir)/gm2/mc-boot-ch -g -c gm2/gm2-pg-boot/$(SRC_PREFIX)$*.c -o $@
++              -I$(srcdir)/gm2/mc-boot-ch -g -c gm2/gm2-pge-boot/$(SRC_PREFIX)$*.c -o $@
+ 
+ gm2/gm2-pge-boot/$(SRC_PREFIX)pge.o:  gm2/gm2-auto/pge.mod $(MCDEPS) $(BUILD-BOOT-H)
+ 	$(MCC) -o=gm2/gm2-pge-boot/$(SRC_PREFIX)pge.c gm2/gm2-auto/pge.mod
+@@ -2213,7 +2278,7 @@ gm2/gm2-pge-boot/$(SRC_PREFIX)pge.o:  gm2/gm2-auto/pge.mod $(MCDEPS) $(BUILD-BOO
  gm2/pge$(exeext): gm2/boot-bin/mc \
      $(BUILD-PGE-O) $(GM2-PPG-MODS:%.mod=gm2/gm2-pge-boot/%.o) \
      $(BUILD-MC-INTERFACE-O) gm2/gm2-pge-boot/main.o gm2/gm2-libs-boot/pthdummy.o
@@ -455,7 +546,7 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 a806c7d939191fdea11c3fcb0b1dc8
  	$(srcdir)/gm2/tools-src/buildpg $(srcdir)/gm2/gm2-compiler/ppg.mod t > gm2/gm2-auto/t.bnf
  	./gm2/pge$(exeext) gm2/gm2-auto/t.bnf > gm2/gm2-auto/t1.mod
  	./gm2/pg$(exeext) gm2/gm2-auto/t.bnf > gm2/gm2-auto/t2.mod
-@@ -2414,17 +2445,7 @@ check-modula-2: check-gm2
+@@ -2414,17 +2479,7 @@ check-modula-2: check-gm2
  check_modula-2: check-gm2
  check_modula-2: check-gm2
  
@@ -1490,9 +1581,8 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 a806c7d939191fdea11c3fcb0b1dc8
      # pygame.draw.polygon (screen, c, l, 0)
      return f
  
-deleted file mode 100644
 --- a/src/gcc/gm2/examples/pge/pge2d.py
-+++ a/src/gcc/gm2/examples/pge/pge2d.py
+--- b/src/gcc/gm2/examples/pge/pge2d.py
 @@ -1,10 +0,0 @@
 -#!/usr/bin/env python
 -
@@ -31313,6 +31403,67 @@ deleted file mode 100644
  
      # If we're only testing specific files and this isn't one of them, skip it.
      if ![runtest_file_p $runtests $testcase] then {
+--- a/src/gcc/testsuite/gm2/iso/run/pass/unbounded.mod
++++ b/src/gcc/testsuite/gm2/iso/run/pass/unbounded.mod
+@@ -20,12 +20,13 @@ MODULE unbounded ;
+ FROM libc IMPORT exit, printf ;
+ FROM SYSTEM IMPORT ADR ;
+ 
++
+ PROCEDURE Assert (b: BOOLEAN; f: ARRAY OF CHAR; l: CARDINAL) ;
+ BEGIN
+    IF NOT b
+    THEN
+-      printf("%s:%d:failure\n", ADR(f), l) ;
+-      exit(1)
++      printf ("%s:%d:failure\n", ADR (f), l) ;
++      exit (1)
+    END
+ END Assert ;
+ 
+@@ -34,18 +35,35 @@ PROCEDURE test (VAR a: ARRAY OF ARRAY OF CHAR) ;
+ VAR
+    m, n: CARDINAL ;
+ BEGIN
+-   m := HIGH(a) ;
+-   n := HIGH(a[0]) ;
+-   printf("m = %d, n = %d\n", m, n);
++   m := HIGH (a) ;
++   n := HIGH (a[0]) ;
++   printf ("m = %d, n = %d\n", m, n);
+    a[1, 2] := 'a' ;
+    a[2, 1] := 'c'
+ END test ;
+ 
+ 
+ VAR
+-   b: ARRAY [0..4], [0..5] OF CHAR ;
++   b   : ARRAY [0..4], [0..5] OF CHAR ;
++   i, j: CARDINAL ;
+ BEGIN
+-   test(b) ;
+-   Assert(b[1, 2]='a', __FILE__, __LINE__) ;
+-   Assert(b[2, 1]='c', __FILE__, __LINE__) ;
++   FOR i := 0 TO 4 DO
++      FOR j := 0 TO 5 DO
++         b[i, j] := 'z'
++      END
++   END ;
++   test (b) ;
++   FOR i := 0 TO 4 DO
++      FOR j := 0 TO 5 DO
++         IF (i = 1) AND (j = 2)
++         THEN
++            Assert (b[1, 2] = 'a', __FILE__, __LINE__)
++         ELSIF (i = 2) AND (j = 1)
++         THEN
++            Assert (b[2, 1] = 'c', __FILE__, __LINE__)
++         ELSE
++            Assert (b[i, j] = 'z', __FILE__, __LINE__)
++         END
++      END
++   END
+ END unbounded.
 --- a/src/gcc/testsuite/gm2/linking/libarchive/pass/gm2.exp
 +++ b/src/gcc/testsuite/gm2/linking/libarchive/pass/gm2.exp
 @@ -13,7 +13,7 @@
@@ -31354,7 +31505,7 @@ deleted file mode 100644
      if ![runtest_file_p $runtests $testcase] then {
 deleted file mode 100644
 --- a/src/gcc/testsuite/gm2/pim/run/pass/integer.mod
-+++ b/src/gcc/testsuite/gm2/pim/run/pass/integer.mod
+--- b/src/gcc/testsuite/gm2/pim/run/pass/integer.mod
 @@ -1,274 +0,0 @@
 -(* Copyright (C) 2011 Free Software Foundation, Inc. *)
 -(* This file is part of GNU Modula-2.
