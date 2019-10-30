@@ -1,10 +1,10 @@
-# DP: gm2 updates up to 20191029
+# DP: gm2 updates up to 20191030
 
-git diff de2034bc023a89e45bec67e54d2a63982080c316 bc596dd583d6251e5d34ab5ac092879729a18876 | filterdiff --strip=2 --addoldprefix=a/src/ --addnewprefix=b/src/ --remove-timestamp | egrep -v '^(diff|index)'
+git diff de2034bc023a89e45bec67e54d2a63982080c316 bc831c5e3171b95aaf981fb8097aeee1c961a67e | filterdiff --strip=2 --addoldprefix=a/src/ --addnewprefix=b/src/ --remove-timestamp | egrep -v '^(diff|index)'
 
 --- a/src/gcc/gm2/ChangeLog
 +++ b/src/gcc/gm2/ChangeLog
-@@ -1,4 +1,301 @@
+@@ -1,4 +1,303 @@
 -2019-08-05      Gaius Mulley <gaius.mulley@southwales.ac.uk>
 +2019-10-29      Gaius Mulley <gaius.mulley@southwales.ac.uk>
 +
@@ -27,7 +27,9 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 bc596dd583d6251e5d34ab5ac09287
 +	* gm2/Make-lang.in:  (gm2/gm2-gcc/%.o) added MCDEPS LIBDEPS.
 +          (gm2/gm2-pge-boot/$(SRC_PREFIX)%.o) place C file into
 +          gm2/gm2-pge-boot.  (gm2/gm2-pge-boot/%.o) place C file into
-+	  gm2/gm2-pge-boot.
++          gm2/gm2-pge-boot.
++	* gm2/Make-lang.in:  (gm2.install-plugin) removed dependancy to
++          plygin/m2rte$(exeext).so.
 +
 +2019-10-23      Gaius Mulley <gaius.mulley@southwales.ac.uk>
 +
@@ -409,6 +411,24 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 bc596dd583d6251e5d34ab5ac09287
  
  $(objdir)/gm2/gm2-libs-pim:
  	mkdir $@
+@@ -435,7 +461,7 @@ gm2.uninstall:
+ 	-rm -rf $(bindir)/$(GM2_INSTALL_NAME)
+ 	-rm -rf $(bindir)/$(GM2_CROSS_NAME)
+ 
+-gm2.install-plugin: plugin/m2rte$(exeext).so
++gm2.install-plugin:
+ 	rm -f $(DESTDIR)$(plugin_bindir)/m2rte$(exeext).so
+ 	mkdir -p $(DESTDIR)$(plugin_bindir)
+ 	$(INSTALL_PROGRAM) plugin/m2rte$(exeext).so $(DESTDIR)$(plugin_bindir)/m2rte$(exeext).so
+@@ -577,7 +603,7 @@ SO=-O0 -g -fPIC
+ # directly to the Modula-2 source.
+ 
+                   # the C implementation module bridging the Modula-2 -> GCC
+-GM2_C_OBJS          = gm2/gm2-lang.o \
++GM2_C_OBJS        = gm2/gm2-lang.o \
+                     gm2/stor-layout.o \
+                     gm2/m2pp.o \
+                     gm2/gm2-gcc/m2assert.o \
 @@ -654,7 +680,7 @@ gm2-gcc/m2builtins.o : $(srcdir)/gm2/gm2-gcc/m2builtins.c $(CONFIG_H) $(TREE_H)
  
  gm2-gcc/m2except.o : $(srcdir)/gm2/gm2-gcc/m2except.c $(CONFIG_H) $(TREE_H) $(RTL_H) $(TARGET_H) $(srcdir)/flags.h gtype-gm2.h gt-gm2-m2except.h
@@ -565,6 +585,15 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 bc596dd583d6251e5d34ab5ac09287
  
  check-gm2-local: $(GM2TESTSUITEDIR)/site.exp
  	-(rootme=`${PWD_COMMAND}`; export rootme; \
+@@ -2472,7 +2527,7 @@ gm2.maintainer-help: force
+ 	@echo "make gm2.maintainer-reconfigure    rebuild the configure scripts"
+ 	@echo "make gm2.maintainer-clean          clean pre-built images and texi files"
+ 
+-GM2DISTFILES = CVS ChangeLog gm2/Make-lang.in README bnf config-lang.in \
++GM2DISTFILES = ChangeLog gm2/Make-lang.in README bnf config-lang.in \
+             el gccgdbinit gccgm2.c gm2-gcc \
+             gm2-auto gm2-compiler gm2-compiler-boot \
+             gm2-gccinit gm2-libs gm2-libs-boot gm2-libs-ch gm2.texi gm2spec.c \
 --- a/src/gcc/gm2/examples/gravity/Makefile.in
 +++ b/src/gcc/gm2/examples/gravity/Makefile.in
 @@ -54,7 +54,7 @@ else
@@ -1582,7 +1611,7 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 bc596dd583d6251e5d34ab5ac09287
      return f
  
 --- a/src/gcc/gm2/examples/pge/pge2d.py
---- b/src/gcc/gm2/examples/pge/pge2d.py
++++ a/src/gcc/gm2/examples/pge/pge2d.py
 @@ -1,10 +0,0 @@
 -#!/usr/bin/env python
 -
@@ -31503,7 +31532,6 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 bc596dd583d6251e5d34ab5ac09287
  
      # If we're only testing specific files and this isn't one of them, skip it.
      if ![runtest_file_p $runtests $testcase] then {
-deleted file mode 100644
 --- a/src/gcc/testsuite/gm2/pim/run/pass/integer.mod
 --- b/src/gcc/testsuite/gm2/pim/run/pass/integer.mod
 @@ -1,274 +0,0 @@
