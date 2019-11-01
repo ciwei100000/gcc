@@ -1,11 +1,19 @@
-# DP: gm2 updates up to 20191030
+# DP: gm2 updates up to 20191031
 
-git diff de2034bc023a89e45bec67e54d2a63982080c316 bc831c5e3171b95aaf981fb8097aeee1c961a67e | filterdiff --strip=2 --addoldprefix=a/src/ --addnewprefix=b/src/ --remove-timestamp | egrep -v '^(diff|index)'
+git diff de2034bc023a89e45bec67e54d2a63982080c316 d48720ca19879ce3a08da42f3a8ef620a23baa46 | filterdiff --strip=2 --addoldprefix=a/src/ --addnewprefix=b/src/ --remove-timestamp | egrep -v '^(diff|index)'
 
 --- a/src/gcc/gm2/ChangeLog
 +++ b/src/gcc/gm2/ChangeLog
-@@ -1,4 +1,303 @@
+@@ -1,4 +1,311 @@
 -2019-08-05      Gaius Mulley <gaius.mulley@southwales.ac.uk>
++2019-10-30      Gaius Mulley <gaius.mulley@southwales.ac.uk>
++
++	* gm2/Make-lang.in:  pruned old comments.  (GM2_DIRS)
++	  removed.  All directory targets are tested before being created.
++	* gm2/config-lang.in:  directory creation moved into configure.
++          (fixes a bug reported by Matthias Klose) where make install
++	  would relink cc1gm2.
++
 +2019-10-29      Gaius Mulley <gaius.mulley@southwales.ac.uk>
 +
 +	* gm2/Make-lang.in:  (gm2/gm2-gcc/%.o) added target dependencies.
@@ -311,7 +319,32 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 bc831c5e3171b95aaf981fb8097aee
  	* gm2/configure.in:  changed release number to 1.9.2.
 --- a/src/gcc/gm2/Make-lang.in
 +++ b/src/gcc/gm2/Make-lang.in
-@@ -107,7 +107,7 @@ gm2 m2 modula-2 modula2: xgm2$(exeext) xgcc$(exeext) cc1gm2$(exeext) \
+@@ -18,24 +18,6 @@
+ #along with GCC; see the file COPYING3.  If not see
+ #<http://www.gnu.org/licenses/>.
+ 
+-# This file provides the language dependent support in the main Makefile.
+-# Each language makefile fragment must provide the following targets:
+-#
+-# foo.all.build, foo.all.cross, foo.start.encap, foo.rest.encap,
+-# foo.info, foo.dvi,
+-# foo.install-normal, foo.install-common, foo.install-info, foo.install-man,
+-# foo.uninstall,
+-# foo.mostlyclean, foo.clean, foo.distclean, foo.extraclean,
+-# foo.maintainer-clean, foo.stage1, foo.stage2, foo.stage3, foo.stage4
+-#
+-# where `foo' is the name of the language.
+-#
+-# It should also provide rules for:
+-#
+-# - making any compiler driver (eg: gm2)
+-# - the compiler proper (eg: cc1gm2)
+-# - define the names for selecting the language in LANGUAGES.
+-
+ # QUIAT=@
+ GM2_MAKE_DEBUG=
+ 
+@@ -107,7 +89,7 @@ gm2 m2 modula-2 modula2: xgm2$(exeext) xgcc$(exeext) cc1gm2$(exeext) \
  
  GM2_PROG_DEP=xgm2$(exeext) xgcc$(exeext) cc1gm2$(exeext)
  
@@ -320,7 +353,7 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 bc831c5e3171b95aaf981fb8097aee
  
  include gm2/config-make
  LIBSTDCXX=../$(TARGET_SUBDIR)/libstdc++-v3/src/.libs/libstdc++.a
-@@ -127,8 +127,11 @@ gm2/gm2spec.o: $(srcdir)/gm2/gm2spec.c $(SYSTEM_H) $(GCC_H) $(CONFIG_H) \
+@@ -127,8 +109,11 @@ gm2/gm2spec.o: $(srcdir)/gm2/gm2spec.c $(SYSTEM_H) $(GCC_H) $(CONFIG_H) \
                  -DPREFIX=\"$(prefix)\" \
                  -c $(srcdir)/gm2/gm2spec.c $(OUTPUT_OPTION))
  
@@ -333,7 +366,67 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 bc831c5e3171b95aaf981fb8097aee
  
  gm2version.o: gm2/gm2version.c
  	(SHLIB_LINK='$(SHLIB_LINK)' \
-@@ -226,6 +229,11 @@ gm2.ps: gm2.dvi
+@@ -145,7 +130,7 @@ GM2_OBJS = $(GCC_OBJS) gm2/gm2version.o version.o \
+ 
+ # Create the compiler driver for xgm2.
+ xgm2$(exeext): $(GM2_OBJS) $(EXTRA_GCC_OBJS) libcommon-target.a $(LIBDEPS) \
+-    $(GM2_DIRS) gm2/gm2config.h
++    gm2/gm2config.h
+ 	+$(LINKER) $(ALL_LINKERFLAGS) $(LDFLAGS) -o $@ \
+ 	  $(GM2_OBJS) $(EXTRA_GCC_OBJS) libcommon-target.a \
+ 	  $(EXTRA_GCC_LIBS) $(LIBS)
+@@ -166,47 +151,16 @@ GM2_LIB_DIR_LOG= $(DESTDIR)$(libsubdir)/gm2/logitech
+ GM2_LIB_DIR_PCO= $(DESTDIR)$(libsubdir)/gm2/pim-coroutine
+ GM2_LIB_DIR_ISO= $(DESTDIR)$(libsubdir)/gm2/iso
+ GM2_LIB_DIR_MIN= $(DESTDIR)$(libsubdir)/gm2/min
+-GM2_DIRS       = $(objdir)/gm2/gm2-compiler-boot \
+-                 $(objdir)/gm2/gm2-libs-boot \
+-                 $(objdir)/gm2/gm2-ppg-boot \
+-                 $(objdir)/gm2/gm2-pge-boot \
+-                 $(objdir)/gm2/gm2-pg-boot \
+-                 $(objdir)/gm2/gm2-tools-boot \
+-                 $(objdir)/gm2/gm2-tools \
+-                 $(objdir)/gm2/gm2-libiberty \
+-                 $(objdir)/gm2/gm2-gcc \
+-                 $(objdir)/gm2/gm2-auto \
+-                 $(objdir)/gm2/gm2-compiler \
+-                 $(objdir)/gm2/gm2-libs \
+-                 $(objdir)/gm2/gm2-libs-iso \
+-                 $(objdir)/gm2/gm2-compiler-paranoid \
+-                 $(objdir)/gm2/gm2-libs-paranoid \
+-                 $(objdir)/gm2/gm2-compiler-verify \
+-                 $(objdir)/gm2/boot-bin \
+-                 $(objdir)/gm2/ulm-lib-gm2 \
+-                 $(objdir)/gm2/ulm-lib-gm2/sys \
+-                 $(objdir)/gm2/ulm-lib-gm2/std \
+-                 $(objdir)/gm2/gm2-libs-pim \
+-                 $(objdir)/gm2/gm2-libs-coroutines \
+-                 $(objdir)/gm2/gm2-libs-min \
+-                 $(objdir)/gm2/mc-boot \
+-                 $(objdir)/gm2/mc-boot-ch \
+-                 $(objdir)/gm2/mc-boot-gen \
+-                 $(objdir)/plugin \
+-                 stage1/gm2 stage2/gm2 stage3/gm2 stage4/gm2
+ 
+ # gt-gm2-gm2-lang.h gtype-gm2.h gt-gm2-gccgm2.h gt-gm2-m2builtins.h gt-gm2-m2except.h: s-gtype; @true
+ 
+ # Build hooks:
+ 
+-gm2.all.cross: xgm2-cross$(exeext) stage1/gm2/cc1gm2$(exeext) \
+-	$(GM2_LINK_TOOLS) \
+-	plugin/m2rte$(exeext).so
++gm2.all.cross: xgm2-cross$(exeext)
+ 
+-gm2.start.encap: xgm2$(exeext) stage1/gm2/cc1gm2$(exeext) \
+-	$(GM2_LINK_TOOLS) \
+-	plugin/m2rte$(exeext).so
++gm2.start.encap: xgm2$(exeext) plugin/m2rte$(exeext).so $(GM2_LINK_TOOLS)
+ gm2.rest.encap:
++
+ gm2.info: $(objdir)/gm2/gm2.info
+ gm2.generated-manpages: gm2.man
+ 
+@@ -226,115 +180,138 @@ gm2.ps: gm2.dvi
  gm2.pdf: gm2.ps
  	gs -q -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -sOutputFile=$@ $<
  
@@ -345,7 +438,12 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 bc831c5e3171b95aaf981fb8097aee
  $(objdir)/gm2/gm2.info: $(TEXISRC)
  	$(MAKEINFO) -I$(objdir)/gm2 -o $(objdir)/gm2/gm2.info $(srcdir)/gm2/gm2.texi
  
-@@ -237,23 +245,41 @@ $(objdir)/gm2/images/gnu.eps: $(srcdir)/gm2/images/gnupng
+ $(objdir)/gm2/images/gnu.eps: $(srcdir)/gm2/images/gnupng
+-	mkdir -p gm2/images
++	test -d gm2/images || mkdir -p gm2/images
+ 	if [ -f $(srcdir)/gm2/images/gnu.eps ] ; then \
+            cp $(srcdir)/gm2/images/gnu.eps $@ ; \
+         else \
             pngtopnm $< | pnmtops -noturn > $@ ; \
          fi
  
@@ -394,24 +492,118 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 bc831c5e3171b95aaf981fb8097aee
 +	$(STAMP) gm2-version.texi-check
  
  $(objdir)/gm2/gm2-tools:
- 	mkdir $@
-@@ -312,11 +338,11 @@ $(objdir)/gm2/boot-bin:
+-	mkdir $@
++	test -d $@ || mkdir -p $@
+ 
+ $(objdir)/gm2/gm2-tools-boot:
+-	mkdir $@
++	test -d $@ || mkdir -p $@
+ 
+ $(objdir)/gm2/gm2-compiler-boot:
+-	mkdir $@
++	test -d $@ || mkdir -p $@
+ 
+ $(objdir)/gm2/gm2-ppg-boot:
+-	mkdir $@
++	test -d $@ || mkdir -p $@
+ 
+ $(objdir)/gm2/gm2-pg-boot:
+-	mkdir $@
++	test -d $@ || mkdir -p $@
+ 
+ $(objdir)/gm2/gm2-pge-boot:
+-	mkdir $@
++	test -d $@ || mkdir -p $@
+ 
+ $(objdir)/gm2/gm2-libs-boot:
+-	mkdir $@
++	test -d $@ || mkdir -p $@
+ 
+ $(objdir)/gm2/gm2-libiberty:
+-	mkdir $@
++	test -d $@ || mkdir -p $@
+ 
+ $(objdir)/gm2/gm2-auto:
+-	mkdir $@
++	test -d $@ || mkdir -p $@
+ 
+ $(objdir)/gm2/gm2-gcc:
+-	mkdir $@
++	test -d $@ || mkdir -p $@
+ 
+ $(objdir)/gm2/gm2-compiler:
+-	mkdir $@
++	test -d $@ || mkdir -p $@
+ 
+ $(objdir)/gm2/gm2-libs:
+-	mkdir $@
++	test -d $@ || mkdir -p $@
+ 
+ $(objdir)/gm2/gm2-libs-iso:
+-	mkdir $@
++	test -d $@ || mkdir -p $@
+ 
+ $(objdir)/gm2/gm2-libs-min:
+-	mkdir $@
++	test -d $@ || mkdir -p $@
+ 
+ $(objdir)/gm2/gm2-compiler-paranoid:
+-	mkdir $@
++	test -d $@ || mkdir -p $@
+ 
+ $(objdir)/gm2/gm2-libs-paranoid:
+-	mkdir $@
++	test -d $@ || mkdir -p $@
+ 
+ $(objdir)/gm2/gm2-compiler-verify:
+-	mkdir $@
++	test -d $@ || mkdir -p $@
+ 
+ $(objdir)/gm2/boot-bin:
+-	mkdir $@
++	test -d $@ || mkdir -p $@
+ 
  $(objdir)/gm2/ulm-lib-gm2:
- 	mkdir $@
+-	mkdir $@
++	test -d $@ || mkdir -p $@
  
 -$(objdir)/gm2/ulm-lib-gm2/sys:
 -	mkdir $@
 +$(objdir)/gm2/ulm-lib-gm2/sys: $(objdir)/gm2/ulm-lib-gm2
-+	mkdir -p $@
++	test -d $@ || mkdir -p $@
  
 -$(objdir)/gm2/ulm-lib-gm2/std:
 -	mkdir $@
 +$(objdir)/gm2/ulm-lib-gm2/std: $(objdir)/gm2/ulm-lib-gm2
-+	mkdir -p $@
++	test -d $@ || mkdir -p $@
  
  $(objdir)/gm2/gm2-libs-pim:
- 	mkdir $@
-@@ -435,7 +461,7 @@ gm2.uninstall:
+-	mkdir $@
++	test -d $@ || mkdir -p $@
+ 
+ $(objdir)/gm2/gm2-libs-coroutines:
+-	mkdir $@
++	test -d $@ || mkdir -p $@
+ 
+ stage1/gm2:
+-	-mkdir -p stage1/gm2
++	test -d $@ || mkdir -p $@
+ 
+ stage2/gm2:
+-	-mkdir -p stage2/gm2
++	test -d $@ || mkdir -p $@
+ 
+ stage3/gm2:
+-	-mkdir -p stage3/gm2
++	test -d $@ || mkdir -p $@
+ 
+ stage4/gm2:
+-	-mkdir -p stage4/gm2
++	test -d $@ || mkdir -p $@
+ 
+ # No gm2-specific selftests
+ selftest-gm2:
+@@ -435,14 +412,14 @@ gm2.uninstall:
  	-rm -rf $(bindir)/$(GM2_INSTALL_NAME)
  	-rm -rf $(bindir)/$(GM2_CROSS_NAME)
  
@@ -420,7 +612,15 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 bc831c5e3171b95aaf981fb8097aee
  	rm -f $(DESTDIR)$(plugin_bindir)/m2rte$(exeext).so
  	mkdir -p $(DESTDIR)$(plugin_bindir)
  	$(INSTALL_PROGRAM) plugin/m2rte$(exeext).so $(DESTDIR)$(plugin_bindir)/m2rte$(exeext).so
-@@ -577,7 +603,7 @@ SO=-O0 -g -fPIC
+ 	chmod a+x $(DESTDIR)$(plugin_bindir)/m2rte$(exeext).so
+ 
+ plugin/m2rte$(exeext).so: $(srcdir)/gm2/plugin/m2rte.c $(TARGET_H) $(srcdir)/flags.h gtype-gm2.h
+-	mkdir -p $(GM2_DIRS)
++	test -d $(objdir)/plugin || mkdir -p $(objdir)/plugin
+ 	$(PLUGINCC) $(PLUGINCFLAGS) -fno-rtti -I. -I$(srcdir) -I$(srcdir)/gm2 -I$(srcdir)/../include -I$(srcdir)/../libcpp/include -Wall -Wno-literal-suffix -fPIC -c -o plugin/m2rte.o $(srcdir)/gm2/plugin/m2rte.c
+ 	$(PLUGINCC) $(PLUGINCFLAGS) $(PLUGINLIBS) -fno-rtti plugin/m2rte.o -shared -o $@
+ 
+@@ -577,7 +554,7 @@ SO=-O0 -g -fPIC
  # directly to the Modula-2 source.
  
                    # the C implementation module bridging the Modula-2 -> GCC
@@ -429,7 +629,20 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 bc831c5e3171b95aaf981fb8097aee
                      gm2/stor-layout.o \
                      gm2/m2pp.o \
                      gm2/gm2-gcc/m2assert.o \
-@@ -654,7 +680,7 @@ gm2-gcc/m2builtins.o : $(srcdir)/gm2/gm2-gcc/m2builtins.c $(CONFIG_H) $(TREE_H)
+@@ -640,9 +617,10 @@ stage2/gm2/cc1gm2$(exeext): stage1/gm2/cc1gm2$(exeext) gm2/gm2-compiler/m2flex.o
+                               $(BACKEND) $(LIBS) \
+                               $(BACKENDLIBS) $(LIBSTDCXX) -lm
+ 
+-stage1/gm2/cc1gm2$(exeext): $(GM2_DIRS) xgm2$(exeext) gm2/gm2-compiler-boot/m2flex.o \
++stage1/gm2/cc1gm2$(exeext): gm2/gm2-compiler-boot/m2flex.o \
+                             $(P) $(GM2_C_OBJS) $(BACKEND) $(LIBDEPS) \
+-                            $(GM2_LIBS_BOOT) $(MC_LIBS) plugin/m2rte$(exeext).so
++                            $(GM2_LIBS_BOOT) $(MC_LIBS)
++	$(__BREAKPOINT)
+ 	$(LINKER) $(ALL_CFLAGS) $(LDFLAGS) -o $@ $(GM2_C_OBJS) gm2/gm2-compiler-boot/m2flex.o \
+                             attribs.o \
+                              $(GM2_LIBS_BOOT) $(MC_LIBS) \
+@@ -654,7 +632,7 @@ gm2-gcc/m2builtins.o : $(srcdir)/gm2/gm2-gcc/m2builtins.c $(CONFIG_H) $(TREE_H)
  
  gm2-gcc/m2except.o : $(srcdir)/gm2/gm2-gcc/m2except.c $(CONFIG_H) $(TREE_H) $(RTL_H) $(TARGET_H) $(srcdir)/flags.h gtype-gm2.h gt-gm2-m2except.h
  
@@ -438,7 +651,7 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 bc831c5e3171b95aaf981fb8097aee
  	$(COMPILER) -c -g $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $< $(OUTPUT_OPTION)
  
  gm2/gm2-lang.o: $(srcdir)/gm2/gm2-lang.c $(CONFIG_H) $(TREE_H) $(RTL_H) $(TARGET_H) $(srcdir)/flags.h gt-gm2-gm2-lang.h
-@@ -998,7 +1024,7 @@ gm2/gm2-libs-boot/%.o: $(srcdir)/gm2/gm2-libs/%.mod $(MCDEPS) $(BUILD-BOOT-H)
+@@ -998,7 +976,7 @@ gm2/gm2-libs-boot/%.o: $(srcdir)/gm2/gm2-libs/%.mod $(MCDEPS) $(BUILD-BOOT-H)
  gm2/gm2-libs-boot/$(SRC_PREFIX)%.h: $(srcdir)/gm2/gm2-libs/%.def $(MCDEPS)
  	$(MC) -o=$@ $(srcdir)/gm2/gm2-libs/$*.def
  
@@ -447,7 +660,7 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 bc831c5e3171b95aaf981fb8097aee
  	$(CC) -c -DIN_GCC $(CFLAGS) -Igm2/gm2-libs -I$(srcdir)/gm2 -Igm2 -I. -Igm2/gm2-libs-boot $(INCLUDES) $< -o $@
  
  gm2/gm2-libs-boot/wrapc.o: $(srcdir)/gm2/gm2-libs-ch/wrapc.c gm2/gm2-libs-boot/$(SRC_PREFIX)wrapc.h gm2/gm2-libs/gm2-libs-host.h
-@@ -1126,7 +1152,8 @@ gm2/gm2-tools/m2flex.o: gm2/gm2-compiler/m2flex.c $(BUILD-BOOT-H) $(TIMEVAR_H)
+@@ -1126,7 +1104,8 @@ gm2/gm2-tools/m2flex.o: gm2/gm2-compiler/m2flex.c $(BUILD-BOOT-H) $(TIMEVAR_H)
            -Igm2 -Igm2/gm2-compiler-boot -Igm2/gm2-libs-boot $< -o $@
  
  gm2/gm2-compiler-boot/m2flex.o: gm2/gm2-compiler/m2flex.c $(BUILD-BOOT-H) $(TIMEVAR_H) \
@@ -457,7 +670,7 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 bc831c5e3171b95aaf981fb8097aee
  	$(COMPILER) -c -g $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
            $(GM2GCC) $(INCLUDES) -I$(srcdir)/gm2 \
            -Igm2 -Igm2/gm2-compiler-boot -Igm2/gm2-libs-boot $< -o $@
-@@ -1150,8 +1177,11 @@ gm2/gm2-compiler-boot/M2Version.o: gm2/gm2-compiler-boot/M2Version.mod $(MCDEPS)
+@@ -1150,8 +1129,11 @@ gm2/gm2-compiler-boot/M2Version.o: gm2/gm2-compiler-boot/M2Version.mod $(MCDEPS)
  	$(MC) -o=gm2/gm2-compiler-boot/M2Version.c $<
  	$(COMPILER) -c $(ALL_CPPFLAGS) $(GM2GCC) -I. -Igm2/gm2-libs-boot -Igm2/gm2-compiler-boot -Igm2/gm2-libiberty $(INCLUDES) gm2/gm2-compiler-boot/M2Version.c -o $@
  
@@ -470,8 +683,50 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 bc831c5e3171b95aaf981fb8097aee
  
  
  #
-@@ -1757,7 +1787,9 @@ gm2/mc-boot-ch/$(SRC_PREFIX)%.o: gm2/mc-boot-ch/$(SRC_PREFIX)%.c
- mc-bootstrap: $(GM2_DIRS) mc-clean gm2/boot-bin/mc$(exeext)
+@@ -1480,7 +1462,7 @@ MCLINK=-g
+ GM2SYS=/opt/gm2/lib/gcc/x86_64-linux-gnu/4.7.4/m2/pim
+ GM2PATH=$(srcdir)/gm2/mc:$(GM2SYS):$(srcdir)/gm2:gm2/gm2-auto:$(srcdir)/gm2/gm2-libs
+ 
+-mc:  $(GM2_DIRS) mc-clean mc-devel
++mc:  mc-clean mc-devel
+ 
+ 
+ #
+@@ -1696,19 +1678,19 @@ BUILD-MC-BOOT-O =  $(MC-LIB-BOOT-C:%.c=gm2/mc-boot/$(SRC_PREFIX)%.o) \
+ BUILD-MC-INTERFACE-O = $(MC-INTERFACE-C:%.c=gm2/mc-boot-ch/$(SRC_PREFIX)%.o)
+ 
+ 
+-$(objdir)/plugin: force
+-	mkdir -p $@
++$(objdir)/plugin:
++	test -d $@ || mkdir -p $@
+ 
+-$(objdir)/gm2/mc-boot: force
+-	mkdir -p $@
++$(objdir)/gm2/mc-boot:
++	test -d $@ || mkdir -p $@
+ 
+-$(objdir)/gm2/mc-boot-ch: force
+-	mkdir -p $@
++$(objdir)/gm2/mc-boot-ch:
++	test -d $@ || mkdir -p $@
+ 
+-$(objdir)/gm2/mc-boot-gen: force
+-	mkdir -p $@
++$(objdir)/gm2/mc-boot-gen:
++	test -d $@ || mkdir -p $@
+ 
+-mc-autogen: $(GM2_DIRS) mc-clean mc-devel \
++mc-autogen: mc-clean mc-devel \
+             $(BUILD-MC-BOOT-H) $(BUILD-MC-BOOT-C) \
+             $(BUILD-MC-BOOT-AUTO-C)
+ 	cd gm2/mc-boot-gen ; for i in *.c ; do gcc -g -c -I../../$(srcdir)/gm2/mc-boot-ch $$i ; done
+@@ -1754,10 +1736,12 @@ gm2/mc-boot-ch/$(SRC_PREFIX)%.o: gm2/mc-boot-ch/$(SRC_PREFIX)%.c
+ #                 files will be checked into git by the maintainer.
+ #
+ 
+-mc-bootstrap: $(GM2_DIRS) mc-clean gm2/boot-bin/mc$(exeext)
++mc-bootstrap: mc-clean gm2/boot-bin/mc$(exeext)
  
  gm2/boot-bin/mc$(exeext): $(BUILD-MC-BOOT-O) $(BUILD-MC-INTERFACE-O) gm2/mc-boot/main.o mcflex.o gm2/gm2-libs-boot/pthdummy.o
 -	$(CC) -g -o $@ $(BUILD-MC-BOOT-O) $(BUILD-MC-INTERFACE-O) $(LDFLAGS) gm2/mc-boot/main.o mcflex.o gm2/gm2-libs-boot/pthdummy.o -lm
@@ -481,7 +736,7 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 bc831c5e3171b95aaf981fb8097aee
  
  gm2/mc-boot/main.o: $(M2LINK) $(srcdir)/gm2/init/mcinit
  	unset CC ; $(M2LINK) -s --gcc --exit --name mainmcinit.c $(srcdir)/gm2/init/mcinit
-@@ -2104,7 +2136,7 @@ gm2/gm2-ppg-boot/$(SRC_PREFIX)%.o: $(srcdir)/gm2/gm2-compiler/%.mod $(MCDEPS) $(
+@@ -2104,7 +2088,7 @@ gm2/gm2-ppg-boot/$(SRC_PREFIX)%.o: $(srcdir)/gm2/gm2-compiler/%.mod $(MCDEPS) $(
                -I$(srcdir)/gm2/mc-boot-ch -g -c gm2/gm2-ppg-boot/$(SRC_PREFIX)$*.c -o $@
  
  gm2/ppg$(exeext): gm2/boot-bin/mc $(BUILD-PPG-O) $(BUILD-MC-INTERFACE-O) gm2/gm2-ppg-boot/main.o gm2/gm2-libs-boot/pthdummy.o
@@ -490,7 +745,16 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 bc831c5e3171b95aaf981fb8097aee
  
  gm2/gm2-ppg-boot/main.o: $(M2LINK) $(srcdir)/gm2/init/mcinit
  	unset CC ; $(M2LINK) -s --gcc --exit --name mainppginit.c $(srcdir)/gm2/init/ppginit
-@@ -2150,7 +2182,7 @@ gm2/gm2-pg-boot/$(SRC_PREFIX)pg.o:  gm2/gm2-auto/pg.mod $(MCDEPS) $(BUILD-BOOT-H
+@@ -2112,7 +2096,7 @@ gm2/gm2-ppg-boot/main.o: $(M2LINK) $(srcdir)/gm2/init/mcinit
+ 	$(CC) -g -c -o $@ gm2/gm2-ppg-boot/main.c
+ 
+ gm2/gm2-auto:
+-	mkdir gm2/gm2-auto
++	test -d $@ || mkdir -p $@
+ 
+ #
+ #  gm2/pg$(exext) is the 2nd generation parser generator built from ebnf
+@@ -2150,7 +2134,7 @@ gm2/gm2-pg-boot/$(SRC_PREFIX)pg.o:  gm2/gm2-auto/pg.mod $(MCDEPS) $(BUILD-BOOT-H
  gm2/pg$(exeext): gm2/boot-bin/mc \
      $(BUILD-PG-O) $(GM2-PPG-MODS:%.mod=gm2/gm2-pg-boot/%.o) \
      $(BUILD-MC-INTERFACE-O) gm2/gm2-pg-boot/main.o gm2/gm2-libs-boot/pthdummy.o
@@ -499,7 +763,7 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 bc831c5e3171b95aaf981fb8097aee
  
  gm2/gm2-auto/pginit:
  	sed -e 's/ppg/pg/' < $(srcdir)/gm2/init/ppginit > $@
-@@ -2192,18 +2224,51 @@ gm2/gm2-auto/pge.mod: gm2/pg$(exeext)
+@@ -2192,18 +2176,51 @@ gm2/gm2-auto/pge.mod: gm2/pg$(exeext)
  gm2/gm2-pge-boot/$(SRC_PREFIX)%.h: $(srcdir)/gm2/gm2-libs/%.def $(MCDEPS)
  	$(MCC) -o=$@ $(srcdir)/gm2/gm2-libs/$*.def
  
@@ -557,7 +821,7 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 bc831c5e3171b95aaf981fb8097aee
  
  gm2/gm2-pge-boot/$(SRC_PREFIX)pge.o:  gm2/gm2-auto/pge.mod $(MCDEPS) $(BUILD-BOOT-H)
  	$(MCC) -o=gm2/gm2-pge-boot/$(SRC_PREFIX)pge.c gm2/gm2-auto/pge.mod
-@@ -2213,7 +2278,7 @@ gm2/gm2-pge-boot/$(SRC_PREFIX)pge.o:  gm2/gm2-auto/pge.mod $(MCDEPS) $(BUILD-BOO
+@@ -2213,7 +2230,7 @@ gm2/gm2-pge-boot/$(SRC_PREFIX)pge.o:  gm2/gm2-auto/pge.mod $(MCDEPS) $(BUILD-BOO
  gm2/pge$(exeext): gm2/boot-bin/mc \
      $(BUILD-PGE-O) $(GM2-PPG-MODS:%.mod=gm2/gm2-pge-boot/%.o) \
      $(BUILD-MC-INTERFACE-O) gm2/gm2-pge-boot/main.o gm2/gm2-libs-boot/pthdummy.o
@@ -566,7 +830,7 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 bc831c5e3171b95aaf981fb8097aee
  	$(srcdir)/gm2/tools-src/buildpg $(srcdir)/gm2/gm2-compiler/ppg.mod t > gm2/gm2-auto/t.bnf
  	./gm2/pge$(exeext) gm2/gm2-auto/t.bnf > gm2/gm2-auto/t1.mod
  	./gm2/pg$(exeext) gm2/gm2-auto/t.bnf > gm2/gm2-auto/t2.mod
-@@ -2414,17 +2479,7 @@ check-modula-2: check-gm2
+@@ -2414,17 +2431,7 @@ check-modula-2: check-gm2
  check_modula-2: check-gm2
  check_modula-2: check-gm2
  
@@ -585,7 +849,7 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 bc831c5e3171b95aaf981fb8097aee
  
  check-gm2-local: $(GM2TESTSUITEDIR)/site.exp
  	-(rootme=`${PWD_COMMAND}`; export rootme; \
-@@ -2472,7 +2527,7 @@ gm2.maintainer-help: force
+@@ -2472,7 +2479,7 @@ gm2.maintainer-help: force
  	@echo "make gm2.maintainer-reconfigure    rebuild the configure scripts"
  	@echo "make gm2.maintainer-clean          clean pre-built images and texi files"
  
@@ -594,6 +858,41 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 bc831c5e3171b95aaf981fb8097aee
              el gccgdbinit gccgm2.c gm2-gcc \
              gm2-auto gm2-compiler gm2-compiler-boot \
              gm2-gccinit gm2-libs gm2-libs-boot gm2-libs-ch gm2.texi gm2spec.c \
+--- a/src/gcc/gm2/config-lang.in
++++ b/src/gcc/gm2/config-lang.in
+@@ -79,3 +79,32 @@ outputs=" \
+          gm2/man/Makefile \
+          gm2/www/Makefile \
+         "
++
++mkdir -p gm2/gm2-compiler-boot
++mkdir -p gm2/gm2-libs-boot
++mkdir -p gm2/gm2-ppg-boot
++mkdir -p gm2/gm2-pge-boot
++mkdir -p gm2/gm2-pg-boot
++mkdir -p gm2/gm2-tools-boot
++mkdir -p gm2/gm2-tools
++mkdir -p gm2/gm2-libiberty
++mkdir -p gm2/gm2-gcc
++mkdir -p gm2/gm2-auto
++mkdir -p gm2/gm2-compiler
++mkdir -p gm2/gm2-libs
++mkdir -p gm2/gm2-libs-iso
++mkdir -p gm2/gm2-compiler-paranoid
++mkdir -p gm2/gm2-libs-paranoid
++mkdir -p gm2/gm2-compiler-verify
++mkdir -p gm2/boot-bin
++mkdir -p gm2/ulm-lib-gm2
++mkdir -p gm2/ulm-lib-gm2/sys
++mkdir -p gm2/ulm-lib-gm2/std
++mkdir -p gm2/gm2-libs-pim
++mkdir -p gm2/gm2-libs-coroutines
++mkdir -p gm2/gm2-libs-min
++mkdir -p gm2/mc-boot
++mkdir -p gm2/mc-boot-ch
++mkdir -p gm2/mc-boot-gen
++mkdir -p plugin
++mkdir -p stage1/gm2 stage2/gm2 stage3/gm2 stage4/gm2
 --- a/src/gcc/gm2/examples/gravity/Makefile.in
 +++ b/src/gcc/gm2/examples/gravity/Makefile.in
 @@ -54,7 +54,7 @@ else
@@ -1611,7 +1910,7 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 bc831c5e3171b95aaf981fb8097aee
      return f
  
 --- a/src/gcc/gm2/examples/pge/pge2d.py
-+++ a/src/gcc/gm2/examples/pge/pge2d.py
+--- b/src/gcc/gm2/examples/pge/pge2d.py
 @@ -1,10 +0,0 @@
 -#!/usr/bin/env python
 -
