@@ -940,6 +940,9 @@ ifeq (,$(filter $(distrelease),lenny etch squeeze dapper hardy jaunty karmic luc
   go_no_cpus := $(filter-out arm, $(go_no_cpus))
 endif
 go_no_systems := kfreebsd
+ifneq (,$(filter $(distrelease),precise))
+  go_no_archs = armhf
+endif
 
 ifneq ($(with_base_only),yes)
   ifneq ($(separate_lang),yes)
@@ -1207,6 +1210,9 @@ ifeq ($(m2_no_cross)-$(DEB_CROSS),yes-yes)
 endif
 ifeq ($(DEB_STAGE)-$(filter libgm2, $(with_rtlibs)),rtlibs-)
   with_m2 := disabled for rtlibs stage
+endif
+ifneq (,$(filter $(distrelease),precise))
+  with_m2 := disabled for $(distrelease) backport
 endif
 
 with_m2 := $(call envfilt, m2, , , $(with_m2))
