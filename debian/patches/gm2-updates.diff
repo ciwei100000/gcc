@@ -1,11 +1,40 @@
-# DP: gm2 updates up to 20191031
+# DP: gm2 updates up to 20191107
 
-git diff de2034bc023a89e45bec67e54d2a63982080c316 d48720ca19879ce3a08da42f3a8ef620a23baa46 | filterdiff --strip=2 --addoldprefix=a/src/ --addnewprefix=b/src/ --remove-timestamp | egrep -v '^(diff|index)'
+git diff de2034bc023a89e45bec67e54d2a63982080c316 674c0c7b7453b4998ac25ae57698be2818ec7352 | filterdiff --strip=2 --addoldprefix=a/src/ --addnewprefix=b/src/ --remove-timestamp | egrep -v '^(diff|index)'
 
 --- a/src/gcc/gm2/ChangeLog
 +++ b/src/gcc/gm2/ChangeLog
-@@ -1,4 +1,311 @@
+@@ -1,4 +1,340 @@
 -2019-08-05      Gaius Mulley <gaius.mulley@southwales.ac.uk>
++2019-11-05      Gaius Mulley <gaius.mulley@southwales.ac.uk>
++
++	* gm2/Make-lang.in:  (gm2/gm2-libs/gm2-libs-target.h)
++          removed.   (gm2/gm2-libs-iso/%.o) replaced gm2-libs-target
++          with gm2-libs-host.h.  (gm2/gm2-libs/gm2-libs-host.h)
++          pass --libdir, --libexecdir to configure.
++          (build-libs-min) removed.
++          (archive-libs-min) removed.
++          (build-libs) removed.
++          (archive-libs) removed.
++          (build-compiler) removed.
++          (gm2/gm2-libs/libgm2.a) removed.
++          (build-libs-iso) removed.
++          (archive-libs-iso) removed.
++          (build-libs-ulm) removed.
++          (archive-libs-ulm) removed.
++          (build-libs-pim) removed.
++          (archive-libs-pim) removed.
++          (build-libs-coroutines) removed.
++
++2019-11-04      Gaius Mulley <gaius.mulley@southwales.ac.uk>
++
++	* gm2/Make-lang.in:  (gm2.all.cross) added
++          plugin/m2rte$(exeext).so as a dependency.
++	* gm2/gm2-libs/config-host.in:  (AC_CHECK_HEADERS)
++          quote all header files.
++	* gm2/Make-lang.in:  (gm2.all.cross) added
++          $(GM2_LINK_TOOLS) as dependencies.
++
 +2019-10-30      Gaius Mulley <gaius.mulley@southwales.ac.uk>
 +
 +	* gm2/Make-lang.in:  pruned old comments.  (GM2_DIRS)
@@ -415,7 +444,7 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 d48720ca19879ce3a08da42f3a8ef6
 -gm2.all.cross: xgm2-cross$(exeext) stage1/gm2/cc1gm2$(exeext) \
 -	$(GM2_LINK_TOOLS) \
 -	plugin/m2rte$(exeext).so
-+gm2.all.cross: xgm2-cross$(exeext)
++gm2.all.cross: xgm2-cross$(exeext) plugin/m2rte$(exeext).so $(GM2_LINK_TOOLS)
  
 -gm2.start.encap: xgm2$(exeext) stage1/gm2/cc1gm2$(exeext) \
 -	$(GM2_LINK_TOOLS) \
@@ -454,16 +483,16 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 d48720ca19879ce3a08da42f3a8ef6
 +gm2-libs.texi-check:  gm2/SYSTEM-pim.texi gm2/SYSTEM-iso.texi gm2/Builtins.texi $(objdir)/gm2/gm2-libs-coroutines/SYSTEM.def gm2/gm2-ebnf.texi
 +	python3 $(srcdir)/gm2/tools-src/def2texi.py -uLibraries -s$(srcdir)/gm2 -b$(objdir)/gm2 > $(objdir)/gm2/gm2-libs.texi
 +	$(STAMP) gm2-libs.texi-check
++
++gm2/gm2-ebnf.texi: gm2-ebnf.texi-check; @true
  
 -gm2/gm2-ebnf.texi: gm2/gm2-auto gm2/ppg$(exeext) $(srcdir)/gm2/bnf/m2.bnf
 -	./gm2/ppg$(exeext) -c -p -t -f $(srcdir)/gm2/bnf/m2.bnf > $@
-+gm2/gm2-ebnf.texi: gm2-ebnf.texi-check; @true
- 
--gm2/SYSTEM-pim.texi: $(objdir)/gm2/gm2-libs/SYSTEM.def
 +gm2-ebnf.texi-check: gm2/gm2-auto gm2/ppg$(exeext) $(srcdir)/gm2/bnf/m2.bnf
 +	./gm2/ppg$(exeext) -c -p -t -f $(srcdir)/gm2/bnf/m2.bnf > gm2/gm2-ebnf.texi
 +	$(STAMP) gm2-ebnf.texi-check
-+
+ 
+-gm2/SYSTEM-pim.texi: $(objdir)/gm2/gm2-libs/SYSTEM.def
 +gm2/SYSTEM-pim.texi: SYSTEM-pim-texi-check; @true
 +
 +SYSTEM-pim-texi-check: $(objdir)/gm2/gm2-libs/SYSTEM.def
@@ -476,17 +505,17 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 d48720ca19879ce3a08da42f3a8ef6
 +SYSTEM-iso.texi-check:  $(objdir)/gm2/gm2-libs-iso/SYSTEM.def
  	$(srcdir)/gm2/tools-src/def2texi.py -b$(objdir)/gm2 -f$(objdir)/gm2/gm2-libs-iso/SYSTEM.def > $(objdir)/gm2/SYSTEM-iso.texi
 +	$(STAMP) SYSTEM-iso.texi-check
++
++gm2/Builtins.texi:  Builtins.texi-check; @true
  
 -gm2/Builtins.texi: gm2/gm2-libs/Builtins.def
-+gm2/Builtins.texi:  Builtins.texi-check; @true
-+
 +Builtins.texi-check:  gm2/gm2-libs/Builtins.def
  	$(srcdir)/gm2/tools-src/def2texi.py -b./ -f$(srcdir)/gm2/gm2-libs/Builtins.def > $(objdir)/gm2/Builtins.texi
 +	$(STAMP) Builtins.texi-check
-+
-+gm2/version.texi: gm2-version.texi-check; @true
  
 -gm2/version.texi: force
++gm2/version.texi: gm2-version.texi-check; @true
++
 +gm2-version.texi-check:
  	cd gm2 ; bash ../$(srcdir)/gm2/tools-src/makeversion -t ../$(srcdir)
 +	$(STAMP) gm2-version.texi-check
@@ -620,16 +649,44 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 d48720ca19879ce3a08da42f3a8ef6
  	$(PLUGINCC) $(PLUGINCFLAGS) -fno-rtti -I. -I$(srcdir) -I$(srcdir)/gm2 -I$(srcdir)/../include -I$(srcdir)/../libcpp/include -Wall -Wno-literal-suffix -fPIC -c -o plugin/m2rte.o $(srcdir)/gm2/plugin/m2rte.c
  	$(PLUGINCC) $(PLUGINCFLAGS) $(PLUGINLIBS) -fno-rtti plugin/m2rte.o -shared -o $@
  
-@@ -577,7 +554,7 @@ SO=-O0 -g -fPIC
- # directly to the Modula-2 source.
+@@ -458,7 +435,7 @@ gm2.mostlyclean:
+ gm2.clean:
+ 	-rm -f gm2/*.o
+ 	-rm -f gm2/gm2-libs/config.*
+-	-rm gm2/gm2-libs/gm2-libs-host.h gm2/gm2-libs/gm2-libs-target.h gm2/gm2config.h
++	-rm gm2/gm2-libs/gm2-libs-host.h gm2/gm2config.h
+ 	-rm -f gm2/gm2-libs/autoscan.log
+ 	-rm -f gm2.aux gm2.html gm2.dvi gm2.ps gm2.info gm2.log
+ 	-rm -fr gm2/stage?
+@@ -566,18 +543,7 @@ SO=-O0 -g -fPIC
  
-                   # the C implementation module bridging the Modula-2 -> GCC
+ # Language-specific object files for the gm2 compiler.
+ 
+-# rationale:
+-#
+-# we build gm2 twice. The first time the Modula-2 sources are
+-# converted into C via mc. The resulting compiler and utilities are
+-# placed into stage1/gm2 directories.  Then this stage1 compiler is
+-# used to build the stage2 compiler which will be installed on the
+-# host as part of `make install'.  Debugging the stage2 compiler is
+-# much prefered as the executable contains debugging info relating
+-# directly to the Modula-2 source.
+-
+-                  # the C implementation module bridging the Modula-2 -> GCC
 -GM2_C_OBJS          = gm2/gm2-lang.o \
 +GM2_C_OBJS        = gm2/gm2-lang.o \
                      gm2/stor-layout.o \
                      gm2/m2pp.o \
                      gm2/gm2-gcc/m2assert.o \
-@@ -640,9 +617,10 @@ stage2/gm2/cc1gm2$(exeext): stage1/gm2/cc1gm2$(exeext) gm2/gm2-compiler/m2flex.o
+@@ -598,7 +564,6 @@ GM2_C_OBJS          = gm2/gm2-lang.o \
+                     gm2/gm2-gcc/init.o
+ GM2_LIBS          = gm2/gm2-compiler/gm2.a ../$(target_subdir)/libgm2/libpim/.libs/libgm2.a gm2/gm2-libs-boot/choosetemp.o
+ 
+-# gm2/gm2-compiler/gm2.a gm2/gm2-libs/libgm2.a         # the final Modula-2 front end
+ GM2_LIBS_BOOT     = gm2/gm2-compiler-boot/gm2.a \
+                     gm2/gm2-libs-boot/libgm2.a
+ GM2_LIBS_PARANOID = gm2/gm2-compiler-paranoid/gm2.a \
+@@ -640,9 +605,10 @@ stage2/gm2/cc1gm2$(exeext): stage1/gm2/cc1gm2$(exeext) gm2/gm2-compiler/m2flex.o
                                $(BACKEND) $(LIBS) \
                                $(BACKENDLIBS) $(LIBSTDCXX) -lm
  
@@ -642,7 +699,7 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 d48720ca19879ce3a08da42f3a8ef6
  	$(LINKER) $(ALL_CFLAGS) $(LDFLAGS) -o $@ $(GM2_C_OBJS) gm2/gm2-compiler-boot/m2flex.o \
                              attribs.o \
                               $(GM2_LIBS_BOOT) $(MC_LIBS) \
-@@ -654,7 +632,7 @@ gm2-gcc/m2builtins.o : $(srcdir)/gm2/gm2-gcc/m2builtins.c $(CONFIG_H) $(TREE_H)
+@@ -654,7 +620,7 @@ gm2-gcc/m2builtins.o : $(srcdir)/gm2/gm2-gcc/m2builtins.c $(CONFIG_H) $(TREE_H)
  
  gm2-gcc/m2except.o : $(srcdir)/gm2/gm2-gcc/m2except.c $(CONFIG_H) $(TREE_H) $(RTL_H) $(TARGET_H) $(srcdir)/flags.h gtype-gm2.h gt-gm2-m2except.h
  
@@ -651,7 +708,7 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 d48720ca19879ce3a08da42f3a8ef6
  	$(COMPILER) -c -g $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $< $(OUTPUT_OPTION)
  
  gm2/gm2-lang.o: $(srcdir)/gm2/gm2-lang.c $(CONFIG_H) $(TREE_H) $(RTL_H) $(TARGET_H) $(srcdir)/flags.h gt-gm2-gm2-lang.h
-@@ -998,7 +976,7 @@ gm2/gm2-libs-boot/%.o: $(srcdir)/gm2/gm2-libs/%.mod $(MCDEPS) $(BUILD-BOOT-H)
+@@ -998,7 +964,7 @@ gm2/gm2-libs-boot/%.o: $(srcdir)/gm2/gm2-libs/%.mod $(MCDEPS) $(BUILD-BOOT-H)
  gm2/gm2-libs-boot/$(SRC_PREFIX)%.h: $(srcdir)/gm2/gm2-libs/%.def $(MCDEPS)
  	$(MC) -o=$@ $(srcdir)/gm2/gm2-libs/$*.def
  
@@ -660,7 +717,7 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 d48720ca19879ce3a08da42f3a8ef6
  	$(CC) -c -DIN_GCC $(CFLAGS) -Igm2/gm2-libs -I$(srcdir)/gm2 -Igm2 -I. -Igm2/gm2-libs-boot $(INCLUDES) $< -o $@
  
  gm2/gm2-libs-boot/wrapc.o: $(srcdir)/gm2/gm2-libs-ch/wrapc.c gm2/gm2-libs-boot/$(SRC_PREFIX)wrapc.h gm2/gm2-libs/gm2-libs-host.h
-@@ -1126,7 +1104,8 @@ gm2/gm2-tools/m2flex.o: gm2/gm2-compiler/m2flex.c $(BUILD-BOOT-H) $(TIMEVAR_H)
+@@ -1126,7 +1092,8 @@ gm2/gm2-tools/m2flex.o: gm2/gm2-compiler/m2flex.c $(BUILD-BOOT-H) $(TIMEVAR_H)
            -Igm2 -Igm2/gm2-compiler-boot -Igm2/gm2-libs-boot $< -o $@
  
  gm2/gm2-compiler-boot/m2flex.o: gm2/gm2-compiler/m2flex.c $(BUILD-BOOT-H) $(TIMEVAR_H) \
@@ -670,7 +727,7 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 d48720ca19879ce3a08da42f3a8ef6
  	$(COMPILER) -c -g $(ALL_COMPILERFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
            $(GM2GCC) $(INCLUDES) -I$(srcdir)/gm2 \
            -Igm2 -Igm2/gm2-compiler-boot -Igm2/gm2-libs-boot $< -o $@
-@@ -1150,8 +1129,11 @@ gm2/gm2-compiler-boot/M2Version.o: gm2/gm2-compiler-boot/M2Version.mod $(MCDEPS)
+@@ -1150,8 +1117,11 @@ gm2/gm2-compiler-boot/M2Version.o: gm2/gm2-compiler-boot/M2Version.mod $(MCDEPS)
  	$(MC) -o=gm2/gm2-compiler-boot/M2Version.c $<
  	$(COMPILER) -c $(ALL_CPPFLAGS) $(GM2GCC) -I. -Igm2/gm2-libs-boot -Igm2/gm2-compiler-boot -Igm2/gm2-libiberty $(INCLUDES) gm2/gm2-compiler-boot/M2Version.c -o $@
  
@@ -683,7 +740,180 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 d48720ca19879ce3a08da42f3a8ef6
  
  
  #
-@@ -1480,7 +1462,7 @@ MCLINK=-g
+@@ -1218,7 +1188,7 @@ gm2/gm2-compiler/M2Version.mod:
+ gm2/gm2-compiler/h2def.o: $(objdir)/gm2/gm2-compiler/h2def.mod
+ 	$(XGM2_1) $(GM2_FLAGS) -c -B$(XGM2BUILD1) -I$(srcdir)/gm2/gm2-compiler -I$(srcdir)/gm2/gm2-libs -I$(srcdir)/gm2/gm2-gcc -I$(srcdir)/gm2/gm2-libiberty $< -o $@
+ 
+-gm2/gm2-libs-iso/%.o: $(srcdir)/gm2/gm2-libs-iso/%.c gm2/gm2-libs/gm2-libs-target.h
++gm2/gm2-libs-iso/%.o: $(srcdir)/gm2/gm2-libs-iso/%.c gm2/gm2-libs/gm2-libs-host.h
+ 	$(CC) -DBUILD_GM2_LIBS_TARGET -DBUILD_GM2_LIBS -c $(CFLAGS) -Igm2/gm2-libs -I$(srcdir)/gm2 -Igm2/gm2-libs-boot $(INCLUDES) $< -o $@
+ 
+ gm2/gm2-libs-iso/%.o: $(srcdir)/gm2/gm2-libs-iso/%.mod
+@@ -1230,26 +1200,6 @@ gm2/gm2-libs-iso/%.o: $(srcdir)/gm2/gm2-libs-iso/%.mod
+ #  itself.
+ #
+ 
+-gm2/gm2-libs/gm2-libs-target.h:
+-	if echo $(INTERNAL_CFLAGS) | grep \\-DCROSS_COMPILE; then \
+-            echo "Configuring to build libraries using cross compiler" ; \
+-            CC="$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(ALL_CPPFLAGS) -I. -I$(srcdir) -isystem include -isystem ${SYSTEM_HEADER_DIR}"; \
+-            export CC; \
+-            $(SHELL) -c \
+-               '$(srcdir)/gm2/gm2-libs/config-target \
+-                  --srcdir=$(srcdir)/gm2/gm2-libs \
+-                  --target=$(target) \
+-                  --program-suffix=$(exeext) \
+-                  --includedir=${gcc_tooldir}/include' ; \
+-        else \
+-            echo "Configuring to build libraries using native compiler" ; \
+-            cd gm2/gm2-libs ; \
+-            $(SHELL) -c '../../$(srcdir)/gm2/gm2-libs/config-target \
+-               --srcdir=../../$(srcdir)/gm2/gm2-libs \
+-               --target=$(target) \
+-               --program-suffix=$(exeext)' ; \
+-        fi
+-
+ gm2/gm2-libs/gm2-libs-host.h:
+ 	echo "Configuring to build libraries using native compiler" ; \
+         cd gm2/gm2-libs ; \
+@@ -1265,7 +1215,7 @@ gm2/gm2config.h:
+             export AR ; \
+             RANLIB=`echo $(RANLIB_FOR_TARGET) | sed -e "s/^ //"` ; \
+             export RANLIB ; \
+-            $(SHELL) -c '../$(srcdir)/gm2/configure --srcdir=../$(srcdir)/gm2 --target=$(target) --program-suffix=$(exeext) --includedir=$(SYSTEM_HEADER_DIR)' ; \
++            $(SHELL) -c '../$(srcdir)/gm2/configure --srcdir=../$(srcdir)/gm2 --target=$(target) --program-suffix=$(exeext) --includedir=$(SYSTEM_HEADER_DIR) --libdir=$(libdir) --libexecdir=$(libexecdir)' ; \
+         else \
+             $(SHELL) -c '../$(srcdir)/gm2/configure --srcdir=../$(srcdir)/gm2 --target=$(target) --program-suffix=$(exeext)' ; \
+         fi
+@@ -1307,127 +1257,17 @@ build-system: $(objdir)/gm2/gm2-libs-min/SYSTEM.def \
+               $(objdir)/gm2/gm2-libs-coroutines/SYSTEM.def
+ endif
+ 
+-build-libs-min: $(GM2-LIBS-MIN-MODS:%.mod=gm2/gm2-libs-min/%.o) \
+-                $(GM2-LIBS-MIN-C:%.c=gm2/gm2-libs-min/%.o) \
+-                $(GM2-LIBS-MIN-MODS:%.mod=gm2/gm2-libs-min/O2/%.o) \
+-                $(GM2-LIBS-MIN-C:%.c=gm2/gm2-libs-min/O2/%.o)
+-
+-archive-libs-min: build-libs-min
+-	$(AR_CREATE_FOR_TARGET) gm2/gm2-libs-min/libgm2min.a \
+-        $(GM2-LIBS-MIN-MODS:%.mod=gm2/gm2-libs-min/%.o) \
+-        $(GM2-LIBS-MIN-C:%.c=gm2/gm2-libs-min/%.o)
+-	$(RANLIB_FOR_TARGET) gm2/gm2-libs-min/libgm2min.a
+-	$(AR_CREATE_FOR_TARGET) gm2/gm2-libs-min/O2/libgm2min.a \
+-        $(GM2-LIBS-MIN-MODS:%.mod=gm2/gm2-libs-min/O2/%.o) \
+-        $(GM2-LIBS-MIN-C:%.c=gm2/gm2-libs-min/O2/%.o)
+-	$(RANLIB_FOR_TARGET) gm2/gm2-libs-min/O2/libgm2min.a
+-
+-build-libs: gm2/gm2-libs/gm2-libs-host.h \
+-            $(GM2-LIBS-MODS:%.mod=gm2/gm2-libs/%.o) \
+-            $(GM2-LIBS-C:%.c=gm2/gm2-libs/%.o)
+-
+-archive-libs:  build-libs
+-	$(AR_CREATE_FOR_TARGET) gm2/gm2-libs/libgm2.a \
+-            $(GM2-LIBS-MODS:%.mod=gm2/gm2-libs/%.o) \
+-            $(GM2-LIBS-C:%.c=gm2/gm2-libs/%.o)
+-	$(RANLIB_FOR_TARGET) gm2/gm2-libs/libgm2.a
+-
+ build-compiler: $(GM2-COMP-MODS:%.mod=gm2/gm2-compiler/%.o) \
+                 $(GM2-AUTO-MODS:%.mod=gm2/gm2-compiler/%.o) \
+                 gm2/gm2-compiler/M2Version.o \
+                 gm2/gm2-compiler/m2flex.o
+ 
+-gm2/gm2-libs/libgm2.a: build-libs
+-	$(AR_FOR_TARGET) cr $@ $(GM2-LIBS-MODS:%.mod=gm2/gm2-libs/%.o) \
+-                    $(GM2-LIBS-C:%.c=gm2/gm2-libs/%.o)
+-	$(RANLIB) $@
+-
+ gm2/gm2-compiler/gm2.a: build-compiler xgm2$(exeext)
+ 	$(AR_FOR_TARGET) cr $@ $(GM2-COMP-MODS:%.mod=gm2/gm2-compiler/%.o) \
+                     gm2/gm2-compiler/M2Version.o \
+                     $(GM2-AUTO-MODS:%.mod=gm2/gm2-compiler/%.o)
+ 	$(RANLIB) $@
+ 
+-build-libs-iso: $(GM2-LIBS-ISO-MODS:%.mod=gm2/gm2-libs-iso/%.o) \
+-                $(GM2-LIBS-ISO-C:%.c=gm2/gm2-libs-iso/%.o)
+-
+-archive-libs-iso: build-libs-iso
+-	$(AR_CREATE_FOR_TARGET) gm2/gm2-libs-iso/libgm2iso.a \
+-                $(GM2-LIBS-ISO-MODS:%.mod=gm2/gm2-libs-iso/%.o) \
+-                $(GM2-LIBS-ISO-C:%.c=gm2/gm2-libs-iso/%.o)
+-	$(RANLIB_FOR_TARGET) gm2/gm2-libs-iso/libgm2iso.a
+-
+-build-libs-ulm: $(GM2-LIBS-ULM-MODS-STD:%.mod=gm2/ulm-lib-gm2/std/%.o) \
+-                $(GM2-LIBS-ULM-MODS-SYS:%.mod=gm2/ulm-lib-gm2/sys/%.o) \
+-                gm2/ulm-lib-gm2/sys/SYSTEM.o
+-
+-archive-libs-ulm: build-libs-ulm
+-	$(AR_CREATE_FOR_TARGET) gm2/ulm-lib-gm2/libgm2ulm.a \
+-                $(GM2-LIBS-ULM-MODS-STD:%.mod=gm2/ulm-lib-gm2/std/%.o) \
+-                $(GM2-LIBS-ULM-MODS-SYS:%.mod=gm2/ulm-lib-gm2/sys/%.o) \
+-                gm2/ulm-lib-gm2/sys/SYSTEM.o
+-	$(RANLIB_FOR_TARGET) gm2/ulm-lib-gm2/libgm2ulm.a
+-
+-build-libs-pim: $(GM2-LIBS-PIM-MODS:%.mod=gm2/gm2-libs-pim/%.o) \
+-                gm2/gm2-libs-pim/Break.o
+-
+-archive-libs-pim: build-libs-pim
+-	$(AR_CREATE_FOR_TARGET) gm2/gm2-libs-pim/libgm2pim.a \
+-                $(GM2-LIBS-PIM-MODS:%.mod=gm2/gm2-libs-pim/%.o) \
+-                gm2/gm2-libs-pim/Break.o
+-	$(RANLIB_FOR_TARGET) gm2/gm2-libs-pim/libgm2pim.a
+-
+-build-libs-coroutines: $(GM2-LIBS-PIM-COR-MODS:%.mod=gm2/gm2-libs-coroutines/%.o) \
+-                       gm2/gm2-libs-coroutines/KeyBoardLEDs.o
+-
+-archive-libs-coroutines: build-libs-coroutines
+-	$(AR_CREATE_FOR_TARGET) gm2/gm2-libs-coroutines/libgm2pco.a \
+-                $(GM2-LIBS-PIM-COR-MODS:%.mod=gm2/gm2-libs-coroutines/%.o) \
+-                gm2/gm2-libs-coroutines/KeyBoardLEDs.o
+-	$(RANLIB_FOR_TARGET) gm2/gm2-libs-coroutines/libgm2pco.a
+-
+-gm2/gm2-libs-pim/Break.o: gm2/gm2-libs-pim/Break.c
+-	$(GCC_FOR_TARGET) -DBUILD_GM2_LIBS_TARGET -DBUILD_GM2_LIBS -Igm2/gm2-libs -c $(CFLAGS) $< -o $@
+-
+-gm2/gm2-libs-coroutines/KeyBoardLEDs.o: gm2/gm2-libs-coroutines/KeyBoardLEDs.c
+-	$(GCC_FOR_TARGET) -DBUILD_GM2_LIBS_TARGET -DBUILD_GM2_LIBS -Igm2/gm2-libs -c $(CFLAGS) $< -o $@
+-
+-gm2/gm2-libs-coroutines/O2/KeyBoardLEDs.o: gm2/gm2-libs-coroutines/KeyBoardLEDs.c
+-	$(GCC_FOR_TARGET) -DBUILD_GM2_LIBS_TARGET -DBUILD_GM2_LIBS $(O2) -Igm2/gm2-libs -c $(CFLAGS) $< -o $@
+-
+-gm2/gm2-libs-coroutines/SO/KeyBoardLEDs.o: gm2/gm2-libs-coroutines/KeyBoardLEDs.c
+-	$(GCC_FOR_TARGET) -DBUILD_GM2_LIBS_TARGET -DBUILD_GM2_LIBS $(SO) -Igm2/gm2-libs -c $(CFLAGS) $< -o $@
+-
+-gm2/gm2-libs-coroutines/SO_O2/KeyBoardLEDs.o: gm2/gm2-libs-coroutines/KeyBoardLEDs.c
+-	$(GCC_FOR_TARGET) -DBUILD_GM2_LIBS_TARGET -DBUILD_GM2_LIBS $(SO_O2) -Igm2/gm2-libs -c $(CFLAGS) $< -o $@
+-
+-gm2/ulm-lib-gm2/sys/SYSTEM.o: gm2/ulm-lib-gm2/sys/SYSTEM.c
+-	$(GCC_FOR_TARGET) -DBUILD_GM2_LIBS_TARGET -DBUILD_GM2_LIBS -c $(CFLAGS) $< -o $@
+-
+-gm2/ulm-lib-gm2/sys/SYSTEM.c:
+-	bash $(srcdir)/gm2/tools-src/createUlmSys gm2/gm2-libs/gm2-libs-host.h > $@
+-
+-gm2/ulm-lib-gm2/sys/%.o: gm2/ulm-lib-gm2/sys/%.mod
+-	$(XGM2_1) $(GM2_FLAGS) -c -B./stage1/gm2 -B./ -I$(srcdir)/gm2/ulm-lib-gm2/sys -I$(srcdir)/gm2/gm2-libs $< -o $@
+-
+-gm2/ulm-lib-gm2/std/%.o: gm2/ulm-lib-gm2/std/%.mod
+-	$(XGM2_1) $(GM2_FLAGS) -c -B./stage1/gm2 -B./ -I$(srcdir)/gm2/ulm-lib-gm2/std:$(srcdir)/gm2/ulm-lib-gm2/sys:$(srcdir)/gm2/gm2-libs $< -o $@
+-
+-gm2/gm2-libs-pim/%.o: gm2/gm2-libs-pim/%.mod
+-	$(XGM2_1) $(GM2_FLAGS) -c -B$(XGM2BUILD1) -B./ -Igm2/gm2-libs:$(srcdir)/gm2/gm2-libs:$(srcdir)/gm2/gm2-libs-pim $< -o $@
+-
+-gm2/gm2-libs-coroutines/%.o: gm2/gm2-libs-coroutines/%.mod
+-	$(XGM2_1) $(GM2_FLAGS) -c -B$(XGM2BUILD1) -B./ -I$(srcdir)/gm2/gm2-libs-coroutines:$(srcdir)/gm2/gm2-libs:$(srcdir)/gm2/gm2-libs-pim:$(srcdir)/gm2/gm2-libs-iso $< -o $@
+-
+-gm2/gm2-libs-coroutines/O2/%.o: gm2/gm2-libs-coroutines/%.mod
+-	$(XGM2_1) $(O2) $(GM2_FLAGS) -c -B$(XGM2BUILD1) -B./ -I$(srcdir)/gm2/gm2-libs-coroutines:$(srcdir)/gm2/gm2-libs:$(srcdir)/gm2/gm2-libs-pim:$(srcdir)/gm2/gm2-libs-iso $< -o $@
+-
+-gm2/gm2-libs-coroutines/SO/%.o: gm2/gm2-libs-coroutines/%.mod
+-	$(XGM2_1) $(SO) $(GM2_FLAGS) -c -B$(XGM2BUILD1) -B./ -I$(srcdir)/gm2/gm2-libs-coroutines:$(srcdir)/gm2/gm2-libs:$(srcdir)/gm2/gm2-libs-pim:$(srcdir)/gm2/gm2-libs-iso $< -o $@
+-
+-gm2/gm2-libs-coroutines/SO_O2/%.o: gm2/gm2-libs-coroutines/%.mod
+-	$(XGM2_1) $(SO_O2) $(GM2_FLAGS) -c -B$(XGM2BUILD1) -B./ -I$(srcdir)/gm2/gm2-libs-coroutines:$(srcdir)/gm2/gm2-libs:$(srcdir)/gm2/gm2-libs-pim:$(srcdir)/gm2/gm2-libs-iso $< -o $@
+-
+ gm2/gm2-libs-boot/libgm2.a: gm2/boot-bin/mc$(exeext) $(BUILD-LIBS-BOOT)
+ 	$(AR) cr $@ $(GM2-LIBS-BOOT-MODS:%.mod=gm2/gm2-libs-boot/%.o) \
+                     $(GM2-LIBS-BOOT-C:%.c=gm2/gm2-libs-boot/%.o)
+@@ -1480,7 +1320,7 @@ MCLINK=-g
  GM2SYS=/opt/gm2/lib/gcc/x86_64-linux-gnu/4.7.4/m2/pim
  GM2PATH=$(srcdir)/gm2/mc:$(GM2SYS):$(srcdir)/gm2:gm2/gm2-auto:$(srcdir)/gm2/gm2-libs
  
@@ -692,7 +922,7 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 d48720ca19879ce3a08da42f3a8ef6
  
  
  #
-@@ -1696,19 +1678,19 @@ BUILD-MC-BOOT-O =  $(MC-LIB-BOOT-C:%.c=gm2/mc-boot/$(SRC_PREFIX)%.o) \
+@@ -1696,19 +1536,19 @@ BUILD-MC-BOOT-O =  $(MC-LIB-BOOT-C:%.c=gm2/mc-boot/$(SRC_PREFIX)%.o) \
  BUILD-MC-INTERFACE-O = $(MC-INTERFACE-C:%.c=gm2/mc-boot-ch/$(SRC_PREFIX)%.o)
  
  
@@ -721,7 +951,7 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 d48720ca19879ce3a08da42f3a8ef6
              $(BUILD-MC-BOOT-H) $(BUILD-MC-BOOT-C) \
              $(BUILD-MC-BOOT-AUTO-C)
  	cd gm2/mc-boot-gen ; for i in *.c ; do gcc -g -c -I../../$(srcdir)/gm2/mc-boot-ch $$i ; done
-@@ -1754,10 +1736,12 @@ gm2/mc-boot-ch/$(SRC_PREFIX)%.o: gm2/mc-boot-ch/$(SRC_PREFIX)%.c
+@@ -1754,10 +1594,12 @@ gm2/mc-boot-ch/$(SRC_PREFIX)%.o: gm2/mc-boot-ch/$(SRC_PREFIX)%.c
  #                 files will be checked into git by the maintainer.
  #
  
@@ -736,7 +966,7 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 d48720ca19879ce3a08da42f3a8ef6
  
  gm2/mc-boot/main.o: $(M2LINK) $(srcdir)/gm2/init/mcinit
  	unset CC ; $(M2LINK) -s --gcc --exit --name mainmcinit.c $(srcdir)/gm2/init/mcinit
-@@ -2104,7 +2088,7 @@ gm2/gm2-ppg-boot/$(SRC_PREFIX)%.o: $(srcdir)/gm2/gm2-compiler/%.mod $(MCDEPS) $(
+@@ -2104,7 +1946,7 @@ gm2/gm2-ppg-boot/$(SRC_PREFIX)%.o: $(srcdir)/gm2/gm2-compiler/%.mod $(MCDEPS) $(
                -I$(srcdir)/gm2/mc-boot-ch -g -c gm2/gm2-ppg-boot/$(SRC_PREFIX)$*.c -o $@
  
  gm2/ppg$(exeext): gm2/boot-bin/mc $(BUILD-PPG-O) $(BUILD-MC-INTERFACE-O) gm2/gm2-ppg-boot/main.o gm2/gm2-libs-boot/pthdummy.o
@@ -745,7 +975,7 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 d48720ca19879ce3a08da42f3a8ef6
  
  gm2/gm2-ppg-boot/main.o: $(M2LINK) $(srcdir)/gm2/init/mcinit
  	unset CC ; $(M2LINK) -s --gcc --exit --name mainppginit.c $(srcdir)/gm2/init/ppginit
-@@ -2112,7 +2096,7 @@ gm2/gm2-ppg-boot/main.o: $(M2LINK) $(srcdir)/gm2/init/mcinit
+@@ -2112,7 +1954,7 @@ gm2/gm2-ppg-boot/main.o: $(M2LINK) $(srcdir)/gm2/init/mcinit
  	$(CC) -g -c -o $@ gm2/gm2-ppg-boot/main.c
  
  gm2/gm2-auto:
@@ -754,7 +984,7 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 d48720ca19879ce3a08da42f3a8ef6
  
  #
  #  gm2/pg$(exext) is the 2nd generation parser generator built from ebnf
-@@ -2150,7 +2134,7 @@ gm2/gm2-pg-boot/$(SRC_PREFIX)pg.o:  gm2/gm2-auto/pg.mod $(MCDEPS) $(BUILD-BOOT-H
+@@ -2150,7 +1992,7 @@ gm2/gm2-pg-boot/$(SRC_PREFIX)pg.o:  gm2/gm2-auto/pg.mod $(MCDEPS) $(BUILD-BOOT-H
  gm2/pg$(exeext): gm2/boot-bin/mc \
      $(BUILD-PG-O) $(GM2-PPG-MODS:%.mod=gm2/gm2-pg-boot/%.o) \
      $(BUILD-MC-INTERFACE-O) gm2/gm2-pg-boot/main.o gm2/gm2-libs-boot/pthdummy.o
@@ -763,7 +993,7 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 d48720ca19879ce3a08da42f3a8ef6
  
  gm2/gm2-auto/pginit:
  	sed -e 's/ppg/pg/' < $(srcdir)/gm2/init/ppginit > $@
-@@ -2192,18 +2176,51 @@ gm2/gm2-auto/pge.mod: gm2/pg$(exeext)
+@@ -2192,18 +2034,51 @@ gm2/gm2-auto/pge.mod: gm2/pg$(exeext)
  gm2/gm2-pge-boot/$(SRC_PREFIX)%.h: $(srcdir)/gm2/gm2-libs/%.def $(MCDEPS)
  	$(MCC) -o=$@ $(srcdir)/gm2/gm2-libs/$*.def
  
@@ -821,7 +1051,7 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 d48720ca19879ce3a08da42f3a8ef6
  
  gm2/gm2-pge-boot/$(SRC_PREFIX)pge.o:  gm2/gm2-auto/pge.mod $(MCDEPS) $(BUILD-BOOT-H)
  	$(MCC) -o=gm2/gm2-pge-boot/$(SRC_PREFIX)pge.c gm2/gm2-auto/pge.mod
-@@ -2213,7 +2230,7 @@ gm2/gm2-pge-boot/$(SRC_PREFIX)pge.o:  gm2/gm2-auto/pge.mod $(MCDEPS) $(BUILD-BOO
+@@ -2213,7 +2088,7 @@ gm2/gm2-pge-boot/$(SRC_PREFIX)pge.o:  gm2/gm2-auto/pge.mod $(MCDEPS) $(BUILD-BOO
  gm2/pge$(exeext): gm2/boot-bin/mc \
      $(BUILD-PGE-O) $(GM2-PPG-MODS:%.mod=gm2/gm2-pge-boot/%.o) \
      $(BUILD-MC-INTERFACE-O) gm2/gm2-pge-boot/main.o gm2/gm2-libs-boot/pthdummy.o
@@ -830,7 +1060,7 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 d48720ca19879ce3a08da42f3a8ef6
  	$(srcdir)/gm2/tools-src/buildpg $(srcdir)/gm2/gm2-compiler/ppg.mod t > gm2/gm2-auto/t.bnf
  	./gm2/pge$(exeext) gm2/gm2-auto/t.bnf > gm2/gm2-auto/t1.mod
  	./gm2/pg$(exeext) gm2/gm2-auto/t.bnf > gm2/gm2-auto/t2.mod
-@@ -2414,17 +2431,7 @@ check-modula-2: check-gm2
+@@ -2414,17 +2289,7 @@ check-modula-2: check-gm2
  check_modula-2: check-gm2
  check_modula-2: check-gm2
  
@@ -849,7 +1079,7 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 d48720ca19879ce3a08da42f3a8ef6
  
  check-gm2-local: $(GM2TESTSUITEDIR)/site.exp
  	-(rootme=`${PWD_COMMAND}`; export rootme; \
-@@ -2472,7 +2479,7 @@ gm2.maintainer-help: force
+@@ -2472,7 +2337,7 @@ gm2.maintainer-help: force
  	@echo "make gm2.maintainer-reconfigure    rebuild the configure scripts"
  	@echo "make gm2.maintainer-clean          clean pre-built images and texi files"
  
@@ -1910,7 +2140,7 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 d48720ca19879ce3a08da42f3a8ef6
      return f
  
 --- a/src/gcc/gm2/examples/pge/pge2d.py
---- b/src/gcc/gm2/examples/pge/pge2d.py
++++ a/src/gcc/gm2/examples/pge/pge2d.py
 @@ -1,10 +0,0 @@
 -#!/usr/bin/env python
 -
@@ -2820,6 +3050,31 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 d48720ca19879ce3a08da42f3a8ef6
 +      RETURN 0
     END
  END ReadNBytes ;
+ 
+--- a/src/gcc/gm2/gm2-libs/config-host.in
++++ b/src/gcc/gm2/gm2-libs/config-host.in
+@@ -33,14 +33,14 @@ AC_HEADER_SYS_WAIT
+ AC_CHECK_HEADER([math.h],
+ 	       [AC_DEFINE([HAVE_MATH_H], [1], [have math.h])])
+ 
+-AC_CHECK_HEADERS(limits.h stddef.h string.h strings.h stdlib.h \
+-                 time.h \
+-		 fcntl.h unistd.h sys/file.h sys/time.h sys/mman.h \
+-		 sys/resource.h sys/param.h sys/times.h sys/stat.h \
+-                 sys/wait.h sys/ioctl.h errno.h sys/errno.h \
+-		 pwd.h direct.h dirent.h signal.h malloc.h langinfo.h \
+-                 pthread.h stdarg.h stdio.h sys/types.h termios.h \
+-                 netinet/in.h netdb.h)
++AC_CHECK_HEADERS([limits.h stddef.h string.h strings.h stdlib.h \
++		  time.h \
++		  fcntl.h unistd.h sys/file.h sys/time.h sys/mman.h \
++		  sys/resource.h sys/param.h sys/times.h sys/stat.h \
++                  sys/wait.h sys/ioctl.h errno.h sys/errno.h \
++		  pwd.h direct.h dirent.h signal.h malloc.h langinfo.h \
++                  pthread.h stdarg.h stdio.h sys/types.h termios.h \
++                  netinet/in.h netdb.h])
+ 
+ # Checks for typedefs, structures, and compiler characteristics.
  
 --- a/src/gcc/gm2/lang-specs.h
 +++ b/src/gcc/gm2/lang-specs.h
@@ -31832,7 +32087,7 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 d48720ca19879ce3a08da42f3a8ef6
      # If we're only testing specific files and this isn't one of them, skip it.
      if ![runtest_file_p $runtests $testcase] then {
 --- a/src/gcc/testsuite/gm2/pim/run/pass/integer.mod
---- b/src/gcc/testsuite/gm2/pim/run/pass/integer.mod
++++ b/src/gcc/testsuite/gm2/pim/run/pass/integer.mod
 @@ -1,274 +0,0 @@
 -(* Copyright (C) 2011 Free Software Foundation, Inc. *)
 -(* This file is part of GNU Modula-2.
@@ -32165,6 +32420,139 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 d48720ca19879ce3a08da42f3a8ef6
      global gluefile wrap_flags;
      global GCC_UNDER_TEST;
      global TOOL_OPTIONS;
+--- a/src/libgm2/ChangeLog
++++ b/src/libgm2/ChangeLog
+@@ -1,3 +1,20 @@
++2019-11-04      Gaius Mulley <gaius.mulley@southwales.ac.uk>
++
++	* libgm2/libcor/Makefile.am: (MULTIOSSUBDIR) quote test.
++	* libgm2/libiso/Makefile.am: (MULTIOSSUBDIR) quote test.
++	* libgm2/libpim/Makefile.am: (MULTIOSSUBDIR) quote test.
++	* libgm2/liblog/Makefile.am: (MULTIOSSUBDIR) quote test.
++	* libgm2/libmin/Makefile.am: (MULTIOSSUBDIR) quote test.
++	* libgm2/libulm/Makefile.am: (MULTIOSSUBDIR) quote test.
++	* libgm2/libpth/Makefile.am: (MULTIOSSUBDIR) quote test.
++	* libgm2/libcor/Makefile.in: regenerated.
++	* libgm2/libiso/Makefile.in: regenerated.
++	* libgm2/libpim/Makefile.in: regenerated.
++	* libgm2/liblog/Makefile.in: regenerated.
++	* libgm2/libmin/Makefile.in: regenerated.
++	* libgm2/libulm/Makefile.in: regenerated.
++	* libgm2/libpth/Makefile.in: regenerated.
++
+ 2019-07-10      Gaius Mulley <gaius.mulley@southwales.ac.uk>
+ 
+ 	* libgm2/Makefile.am:  use $(MAKE) rather than make.
+--- a/src/libgm2/libcor/Makefile.am
++++ b/src/libgm2/libcor/Makefile.am
+@@ -21,7 +21,7 @@ toolexecdir=@toolexecdir@
+ MULTIDIR := $(shell $(CC) $(CFLAGS) -print-multi-directory)
+ MULTIOSDIR := $(shell $(CC) $(CFLAGS) -print-multi-os-directory)
+ 
+-MULTIOSSUBDIR := $(shell if test $(MULTIOSDIR) != .; then echo /$(MULTIOSDIR); fi)
++MULTIOSSUBDIR := $(shell if test x$(MULTIOSDIR) != x.; then echo /$(MULTIOSDIR); fi)
+ inst_libdir = $(libsubdir)$(MULTISUBDIR)
+ inst_slibdir = $(slibdir)$(MULTIOSSUBDIR)
+ 
+--- a/src/libgm2/libcor/Makefile.in
++++ b/src/libgm2/libcor/Makefile.in
+@@ -383,7 +383,7 @@ version := $(shell $(CC) -dumpversion)
+ libsubdir = $(libdir)/gcc/$(host_noncanonical)/$(version)
+ MULTIDIR := $(shell $(CC) $(CFLAGS) -print-multi-directory)
+ MULTIOSDIR := $(shell $(CC) $(CFLAGS) -print-multi-os-directory)
+-MULTIOSSUBDIR := $(shell if test $(MULTIOSDIR) != .; then echo /$(MULTIOSDIR); fi)
++MULTIOSSUBDIR := $(shell if test x$(MULTIOSDIR) != x.; then echo /$(MULTIOSDIR); fi)
+ inst_libdir = $(libsubdir)$(MULTISUBDIR)
+ inst_slibdir = $(slibdir)$(MULTIOSSUBDIR)
+ 
+--- a/src/libgm2/libiso/Makefile.am
++++ b/src/libgm2/libiso/Makefile.am
+@@ -21,7 +21,7 @@ toolexecdir=@toolexecdir@
+ MULTIDIR := $(shell $(CC) $(CFLAGS) -print-multi-directory)
+ MULTIOSDIR := $(shell $(CC) $(CFLAGS) -print-multi-os-directory)
+ 
+-MULTIOSSUBDIR := $(shell if test $(MULTIOSDIR) != .; then echo /$(MULTIOSDIR); fi)
++MULTIOSSUBDIR := $(shell if test x$(MULTIOSDIR) != x.; then echo /$(MULTIOSDIR); fi)
+ inst_libdir = $(libsubdir)$(MULTISUBDIR)
+ inst_slibdir = $(slibdir)$(MULTIOSSUBDIR)
+ 
+--- a/src/libgm2/libiso/Makefile.in
++++ b/src/libgm2/libiso/Makefile.in
+@@ -399,7 +399,7 @@ version := $(shell $(CC) -dumpversion)
+ libsubdir = $(libdir)/gcc/$(host_noncanonical)/$(version)
+ MULTIDIR := $(shell $(CC) $(CFLAGS) -print-multi-directory)
+ MULTIOSDIR := $(shell $(CC) $(CFLAGS) -print-multi-os-directory)
+-MULTIOSSUBDIR := $(shell if test $(MULTIOSDIR) != .; then echo /$(MULTIOSDIR); fi)
++MULTIOSSUBDIR := $(shell if test x$(MULTIOSDIR) != x.; then echo /$(MULTIOSDIR); fi)
+ inst_libdir = $(libsubdir)$(MULTISUBDIR)
+ inst_slibdir = $(slibdir)$(MULTIOSSUBDIR)
+ 
+--- a/src/libgm2/liblog/Makefile.am
++++ b/src/libgm2/liblog/Makefile.am
+@@ -21,7 +21,7 @@ toolexecdir=@toolexecdir@
+ MULTIDIR := $(shell $(CC) $(CFLAGS) -print-multi-directory)
+ MULTIOSDIR := $(shell $(CC) $(CFLAGS) -print-multi-os-directory)
+ 
+-MULTIOSSUBDIR := $(shell if test $(MULTIOSDIR) != .; then echo /$(MULTIOSDIR); fi)
++MULTIOSSUBDIR := $(shell if test x$(MULTIOSDIR) != x.; then echo /$(MULTIOSDIR); fi)
+ inst_libdir = $(libsubdir)$(MULTISUBDIR)
+ inst_slibdir = $(slibdir)$(MULTIOSSUBDIR)
+ 
+--- a/src/libgm2/liblog/Makefile.in
++++ b/src/libgm2/liblog/Makefile.in
+@@ -388,7 +388,7 @@ version := $(shell $(CC) -dumpversion)
+ libsubdir = $(libdir)/gcc/$(host_noncanonical)/$(version)
+ MULTIDIR := $(shell $(CC) $(CFLAGS) -print-multi-directory)
+ MULTIOSDIR := $(shell $(CC) $(CFLAGS) -print-multi-os-directory)
+-MULTIOSSUBDIR := $(shell if test $(MULTIOSDIR) != .; then echo /$(MULTIOSDIR); fi)
++MULTIOSSUBDIR := $(shell if test x$(MULTIOSDIR) != x.; then echo /$(MULTIOSDIR); fi)
+ inst_libdir = $(libsubdir)$(MULTISUBDIR)
+ inst_slibdir = $(slibdir)$(MULTIOSSUBDIR)
+ 
+--- a/src/libgm2/libmin/Makefile.am
++++ b/src/libgm2/libmin/Makefile.am
+@@ -21,7 +21,7 @@ toolexecdir=@toolexecdir@
+ MULTIDIR := $(shell $(CC) $(CFLAGS) -print-multi-directory)
+ MULTIOSDIR := $(shell $(CC) $(CFLAGS) -print-multi-os-directory)
+ 
+-MULTIOSSUBDIR := $(shell if test $(MULTIOSDIR) != .; then echo /$(MULTIOSDIR); fi)
++MULTIOSSUBDIR := $(shell if test x$(MULTIOSDIR) != x.; then echo /$(MULTIOSDIR); fi)
+ inst_libdir = $(libsubdir)$(MULTISUBDIR)
+ inst_slibdir = $(slibdir)$(MULTIOSSUBDIR)
+ 
+--- a/src/libgm2/libmin/Makefile.in
++++ b/src/libgm2/libmin/Makefile.in
+@@ -386,7 +386,7 @@ version := $(shell $(CC) -dumpversion)
+ libsubdir = $(libdir)/gcc/$(host_noncanonical)/$(version)
+ MULTIDIR := $(shell $(CC) $(CFLAGS) -print-multi-directory)
+ MULTIOSDIR := $(shell $(CC) $(CFLAGS) -print-multi-os-directory)
+-MULTIOSSUBDIR := $(shell if test $(MULTIOSDIR) != .; then echo /$(MULTIOSDIR); fi)
++MULTIOSSUBDIR := $(shell if test x$(MULTIOSDIR) != x.; then echo /$(MULTIOSDIR); fi)
+ inst_libdir = $(libsubdir)$(MULTISUBDIR)
+ inst_slibdir = $(slibdir)$(MULTIOSSUBDIR)
+ 
+--- a/src/libgm2/libpim/Makefile.am
++++ b/src/libgm2/libpim/Makefile.am
+@@ -21,7 +21,7 @@ toolexecdir=@toolexecdir@
+ MULTIDIR := $(shell $(CC) $(CFLAGS) -print-multi-directory)
+ MULTIOSDIR := $(shell $(CC) $(CFLAGS) -print-multi-os-directory)
+ 
+-MULTIOSSUBDIR := $(shell if test $(MULTIOSDIR) != .; then echo /$(MULTIOSDIR); fi)
++MULTIOSSUBDIR := $(shell if test x$(MULTIOSDIR) != x.; then echo /$(MULTIOSDIR); fi)
+ inst_libdir = $(libsubdir)$(MULTISUBDIR)
+ inst_slibdir = $(slibdir)$(MULTIOSSUBDIR)
+ 
+--- a/src/libgm2/libpim/Makefile.in
++++ b/src/libgm2/libpim/Makefile.in
+@@ -395,7 +395,7 @@ version := $(shell $(CC) -dumpversion)
+ libsubdir = $(libdir)/gcc/$(host_noncanonical)/$(version)
+ MULTIDIR := $(shell $(CC) $(CFLAGS) -print-multi-directory)
+ MULTIOSDIR := $(shell $(CC) $(CFLAGS) -print-multi-os-directory)
+-MULTIOSSUBDIR := $(shell if test $(MULTIOSDIR) != .; then echo /$(MULTIOSDIR); fi)
++MULTIOSSUBDIR := $(shell if test x$(MULTIOSDIR) != x.; then echo /$(MULTIOSDIR); fi)
+ inst_libdir = $(libsubdir)$(MULTISUBDIR)
+ inst_slibdir = $(slibdir)$(MULTIOSSUBDIR)
+ 
 --- a/src/libgm2/libpim/dtoa.c
 +++ b/src/libgm2/libpim/dtoa.c
 @@ -18,7 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
@@ -32194,3 +32582,47 @@ git diff de2034bc023a89e45bec67e54d2a63982080c316 d48720ca19879ce3a08da42f3a8ef6
      return TRUE;
    } else
      return FALSE;
+--- a/src/libgm2/libpth/Makefile.am
++++ b/src/libgm2/libpth/Makefile.am
+@@ -22,7 +22,7 @@ toolexecdir=@toolexecdir@
+ MULTIDIR := $(shell $(CC) $(CFLAGS) -print-multi-directory)
+ MULTIOSDIR := $(shell $(CC) $(CFLAGS) -print-multi-os-directory)
+ 
+-MULTIOSSUBDIR := $(shell if test $(MULTIOSDIR) != .; then echo /$(MULTIOSDIR); fi)
++MULTIOSSUBDIR := $(shell if test x$(MULTIOSDIR) != x.; then echo /$(MULTIOSDIR); fi)
+ inst_libdir = $(libsubdir)$(MULTISUBDIR)
+ inst_slibdir = $(slibdir)$(MULTIOSSUBDIR)
+ 
+--- a/src/libgm2/libpth/Makefile.in
++++ b/src/libgm2/libpth/Makefile.in
+@@ -307,7 +307,7 @@ version := $(shell $(CC) -dumpversion)
+ libsubdir = $(libdir)/gcc/$(host_noncanonical)/$(version)
+ MULTIDIR := $(shell $(CC) $(CFLAGS) -print-multi-directory)
+ MULTIOSDIR := $(shell $(CC) $(CFLAGS) -print-multi-os-directory)
+-MULTIOSSUBDIR := $(shell if test $(MULTIOSDIR) != .; then echo /$(MULTIOSDIR); fi)
++MULTIOSSUBDIR := $(shell if test x$(MULTIOSDIR) != x.; then echo /$(MULTIOSDIR); fi)
+ inst_libdir = $(libsubdir)$(MULTISUBDIR)
+ inst_slibdir = $(slibdir)$(MULTIOSSUBDIR)
+ 
+--- a/src/libgm2/libulm/Makefile.am
++++ b/src/libgm2/libulm/Makefile.am
+@@ -21,7 +21,7 @@ toolexecdir=@toolexecdir@
+ MULTIDIR := $(shell $(CC) $(CFLAGS) -print-multi-directory)
+ MULTIOSDIR := $(shell $(CC) $(CFLAGS) -print-multi-os-directory)
+ 
+-MULTIOSSUBDIR := $(shell if test $(MULTIOSDIR) != .; then echo /$(MULTIOSDIR); fi)
++MULTIOSSUBDIR := $(shell if test x$(MULTIOSDIR) != x.; then echo /$(MULTIOSDIR); fi)
+ inst_libdir = $(libsubdir)$(MULTISUBDIR)
+ inst_slibdir = $(slibdir)$(MULTIOSSUBDIR)
+ 
+--- a/src/libgm2/libulm/Makefile.in
++++ b/src/libgm2/libulm/Makefile.in
+@@ -398,7 +398,7 @@ version := $(shell $(CC) -dumpversion)
+ libsubdir = $(libdir)/gcc/$(host_noncanonical)/$(version)
+ MULTIDIR := $(shell $(CC) $(CFLAGS) -print-multi-directory)
+ MULTIOSDIR := $(shell $(CC) $(CFLAGS) -print-multi-os-directory)
+-MULTIOSSUBDIR := $(shell if test $(MULTIOSDIR) != .; then echo /$(MULTIOSDIR); fi)
++MULTIOSSUBDIR := $(shell if test x$(MULTIOSDIR) != x.; then echo /$(MULTIOSDIR); fi)
+ inst_libdir = $(libsubdir)$(MULTISUBDIR)
+ inst_slibdir = $(slibdir)$(MULTIOSSUBDIR)
+ 
