@@ -1,10 +1,10 @@
-# DP: updates from the 8 branch upto 20191105 (r277849).
+# DP: updates from the 8 branch upto 20191107 (r277923).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Tue Nov  5 17:07:45 CET 2019
-Tue Nov  5 16:07:45 UTC 2019 (revision 277849)
+Thu Nov  7 17:28:56 CET 2019
+Thu Nov  7 16:28:56 UTC 2019 (revision 277923)
 EOF
 }
 
@@ -8207,7 +8207,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-8-branch)
 @@ -1 +1 @@
 -20190222
-+20191105
++20191107
 Index: gcc/tree-ssa-loop-ch.c
 ===================================================================
 --- a/src/gcc/tree-ssa-loop-ch.c	(.../tags/gcc_8_3_0_release)
@@ -9344,7 +9344,38 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,2288 @@
+@@ -1,3 +1,2319 @@
++2019-11-06  John David Anglin  <danglin@gcc.gnu.org>
++
++	Backport from mainline
++	2018-09-19  John David Anglin  <danglin@gcc.gnu.org>
++
++	PR rtl-optimization/85458
++	* config/pa/pa.c (pa_adjust_priority): Delete.
++	(TARGET_SCHED_ADJUST_PRIORITY): Delete define.
++
++2019-11-05  Segher Boessenkool  <segher@kernel.crashing.org>
++
++	Backport from trunk
++	2019-10-24  Segher Boessenkool  <segher@kernel.crashing.org>
++
++	* config/rs6000/altivec.md (altivec_vavgu<VI_char>): Rename to...
++	(uavg<mode>3_ceil): ... This.
++	(altivec_vavgs<VI_char>): Rename to...
++	(avg<mode>3_ceil): ... This.
++	* config/rs6000/rs6000-builtin.def (VAVGUB, VAVGSB, VAVGUH, VAVGSH,
++	VAVGUW, VAVGSW): Adjust.
++
++2019-11-05  Segher Boessenkool  <segher@kernel.crashing.org>
++
++	Backport from trunk
++	2019-10-26  Segher Boessenkool  <segher@kernel.crashing.org>
++
++	PR target/91289
++	* config/rs6000/rs6000.c (rs6000_emit_allocate_stack): Don't add an
++	immediate to r0; use r11 instead.  Save and restore r11 to r0 around
++	this.
++
 +2019-11-04  John David Anglin  <danglin@gcc.gnu.org>
 +
 +	Backport from mainline
@@ -11633,7 +11664,7 @@ Index: gcc/ChangeLog
  2019-02-22  Release Manager
  
  	* GCC 8.3.0 released.
-@@ -568,7 +2857,7 @@
+@@ -568,7 +2888,7 @@
  
  	Backport from mainline
  	2018-11-20  Richard Biener  <rguenther@suse.de>
@@ -55129,6 +55160,25 @@ Index: gcc/config/rs6000/rs6000-builtin.def
 ===================================================================
 --- a/src/gcc/config/rs6000/rs6000-builtin.def	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/config/rs6000/rs6000-builtin.def	(.../branches/gcc-8-branch)
+@@ -1048,12 +1048,12 @@
+ BU_ALTIVEC_2 (VADDSWS,	      "vaddsws",	CONST,	altivec_vaddsws)
+ BU_ALTIVEC_2 (VAND,	      "vand",		CONST,	andv4si3)
+ BU_ALTIVEC_2 (VANDC,	      "vandc",		CONST,	andcv4si3)
+-BU_ALTIVEC_2 (VAVGUB,	      "vavgub",		CONST,	altivec_vavgub)
+-BU_ALTIVEC_2 (VAVGSB,	      "vavgsb",		CONST,	altivec_vavgsb)
+-BU_ALTIVEC_2 (VAVGUH,	      "vavguh",		CONST,	altivec_vavguh)
+-BU_ALTIVEC_2 (VAVGSH,	      "vavgsh",		CONST,	altivec_vavgsh)
+-BU_ALTIVEC_2 (VAVGUW,	      "vavguw",		CONST,	altivec_vavguw)
+-BU_ALTIVEC_2 (VAVGSW,	      "vavgsw",		CONST,	altivec_vavgsw)
++BU_ALTIVEC_2 (VAVGUB,	      "vavgub",		CONST,	uavgv16qi3_ceil)
++BU_ALTIVEC_2 (VAVGSB,	      "vavgsb",		CONST,	avgv16qi3_ceil)
++BU_ALTIVEC_2 (VAVGUH,	      "vavguh",		CONST,	uavgv8hi3_ceil)
++BU_ALTIVEC_2 (VAVGSH,	      "vavgsh",		CONST,	avgv8hi3_ceil)
++BU_ALTIVEC_2 (VAVGUW,	      "vavguw",		CONST,	uavgv4si3_ceil)
++BU_ALTIVEC_2 (VAVGSW,	      "vavgsw",		CONST,	avgv4si3_ceil)
+ BU_ALTIVEC_2 (VCFUX,	      "vcfux",		CONST,	altivec_vcfux)
+ BU_ALTIVEC_2 (VCFSX,	      "vcfsx",		CONST,	altivec_vcfsx)
+ BU_ALTIVEC_2 (VCMPBFP,	      "vcmpbfp",	CONST,	altivec_vcmpbfp)
 @@ -1223,26 +1223,26 @@
  BU_ALTIVEC_X (MFVSCR,		"mfvscr",	    MISC)
  BU_ALTIVEC_X (DSSALL,		"dssall",	    MISC)
@@ -55848,7 +55898,26 @@ Index: gcc/config/rs6000/rs6000.c
  	      && MACHOPIC_INDIRECT
  	      && machopic_classify_symbol (x) == MACHOPIC_UNDEFINED_FUNCTION)
  	    name = machopic_indirection_name (x, /*stub_p=*/true);
-@@ -33632,7 +33775,7 @@
+@@ -25996,10 +26139,14 @@
+ 						    stack_limit_rtx,
+ 						    GEN_INT (size)));
+ 
+-	  emit_insn (gen_elf_high (tmp_reg, toload));
+-	  emit_insn (gen_elf_low (tmp_reg, tmp_reg, toload));
+-	  emit_insn (gen_cond_trap (LTU, stack_reg, tmp_reg,
+-				    const0_rtx));
++	  /* We cannot use r0 with elf_low.  Lamely solve this problem by
++	     moving registers around.  */
++	  rtx r11_reg = gen_rtx_REG (Pmode, 11);
++	  emit_move_insn (tmp_reg, r11_reg);
++	  emit_insn (gen_elf_high (r11_reg, toload));
++	  emit_insn (gen_elf_low (r11_reg, r11_reg, toload));
++	  emit_insn (gen_cond_trap (LTU, stack_reg, r11_reg, const0_rtx));
++	  emit_move_insn (r11_reg, tmp_reg);
+ 	}
+       else
+ 	warning (0, "stack limit expression is not supported");
+@@ -33632,7 +33779,7 @@
  	     int cookie_operand_number)
  {
    static char buf[256];
@@ -55857,7 +55926,7 @@ Index: gcc/config/rs6000/rs6000.c
        && GET_CODE (operands[dest_operand_number]) == SYMBOL_REF
        && (INTVAL (operands[cookie_operand_number]) & CALL_LONG))
      {
-@@ -34192,6 +34335,10 @@
+@@ -34192,6 +34339,10 @@
  			   rs6000_xcoff_output_readwrite_section_asm_op,
  			   &xcoff_private_data_section_name);
  
@@ -55868,7 +55937,7 @@ Index: gcc/config/rs6000/rs6000.c
    tls_data_section
      = get_unnamed_section (SECTION_TLS,
  			   rs6000_xcoff_output_tls_section_asm_op,
-@@ -34202,10 +34349,6 @@
+@@ -34202,10 +34353,6 @@
  			   rs6000_xcoff_output_tls_section_asm_op,
  			   &xcoff_private_data_section_name);
  
@@ -55879,7 +55948,7 @@ Index: gcc/config/rs6000/rs6000.c
    toc_section
      = get_unnamed_section (0, rs6000_xcoff_output_toc_section_asm_op, NULL);
  
-@@ -34386,6 +34529,8 @@
+@@ -34386,6 +34533,8 @@
  			   main_input_filename, ".bss_");
    rs6000_gen_section_name (&xcoff_private_data_section_name,
  			   main_input_filename, ".rw_");
@@ -55888,7 +55957,7 @@ Index: gcc/config/rs6000/rs6000.c
    rs6000_gen_section_name (&xcoff_read_only_section_name,
  			   main_input_filename, ".ro_");
    rs6000_gen_section_name (&xcoff_tls_data_section_name,
-@@ -36605,11 +36750,21 @@
+@@ -36605,11 +36754,21 @@
  unsigned int
  rs6000_dbx_register_number (unsigned int regno, unsigned int format)
  {
@@ -55913,7 +55982,7 @@ Index: gcc/config/rs6000/rs6000.c
    /* On some platforms, we use the standard DWARF register
       numbering for .debug_info and .debug_frame.  */
  #ifdef RS6000_USE_DWARF_NUMBERING
-@@ -36635,6 +36790,12 @@
+@@ -36635,6 +36794,12 @@
      return 356;
    if (regno == VSCR_REGNO)
      return 67;
@@ -55926,7 +55995,7 @@ Index: gcc/config/rs6000/rs6000.c
  #endif
    return regno;
  }
-@@ -37840,6 +38001,7 @@
+@@ -37840,6 +38005,7 @@
  
    /* Build result decl and add to function_decl.  */
    tree t = build_decl (UNKNOWN_LOCATION, RESULT_DECL, NULL_TREE, ptr_type_node);
@@ -55934,7 +56003,7 @@ Index: gcc/config/rs6000/rs6000.c
    DECL_ARTIFICIAL (t) = 1;
    DECL_IGNORED_P (t) = 1;
    DECL_RESULT (decl) = t;
-@@ -38061,25 +38223,31 @@
+@@ -38061,25 +38227,31 @@
    tree caller_tree = DECL_FUNCTION_SPECIFIC_TARGET (caller);
    tree callee_tree = DECL_FUNCTION_SPECIFIC_TARGET (callee);
  
@@ -56028,6 +56097,24 @@ Index: gcc/config/rs6000/altivec.md
     UNSPEC_VRLMI
     UNSPEC_VRLNM
  ])
+@@ -581,7 +575,7 @@
+   [(set_attr "type" "vecsimple")])
+ 
+ ;;
+-(define_insn "altivec_vavgu<VI_char>"
++(define_insn "uavg<mode>3_ceil"
+   [(set (match_operand:VI 0 "register_operand" "=v")
+         (unspec:VI [(match_operand:VI 1 "register_operand" "v")
+                     (match_operand:VI 2 "register_operand" "v")]
+@@ -590,7 +584,7 @@
+   "vavgu<VI_char> %0,%1,%2"
+   [(set_attr "type" "vecsimple")])
+ 
+-(define_insn "altivec_vavgs<VI_char>"
++(define_insn "avg<mode>3_ceil"
+   [(set (match_operand:VI 0 "register_operand" "=v")
+         (unspec:VI [(match_operand:VI 1 "register_operand" "v")
+                     (match_operand:VI 2 "register_operand" "v")]
 @@ -4317,223 +4311,6 @@
    [(set_attr "length" "4")
     (set_attr "type" "vecsimple")])
@@ -58766,7 +58853,7 @@ Index: gcc/config/pa/pa.c
 ===================================================================
 --- a/src/gcc/config/pa/pa.c	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/config/pa/pa.c	(.../branches/gcc-8-branch)
-@@ -118,7 +118,8 @@
+@@ -118,11 +118,11 @@
  static rtx pa_function_value (const_tree, const_tree, bool);
  static rtx pa_libcall_value (machine_mode, const_rtx);
  static bool pa_function_value_regno_p (const unsigned int);
@@ -58776,7 +58863,11 @@ Index: gcc/config/pa/pa.c
  static void update_total_code_bytes (unsigned int);
  static void pa_output_function_epilogue (FILE *);
  static int pa_adjust_cost (rtx_insn *, int, rtx_insn *, int, unsigned int);
-@@ -263,8 +264,6 @@
+-static int pa_adjust_priority (rtx_insn *, int);
+ static int pa_issue_rate (void);
+ static int pa_reloc_rw_mask (void);
+ static void pa_som_asm_init_sections (void) ATTRIBUTE_UNUSED;
+@@ -263,8 +263,6 @@
  #undef TARGET_ASM_INTEGER
  #define TARGET_ASM_INTEGER pa_assemble_integer
  
@@ -58785,7 +58876,16 @@ Index: gcc/config/pa/pa.c
  #undef TARGET_ASM_FUNCTION_EPILOGUE
  #define TARGET_ASM_FUNCTION_EPILOGUE pa_output_function_epilogue
  
-@@ -3842,16 +3841,10 @@
+@@ -280,8 +278,6 @@
+ 
+ #undef TARGET_SCHED_ADJUST_COST
+ #define TARGET_SCHED_ADJUST_COST pa_adjust_cost
+-#undef TARGET_SCHED_ADJUST_PRIORITY
+-#define TARGET_SCHED_ADJUST_PRIORITY pa_adjust_priority
+ #undef TARGET_SCHED_ISSUE_RATE
+ #define TARGET_SCHED_ISSUE_RATE pa_issue_rate
+ 
+@@ -3842,16 +3838,10 @@
  	  & ~(PREFERRED_STACK_BOUNDARY / BITS_PER_UNIT - 1));
  }
  
@@ -58805,7 +58905,7 @@ Index: gcc/config/pa/pa.c
  {
    /* The function's label and associated .PROC must never be
       separated and must be output *after* any profiling declarations
-@@ -3897,10 +3890,25 @@
+@@ -3897,10 +3887,25 @@
      fprintf (file, ",ENTRY_FR=%d", fr_saved + 11);
  
    fputs ("\n\t.ENTRY\n", file);
@@ -58831,7 +58931,7 @@ Index: gcc/config/pa/pa.c
  void
  pa_expand_prologue (void)
  {
-@@ -4569,10 +4577,6 @@
+@@ -4569,10 +4574,6 @@
  void
  hppa_profile_hook (int label_no)
  {
@@ -58842,7 +58942,7 @@ Index: gcc/config/pa/pa.c
    rtx_code_label *label_rtx = gen_label_rtx ();
    int reg_parm_stack_space = REG_PARM_STACK_SPACE (NULL_TREE);
    rtx arg_bytes, begin_label_rtx, mcount, sym;
-@@ -4604,18 +4608,13 @@
+@@ -4604,18 +4605,13 @@
    if (!use_mcount_pcrel_call)
      {
        /* The address of the function is loaded into %r25 with an instruction-
@@ -58866,7 +58966,45 @@ Index: gcc/config/pa/pa.c
      }
  
    if (!NO_DEFERRED_PROFILE_COUNTERS)
-@@ -7888,7 +7887,7 @@
+@@ -4992,37 +4988,6 @@
+     }
+ }
+ 
+-/* Adjust scheduling priorities.  We use this to try and keep addil
+-   and the next use of %r1 close together.  */
+-static int
+-pa_adjust_priority (rtx_insn *insn, int priority)
+-{
+-  rtx set = single_set (insn);
+-  rtx src, dest;
+-  if (set)
+-    {
+-      src = SET_SRC (set);
+-      dest = SET_DEST (set);
+-      if (GET_CODE (src) == LO_SUM
+-	  && symbolic_operand (XEXP (src, 1), VOIDmode)
+-	  && ! read_only_operand (XEXP (src, 1), VOIDmode))
+-	priority >>= 3;
+-
+-      else if (GET_CODE (src) == MEM
+-	       && GET_CODE (XEXP (src, 0)) == LO_SUM
+-	       && symbolic_operand (XEXP (XEXP (src, 0), 1), VOIDmode)
+-	       && ! read_only_operand (XEXP (XEXP (src, 0), 1), VOIDmode))
+-	priority >>= 1;
+-
+-      else if (GET_CODE (dest) == MEM
+-	       && GET_CODE (XEXP (dest, 0)) == LO_SUM
+-	       && symbolic_operand (XEXP (XEXP (dest, 0), 1), VOIDmode)
+-	       && ! read_only_operand (XEXP (XEXP (dest, 0), 1), VOIDmode))
+-	priority >>= 3;
+-    }
+-  return priority;
+-}
+-
+ /* The 700 can only issue a single insn at a time.
+    The 7XXX processors can issue two insns at a time.
+    The 8000 can issue 4 insns at a time.  */
+@@ -7888,7 +7853,7 @@
  
    /* 64-bit plabel sequence.  */
    else if (TARGET_64BIT && !local_call)
@@ -58875,7 +59013,7 @@ Index: gcc/config/pa/pa.c
  
    /* non-pic long absolute branch sequence.  */
    else if ((TARGET_LONG_ABS_CALL || local_call) && !flag_pic)
-@@ -7960,12 +7959,9 @@
+@@ -7960,12 +7925,9 @@
  	  xoperands[0] = pa_get_deferred_plabel (call_dest);
  	  xoperands[1] = gen_label_rtx ();
  
@@ -58891,7 +59029,7 @@ Index: gcc/config/pa/pa.c
  	    {
  	      final_scan_insn (NEXT_INSN (insn), asm_out_file,
  			       optimize, 0, NULL);
-@@ -7972,26 +7968,15 @@
+@@ -7972,26 +7934,15 @@
  
  	      /* Now delete the delay insn.  */
  	      SET_INSN_DELETED (NEXT_INSN (insn));
@@ -58922,7 +59060,7 @@ Index: gcc/config/pa/pa.c
  	}
        else
  	{
-@@ -8084,20 +8069,22 @@
+@@ -8084,20 +8035,22 @@
  		    {
  		      output_asm_insn ("addil LT'%0,%%r19", xoperands);
  		      output_asm_insn ("ldw RT'%0(%%r1),%%r1", xoperands);
@@ -58951,7 +59089,7 @@ Index: gcc/config/pa/pa.c
  
  		  if (!sibcall && !TARGET_PA_20)
  		    {
-@@ -8190,10 +8177,6 @@
+@@ -8190,10 +8143,6 @@
    if (TARGET_PORTABLE_RUNTIME)
      return 16;
  
@@ -58962,7 +59100,7 @@ Index: gcc/config/pa/pa.c
    if (!TARGET_LONG_CALLS
        && ((TARGET_PA_20 && !TARGET_SOM && distance < 7600000)
  	  || distance < MAX_PCREL17F_OFFSET))
-@@ -8203,13 +8186,16 @@
+@@ -8203,13 +8152,16 @@
    if (!flag_pic)
      return 12;
  
@@ -58984,7 +59122,7 @@ Index: gcc/config/pa/pa.c
    /* Long PIC pc-relative call.  */
    return 20;
  }
-@@ -8246,22 +8232,6 @@
+@@ -8246,22 +8198,6 @@
        return "blr %%r0,%%r2\n\tbv,n %%r0(%%r31)";
      }
  
@@ -59007,7 +59145,7 @@ Index: gcc/config/pa/pa.c
    /* Now the normal case -- we can reach $$dyncall directly or
       we're sure that we can get there via a long-branch stub. 
  
-@@ -8290,35 +8260,40 @@
+@@ -8290,35 +8226,40 @@
        return "ble R'$$dyncall(%%sr4,%%r2)\n\tcopy %%r31,%%r2";
      }
  
@@ -59067,7 +59205,7 @@ Index: gcc/config/pa/pa.c
    /* We need a long PIC call to $$dyncall.  */
    xoperands[0] = gen_rtx_SYMBOL_REF (Pmode, "$$dyncall");
    xoperands[1] = gen_rtx_REG (Pmode, 2);
-@@ -10039,10 +10014,11 @@
+@@ -10039,10 +9980,11 @@
    /* There is no way to load QImode or HImode values directly from memory
       to a FP register.  SImode loads to the FP registers are not zero
       extended.  On the 64-bit target, this conflicts with the definition
@@ -59082,7 +59220,7 @@ Index: gcc/config/pa/pa.c
  
    /* TARGET_HARD_REGNO_MODE_OK places modes with sizes larger than a word
       in specific sets of registers.  Thus, we cannot allow changing
-@@ -10076,7 +10052,7 @@
+@@ -10076,7 +10018,7 @@
  
  /* Length in units of the trampoline instruction code.  */
  
@@ -59091,7 +59229,7 @@ Index: gcc/config/pa/pa.c
  
  
  /* Output assembler code for a block containing the constant parts
-@@ -10097,27 +10073,46 @@
+@@ -10097,27 +10039,46 @@
  {
    if (!TARGET_64BIT)
      {
@@ -59150,7 +59288,7 @@ Index: gcc/config/pa/pa.c
  	}
        fputs ("\t.word	0\n", f);
        fputs ("\t.word	0\n", f);
-@@ -10131,11 +10126,11 @@
+@@ -10131,11 +10092,11 @@
        fputs ("\t.dword 0\n", f);
        fputs ("\t.dword 0\n", f);
        fputs ("\tmfia	%r31\n", f);
@@ -59166,7 +59304,7 @@ Index: gcc/config/pa/pa.c
        fputs ("\t.dword 0  ; fptr\n", f);
        fputs ("\t.dword 0  ; static link\n", f);
      }
-@@ -10145,10 +10140,10 @@
+@@ -10145,10 +10106,10 @@
     FNADDR is an RTX for the address of the function's pure code.
     CXT is an RTX for the static chain value for the function.
  
@@ -59181,7 +59319,7 @@ Index: gcc/config/pa/pa.c
     words create a plabel for the indirect call to the trampoline.
  
     A similar sequence is used for the 64-bit port but the plabel is
-@@ -10174,15 +10169,15 @@
+@@ -10174,15 +10135,15 @@
  
    if (!TARGET_64BIT)
      {
@@ -59201,7 +59339,7 @@ Index: gcc/config/pa/pa.c
        emit_move_insn (tmp, gen_rtx_REG (Pmode, 19));
  
        /* fdc and fic only use registers for the address to flush,
-@@ -10234,7 +10229,7 @@
+@@ -10234,7 +10195,7 @@
      }
  
  #ifdef HAVE_ENABLE_EXECUTE_STACK
@@ -59210,7 +59348,7 @@ Index: gcc/config/pa/pa.c
  		     LCT_NORMAL, VOIDmode, XEXP (m_tramp, 0), Pmode);
  #endif
  }
-@@ -10241,13 +10236,13 @@
+@@ -10241,13 +10202,13 @@
  
  /* Perform any machine-specific adjustment in the address of the trampoline.
     ADDR contains the address that was passed to pa_trampoline_init.
