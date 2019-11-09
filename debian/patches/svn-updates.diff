@@ -1,10 +1,10 @@
-# DP: updates from the 9 branch upto 20191108 (r277978).
+# DP: updates from the 9 branch upto 20191109 (r278002).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Fri Nov  8 17:52:01 CET 2019
-Fri Nov  8 16:52:01 UTC 2019 (revision 277978)
+Sat Nov  9 15:46:27 CET 2019
+Sat Nov  9 14:46:27 UTC 2019 (revision 278002)
 EOF
 }
 
@@ -101,6 +101,24 @@ Index: libquadmath/quadmath.h
  
  #define __quadmath_extern_inline \
    extern inline __attribute__ ((__gnu_inline__))
+Index: libsanitizer/sanitizer_common/sanitizer_platform_limits_posix.cc
+===================================================================
+--- a/src/libsanitizer/sanitizer_common/sanitizer_platform_limits_posix.cc	(.../tags/gcc_9_2_0_release)
++++ b/src/libsanitizer/sanitizer_common/sanitizer_platform_limits_posix.cc	(.../branches/gcc-9-branch)
+@@ -1156,8 +1156,12 @@
+ CHECK_SIZE_AND_OFFSET(ipc_perm, gid);
+ CHECK_SIZE_AND_OFFSET(ipc_perm, cuid);
+ CHECK_SIZE_AND_OFFSET(ipc_perm, cgid);
+-#if !defined(__aarch64__) || !SANITIZER_LINUX || __GLIBC_PREREQ (2, 21)
++#if (!defined(__aarch64__) || !SANITIZER_LINUX || __GLIBC_PREREQ (2, 21)) && \
++    !defined(__arm__)
+ /* On aarch64 glibc 2.20 and earlier provided incorrect mode field.  */
++/* On Arm glibc 2.31 and later provide a different mode field, this field is
++   never used by libsanitizer so we can simply ignore this assert for all glibc
++   versions.  */
+ CHECK_SIZE_AND_OFFSET(ipc_perm, mode);
+ #endif
+ 
 Index: libsanitizer/asan/Makefile.in
 ===================================================================
 --- a/src/libsanitizer/asan/Makefile.in	(.../tags/gcc_9_2_0_release)
@@ -149,7 +167,16 @@ Index: libsanitizer/ChangeLog
 ===================================================================
 --- a/src/libsanitizer/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/libsanitizer/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,15 @@
+@@ -1,3 +1,24 @@
++2019-11-08  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from mainline
++	2019-10-22  Tamar Christina  <tamar.christina@arm.com>
++
++	PR sanitizer/92154
++	* sanitizer_common/sanitizer_platform_limits_posix.cc:
++	Cherry-pick compiler-rt revision r375220.
++
 +2019-08-18  Iain Sandoe  <iain@sandoe.co.uk>
 +
 +	Backport from mainline
@@ -9260,7 +9287,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-9-branch)
 @@ -1 +1 @@
 -20190812
-+20191108
++20191109
 Index: gcc/gimple-streamer-out.c
 ===================================================================
 --- a/src/gcc/gimple-streamer-out.c	(.../tags/gcc_9_2_0_release)
@@ -9341,7 +9368,17 @@ Index: gcc/tree.c
  	    TYPE_BINFO (type) = NULL;
  	}
      }
-@@ -5937,8 +5936,9 @@
+@@ -5778,7 +5777,8 @@
+       while (*nextp)
+ 	{
+ 	  tree var = *nextp;
+-	  if (fndecl_built_in_p (var))
++	  if (TREE_CODE (var) == FUNCTION_DECL
++	      && fndecl_built_in_p (var))
+ 	    *nextp = TREE_CHAIN (var);
+ 	  else
+ 	    nextp = &TREE_CHAIN (var);
+@@ -5937,8 +5937,9 @@
      {
        for (tree *tem = &BLOCK_VARS (t); *tem; )
  	{
@@ -9353,7 +9390,7 @@ Index: gcc/tree.c
  	    {
  	      gcc_assert (TREE_CODE (*tem) != RESULT_DECL
  			  && TREE_CODE (*tem) != PARM_DECL);
-@@ -6107,6 +6107,13 @@
+@@ -6107,6 +6108,13 @@
  	    {
  	      tree arg = gimple_op (stmt, i);
  	      find_decls_types (arg, fld);
@@ -9367,97 +9404,34 @@ Index: gcc/tree.c
  	    }
  	}
      }
-@@ -11357,6 +11364,73 @@
-     }
- }
- 
-+/* Given an initializer INIT for a TYPE, return true if INIT is zero
-+   so that it can be replaced by value initialization.  This function
-+   distinguishes betwen empty strings as initializers for arrays and
-+   for pointers (which make it return false).  */
-+
-+bool
-+type_initializer_zero_p (tree type, tree init)
-+{
-+  if (type  == error_mark_node || init == error_mark_node)
-+    return false;
-+
-+  STRIP_NOPS (init);
-+
-+  if (POINTER_TYPE_P (type))
-+    return TREE_CODE (init) != STRING_CST && initializer_zerop (init);
-+
-+  if (TREE_CODE (init) != CONSTRUCTOR)
-+    return initializer_zerop (init);
-+
-+  if (TREE_CODE (type) == ARRAY_TYPE)
-+    {
-+      tree elt_type = TREE_TYPE (type);
-+      elt_type = TYPE_MAIN_VARIANT (elt_type);
-+      if (elt_type == char_type_node)
-+	return initializer_zerop (init);
-+
-+      tree elt_init;
-+      unsigned HOST_WIDE_INT i;
-+      FOR_EACH_CONSTRUCTOR_VALUE (CONSTRUCTOR_ELTS (init), i, elt_init)
-+	if (!type_initializer_zero_p (elt_type, elt_init))
-+	  return false;
-+      return true;
-+    }
-+
-+  if (TREE_CODE (type) != RECORD_TYPE)
-+    return initializer_zerop (init);
-+
-+  tree fld = TYPE_FIELDS (type);
-+
-+  tree fld_init;
-+  unsigned HOST_WIDE_INT i;
-+  FOR_EACH_CONSTRUCTOR_VALUE (CONSTRUCTOR_ELTS (init), i, fld_init)
-+    {
-+      /* Advance to the next member, skipping over everything that
-+	 canot be initialized (including unnamed bit-fields).  */
-+      while (TREE_CODE (fld) != FIELD_DECL
-+	     || DECL_ARTIFICIAL (fld)
-+	     || (DECL_BIT_FIELD (fld) && !DECL_NAME (fld)))
-+	{
-+	  fld = DECL_CHAIN (fld);
-+	  if (!fld)
-+	    return true;
-+	  continue;
-+	}
-+
-+      tree fldtype = TREE_TYPE (fld);
-+      if (!type_initializer_zero_p (fldtype, fld_init))
-+	return false;
-+
-+      fld = DECL_CHAIN (fld);
-+      if (!fld)
-+	break;
-+    }
-+
-+  return true;
-+}
-+
- /* Check if vector VEC consists of all the equal elements and
-    that the number of elements corresponds to the type of VEC.
-    The function returns first element of the vector
 Index: gcc/tree.h
 ===================================================================
 --- a/src/gcc/tree.h	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/tree.h	(.../branches/gcc-9-branch)
-@@ -4525,6 +4525,12 @@
- extern bool initializer_zerop (const_tree, bool * = NULL);
- extern bool initializer_each_zero_or_onep (const_tree);
+@@ -5946,12 +5946,12 @@
  
-+/* Analogous to initializer_zerop but also examines the type for
-+   which the initializer is being used.  Unlike initializer_zerop,
-+   considers empty strings to be zero initializers for arrays and
-+   non-zero for pointers.  */
-+extern bool type_initializer_zero_p (tree, tree);
-+
- extern wide_int vector_cst_int_elt (const_tree, unsigned int);
- extern tree vector_cst_elt (const_tree, unsigned int);
+    Note that it is different from the DECL_IS_BUILTIN accessor.  For
+    instance, user declared prototypes of C library functions are not
+-   DECL_IS_BUILTIN but may be DECL_BUILT_IN.  */
++   DECL_IS_BUILTIN but may be fndecl_built_in_p.  */
  
+ inline bool
+ fndecl_built_in_p (const_tree node)
+ {
+-  return (DECL_BUILT_IN_CLASS (node) != NOT_BUILT_IN);
++  return DECL_BUILT_IN_CLASS (node) != NOT_BUILT_IN;
+ }
+ 
+ /* Return true if a FUNCTION_DECL NODE is a GCC built-in function
+@@ -5960,7 +5960,7 @@
+ inline bool
+ fndecl_built_in_p (const_tree node, built_in_class klass)
+ {
+-  return (fndecl_built_in_p (node) && DECL_BUILT_IN_CLASS (node) == klass);
++  return fndecl_built_in_p (node) && DECL_BUILT_IN_CLASS (node) == klass;
+ }
+ 
+ /* Return true if a FUNCTION_DECL NODE is a GCC built-in function
 Index: gcc/tree-pass.h
 ===================================================================
 --- a/src/gcc/tree-pass.h	(.../tags/gcc_9_2_0_release)
@@ -9973,7 +9947,51 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,1202 @@
+@@ -1,3 +1,1246 @@
++2019-11-09  John David Anglin  <danglin@gcc.gnu.org>
++
++	Backport from mainline
++	2019-11-07  John David Anglin  <danglin@gcc.gnu.org>
++
++	* config/pa/pa.md (memory_barrier): Revise to use ldcw barriers.
++	Enhance comment.
++	(memory_barrier_coherent, memory_barrier_64, memory_barrier_32): New
++	insn patterns using ldcw instruction.
++	(memory_barrier): Remove insn pattern using sync instruction.
++	* config/pa/pa.opt (coherent-ldcw): New option.
++	(ordered): New option.
++
++2019-11-08  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/92384
++	* function.c (assign_parm_setup_block, assign_parm_setup_stack): Don't
++	copy TYPE_EMPTY_P arguments from data->entry_parm to data->stack_parm
++	slot.
++	(assign_parms): For TREE_ADDRESSABLE parms with TYPE_EMPTY_P type
++	force creation of a unique data.stack_parm slot.
++
++	Backported from mainline
++	2019-10-31  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/92231
++	* tree.h (fndecl_built_in_p): Use fndecl_built_in_p instead of
++	DECL_BUILT_IN in comment.  Remove redundant ()s around return
++	argument.
++	* tree.c (free_lang_data_in_decl): Check if var is FUNCTION_DECL
++	before calling fndecl_built_in_p.
++	* gimple-fold.c (gimple_fold_stmt_to_constant_1): Check if
++	TREE_OPERAND (fn, 0) is a FUNCTION_DECL before calling
++	fndecl_built_in_p on it.
++
++	PR c++/90947
++	* tree.h (type_initializer_zero_p): Remove.
++	* tree.c (type_initializer_zero_p): Remove.
++
++	2019-10-29  Jakub Jelinek  <jakub@redhat.com>
++
++	* doc/install.texi (--enable-offload-targets): Fix up a typo in the
++	example, use actual names of supported offload targets.
++
 +2019-11-08  Eric Botcazou  <ebotcazou@adacore.com>
 +
 +	PR target/92095
@@ -11176,7 +11194,7 @@ Index: gcc/ChangeLog
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -513,7 +1712,7 @@
+@@ -513,7 +1756,7 @@
  
  2019-07-11  Uroš Bizjak  <ubizjak@gmail.com>
  
@@ -14401,6 +14419,20 @@ Index: gcc/testsuite/gcc.c-torture/execute/pr91632.c
 +    __builtin_abort ();
 +  return 0;
 +}
+Index: gcc/testsuite/gcc.c-torture/compile/pr92231.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.c-torture/compile/pr92231.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gcc.c-torture/compile/pr92231.c	(.../branches/gcc-9-branch)
+@@ -0,0 +1,9 @@
++/* PR middle-end/92231 */
++
++extern int bar (void);
++
++int
++foo (void)
++{
++  return (&bar + 4096) ();
++}
 Index: gcc/testsuite/gcc.c-torture/compile/pr91001.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.c-torture/compile/pr91001.c	(.../tags/gcc_9_2_0_release)
@@ -15037,7 +15069,32 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,792 @@
+@@ -1,3 +1,817 @@
++2019-11-08  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/92384
++	* g++.dg/torture/pr92384.C: New test.
++
++	Backported from mainline
++	2019-11-05  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/92343
++	* g++.dg/cpp2a/attr-likely6.C: New test.
++
++	2019-10-31  Jakub Jelinek  <jakub@redhat.com>
++
++	PR preprocessor/92296
++	* c-c++-common/cpp/pr92296-1.c: New test.
++	* c-c++-common/cpp/pr92296-2.c: New test.
++
++	PR middle-end/92231
++	* gcc.c-torture/compile/pr92231.c: New test.
++
++	2019-10-21  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/92015
++	* g++.dg/cpp0x/constexpr-92015.C: New test.
++
 +2019-11-08  Eric Botcazou  <ebotcazou@adacore.com>
 +
 +	* gcc.c-torture/compile/20191108-1.c: New test.
@@ -15830,7 +15887,7 @@ Index: gcc/testsuite/ChangeLog
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -427,7 +1216,7 @@
+@@ -427,7 +1241,7 @@
  	Backport from mainline.
  	2019-05-15  Iain Sandoe  <iain@sandoe.co.uk>
  
@@ -15839,7 +15896,7 @@ Index: gcc/testsuite/ChangeLog
  	(check_effective_target_powerpc_p8vector_ok): No support for Darwin.
  	(check_effective_target_powerpc_p9vector_ok): Likewise.
  	(check_effective_target_powerpc_float128_sw_ok): Likewise.
-@@ -720,7 +1509,7 @@
+@@ -720,7 +1534,7 @@
  
  	Backport from mainline
  	PR fortran/91077
@@ -15848,7 +15905,7 @@ Index: gcc/testsuite/ChangeLog
  
  2019-07-05  Szabolcs Nagy  <szabolcs.nagy@arm.com>
  
-@@ -969,7 +1758,7 @@
+@@ -969,7 +1783,7 @@
         * gcc.target/i386/pr82699-6.c: Likewise
         * gcc.target/i386/returninst1.c: Likewise
         * gcc.target/i386/returninst2.c: Likewise
@@ -15857,7 +15914,7 @@ Index: gcc/testsuite/ChangeLog
  
  2019-05-30  Iain Sandoe  <iain@sandoe.co.uk>
  
-@@ -1131,7 +1920,7 @@
+@@ -1131,7 +1945,7 @@
  
  	Backport from trunk
  	PR fortran/90498
@@ -15866,7 +15923,7 @@ Index: gcc/testsuite/ChangeLog
  
  2019-05-17  Jakub Jelinek  <jakub@redhat.com>
  
-@@ -3801,21 +4590,21 @@
+@@ -3801,21 +4615,21 @@
  2019-02-23  Paul Thomas  <pault@gcc.gnu.org>
  
  	PR fortran/88117
@@ -15895,7 +15952,7 @@ Index: gcc/testsuite/ChangeLog
  
  2019-02-22  David Malcolm  <dmalcolm@redhat.com>
  
-@@ -4444,7 +5233,7 @@
+@@ -4444,7 +5258,7 @@
  2019-02-09  Paul Thomas  <pault@gcc.gnu.org>
  
  	PR fortran/89200
@@ -15904,7 +15961,7 @@ Index: gcc/testsuite/ChangeLog
  
  2019-02-09  Jakub Jelinek  <jakub@redhat.com>
  
-@@ -4704,17 +5493,17 @@
+@@ -4704,17 +5518,17 @@
  2019-02-02  Paul Thomas  <pault@gcc.gnu.org>
  
  	PR fortran/88393
@@ -16254,6 +16311,34 @@ Index: gcc/testsuite/g++.dg/cpp0x/gen-attrs-68.C
 +struct S8 {
 +  S8(int f __attribute__((unused)), int a __attribute__((unused))) { }
 +};
+Index: gcc/testsuite/g++.dg/cpp0x/overload-conv-4.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp0x/overload-conv-4.C	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp0x/overload-conv-4.C	(.../branches/gcc-9-branch)
+@@ -0,0 +1,23 @@
++// PR c++/90998 - ICE with copy elision in init by ctor and -Wconversion.
++// { dg-do compile { target c++11 } }
++// { dg-options "-Wconversion" }
++
++struct B;
++
++struct A {
++    operator B();
++};
++
++struct B {
++    B(A const &rs);
++    B(B const &rs);
++};
++
++B
++f (A x)
++{
++  // C++14: we call B::B(A const &)
++  // C++17: we call A::operator B()
++  return B(x); // { dg-warning "choosing .A::operator B\\(\\). over .B::B\\(const A&\\)" "" { target c++17 } }
++  // { dg-warning "for conversion from .A. to .B." "" { target c++17 } .-1 }
++}
 Index: gcc/testsuite/g++.dg/cpp0x/nontype5.C
 ===================================================================
 --- a/src/gcc/testsuite/g++.dg/cpp0x/nontype5.C	(.../tags/gcc_9_2_0_release)
@@ -16404,6 +16489,18 @@ Index: gcc/testsuite/g++.dg/cpp0x/range-for19.C
 +  for(auto i: a)
      ;
  }
+Index: gcc/testsuite/g++.dg/cpp0x/constexpr-92015.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp0x/constexpr-92015.C	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp0x/constexpr-92015.C	(.../branches/gcc-9-branch)
+@@ -0,0 +1,7 @@
++// PR c++/92015
++// { dg-do compile { target c++11 } }
++
++struct S1 { char c[6] {'h', 'e', 'l', 'l', 'o', 0}; };
++struct S2 { char c[6] = "hello"; };
++static_assert (S1{}.c[0] == 'h', "");
++static_assert (S2{}.c[0] == 'h', "");
 Index: gcc/testsuite/g++.dg/torture/pr91155.C
 ===================================================================
 --- a/src/gcc/testsuite/g++.dg/torture/pr91155.C	(.../tags/gcc_9_2_0_release)
@@ -16426,6 +16523,49 @@ Index: gcc/testsuite/g++.dg/torture/pr91155.C
 +    if (__builtin_strcmp ("const char* test() [with T = dummy<\'\\\'\'>]", test< dummy< '\'' > > ()) != 0)
 +    {};//      __builtin_abort ();
 +    return 0;
++}
+Index: gcc/testsuite/g++.dg/torture/pr92384.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/torture/pr92384.C	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/g++.dg/torture/pr92384.C	(.../branches/gcc-9-branch)
+@@ -0,0 +1,38 @@
++// PR c++/92384
++// { dg-do run }
++
++struct S {};
++struct T : public S { S a, b, c, d, e, f, g, h, i, j, k, l, m; };
++struct U { long long a, b, c; };
++
++U
++foo (S, S, S, T, T, T, U g)
++{
++  return g;
++}
++
++__attribute__((noipa)) bool
++bar (S a, S b, S c, T d, T e, T f, U g, void **h)
++{
++  h[0] = (void *) &a;
++  h[1] = (void *) &b;
++  h[2] = (void *) &c;
++  h[3] = (void *) &d;
++  h[4] = (void *) &e;
++  h[5] = (void *) &f;
++  h[6] = (void *) &g;
++  asm volatile ("" : : "r" (h) : "memory");
++  return (h[0] != h[1] && h[1] != h[2] && h[2] != h[3]
++	  && h[3] != h[4] && h[4] != h[5] && h[5] != h[6]);
++}
++
++int
++main ()
++{
++  S a;
++  T b;
++  U c = { 1, 2, 3 };
++  void *d[7];
++  if (!bar (a, a, a, b, b, b, c, d))
++    __builtin_abort ();
 +}
 Index: gcc/testsuite/g++.dg/torture/pr91606.C
 ===================================================================
@@ -16886,6 +17026,25 @@ Index: gcc/testsuite/g++.dg/cpp2a/udlit-class-nttp-ctad.C
 +}
 +
 +static_assert("test"_udl == 5);
+Index: gcc/testsuite/g++.dg/cpp2a/attr-likely6.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp2a/attr-likely6.C	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp2a/attr-likely6.C	(.../branches/gcc-9-branch)
+@@ -0,0 +1,14 @@
++// PR c++/92343
++// { dg-do compile { target c++14 } }
++
++constexpr bool
++foo (bool x)
++{
++  if (x)
++    [[unlikely]] return true;
++  else
++    [[likely]] return false;
++}
++
++static_assert (foo (true), "");
++static_assert (!foo (false), "");
 Index: gcc/testsuite/g++.dg/cpp2a/udlit-class-nttp.C
 ===================================================================
 --- a/src/gcc/testsuite/g++.dg/cpp2a/udlit-class-nttp.C	(.../tags/gcc_9_2_0_release)
@@ -17272,6 +17431,24 @@ Index: gcc/testsuite/g++.dg/init/array53.C
 +}
 +
 +// { dg-final { scan-tree-dump-not "abort" "optimized" } }
+Index: gcc/testsuite/g++.dg/init/array54.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/init/array54.C	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/g++.dg/init/array54.C	(.../branches/gcc-9-branch)
+@@ -0,0 +1,13 @@
++// PR c++/90947
++// { dg-do run { target c++11 } }
++
++#include <atomic>
++
++static std::atomic<int> a[1] { {1} };
++
++int
++main ()
++{
++  if (a[0].load () != 1)
++    __builtin_abort ();
++}
 Index: gcc/testsuite/g++.dg/other/pr92201.C
 ===================================================================
 --- a/src/gcc/testsuite/g++.dg/other/pr92201.C	(.../tags/gcc_9_2_0_release)
@@ -17390,6 +17567,121 @@ Index: gcc/testsuite/obj-c++.dg/stubify-2.mm
 +/* { dg-final { scan-assembler-not {(bl|call)[ \t]+_Z7bogoniciii\n} } } */
 +/* { dg-final { scan-assembler     {(bl|call)[ \t]+L__Z7bogoniciii\$stub\n} } } */
 +/* { dg-final { scan-assembler-not {\$non_lazy_ptr} } } */
+Index: gcc/testsuite/c-c++-common/cpp/pr92296-1.c
+===================================================================
+--- a/src/gcc/testsuite/c-c++-common/cpp/pr92296-1.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/c-c++-common/cpp/pr92296-1.c	(.../branches/gcc-9-branch)
+@@ -0,0 +1,32 @@
++/* PR preprocessor/92296 */
++/* { dg-do preprocess } */
++
++#pragma push_macro("__TIMESTAMP__")
++#pragma pop_macro("__TIMESTAMP__")
++
++#pragma push_macro("__TIME__")
++#pragma pop_macro("__TIME__")
++
++#pragma push_macro("__DATE__")
++#pragma pop_macro("__DATE__")
++
++#pragma push_macro("__FILE__")
++#pragma pop_macro("__FILE__")
++
++#pragma push_macro("__BASE_FILE__")
++#pragma pop_macro("__BASE_FILE__")
++
++#pragma push_macro("__LINE__")
++#pragma pop_macro("__LINE__")
++
++#pragma push_macro("__INCLUDE_LEVEL__")
++#pragma pop_macro("__INCLUDE_LEVEL__")
++
++#pragma push_macro("__COUNTER__")
++#pragma pop_macro("__COUNTER__")
++
++#pragma push_macro("__has_attribute")
++#pragma pop_macro("__has_attribute")
++
++#pragma push_macro("__has_cpp_attribute")
++#pragma pop_macro("__has_cpp_attribute")
+Index: gcc/testsuite/c-c++-common/cpp/pr92296-2.c
+===================================================================
+--- a/src/gcc/testsuite/c-c++-common/cpp/pr92296-2.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/c-c++-common/cpp/pr92296-2.c	(.../branches/gcc-9-branch)
+@@ -0,0 +1,73 @@
++/* PR preprocessor/92296 */
++/* { dg-do preprocess } */
++/* { dg-options "-Wno-builtin-macro-redefined" } */
++
++#pragma push_macro("__TIMESTAMP__")
++#undef __TIMESTAMP__
++#define __TIMESTAMP__ "Thu Oct 31 12:00:00 2019"
++timestamp1 = __TIMESTAMP__
++#pragma pop_macro("__TIMESTAMP__")
++timestamp2 = __TIMESTAMP__
++
++#pragma push_macro("__TIME__")
++#undef __TIME__
++#define __TIME__ "12:00:00"
++time1 = __TIME__
++#pragma pop_macro("__TIME__")
++time2 = __TIME__
++
++#pragma push_macro("__DATE__")
++#undef __DATE__
++#define __DATE__ "Oct 31 2019"
++date1 = __DATE__
++#pragma pop_macro("__DATE__")
++date2 = __DATE__
++
++#pragma push_macro("__FILE__")
++#undef __FILE__
++#define __FILE__ "pr92296-3.c"
++file1 = __FILE__	/* { dg-final { scan-file pr92296-2.i "file1 = \"pr92296-3.c\"" } } */
++#pragma pop_macro("__FILE__")
++file2 = __FILE__	/* { dg-final { scan-file-not pr92296-2.i "file2 = \"pr92296-3.c\"" } } */
++
++#pragma push_macro("__BASE_FILE__")
++#undef __BASE_FILE__
++#define __BASE_FILE__ "pr92296-4.c"
++filebase1 = __BASE_FILE__	/* { dg-final { scan-file pr92296-2.i "filebase1 = \"pr92296-4.c\"" } } */
++#pragma pop_macro("__BASE_FILE__")
++filebase2 = __BASE_FILE__	/* { dg-final { scan-file-not pr92296-2.i "filebase2 = \"pr92296-4.c\"" } } */
++
++#pragma push_macro("__LINE__")
++#undef __LINE__		/* { dg-warning "undefining" } */
++#define __LINE__ 142
++line1 = __LINE__	/* { dg-final { scan-file pr92296-2.i "line1 = 142" } } */
++#pragma pop_macro("__LINE__")
++line2 = __LINE__	/* { dg-final { scan-file pr92296-2.i "line2 = 45" } } */
++
++#pragma push_macro("__INCLUDE_LEVEL__")
++#undef __INCLUDE_LEVEL__	/* { dg-warning "undefining" } */
++#define __INCLUDE_LEVEL__ 42
++includelevel1 = __INCLUDE_LEVEL__	/* { dg-final { scan-file pr92296-2.i "includelevel1 = 42" } } */
++#pragma pop_macro("__INCLUDE_LEVEL__")
++includelevel2 = __INCLUDE_LEVEL__	/* { dg-final { scan-file pr92296-2.i "includelevel2 = 0" } } */
++
++#pragma push_macro("__COUNTER__")
++#undef __COUNTER__	/* { dg-warning "undefining" } */
++#define __COUNTER__ 172
++counter1 = __COUNTER__	/* { dg-final { scan-file pr92296-2.i "counter1 = 172" } } */
++#pragma pop_macro("__COUNTER__")
++counter2 = __COUNTER__	/* { dg-final { scan-file-not pr92296-2.i "counter2 = 172" } } */
++
++#pragma push_macro("__has_attribute")
++#undef __has_attribute	/* { dg-warning "undefining" } */
++#define __has_attribute(x) 0
++hasattr1 = __has_attribute(noreturn)	/* { dg-final { scan-file pr92296-2.i "hasattr1 = 0" } } */
++#pragma pop_macro("__has_attribute")
++hasattr2 = __has_attribute(noreturn)	/* { dg-final { scan-file-not pr92296-2.i "hasattr2 = 0" } } */
++
++#pragma push_macro("__has_cpp_attribute")
++#undef __has_cpp_attribute	/* { dg-warning "undefining" } */
++#define __has_cpp_attribute(x) 0
++hasattrcpp1 = __has_cpp_attribute(noreturn)	/* { dg-final { scan-file pr92296-2.i "hasattrcpp1 = 0" } } */
++#pragma pop_macro("__has_cpp_attribute")
++hasattrcpp2 = __has_cpp_attribute(noreturn)	/* { dg-final { scan-file-not pr92296-2.i "hasattrcpp2 = 0" } } */
 Index: gcc/testsuite/c-c++-common/array-1.c
 ===================================================================
 --- a/src/gcc/testsuite/c-c++-common/array-1.c	(.../tags/gcc_9_2_0_release)
@@ -18017,20 +18309,18 @@ Index: gcc/cp/decl.c
      free (CONST_CAST (char *, name));
  
    /* As we're using pushdecl_with_scope, we must set the context.  */
-@@ -5836,9 +5850,10 @@
+@@ -5836,8 +5850,8 @@
        /* Pointers initialized to strings must be treated as non-zero
  	 even if the string is empty.  */
        tree init_type = TREE_TYPE (elt_init);
 -      if ((POINTER_TYPE_P (elt_type) != POINTER_TYPE_P (init_type))
 -	  || !initializer_zerop (elt_init))
-+      if ((POINTER_TYPE_P (elt_type) != POINTER_TYPE_P (init_type)))
++      if (POINTER_TYPE_P (elt_type) != POINTER_TYPE_P (init_type)
++	  || !type_initializer_zero_p (elt_type, elt_init))
  	last_nonzero = index;
-+      else if (!type_initializer_zero_p (elt_type, elt_init))
-+	last_nonzero = index;
  
        /* This can happen with an invalid initializer (c++/54501).  */
-       if (d->cur == old_cur && !sized_array_p)
-@@ -6114,7 +6129,7 @@
+@@ -6114,7 +6128,7 @@
  			       (CONSTRUCTOR_ELT (stripped_init,0)->value))))
  		{
  		  if (complain & tf_error)
@@ -18039,7 +18329,25 @@ Index: gcc/cp/decl.c
  		           "for type %qT", type);
  		  init = error_mark_node;
  		}
-@@ -9539,10 +9554,12 @@
+@@ -8407,7 +8421,7 @@
+ 	      (acquire_name, build_function_type_list (integer_type_node,
+ 						       TREE_TYPE (guard_addr),
+ 						       NULL_TREE),
+-	       NULL_TREE, ECF_NOTHROW | ECF_LEAF);
++	       NULL_TREE, ECF_NOTHROW);
+ 	  if (!release_fn || !abort_fn)
+ 	    vfntype = build_function_type_list (void_type_node,
+ 						TREE_TYPE (guard_addr),
+@@ -8414,7 +8428,7 @@
+ 						NULL_TREE);
+ 	  if (!release_fn)
+ 	    release_fn = push_library_fn (release_name, vfntype, NULL_TREE,
+-					   ECF_NOTHROW | ECF_LEAF);
++					  ECF_NOTHROW);
+ 	  if (!abort_fn)
+ 	    abort_fn = push_library_fn (abort_name, vfntype, NULL_TREE,
+ 					ECF_NOTHROW | ECF_LEAF);
+@@ -9539,10 +9553,12 @@
    TYPE_PTRMEMFUNC_FLAG (t) = 1;
  
    field = build_decl (input_location, FIELD_DECL, pfn_identifier, type);
@@ -18052,7 +18360,7 @@ Index: gcc/cp/decl.c
    DECL_CHAIN (field) = fields;
    fields = field;
  
-@@ -11435,6 +11452,8 @@
+@@ -11435,6 +11451,8 @@
  		else if (late_return_type
  			 && sfk != sfk_conversion)
  		  {
@@ -18061,7 +18369,7 @@ Index: gcc/cp/decl.c
  		    if (cxx_dialect < cxx11)
  		      /* Not using maybe_warn_cpp0x because this should
  			 always be an error.  */
-@@ -13042,7 +13061,9 @@
+@@ -13042,7 +13060,9 @@
    /* Avoid redundant -Wzero-as-null-pointer-constant warnings at
       the call sites.  */
    if (TYPE_PTR_OR_PTRMEM_P (decl_type)
@@ -18076,7 +18384,27 @@ Index: gcc/cp/constexpr.c
 ===================================================================
 --- a/src/gcc/cp/constexpr.c	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/cp/constexpr.c	(.../branches/gcc-9-branch)
-@@ -3973,6 +3973,10 @@
+@@ -2703,7 +2703,10 @@
+ 	  : field == part)
+ 	{
+ 	  if (value)
+-	    return value;
++	    {
++	      STRIP_ANY_LOCATION_WRAPPER (value);
++	      return value;
++	    }
+ 	  else
+ 	    /* We're in the middle of initializing it.  */
+ 	    break;
+@@ -2793,6 +2796,7 @@
+   FOR_EACH_CONSTRUCTOR_ELT (CONSTRUCTOR_ELTS (whole), i, field, value)
+     {
+       tree bitpos = bit_position (field);
++      STRIP_ANY_LOCATION_WRAPPER (value);
+       if (bitpos == start && DECL_SIZE (field) == TREE_OPERAND (t, 1))
+ 	return value;
+       if (TREE_CODE (TREE_TYPE (field)) == INTEGER_TYPE
+@@ -3973,6 +3977,10 @@
    tree offset = TREE_OPERAND (t, 1);
    gcc_assert (TREE_CONSTANT (offset));
  
@@ -18087,11 +18415,138 @@ Index: gcc/cp/constexpr.c
    /* The operand as an lvalue.  */
    op = cxx_eval_constant_expression (ctx, op, true,
  				     non_constant_p, overflow_p);
+@@ -5917,6 +5925,7 @@
+     case LABEL_DECL:
+     case LABEL_EXPR:
+     case CASE_LABEL_EXPR:
++    case PREDICT_EXPR:
+     case CONST_DECL:
+     case SIZEOF_EXPR:
+     case ALIGNOF_EXPR:
+@@ -6751,7 +6760,6 @@
+ 
+     case CLEANUP_STMT:
+     case EMPTY_CLASS_EXPR:
+-    case PREDICT_EXPR:
+       return false;
+ 
+     case GOTO_EXPR:
+Index: gcc/cp/tree.c
+===================================================================
+--- a/src/gcc/cp/tree.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/cp/tree.c	(.../branches/gcc-9-branch)
+@@ -5487,6 +5487,68 @@
+   return false;
+ }
+ 
++/* Given an initializer INIT for a TYPE, return true if INIT is zero
++   so that it can be replaced by value initialization.  This function
++   distinguishes betwen empty strings as initializers for arrays and
++   for pointers (which make it return false).  */
++
++bool
++type_initializer_zero_p (tree type, tree init)
++{
++  if (type == error_mark_node || init == error_mark_node)
++    return false;
++
++  STRIP_NOPS (init);
++
++  if (POINTER_TYPE_P (type))
++    return TREE_CODE (init) != STRING_CST && initializer_zerop (init);
++
++  if (TREE_CODE (init) != CONSTRUCTOR)
++    return initializer_zerop (init);
++
++  if (TREE_CODE (type) == ARRAY_TYPE)
++    {
++      tree elt_type = TREE_TYPE (type);
++      elt_type = TYPE_MAIN_VARIANT (elt_type);
++      if (elt_type == char_type_node)
++	return initializer_zerop (init);
++
++      tree elt_init;
++      unsigned HOST_WIDE_INT i;
++      FOR_EACH_CONSTRUCTOR_VALUE (CONSTRUCTOR_ELTS (init), i, elt_init)
++	if (!type_initializer_zero_p (elt_type, elt_init))
++	  return false;
++      return true;
++    }
++
++  if (TREE_CODE (type) != RECORD_TYPE)
++    return initializer_zerop (init);
++
++  if (TYPE_NON_AGGREGATE_CLASS (type))
++    return false;
++
++  tree fld = TYPE_FIELDS (type);
++
++  tree fld_init;
++  unsigned HOST_WIDE_INT i;
++  FOR_EACH_CONSTRUCTOR_VALUE (CONSTRUCTOR_ELTS (init), i, fld_init)
++    {
++      fld = next_initializable_field (fld);
++      if (!fld)
++	return true;
++
++      tree fldtype = TREE_TYPE (fld);
++      if (!type_initializer_zero_p (fldtype, fld_init))
++	return false;
++
++      fld = DECL_CHAIN (fld);
++      if (!fld)
++	break;
++    }
++
++  return true;
++}
++
+ #if defined ENABLE_TREE_CHECKING && (GCC_VERSION >= 2007)
+ /* Complain that some language-specific thing hanging off a tree
+    node has been accessed improperly.  */
 Index: gcc/cp/ChangeLog
 ===================================================================
 --- a/src/gcc/cp/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/cp/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,200 @@
+@@ -1,3 +1,238 @@
++2019-11-08  Marek Polacek  <polacek@redhat.com>
++
++	Backported from mainline
++	2019-10-29  Marek Polacek  <polacek@redhat.com>
++
++	PR c++/90998 - ICE with copy elision in init by ctor and -Wconversion.
++	* call.c (joust): Don't attempt to warn if ->second_conv is null.
++
++2019-11-08  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from mainline
++	2019-11-05  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/92343
++	* constexpr.c (potential_constant_expression_1): Return true rather
++	than false for PREDICT_EXPR.
++
++	2019-10-31  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/90947
++	* cp-tree.h (type_initializer_zero_p): Declare.
++	* decl.c (reshape_init_array_1): Formatting fix.
++	* tree.c (type_initializer_zero_p): New function.  Moved from
++	../tree.c, use next_initializable_field, formatting fix.  Return
++	false for TYPE_NON_AGGREGATE_CLASS types.
++
++	2019-10-22  Jakub Jelinek  <jakub@redhat.com>
++
++	PR tree-optimization/85887
++	* decl.c (expand_static_init): Drop ECF_LEAF from __cxa_guard_acquire
++	and __cxa_guard_release.
++
++	2019-10-21  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/92015
++	* constexpr.c (cxx_eval_component_reference, cxx_eval_bit_field_ref):
++	Use STRIP_ANY_LOCATION_WRAPPER on CONSTRUCTOR elts.
++
 +2019-10-29  Jakub Jelinek  <jakub@redhat.com>
 +
 +	PR c++/92201
@@ -18292,7 +18747,7 @@ Index: gcc/cp/ChangeLog
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -16,7 +213,7 @@
+@@ -16,7 +251,7 @@
  
  	Backported from mainline
  	2019-08-02  Marek Polacek  <polacek@redhat.com>
@@ -18770,6 +19225,17 @@ Index: gcc/cp/call.c
    result = build3_loc (loc, COND_EXPR, result_type, arg1, arg2, arg3);
  
    /* If the ARG2 and ARG3 are the same and don't have side-effects,
+@@ -10732,7 +10739,9 @@
+      either between a constructor and a conversion op, or between two
+      conversion ops.  */
+   if ((complain & tf_warning)
+-      && winner && warn_conversion && cand1->second_conv
++      /* In C++17, the constructor might have been elided, which means that
++	 an originally null ->second_conv could become non-null.  */
++      && winner && warn_conversion && cand1->second_conv && cand2->second_conv
+       && (!DECL_CONSTRUCTOR_P (cand1->fn) || !DECL_CONSTRUCTOR_P (cand2->fn))
+       && winner != compare_ics (cand1->second_conv, cand2->second_conv))
+     {
 Index: gcc/cp/lambda.c
 ===================================================================
 --- a/src/gcc/cp/lambda.c	(.../tags/gcc_9_2_0_release)
@@ -18862,6 +19328,18 @@ Index: gcc/cp/cp-tree.h
  extern bool template_parameter_pack_p           (const_tree);
  extern bool function_parameter_pack_p		(const_tree);
  extern bool function_parameter_expanded_from_pack_p (tree, tree);
+@@ -7328,6 +7325,11 @@
+ 
+ extern void cxx_print_statistics		(void);
+ extern bool maybe_warn_zero_as_null_pointer_constant (tree, location_t);
++/* Analogous to initializer_zerop but also examines the type for
++   which the initializer is being used.  Unlike initializer_zerop,
++   considers empty strings to be zero initializers for arrays and
++   non-zero for pointers.  */
++extern bool type_initializer_zero_p		(tree, tree);
+ 
+ /* in ptree.c */
+ extern void cxx_print_xnode			(FILE *, tree, int);
 Index: gcc/cp/name-lookup.c
 ===================================================================
 --- a/src/gcc/cp/name-lookup.c	(.../tags/gcc_9_2_0_release)
@@ -19570,7 +20048,14 @@ Index: gcc/ada/ChangeLog
 ===================================================================
 --- a/src/gcc/ada/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/ada/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,29 @@
+@@ -1,3 +1,36 @@
++2019-11-08  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from mainline
++	2019-10-27  Jakub Jelinek  <jakub@redhat.com>
++
++	* locales.c (iso_3166): Add missing comma after "United-States".
++
 +2019-10-12  Eric Botcazou  <ebotcazou@adacore.com>
 +
 +	PR ada/91995
@@ -19824,6 +20309,19 @@ Index: gcc/ada/sem_util.ads
  
     function Denotes_Discriminant
       (N                : Node_Id;
+Index: gcc/ada/locales.c
+===================================================================
+--- a/src/gcc/ada/locales.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/ada/locales.c	(.../branches/gcc-9-branch)
+@@ -529,7 +529,7 @@
+   "UM", "United States Minor Outlying Islands",
+   "US", "United States",
+   "US", "United States of America",
+-  "US", "United-States"
++  "US", "United-States",
+   "UY", "Uruguay",
+   "UZ", "Uzbekistan",
+ 
 Index: gcc/ada/sem_ch8.adb
 ===================================================================
 --- a/src/gcc/ada/sem_ch8.adb	(.../tags/gcc_9_2_0_release)
@@ -22465,6 +22963,43 @@ Index: gcc/function.c
        && TYPE_TRANSPARENT_AGGR (passed_type))
      passed_type = TREE_TYPE (first_field (passed_type));
  
+@@ -3079,7 +3078,7 @@
+ 	move_block_from_reg (REGNO (entry_parm), mem,
+ 			     size_stored / UNITS_PER_WORD);
+     }
+-  else if (data->stack_parm == 0)
++  else if (data->stack_parm == 0 && !TYPE_EMPTY_P (data->passed_type))
+     {
+       push_to_sequence2 (all->first_conversion_insn, all->last_conversion_insn);
+       emit_block_move (stack_parm, data->entry_parm, GEN_INT (size),
+@@ -3455,7 +3454,9 @@
+       dest = validize_mem (copy_rtx (data->stack_parm));
+       src = validize_mem (copy_rtx (data->entry_parm));
+ 
+-      if (MEM_P (src))
++      if (TYPE_EMPTY_P (data->passed_type))
++	/* Empty types don't really need to be copied.  */;
++      else if (MEM_P (src))
+ 	{
+ 	  /* Use a block move to handle potentially misaligned entry_parm.  */
+ 	  if (!to_conversion)
+@@ -3611,6 +3612,16 @@
+ 	{
+ 	  assign_parm_find_stack_rtl (parm, &data);
+ 	  assign_parm_adjust_entry_rtl (&data);
++	  /* For arguments that occupy no space in the parameter
++	     passing area, have non-zero size and have address taken,
++	     force creation of a stack slot so that they have distinct
++	     address from other parameters.  */
++	  if (TYPE_EMPTY_P (data.passed_type)
++	      && TREE_ADDRESSABLE (parm)
++	      && data.entry_parm == data.stack_parm
++	      && MEM_P (data.entry_parm)
++	      && int_size_in_bytes (data.passed_type))
++	    data.stack_parm = NULL_RTX;
+ 	}
+       /* Record permanently how this parm was passed.  */
+       if (data.passed_pointer)
 Index: gcc/tree-vectorizer.c
 ===================================================================
 --- a/src/gcc/tree-vectorizer.c	(.../tags/gcc_9_2_0_release)
@@ -22664,6 +23199,18 @@ Index: gcc/tree-dfa.h
  extern void renumber_gimple_stmt_uids_in_blocks (basic_block *, int);
  extern void dump_variable (FILE *, tree);
  extern void debug_variable (tree);
+Index: gcc/gimple-fold.c
+===================================================================
+--- a/src/gcc/gimple-fold.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/gimple-fold.c	(.../branches/gcc-9-branch)
+@@ -6557,6 +6557,7 @@
+ 
+ 	fn = (*valueize) (gimple_call_fn (stmt));
+ 	if (TREE_CODE (fn) == ADDR_EXPR
++	    && TREE_CODE (TREE_OPERAND (fn, 0)) == FUNCTION_DECL
+ 	    && fndecl_built_in_p (TREE_OPERAND (fn, 0))
+ 	    && gimple_builtin_call_types_compatible_p (stmt,
+ 						       TREE_OPERAND (fn, 0)))
 Index: gcc/tree-cfgcleanup.c
 ===================================================================
 --- a/src/gcc/tree-cfgcleanup.c	(.../tags/gcc_9_2_0_release)
@@ -22827,7 +23374,16 @@ Index: gcc/lto/ChangeLog
 ===================================================================
 --- a/src/gcc/lto/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/lto/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,19 @@
+@@ -1,3 +1,28 @@
++2019-11-08  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from mainline
++	2019-10-31  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/92231
++	* lto-lang.c (handle_const_attribute): Don't call fndecl_built_in_p
++	on *node that is not FUNCTION_DECL.
++
 +2019-10-26  Jan Hubicka  <hubicka@ucw.cz>
 +
 +	Backport from mainline
@@ -22847,6 +23403,20 @@ Index: gcc/lto/ChangeLog
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
+Index: gcc/lto/lto-lang.c
+===================================================================
+--- a/src/gcc/lto/lto-lang.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/lto/lto-lang.c	(.../branches/gcc-9-branch)
+@@ -303,7 +303,8 @@
+ 			tree ARG_UNUSED (args), int ARG_UNUSED (flags),
+ 			bool * ARG_UNUSED (no_add_attrs))
+ {
+-  if (!fndecl_built_in_p (*node))
++  if (TREE_CODE (*node) != FUNCTION_DECL
++      || !fndecl_built_in_p (*node))
+     inform (UNKNOWN_LOCATION, "%s:%s: %E: %E", __FILE__, __func__, *node, name);
+ 
+   tree type = TREE_TYPE (*node);
 Index: gcc/ipa-prop.c
 ===================================================================
 --- a/src/gcc/ipa-prop.c	(.../tags/gcc_9_2_0_release)
@@ -30768,6 +31338,102 @@ Index: gcc/config/darwin-driver.c
    /* We will need to know the OS X version we're trying to build for here
       so that we can figure out the mechanism and source for the sysroot to
       be used.  */
+Index: gcc/config/pa/pa.md
+===================================================================
+--- a/src/gcc/config/pa/pa.md	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/config/pa/pa.md	(.../branches/gcc-9-branch)
+@@ -10091,23 +10091,55 @@
+    (set_attr "length" "4,16")])
+ 
+ ;; PA 2.0 hardware supports out-of-order execution of loads and stores, so
+-;; we need a memory barrier to enforce program order for memory references.
+-;; Since we want PA 1.x code to be PA 2.0 compatible, we also need the
+-;; barrier when generating PA 1.x code.
++;; we need memory barriers to enforce program order for memory references
++;; when the TLB and PSW O bits are not set.  We assume all PA 2.0 systems
++;; are weakly ordered since neither HP-UX or Linux set the PSW O bit.  Since
++;; we want PA 1.x code to be PA 2.0 compatible, we also need barriers when
++;; generating PA 1.x code even though all PA 1.x systems are strongly ordered.
+ 
++;; When barriers are needed, we use a strongly ordered ldcw instruction as
++;; the barrier.  Most PA 2.0 targets are cache coherent.  In that case, we
++;; can use the coherent cache control hint and avoid aligning the ldcw
++;; address.  In spite of its description, it is not clear that the sync
++;; instruction works as a barrier.
++
+ (define_expand "memory_barrier"
+-  [(set (match_dup 0)
+-        (unspec:BLK [(match_dup 0)] UNSPEC_MEMORY_BARRIER))]
++  [(parallel
++     [(set (match_dup 0) (unspec:BLK [(match_dup 0)] UNSPEC_MEMORY_BARRIER))
++      (clobber (match_dup 1))])]
+   ""
+ {
+-  operands[0] = gen_rtx_MEM (BLKmode, gen_rtx_SCRATCH (Pmode));
++  /* We don't need a barrier if the target uses ordered memory references.  */
++  if (TARGET_ORDERED)
++    FAIL;
++  operands[1] = gen_reg_rtx (Pmode);
++  operands[0] = gen_rtx_MEM (BLKmode, operands[1]);
+   MEM_VOLATILE_P (operands[0]) = 1;
+ })
+ 
+-(define_insn "*memory_barrier"
++(define_insn "*memory_barrier_coherent"
+   [(set (match_operand:BLK 0 "" "")
+-        (unspec:BLK [(match_dup 0)] UNSPEC_MEMORY_BARRIER))]
++        (unspec:BLK [(match_dup 0)] UNSPEC_MEMORY_BARRIER))
++   (clobber (match_operand 1 "pmode_register_operand" "=r"))]
++  "TARGET_PA_20 && TARGET_COHERENT_LDCW"
++  "ldcw,co 0(%%sp),%1"
++  [(set_attr "type" "binary")
++   (set_attr "length" "4")])
++
++(define_insn "*memory_barrier_64"
++  [(set (match_operand:BLK 0 "" "")
++        (unspec:BLK [(match_dup 0)] UNSPEC_MEMORY_BARRIER))
++    (clobber (match_operand 1 "pmode_register_operand" "=&r"))]
++  "TARGET_64BIT"
++  "ldo 15(%%sp),%1\n\tdepd %%r0,63,3,%1\n\tldcw 0(%1),%1"
++  [(set_attr "type" "binary")
++   (set_attr "length" "12")])
++
++(define_insn "*memory_barrier_32"
++  [(set (match_operand:BLK 0 "" "")
++        (unspec:BLK [(match_dup 0)] UNSPEC_MEMORY_BARRIER))
++    (clobber (match_operand 1 "pmode_register_operand" "=&r"))]
+   ""
+-  "sync"
++  "ldo 15(%%sp),%1\n\t{dep|depw} %%r0,31,3,%1\n\tldcw 0(%1),%1"
+   [(set_attr "type" "binary")
+-   (set_attr "length" "4")])
++   (set_attr "length" "12")])
+Index: gcc/config/pa/pa.opt
+===================================================================
+--- a/src/gcc/config/pa/pa.opt	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/config/pa/pa.opt	(.../branches/gcc-9-branch)
+@@ -45,6 +45,10 @@
+ Target Report Mask(CALLER_COPIES)
+ Caller copies function arguments passed by hidden reference.
+ 
++mcoherent-ldcw
++Target Report Var(TARGET_COHERENT_LDCW) Init(1)
++Use ldcw/ldcd coherent cache-control hint.
++
+ mdisable-fpregs
+ Target Report Mask(DISABLE_FPREGS)
+ Disable FP regs.
+@@ -90,6 +94,10 @@
+ Target RejectNegative Report Mask(NO_SPACE_REGS)
+ Disable space regs.
+ 
++mordered
++Target Report Var(TARGET_ORDERED) Init(0)
++Assume memory references are ordered and barriers are not needed.
++
+ mpa-risc-1-0
+ Target RejectNegative
+ Generate PA1.0 code.
 Index: gcc/config/pa/pa.c
 ===================================================================
 --- a/src/gcc/config/pa/pa.c	(.../tags/gcc_9_2_0_release)
@@ -31683,6 +32349,105 @@ Index: libgfortran/ChangeLog
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
+Index: libcpp/directives.c
+===================================================================
+--- a/src/libcpp/directives.c	(.../tags/gcc_9_2_0_release)
++++ b/src/libcpp/directives.c	(.../branches/gcc-9-branch)
+@@ -1564,6 +1564,8 @@
+   node = _cpp_lex_identifier (pfile, c->name);
+   if (node->type == NT_VOID)
+     c->is_undef = 1;
++  else if (node->type == NT_BUILTIN_MACRO)
++    c->is_builtin = 1;
+   else
+     {
+       defn = cpp_macro_definition (pfile, node);
+@@ -2452,6 +2454,11 @@
+ 
+   if (c->is_undef)
+     return;
++  if (c->is_builtin)
++    {
++      _cpp_restore_special_builtin (pfile, c);
++      return;
++    }
+ 
+   {
+     size_t namelen;
+Index: libcpp/init.c
+===================================================================
+--- a/src/libcpp/init.c	(.../tags/gcc_9_2_0_release)
++++ b/src/libcpp/init.c	(.../branches/gcc-9-branch)
+@@ -489,6 +489,25 @@
+     }
+ }
+ 
++/* Restore macro C to builtin macro definition.  */
++
++void
++_cpp_restore_special_builtin (cpp_reader *pfile, struct def_pragma_macro *c)
++{
++  size_t len = strlen (c->name);
++
++  for (const struct builtin_macro *b = builtin_array;
++       b < builtin_array + ARRAY_SIZE (builtin_array); b++)
++    if (b->len == len && memcmp (c->name, b->name, len + 1) == 0)
++      {
++	cpp_hashnode *hp = cpp_lookup (pfile, b->name, b->len);
++	hp->type = NT_BUILTIN_MACRO;
++	if (b->always_warn_if_redefined)
++	  hp->flags |= NODE_WARN;
++	hp->value.builtin = (enum cpp_builtin_type) b->value;
++      }
++}
++
+ /* Read the builtins table above and enter them, and language-specific
+    macros, into the hash table.  HOSTED is true if this is a hosted
+    environment.  */
+Index: libcpp/ChangeLog
+===================================================================
+--- a/src/libcpp/ChangeLog	(.../tags/gcc_9_2_0_release)
++++ b/src/libcpp/ChangeLog	(.../branches/gcc-9-branch)
+@@ -1,3 +1,17 @@
++2019-11-08  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from mainline
++	2019-10-31  Jakub Jelinek  <jakub@redhat.com>
++
++	PR preprocessor/92296
++	* internal.h (struct def_pragma_macro): Add is_builtin bitfield.
++	(_cpp_restore_special_builtin): Declare.
++	* init.c (_cpp_restore_special_builtin): New function.
++	* directives.c (do_pragma_push_macro): For NT_BUILTIN_MACRO
++	set is_builtin and don't try to grab definition.
++	(cpp_pop_definition): Use _cpp_restore_special_builtin to restore
++	builtin macros.
++
+ 2019-08-12  Release Manager
+ 
+ 	* GCC 9.2.0 released.
+Index: libcpp/internal.h
+===================================================================
+--- a/src/libcpp/internal.h	(.../tags/gcc_9_2_0_release)
++++ b/src/libcpp/internal.h	(.../branches/gcc-9-branch)
+@@ -380,6 +380,8 @@
+ 
+   /* Mark if we save an undefined macro.  */
+   unsigned int is_undef : 1;
++  /* Nonzero if it was a builtin macro.  */
++  unsigned int is_builtin : 1;
+ };
+ 
+ /* A cpp_reader encapsulates the "state" of a pre-processor run.
+@@ -712,6 +714,8 @@
+ /* In init.c.  */
+ extern void _cpp_maybe_push_include_file (cpp_reader *);
+ extern const char *cpp_named_operator2name (enum cpp_ttype type);
++extern void _cpp_restore_special_builtin (cpp_reader *pfile,
++					  struct def_pragma_macro *);
+ 
+ /* In directives.c */
+ extern int _cpp_test_assertion (cpp_reader *, unsigned int *);
 Index: fixincludes/ChangeLog
 ===================================================================
 --- a/src/fixincludes/ChangeLog	(.../tags/gcc_9_2_0_release)
