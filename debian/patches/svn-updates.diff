@@ -1,10 +1,10 @@
-# DP: updates from the 8 branch upto 20191107 (r277923).
+# DP: updates from the 8 branch upto 20191125 (r278667).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Thu Nov  7 17:28:56 CET 2019
-Thu Nov  7 16:28:56 UTC 2019 (revision 277923)
+Mon Nov 25 09:54:21 CET 2019
+Mon Nov 25 08:54:21 UTC 2019 (revision 278667)
 EOF
 }
 
@@ -155,6 +155,67 @@ Index: libgomp/plugin/plugin-hsa.c
  		   shadow->children_dispatches[i]->signal);
  	hsa_fns.hsa_signal_load_acquire_fn (child_s);
        }
+Index: libquadmath/ChangeLog
+===================================================================
+--- a/src/libquadmath/ChangeLog	(.../tags/gcc_8_3_0_release)
++++ b/src/libquadmath/ChangeLog	(.../branches/gcc-8-branch)
+@@ -1,3 +1,12 @@
++2019-11-21  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from mainline
++	2019-08-02  Jakub Jelinek  <jakub@redhat.com>
++
++	* quadmath.h (M_Eq, M_LOG2Eq, M_LOG10Eq, M_LN2q, M_LN10q, M_PIq,
++	M_PI_2q, M_PI_4q, M_1_PIq, M_2_PIq, M_2_SQRTPIq, M_SQRT2q,
++	M_SQRT1_2q): Use two more decimal places.
++
+ 2019-02-22  Release Manager
+ 
+ 	* GCC 8.3.0 released.
+Index: libquadmath/quadmath.h
+===================================================================
+--- a/src/libquadmath/quadmath.h	(.../tags/gcc_8_3_0_release)
++++ b/src/libquadmath/quadmath.h	(.../branches/gcc-8-branch)
+@@ -1,5 +1,5 @@
+ /* GCC Quad-Precision Math Library
+-   Copyright (C) 2010, 2011 Free Software Foundation, Inc.
++   Copyright (C) 2010-2019 Free Software Foundation, Inc.
+    Written by Francois-Xavier Coudert  <fxcoudert@gcc.gnu.org>
+ 
+ This file is part of the libquadmath library.
+@@ -163,19 +163,19 @@
+    (floating constant exceeds range of ‘__float128’)  */
+ /* #define HUGE_VALQ (__extension__ 0x1.0p32767Q) */
+ 
+-#define M_Eq		2.7182818284590452353602874713526625Q  /* e */
+-#define M_LOG2Eq	1.4426950408889634073599246810018921Q  /* log_2 e */
+-#define M_LOG10Eq	0.4342944819032518276511289189166051Q  /* log_10 e */
+-#define M_LN2q		0.6931471805599453094172321214581766Q  /* log_e 2 */
+-#define M_LN10q		2.3025850929940456840179914546843642Q  /* log_e 10 */
+-#define M_PIq		3.1415926535897932384626433832795029Q  /* pi */
+-#define M_PI_2q		1.5707963267948966192313216916397514Q  /* pi/2 */
+-#define M_PI_4q		0.7853981633974483096156608458198757Q  /* pi/4 */
+-#define M_1_PIq		0.3183098861837906715377675267450287Q  /* 1/pi */
+-#define M_2_PIq		0.6366197723675813430755350534900574Q  /* 2/pi */
+-#define M_2_SQRTPIq	1.1283791670955125738961589031215452Q  /* 2/sqrt(pi) */
+-#define M_SQRT2q	1.4142135623730950488016887242096981Q  /* sqrt(2) */
+-#define M_SQRT1_2q	0.7071067811865475244008443621048490Q  /* 1/sqrt(2) */
++#define M_Eq		2.718281828459045235360287471352662498Q  /* e */
++#define M_LOG2Eq	1.442695040888963407359924681001892137Q  /* log_2 e */
++#define M_LOG10Eq	0.434294481903251827651128918916605082Q  /* log_10 e */
++#define M_LN2q		0.693147180559945309417232121458176568Q  /* log_e 2 */
++#define M_LN10q		2.302585092994045684017991454684364208Q  /* log_e 10 */
++#define M_PIq		3.141592653589793238462643383279502884Q  /* pi */
++#define M_PI_2q		1.570796326794896619231321691639751442Q  /* pi/2 */
++#define M_PI_4q		0.785398163397448309615660845819875721Q  /* pi/4 */
++#define M_1_PIq		0.318309886183790671537767526745028724Q  /* 1/pi */
++#define M_2_PIq		0.636619772367581343075535053490057448Q  /* 2/pi */
++#define M_2_SQRTPIq	1.128379167095512573896158903121545172Q  /* 2/sqrt(pi) */
++#define M_SQRT2q	1.414213562373095048801688724209698079Q  /* sqrt(2) */
++#define M_SQRT1_2q	0.707106781186547524400844362104849039Q  /* 1/sqrt(2) */
+ 
+ #define __quadmath_extern_inline \
+   extern inline __attribute__ ((__gnu_inline__))
 Index: libstdc++-v3/configure
 ===================================================================
 --- a/src/libstdc++-v3/configure	(.../tags/gcc_8_3_0_release)
@@ -7091,7 +7152,26 @@ Index: libgcc/ChangeLog
 ===================================================================
 --- a/src/libgcc/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/libgcc/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,66 @@
+@@ -1,3 +1,85 @@
++2019-11-17  John David Anglin  <danglin@gcc.gnu.org>
++
++	* config/pa/linux-atomic.c (__kernel_cmpxchg): Change argument 1 to
++	volatile void *.  Remove trap check.
++	(__kernel_cmpxchg2): Likewise.
++	(FETCH_AND_OP_2): Adjust operand types.
++	(OP_AND_FETCH_2): Likewise.
++	(FETCH_AND_OP_WORD): Likewise.
++	(OP_AND_FETCH_WORD): Likewise.
++	(COMPARE_AND_SWAP_2): Likewise.
++	(__sync_val_compare_and_swap_4): Likewise.
++	(__sync_bool_compare_and_swap_4): Likewise.
++	(SYNC_LOCK_TEST_AND_SET_2): Likewise.
++	(__sync_lock_test_and_set_4): Likewise.
++	(SYNC_LOCK_RELEASE_1): Likewise.  Use __kernel_cmpxchg2 for release.
++	(__sync_lock_release_4): Adjust operand types.  Use __kernel_cmpxchg
++	for release.
++	(__sync_lock_release_8): Remove.
++
 +2019-11-04  John David Anglin  <danglin@gcc.gnu.org>
 +
 +	Backport from mainline
@@ -7359,6 +7439,369 @@ Index: libgcc/config/pa/lib2funcs.S
  	copy %r31,%r2
  	ldw -8(%r30),%r2
  
+Index: libgcc/config/pa/linux-atomic.c
+===================================================================
+--- a/src/libgcc/config/pa/linux-atomic.c	(.../tags/gcc_8_3_0_release)
++++ b/src/libgcc/config/pa/linux-atomic.c	(.../branches/gcc-8-branch)
+@@ -41,7 +41,7 @@
+ 
+ /* Kernel helper for compare-and-exchange a 32-bit value.  */
+ static inline long
+-__kernel_cmpxchg (int *mem, int oldval, int newval)
++__kernel_cmpxchg (volatile void *mem, int oldval, int newval)
+ {
+   register unsigned long lws_mem asm("r26") = (unsigned long) (mem);
+   register int lws_old asm("r25") = oldval;
+@@ -54,20 +54,18 @@
+ 	: "i" (LWS_CAS), "r" (lws_mem), "r" (lws_old), "r" (lws_new)
+ 	: "r1", "r20", "r22", "r23", "r29", "r31", "memory"
+   );
+-  if (__builtin_expect (lws_errno == -EFAULT || lws_errno == -ENOSYS, 0))
+-    __builtin_trap ();
+ 
+   /* If the kernel LWS call succeeded (lws_errno == 0), lws_ret contains
+      the old value from memory.  If this value is equal to OLDVAL, the
+      new value was written to memory.  If not, return -EBUSY.  */
+   if (!lws_errno && lws_ret != oldval)
+-    lws_errno = -EBUSY;
++    return -EBUSY;
+ 
+   return lws_errno;
+ }
+ 
+ static inline long
+-__kernel_cmpxchg2 (void *mem, const void *oldval, const void *newval,
++__kernel_cmpxchg2 (volatile void *mem, const void *oldval, const void *newval,
+ 		   int val_size)
+ {
+   register unsigned long lws_mem asm("r26") = (unsigned long) (mem);
+@@ -88,9 +86,6 @@
+   if (__builtin_expect (lws_ret == 0, 1))
+     return 0;
+ 
+-  if (__builtin_expect (lws_errno == -EFAULT || lws_errno == -ENOSYS, 0))
+-    __builtin_trap ();
+-
+   /* If the kernel LWS call fails with no error, return -EBUSY */
+   if (__builtin_expect (!lws_errno, 0))
+     return -EBUSY;
+@@ -108,13 +103,13 @@
+ 
+ #define FETCH_AND_OP_2(OP, PFX_OP, INF_OP, TYPE, WIDTH, INDEX)		\
+   TYPE HIDDEN								\
+-  __sync_fetch_and_##OP##_##WIDTH (TYPE *ptr, TYPE val)			\
++  __sync_fetch_and_##OP##_##WIDTH (volatile void *ptr, TYPE val)	\
+   {									\
+     TYPE tmp, newval;							\
+     long failure;							\
+ 									\
+     do {								\
+-      tmp = __atomic_load_n (ptr, __ATOMIC_RELAXED);			\
++      tmp = __atomic_load_n ((volatile TYPE *)ptr, __ATOMIC_RELAXED);	\
+       newval = PFX_OP (tmp INF_OP val);					\
+       failure = __kernel_cmpxchg2 (ptr, &tmp, &newval, INDEX);		\
+     } while (failure != 0);						\
+@@ -122,36 +117,36 @@
+     return tmp;								\
+   }
+ 
+-FETCH_AND_OP_2 (add,   , +, long long, 8, 3)
+-FETCH_AND_OP_2 (sub,   , -, long long, 8, 3)
+-FETCH_AND_OP_2 (or,    , |, long long, 8, 3)
+-FETCH_AND_OP_2 (and,   , &, long long, 8, 3)
+-FETCH_AND_OP_2 (xor,   , ^, long long, 8, 3)
+-FETCH_AND_OP_2 (nand, ~, &, long long, 8, 3)
++FETCH_AND_OP_2 (add,   , +, long long unsigned int, 8, 3)
++FETCH_AND_OP_2 (sub,   , -, long long unsigned int, 8, 3)
++FETCH_AND_OP_2 (or,    , |, long long unsigned int, 8, 3)
++FETCH_AND_OP_2 (and,   , &, long long unsigned int, 8, 3)
++FETCH_AND_OP_2 (xor,   , ^, long long unsigned int, 8, 3)
++FETCH_AND_OP_2 (nand, ~, &, long long unsigned int, 8, 3)
+ 
+-FETCH_AND_OP_2 (add,   , +, short, 2, 1)
+-FETCH_AND_OP_2 (sub,   , -, short, 2, 1)
+-FETCH_AND_OP_2 (or,    , |, short, 2, 1)
+-FETCH_AND_OP_2 (and,   , &, short, 2, 1)
+-FETCH_AND_OP_2 (xor,   , ^, short, 2, 1)
+-FETCH_AND_OP_2 (nand, ~, &, short, 2, 1)
++FETCH_AND_OP_2 (add,   , +, short unsigned int, 2, 1)
++FETCH_AND_OP_2 (sub,   , -, short unsigned int, 2, 1)
++FETCH_AND_OP_2 (or,    , |, short unsigned int, 2, 1)
++FETCH_AND_OP_2 (and,   , &, short unsigned int, 2, 1)
++FETCH_AND_OP_2 (xor,   , ^, short unsigned int, 2, 1)
++FETCH_AND_OP_2 (nand, ~, &, short unsigned int, 2, 1)
+ 
+-FETCH_AND_OP_2 (add,   , +, signed char, 1, 0)
+-FETCH_AND_OP_2 (sub,   , -, signed char, 1, 0)
+-FETCH_AND_OP_2 (or,    , |, signed char, 1, 0)
+-FETCH_AND_OP_2 (and,   , &, signed char, 1, 0)
+-FETCH_AND_OP_2 (xor,   , ^, signed char, 1, 0)
+-FETCH_AND_OP_2 (nand, ~, &, signed char, 1, 0)
++FETCH_AND_OP_2 (add,   , +, unsigned char, 1, 0)
++FETCH_AND_OP_2 (sub,   , -, unsigned char, 1, 0)
++FETCH_AND_OP_2 (or,    , |, unsigned char, 1, 0)
++FETCH_AND_OP_2 (and,   , &, unsigned char, 1, 0)
++FETCH_AND_OP_2 (xor,   , ^, unsigned char, 1, 0)
++FETCH_AND_OP_2 (nand, ~, &, unsigned char, 1, 0)
+ 
+ #define OP_AND_FETCH_2(OP, PFX_OP, INF_OP, TYPE, WIDTH, INDEX)		\
+   TYPE HIDDEN								\
+-  __sync_##OP##_and_fetch_##WIDTH (TYPE *ptr, TYPE val)			\
++  __sync_##OP##_and_fetch_##WIDTH (volatile void *ptr, TYPE val)	\
+   {									\
+     TYPE tmp, newval;							\
+     long failure;							\
+ 									\
+     do {								\
+-      tmp = __atomic_load_n (ptr, __ATOMIC_RELAXED);			\
++      tmp = __atomic_load_n ((volatile TYPE *)ptr, __ATOMIC_RELAXED);	\
+       newval = PFX_OP (tmp INF_OP val);					\
+       failure = __kernel_cmpxchg2 (ptr, &tmp, &newval, INDEX);		\
+     } while (failure != 0);						\
+@@ -159,36 +154,37 @@
+     return PFX_OP (tmp INF_OP val);					\
+   }
+ 
+-OP_AND_FETCH_2 (add,   , +, long long, 8, 3)
+-OP_AND_FETCH_2 (sub,   , -, long long, 8, 3)
+-OP_AND_FETCH_2 (or,    , |, long long, 8, 3)
+-OP_AND_FETCH_2 (and,   , &, long long, 8, 3)
+-OP_AND_FETCH_2 (xor,   , ^, long long, 8, 3)
+-OP_AND_FETCH_2 (nand, ~, &, long long, 8, 3)
++OP_AND_FETCH_2 (add,   , +, long long unsigned int, 8, 3)
++OP_AND_FETCH_2 (sub,   , -, long long unsigned int, 8, 3)
++OP_AND_FETCH_2 (or,    , |, long long unsigned int, 8, 3)
++OP_AND_FETCH_2 (and,   , &, long long unsigned int, 8, 3)
++OP_AND_FETCH_2 (xor,   , ^, long long unsigned int, 8, 3)
++OP_AND_FETCH_2 (nand, ~, &, long long unsigned int, 8, 3)
+ 
+-OP_AND_FETCH_2 (add,   , +, short, 2, 1)
+-OP_AND_FETCH_2 (sub,   , -, short, 2, 1)
+-OP_AND_FETCH_2 (or,    , |, short, 2, 1)
+-OP_AND_FETCH_2 (and,   , &, short, 2, 1)
+-OP_AND_FETCH_2 (xor,   , ^, short, 2, 1)
+-OP_AND_FETCH_2 (nand, ~, &, short, 2, 1)
++OP_AND_FETCH_2 (add,   , +, short unsigned int, 2, 1)
++OP_AND_FETCH_2 (sub,   , -, short unsigned int, 2, 1)
++OP_AND_FETCH_2 (or,    , |, short unsigned int, 2, 1)
++OP_AND_FETCH_2 (and,   , &, short unsigned int, 2, 1)
++OP_AND_FETCH_2 (xor,   , ^, short unsigned int, 2, 1)
++OP_AND_FETCH_2 (nand, ~, &, short unsigned int, 2, 1)
+ 
+-OP_AND_FETCH_2 (add,   , +, signed char, 1, 0)
+-OP_AND_FETCH_2 (sub,   , -, signed char, 1, 0)
+-OP_AND_FETCH_2 (or,    , |, signed char, 1, 0)
+-OP_AND_FETCH_2 (and,   , &, signed char, 1, 0)
+-OP_AND_FETCH_2 (xor,   , ^, signed char, 1, 0)
+-OP_AND_FETCH_2 (nand, ~, &, signed char, 1, 0)
++OP_AND_FETCH_2 (add,   , +, unsigned char, 1, 0)
++OP_AND_FETCH_2 (sub,   , -, unsigned char, 1, 0)
++OP_AND_FETCH_2 (or,    , |, unsigned char, 1, 0)
++OP_AND_FETCH_2 (and,   , &, unsigned char, 1, 0)
++OP_AND_FETCH_2 (xor,   , ^, unsigned char, 1, 0)
++OP_AND_FETCH_2 (nand, ~, &, unsigned char, 1, 0)
+ 
+ #define FETCH_AND_OP_WORD(OP, PFX_OP, INF_OP)				\
+-  int HIDDEN								\
+-  __sync_fetch_and_##OP##_4 (int *ptr, int val)				\
++  unsigned int HIDDEN							\
++  __sync_fetch_and_##OP##_4 (volatile void *ptr, unsigned int val)	\
+   {									\
+-    int tmp;								\
++    unsigned int tmp;							\
+     long failure;							\
+ 									\
+     do {								\
+-      tmp = __atomic_load_n (ptr, __ATOMIC_RELAXED);			\
++      tmp = __atomic_load_n ((volatile unsigned int *)ptr,		\
++			     __ATOMIC_RELAXED);				\
+       failure = __kernel_cmpxchg (ptr, tmp, PFX_OP (tmp INF_OP val));	\
+     } while (failure != 0);						\
+ 									\
+@@ -203,14 +199,15 @@
+ FETCH_AND_OP_WORD (nand, ~, &)
+ 
+ #define OP_AND_FETCH_WORD(OP, PFX_OP, INF_OP)				\
+-  int HIDDEN								\
+-  __sync_##OP##_and_fetch_4 (int *ptr, int val)				\
++  unsigned int HIDDEN							\
++  __sync_##OP##_and_fetch_4 (volatile void *ptr, unsigned int val)	\
+   {									\
+-    int tmp;								\
++    unsigned int tmp;							\
+     long failure;							\
+ 									\
+     do {								\
+-      tmp = __atomic_load_n (ptr, __ATOMIC_RELAXED);			\
++      tmp = __atomic_load_n ((volatile unsigned int *)ptr,		\
++			     __ATOMIC_RELAXED);				\
+       failure = __kernel_cmpxchg (ptr, tmp, PFX_OP (tmp INF_OP val));	\
+     } while (failure != 0);						\
+ 									\
+@@ -228,7 +225,7 @@
+ 
+ #define COMPARE_AND_SWAP_2(TYPE, WIDTH, INDEX)				\
+   TYPE HIDDEN								\
+-  __sync_val_compare_and_swap_##WIDTH (TYPE *ptr, TYPE oldval,		\
++  __sync_val_compare_and_swap_##WIDTH (volatile void *ptr, TYPE oldval,	\
+ 				       TYPE newval)			\
+   {									\
+     TYPE actual_oldval;							\
+@@ -236,7 +233,8 @@
+ 									\
+     while (1)								\
+       {									\
+-	actual_oldval = __atomic_load_n (ptr, __ATOMIC_RELAXED);	\
++	actual_oldval = __atomic_load_n ((volatile TYPE *)ptr,		\
++					 __ATOMIC_RELAXED);		\
+ 									\
+ 	if (__builtin_expect (oldval != actual_oldval, 0))		\
+ 	  return actual_oldval;						\
+@@ -248,27 +246,29 @@
+       }									\
+   }									\
+ 									\
+-  bool HIDDEN								\
+-  __sync_bool_compare_and_swap_##WIDTH (TYPE *ptr, TYPE oldval,		\
+-					TYPE newval)			\
++  _Bool HIDDEN								\
++  __sync_bool_compare_and_swap_##WIDTH (volatile void *ptr,		\
++					TYPE oldval, TYPE newval)	\
+   {									\
+     long failure = __kernel_cmpxchg2 (ptr, &oldval, &newval, INDEX);	\
+     return (failure == 0);						\
+   }
+ 
+-COMPARE_AND_SWAP_2 (long long, 8, 3)
+-COMPARE_AND_SWAP_2 (short, 2, 1)
+-COMPARE_AND_SWAP_2 (char, 1, 0)
++COMPARE_AND_SWAP_2 (long long unsigned int, 8, 3)
++COMPARE_AND_SWAP_2 (short unsigned int, 2, 1)
++COMPARE_AND_SWAP_2 (unsigned char, 1, 0)
+ 
+-int HIDDEN
+-__sync_val_compare_and_swap_4 (int *ptr, int oldval, int newval)
++unsigned int HIDDEN
++__sync_val_compare_and_swap_4 (volatile void *ptr, unsigned int oldval,
++			       unsigned int newval)
+ {
+   long fail;
+-  int actual_oldval;
++  unsigned int actual_oldval;
+     
+   while (1)
+     {
+-      actual_oldval = __atomic_load_n (ptr, __ATOMIC_RELAXED);
++      actual_oldval = __atomic_load_n ((volatile unsigned int *)ptr,
++				       __ATOMIC_RELAXED);
+ 
+       if (__builtin_expect (oldval != actual_oldval, 0))
+ 	return actual_oldval;
+@@ -280,8 +280,9 @@
+     }
+ }
+ 
+-bool HIDDEN
+-__sync_bool_compare_and_swap_4 (int *ptr, int oldval, int newval)
++_Bool HIDDEN
++__sync_bool_compare_and_swap_4 (volatile void *ptr, unsigned int oldval,
++				unsigned int newval)
+ {
+   long failure = __kernel_cmpxchg (ptr, oldval, newval);
+   return (failure == 0);
+@@ -289,13 +290,14 @@
+ 
+ #define SYNC_LOCK_TEST_AND_SET_2(TYPE, WIDTH, INDEX)			\
+ TYPE HIDDEN								\
+-  __sync_lock_test_and_set_##WIDTH (TYPE *ptr, TYPE val)		\
++  __sync_lock_test_and_set_##WIDTH (volatile void *ptr, TYPE val)	\
+   {									\
+     TYPE oldval;							\
+     long failure;							\
+ 									\
+     do {								\
+-      oldval = __atomic_load_n (ptr, __ATOMIC_RELAXED);			\
++      oldval = __atomic_load_n ((volatile TYPE *)ptr,			\
++				__ATOMIC_RELAXED);			\
+       failure = __kernel_cmpxchg2 (ptr, &oldval, &val, INDEX);		\
+     } while (failure != 0);						\
+ 									\
+@@ -302,18 +304,18 @@
+     return oldval;							\
+   }
+ 
+-SYNC_LOCK_TEST_AND_SET_2 (long long, 8, 3)
+-SYNC_LOCK_TEST_AND_SET_2 (short, 2, 1)
+-SYNC_LOCK_TEST_AND_SET_2 (signed char, 1, 0)
++SYNC_LOCK_TEST_AND_SET_2 (long long unsigned int, 8, 3)
++SYNC_LOCK_TEST_AND_SET_2 (short unsigned int, 2, 1)
++SYNC_LOCK_TEST_AND_SET_2 (unsigned char, 1, 0)
+ 
+-int HIDDEN
+-__sync_lock_test_and_set_4 (int *ptr, int val)
++unsigned int HIDDEN
++__sync_lock_test_and_set_4 (volatile void *ptr, unsigned int val)
+ {
+   long failure;
+-  int oldval;
++  unsigned int oldval;
+ 
+   do {
+-    oldval = __atomic_load_n (ptr, __ATOMIC_RELAXED);
++    oldval = __atomic_load_n ((volatile unsigned int *)ptr, __ATOMIC_RELAXED);
+     failure = __kernel_cmpxchg (ptr, oldval, val);
+   } while (failure != 0);
+ 
+@@ -320,24 +322,32 @@
+   return oldval;
+ }
+ 
+-void HIDDEN
+-__sync_lock_release_8 (long long *ptr)
+-{
+-  /* All accesses must be complete before we release the lock.  */
+-  __sync_synchronize ();
+-  *(double *)ptr = 0;
+-}
+-
+-#define SYNC_LOCK_RELEASE_1(TYPE, WIDTH)			\
++#define SYNC_LOCK_RELEASE_1(TYPE, WIDTH, INDEX)			\
+   void HIDDEN							\
+-  __sync_lock_release_##WIDTH (TYPE *ptr)			\
++  __sync_lock_release_##WIDTH (volatile void *ptr)		\
+   {								\
+-    /* All accesses must be complete before we release		\
+-       the lock.  */						\
+-    __sync_synchronize ();					\
+-    *ptr = 0;							\
++    TYPE oldval, val = 0;					\
++    long failure;						\
++								\
++    do {							\
++      oldval = __atomic_load_n ((volatile TYPE *)ptr,		\
++				__ATOMIC_RELAXED);		\
++      failure = __kernel_cmpxchg2 (ptr, &oldval, &val, INDEX);	\
++    } while (failure != 0);					\
+   }
+ 
+-SYNC_LOCK_RELEASE_1 (int, 4)
+-SYNC_LOCK_RELEASE_1 (short, 2)
+-SYNC_LOCK_RELEASE_1 (signed char, 1)
++SYNC_LOCK_RELEASE_1 (long long unsigned int, 8, 3)
++SYNC_LOCK_RELEASE_1 (short unsigned int, 2, 1)
++SYNC_LOCK_RELEASE_1 (unsigned char, 1, 0)
++
++void HIDDEN
++__sync_lock_release_4 (volatile void *ptr)
++{
++  long failure;
++  unsigned int oldval;
++
++  do {
++    oldval = __atomic_load_n ((volatile unsigned int *)ptr, __ATOMIC_RELAXED);
++    failure = __kernel_cmpxchg (ptr, oldval, 0);
++  } while (failure != 0);
++}
 Index: libgcc/config/pa/fptr.c
 ===================================================================
 --- a/src/libgcc/config/pa/fptr.c	(.../tags/gcc_8_3_0_release)
@@ -7687,7 +8130,17 @@ Index: gcc/c/ChangeLog
 ===================================================================
 --- a/src/gcc/c/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/c/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,58 @@
+@@ -1,3 +1,68 @@
++2019-11-21  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from mainline
++	2019-08-09  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c/91401
++	* c-parser.c (c_parser_omp_clause_dist_schedule): Fix up typos in the
++	check_no_duplicate_clause call.  Comment it out, instead emit a
++	warning for duplicate dist_schedule clauses.
++
 +2019-09-03  Iain Sandoe  <iain@sandoe.co.uk>
 +
 +	Backport from mainline.
@@ -7900,7 +8353,19 @@ Index: gcc/c/c-parser.c
    c_parser_maybe_reclassify_token (parser);
  
    token_indent_info next_tinfo
-@@ -18461,6 +18478,8 @@
+@@ -13832,7 +13849,10 @@
+     c_parser_skip_until_found (parser, CPP_CLOSE_PAREN,
+ 			       "expected %<,%> or %<)%>");
+ 
+-  check_no_duplicate_clause (list, OMP_CLAUSE_SCHEDULE, "schedule");
++  /* check_no_duplicate_clause (list, OMP_CLAUSE_DIST_SCHEDULE,
++				"dist_schedule"); */
++  if (omp_find_clause (list, OMP_CLAUSE_DIST_SCHEDULE))
++    warning_at (loc, 0, "too many %qs clauses", "dist_schedule");
+   if (t == error_mark_node)
+     return list;
+ 
+@@ -18461,6 +18481,8 @@
  
    if (c_parser_peek_token (&tparser)->pragma_kind == PRAGMA_GCC_PCH_PREPROCESS)
      c_parser_pragma_pch_preprocess (&tparser);
@@ -8201,13 +8666,43 @@ Index: gcc/cfgloopmanip.c
  }
  
  /* Copies copy of LOOP as subloop of TARGET loop, placing newly
+Index: gcc/optabs.c
+===================================================================
+--- a/src/gcc/optabs.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/optabs.c	(.../branches/gcc-8-branch)
+@@ -5778,6 +5778,25 @@
+   icode = get_vcond_icode (mode, cmp_op_mode, unsignedp);
+   if (icode == CODE_FOR_nothing)
+     {
++      if (tcode == LT_EXPR
++	  && op0a == op0
++	  && TREE_CODE (op0) == VECTOR_CST)
++	{
++	  /* A VEC_COND_EXPR condition could be folded from EQ_EXPR/NE_EXPR
++	     into a constant when only get_vcond_eq_icode is supported.
++	     Verify < 0 and != 0 behave the same and change it to NE_EXPR.  */
++	  unsigned HOST_WIDE_INT nelts;
++	  if (!VECTOR_CST_NELTS (op0).is_constant (&nelts))
++	    {
++	      if (VECTOR_CST_STEPPED_P (op0))
++		return 0;
++	      nelts = vector_cst_encoded_nelts (op0);
++	    }
++	  for (unsigned int i = 0; i < nelts; ++i)
++	    if (tree_int_cst_sgn (vector_cst_elt (op0, i)) == 1)
++	      return 0;
++	  tcode = NE_EXPR;
++	}
+       if (tcode == EQ_EXPR || tcode == NE_EXPR)
+ 	icode = get_vcond_eq_icode (mode, cmp_op_mode);
+       if (icode == CODE_FOR_nothing)
 Index: gcc/DATESTAMP
 ===================================================================
 --- a/src/gcc/DATESTAMP	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-8-branch)
 @@ -1 +1 @@
 -20190222
-+20191107
++20191125
 Index: gcc/tree-ssa-loop-ch.c
 ===================================================================
 --- a/src/gcc/tree-ssa-loop-ch.c	(.../tags/gcc_8_3_0_release)
@@ -8439,7 +8934,33 @@ Index: gcc/configure
 ===================================================================
 --- a/src/gcc/configure	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/configure	(.../branches/gcc-8-branch)
-@@ -22799,17 +22799,13 @@
+@@ -666,6 +666,7 @@
+ all_selected_languages
+ all_languages
+ all_lang_makefrags
++all_lang_configurefrags
+ all_gtfiles
+ all_compilers
+ srcdir
+@@ -18448,7 +18449,7 @@
+   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
+   lt_status=$lt_dlunknown
+   cat > conftest.$ac_ext <<_LT_EOF
+-#line 18451 "configure"
++#line 18452 "configure"
+ #include "confdefs.h"
+ 
+ #if HAVE_DLFCN_H
+@@ -18554,7 +18555,7 @@
+   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
+   lt_status=$lt_dlunknown
+   cat > conftest.$ac_ext <<_LT_EOF
+-#line 18557 "configure"
++#line 18558 "configure"
+ #include "confdefs.h"
+ 
+ #if HAVE_DLFCN_H
+@@ -22799,17 +22800,13 @@
  	#
  	# ld: Software Generation Utilities - Solaris Link Editors: 5.11-1.1701:onnv-ab196087-6931056-03/25/10
  	#
@@ -8459,6 +8980,88 @@ Index: gcc/configure
  	  ld_vers_major=`expr "$ld_vers" : '\([0-9]*\)'`
  	  ld_vers_minor=`expr "$ld_vers" : '[0-9]*\.\([0-9]*\)'`
  	fi
+@@ -29516,7 +29513,8 @@
+ all_languages=
+ all_compilers=
+ all_outputs='Makefile'
+-# List of language makefile fragments.
++# List of language configure and makefile fragments.
++all_lang_configurefrags=
+ all_lang_makefrags=
+ # Additional files for gengtype
+ all_gtfiles="$target_gtfiles"
+@@ -29602,6 +29600,7 @@
+ 	esac
+ 	$ok || continue
+ 
++	all_lang_configurefrags="$all_lang_configurefrags \$(srcdir)/$gcc_subdir/config-lang.in"
+ 	all_lang_makefrags="$all_lang_makefrags \$(srcdir)/$gcc_subdir/Make-lang.in"
+ 	if test -f $srcdir/$gcc_subdir/lang.opt; then
+ 	    lang_opt_files="$lang_opt_files $srcdir/$gcc_subdir/lang.opt"
+@@ -29752,6 +29751,7 @@
+ 
+ 
+ 
++
+ 
+ 
+ 
+Index: gcc/internal-fn.c
+===================================================================
+--- a/src/gcc/internal-fn.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/internal-fn.c	(.../branches/gcc-8-branch)
+@@ -1385,7 +1385,7 @@
+   /* s1 * s2 -> ur  */
+   if (!uns0_p && !uns1_p && unsr_p)
+     {
+-      rtx tem, tem2;
++      rtx tem;
+       switch (pos_neg0 | pos_neg1)
+ 	{
+ 	case 1: /* Both operands known to be non-negative.  */
+@@ -1415,10 +1415,8 @@
+ 	      ops.op2 = NULL_TREE;
+ 	      ops.location = loc;
+ 	      res = expand_expr_real_2 (&ops, NULL_RTX, mode, EXPAND_NORMAL);
+-	      tem = expand_binop (mode, and_optab, op0, op1, NULL_RTX, false,
+-				  OPTAB_LIB_WIDEN);
+-	      do_compare_rtx_and_jump (tem, const0_rtx, EQ, true, mode,
+-				       NULL_RTX, NULL, done_label,
++	      do_compare_rtx_and_jump (pos_neg0 == 1 ? op0 : op1, const0_rtx, EQ,
++				       true, mode, NULL_RTX, NULL, done_label,
+ 				       profile_probability::very_likely ());
+ 	      goto do_error_label;
+ 	    }
+@@ -1449,16 +1447,23 @@
+ 	  arg1 = error_mark_node;
+ 	  emit_jump (do_main_label);
+ 	  emit_label (after_negate_label);
+-	  tem2 = expand_binop (mode, xor_optab, op0, op1, NULL_RTX, false,
+-			       OPTAB_LIB_WIDEN);
+-	  do_compare_rtx_and_jump (tem2, const0_rtx, GE, false, mode, NULL_RTX,
+-				   NULL, do_main_label, profile_probability::very_likely ());
++	  tem = expand_binop (mode, xor_optab, op0, op1, NULL_RTX, false,
++			      OPTAB_LIB_WIDEN);
++	  do_compare_rtx_and_jump (tem, const0_rtx, GE, false, mode, NULL_RTX,
++				   NULL, do_main_label,
++				   profile_probability::very_likely ());
+ 	  /* One argument is negative here, the other positive.  This
+ 	     overflows always, unless one of the arguments is 0.  But
+ 	     if e.g. s2 is 0, (U) s1 * 0 doesn't overflow, whatever s1
+ 	     is, thus we can keep do_main code oring in overflow as is.  */
+-	  do_compare_rtx_and_jump (tem, const0_rtx, EQ, true, mode, NULL_RTX,
+-				   NULL, do_main_label, profile_probability::very_likely ());
++	  if (pos_neg0 != 2)
++	    do_compare_rtx_and_jump (op0, const0_rtx, EQ, true, mode, NULL_RTX,
++				     NULL, do_main_label,
++				     profile_probability::very_unlikely ());
++	  if (pos_neg1 != 2)
++	    do_compare_rtx_and_jump (op1, const0_rtx, EQ, true, mode, NULL_RTX,
++				     NULL, do_main_label,
++				     profile_probability::very_unlikely ());
+ 	  expand_arith_set_overflow (lhs, target);
+ 	  emit_label (do_main_label);
+ 	  goto do_main;
 Index: gcc/builtins.c
 ===================================================================
 --- a/src/gcc/builtins.c	(.../tags/gcc_8_3_0_release)
@@ -9344,7 +9947,166 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,2319 @@
+@@ -1,3 +1,2478 @@
++2019-11-21  Jakub Jelinek  <jakub@redhat.com>
++
++	PR tree-optimization/91355
++	* tree-ssa-sink.c (select_best_block): Use >= rather than >
++	for early_bb scaled count with best_bb count comparison.
++
++	Backported from mainline
++	2019-11-20  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/90840
++	* expmed.c (store_bit_field_1): Handle the case where op0 is not a MEM
++	and has a mode that doesn't have corresponding integral type.
++
++	PR target/90867
++	* config/i386/i386.c (ix86_valid_target_attribute_tree): Don't
++	clear opts->x_ix86_isa_flags{,2} here...
++	(ix86_valid_target_attribute_inner_p): ... but here when seeing
++	arch=.  Also clear opts->x_ix86_isa_flags{,2}_explicit.
++
++	PR c/90898
++	* tree-ssa-ccp.c (insert_clobber_before_stack_restore): Remove
++	assertion.
++	(insert_clobbers_for_var): Fix a typo in function comment.
++
++	2019-11-19  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/91450
++	* internal-fn.c (expand_mul_overflow): For s1 * s2 -> ur, if one
++	operand is negative and one non-negative, compare the non-negative
++	one against 0 rather than comparing s1 & s2 against 0.  Otherwise,
++	don't compare (s1 & s2) == 0, but compare separately both s1 == 0
++	and s2 == 0, unless one of them is known to be negative.  Remove
++	tem2 variable, use tem where tem2 has been used before.
++
++	2019-11-08  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/92384
++	* function.c (assign_parm_setup_block, assign_parm_setup_stack): Don't
++	copy TYPE_EMPTY_P arguments from data->entry_parm to data->stack_parm
++	slot.
++	(assign_parms): For TREE_ADDRESSABLE parms with TYPE_EMPTY_P type
++	force creation of a unique data.stack_parm slot.
++
++	2019-10-17  Jakub Jelinek  <jakub@redhat.com>
++
++	PR tree-optimization/92056
++	* tree-object-size.c (cond_expr_object_size): Return early if then_
++	processing resulted in unknown size.
++
++	2019-09-07  Jakub Jelinek  <jakub@redhat.com>
++
++	PR tree-optimization/91665
++	* tree-vect-loop.c (vectorizable_reduction): Punt if base has type
++	incompatible with the type of PHI result.
++
++	2019-09-06  Jakub Jelinek  <jakub@redhat.com>
++
++	* function.c (assign_parm_find_data_types): Use RECORD_OR_UNION_TYPE_P
++	before testing TYPE_TRANSPARENT_AGGR.
++	* calls.c (initialize_argument_information, load_register_parameters):
++	Likewise.
++
++	2019-09-05  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/91001
++	PR middle-end/91105
++	PR middle-end/91106
++	* calls.c (load_register_parameters): For TYPE_TRANSPARENT_AGGR
++	types, use type of their first field instead of type of
++	args[i].tree_value.
++
++	2019-09-01  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/91623
++	* optabs.c (expand_vec_cond_expr): If op0 is a VECTOR_CST and only
++	EQ_EXPR/NE_EXPR is supported, verify that op0 only contains
++	zeros or negative elements and use NE_EXPR instead of LT_EXPR against
++	zero vector.
++
++2019-11-20  Peter Bergner <bergner@linux.ibm.com>
++
++	Backport from mainline
++	2019-11-07  Peter Bergner <bergner@linux.ibm.com>
++
++	PR other/92090
++	* config/rs6000/predicates.md (input_operand): Allow MODE_PARTIAL_INT
++	modes for integer constants.
++
++2019-11-19  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* doc/invoke.texi (-gno-internal-reset-location-views): Fix typo.
++
++2019-11-14  Martin Liska  <mliska@suse.cz>
++
++	Backport from mainline
++	2019-11-14  Martin Liska  <mliska@suse.cz>
++
++	PR target/92389
++	* config/i386/i386.h: Add PTA_AVX512VPOPCNTDQ to
++	PTA_ICELAKE_CLIENT which is later interited by
++	PTA_ICELAKE_SERVER and PTA_TIGERLAKE.
++
++2019-11-13  Dragan Mladjenovic  <dmladjenovic@wavecomp.com>
++
++	Backport from mainline
++	* config/mips/mips.md (rotr<mode>3): Sanitize the constant argument
++	instead of asserting its value.
++
++2019-11-11  H.J. Lu  <hjl.tools@gmail.com>
++
++	Backport from trunk:
++	PR target/87833
++	* config/i386/intelmic-mkoffload.c (prepare_target_image): Put
++	-fPIC and -shared the last to create offload image.
++
++2019-11-11  Thomas Schwinge  <thomas@codesourcery.com>
++
++	Backport from trunk:
++	* gimplify.c (gimplify_scan_omp_clauses): Assert 'offset2' instead
++	of 'offset'.
++
++	Backport from trunk:
++	* Makefile.in (LANG_CONFIGUREFRAGS): Define.
++	(config.status): Use/depend on it.
++	* configure.ac (all_lang_configurefrags): Track, 'AC_SUBST'.
++	* configure: Regenerate.
++
++2019-11-09  John David Anglin  <danglin@gcc.gnu.org>
++
++	Backport from mainline
++	2019-11-07  John David Anglin  <danglin@gcc.gnu.org>
++
++	* config/pa/pa.md (memory_barrier): Revise to use ldcw barriers.
++	Enhance comment.
++	(memory_barrier_coherent, memory_barrier_64, memory_barrier_32): New
++	insn patterns using ldcw instruction.
++	(memory_barrier): Remove insn pattern using sync instruction.
++	* config/pa/pa.opt (coherent-ldcw): New option.
++	(ordered): New option.
++
++2019-11-08  Eric Botcazou  <ebotcazou@adacore.com>
++
++	PR target/92095
++	* config/sparc/sparc-protos.h (output_load_pcrel_sym): Declare.
++	* config/sparc/sparc.c (sparc_cannot_force_const_mem): Revert latest
++ 	change.
++	(got_helper_needed): New static variable.
++	(output_load_pcrel_sym): New function.
++	(get_pc_thunk_name): Remove after inlining...
++	(load_got_register): ...here.  Rework the initialization of the GOT
++	register and of the GOT helper.
++	(save_local_or_in_reg_p): Test the REGNO of the GOT register.
++	(sparc_file_end): Test got_helper_needed to decide whether the GOT
++	helper must be emitted.  Use output_asm_insn instead of fprintf.
++	(sparc_init_pic_reg): In PIC mode, always initialize the PIC register
++	if optimization is enabled.
++	* config/sparc/sparc.md (load_pcrel_sym<P:mode>): Emit the assembly
++	by calling output_load_pcrel_sym.
++
 +2019-11-06  John David Anglin  <danglin@gcc.gnu.org>
 +
 +	Backport from mainline
@@ -11664,7 +12426,7 @@ Index: gcc/ChangeLog
  2019-02-22  Release Manager
  
  	* GCC 8.3.0 released.
-@@ -568,7 +2888,7 @@
+@@ -568,7 +3047,7 @@
  
  	Backport from mainline
  	2018-11-20  Richard Biener  <rguenther@suse.de>
@@ -14243,6 +15005,56 @@ Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-15b.c
 +    abort ();
 +
 +  return 0;
++}
+Index: gcc/testsuite/gcc.target/powerpc/pr92090-2.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/pr92090-2.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/pr92090-2.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,45 @@
++/* { dg-do compile } */
++/* { dg-options "-mcpu=power8 -Os -w" } */
++/* { dg-additional-options "-mbig" { target powerpc64le-*-* } } */
++
++/* Verify that we don't ICE.  */
++
++int a;
++static _Atomic long double b, c, d, m;
++double n;
++extern int foo (void);
++extern void bar (int, int, int, int);
++
++void
++bug (void)
++{
++  b = 1.79769313486231580793728971405301199e308L;
++  for (int i = 0; i < 10000; i++)
++    if (__builtin_isinf (n))
++      b;
++  c = 1;
++  int e, f, g, h;
++  while (a)
++    ;
++  for (int i; i; i++)
++    {
++      double j = c /= foo ();
++      if (__builtin_isinf (j))
++	{
++	  if (foo == 1 << 31)
++	    e++;
++	  f++;
++	  c = 0;
++	}
++      else
++	{
++	  if (foo == 1 << 30)
++	    g++;
++	  h++;
++	  c = 1;
++	}
++    }
++  bar (e, f, g, h);
++  d = 1.79769313486231580793728971405301199e308L;
++  m = 1;
 +}
 Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-16a.c
 ===================================================================
@@ -19200,6 +20012,54 @@ Index: gcc/testsuite/gcc.target/powerpc/spec-barr-1.c
  
 -/* { dg-final { scan-assembler "ori 31,31,0" } } */
 +/* { dg-final { scan-assembler {ori\s+r?31,r?31,r?0} } } */
+Index: gcc/testsuite/gcc.target/powerpc/pr92090.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/pr92090.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/pr92090.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,43 @@
++/* { dg-do compile } */
++/* { dg-options "-mcpu=power8 -Os" } */
++/* { dg-additional-options "-mbig" { target powerpc64le-*-* } } */
++
++/* Verify that we don't ICE.  */
++
++_Atomic int a;
++_Atomic long double b, c;
++int j;
++void foo (void);
++void bar (int, int, int, int);
++
++void
++bug (void)
++{
++  b = 1;
++  int d, e, f, g;
++  while (a)
++    ;
++  for (int h = 0; h < 10000; h++)
++    {
++      double i = b /= 3;
++      foo ();
++      if (i)
++	{
++	  if (i == 1)
++	    d++;
++	  e++;
++	  b = 0;
++	}
++      else
++	{
++	  if (i == 2)
++	    f++;
++	  g++;
++	  b = 1;
++	}
++    }
++  bar (d, e, f, g);
++  c = 1;
++  for (int h; h; h++)
++    j = 0;
++}
 Index: gcc/testsuite/gcc.target/powerpc/vsx-builtin-16d.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/powerpc/vsx-builtin-16d.c	(.../tags/gcc_8_3_0_release)
@@ -20717,6 +21577,61 @@ Index: gcc/testsuite/gcc.target/s390/vector/vec-shift-2.c
 +
 +  return 0;
 +}
+Index: gcc/testsuite/gcc.target/sparc/overflow-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/sparc/overflow-1.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/sparc/overflow-1.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,5 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O -mcpu=v8" } */
++/* { dg-options "-O -fno-pie -mcpu=v8" } */
+ /* { dg-require-effective-target ilp32 } */
+ 
+ #include <stdbool.h>
+Index: gcc/testsuite/gcc.target/sparc/overflow-5.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/sparc/overflow-5.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/sparc/overflow-5.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,5 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O -mvis3" } */
++/* { dg-options "-O -fno-pie -mvis3" } */
+ /* { dg-require-effective-target lp64 } */
+ 
+ #include <stdbool.h>
+Index: gcc/testsuite/gcc.target/sparc/overflow-2.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/sparc/overflow-2.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/sparc/overflow-2.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,5 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O -mcpu=v8" } */
++/* { dg-options "-O -fno-pie -mcpu=v8" } */
+ /* { dg-require-effective-target ilp32 } */
+ 
+ #include <stdbool.h>
+Index: gcc/testsuite/gcc.target/sparc/overflow-3.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/sparc/overflow-3.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/sparc/overflow-3.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,5 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O" } */
++/* { dg-options "-O -fno-pie" } */
+ /* { dg-require-effective-target lp64 } */
+ 
+ #include <stdbool.h>
+Index: gcc/testsuite/gcc.target/sparc/overflow-4.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/sparc/overflow-4.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/sparc/overflow-4.c	(.../branches/gcc-8-branch)
+@@ -1,5 +1,5 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O -mno-vis3" } */
++/* { dg-options "-O -fno-pie -mno-vis3" } */
+ /* { dg-require-effective-target lp64 } */
+ 
+ #include <stdbool.h>
 Index: gcc/testsuite/gcc.target/sparc/20161111-1.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/sparc/20161111-1.c	(.../tags/gcc_8_3_0_release)
@@ -22391,6 +23306,41 @@ Index: gcc/testsuite/gcc.target/i386/ret-thunk-12.c
 +/* { dg-final { scan-assembler "call\[ \t\]*_?__x86_indirect_thunk_(r|e)ax" } } */
 +/* { dg-final { scan-assembler "_?__x86_indirect_thunk_(r|e)ax:" } } */
  /* { dg-final { scan-assembler-not "pushq\[ \t\]%rax" } } */
+Index: gcc/testsuite/gcc.target/i386/pr90867.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr90867.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr90867.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,30 @@
++/* PR target/90867 */
++/* { dg-do run { target lp64 } } */
++/* { dg-options "-O2 -msse2" } */
++
++unsigned long long freq = 3600000000UL;   /* 3.6 GHz = 3600.0 MHz */
++
++__attribute__((noipa)) void
++bar (double x)
++{
++  static double d = 3600000000.0;
++  if (x != d)
++    __builtin_abort ();
++  d /= 1000.0;
++}
++
++__attribute__ ((target ("arch=x86-64"))) int
++foo ()
++{
++  bar ((double) freq);
++  bar (1e-3 * freq);
++  bar (1e-6 * freq);
++  bar (1e-9 * freq);
++  return 0;
++}
++
++int
++main ()
++{
++  return foo ();
++}
 Index: gcc/testsuite/gcc.target/i386/indirect-thunk-extern-7.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-extern-7.c	(.../tags/gcc_8_3_0_release)
@@ -24248,6 +25198,43 @@ Index: gcc/testsuite/gcc.target/i386/ret-thunk-8.c
 -/* { dg-final { scan-assembler-not "call\[ \t\]*\.LIND" } } */
 +/* { dg-final { scan-assembler-not {jmp[ \t]*\.?LIND} } } */
 +/* { dg-final { scan-assembler-not {call[ \t]*\.?LIND} } } */
+Index: gcc/testsuite/gcc.target/i386/pr91623.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/i386/pr91623.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.target/i386/pr91623.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,32 @@
++/* PR middle-end/91623 */
++/* { dg-do compile } */
++/* { dg-options "-O3 -msse4.1 -mno-sse4.2" } */
++
++typedef long long V __attribute__((__vector_size__(16)));
++V e, h;
++int d;
++const int i;
++
++void foo (void);
++
++void
++bar (int k, int l)
++{
++  if (d && 0 <= k - 1 && l)
++    foo ();
++}
++
++void
++baz (void)
++{
++  V n = (V) { 1 };
++  V g = (V) {};
++  V o = g;
++  for (int f = 0; f < i; ++f)
++    {
++      V a = o == n;
++      h = a;
++      bar (f, i);
++      o = e;
++    }
++}
 Index: gcc/testsuite/gcc.target/i386/pr55116-2.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/i386/pr55116-2.c	(.../tags/gcc_8_3_0_release)
@@ -26340,6 +27327,99 @@ Index: gcc/testsuite/gcc.c-torture/execute/20191023-1.c
 +    a();
 +    return 0;
 +}
+Index: gcc/testsuite/gcc.c-torture/execute/pr91450-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.c-torture/execute/pr91450-1.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.c-torture/execute/pr91450-1.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,88 @@
++/* PR middle-end/91450 */
++
++__attribute__((noipa)) unsigned long long
++foo (int a, int b)
++{
++  unsigned long long r;
++  if (!__builtin_mul_overflow (a, b, &r))
++    __builtin_abort ();
++  return r;
++}
++
++__attribute__((noipa)) unsigned long long
++bar (int a, int b)
++{
++  unsigned long long r;
++  if (a >= 0)
++    return 0;
++  if (!__builtin_mul_overflow (a, b, &r))
++    __builtin_abort ();
++  return r;
++}
++
++__attribute__((noipa)) unsigned long long
++baz (int a, int b)
++{
++  unsigned long long r;
++  if (b >= 0)
++    return 0;
++  if (!__builtin_mul_overflow (a, b, &r))
++    __builtin_abort ();
++  return r;
++}
++
++__attribute__((noipa)) unsigned long long
++qux (int a, int b)
++{
++  unsigned long long r;
++  if (a >= 0)
++    return 0;
++  if (b < 0)
++    return 0;
++  if (!__builtin_mul_overflow (a, b, &r))
++    __builtin_abort ();
++  return r;
++}
++
++__attribute__((noipa)) unsigned long long
++quux (int a, int b)
++{
++  unsigned long long r;
++  if (a < 0)
++    return 0;
++  if (b >= 0)
++    return 0;
++  if (!__builtin_mul_overflow (a, b, &r))
++    __builtin_abort ();
++  return r;
++}
++
++int
++main ()
++{
++  if (foo (-4, 2) != -8ULL)
++    __builtin_abort ();
++  if (foo (2, -4) != -8ULL)
++    __builtin_abort ();
++  if (bar (-4, 2) != -8ULL)
++    __builtin_abort ();
++  if (baz (2, -4) != -8ULL)
++    __builtin_abort ();
++  if (qux (-4, 2) != -8ULL)
++    __builtin_abort ();
++  if (quux (2, -4) != -8ULL)
++    __builtin_abort ();
++  if (foo (-2, 1) != -2ULL)
++    __builtin_abort ();
++  if (foo (1, -2) != -2ULL)
++    __builtin_abort ();
++  if (bar (-2, 1) != -2ULL)
++    __builtin_abort ();
++  if (baz (1, -2) != -2ULL)
++    __builtin_abort ();
++  if (qux (-2, 1) != -2ULL)
++    __builtin_abort ();
++  if (quux (1, -2) != -2ULL)
++    __builtin_abort ();
++  return 0;
++}
 Index: gcc/testsuite/gcc.c-torture/execute/pr91137.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.c-torture/execute/pr91137.c	(.../tags/gcc_8_3_0_release)
@@ -26480,6 +27560,87 @@ Index: gcc/testsuite/gcc.c-torture/execute/20190901-1.c
 +    __builtin_abort ();
 +  return 0;
 +}
+Index: gcc/testsuite/gcc.c-torture/execute/pr91450-2.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.c-torture/execute/pr91450-2.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.c-torture/execute/pr91450-2.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,76 @@
++/* PR middle-end/91450 */
++
++__attribute__((noipa)) void
++foo (int a, int b)
++{
++  unsigned long long r;
++  if (__builtin_mul_overflow (a, b, &r))
++    __builtin_abort ();
++  if (r != 0)
++    __builtin_abort ();
++}
++
++__attribute__((noipa)) void
++bar (int a, int b)
++{
++  unsigned long long r;
++  if (a >= 0)
++    return;
++  if (__builtin_mul_overflow (a, b, &r))
++    __builtin_abort ();
++  if (r != 0)
++    __builtin_abort ();
++}
++
++__attribute__((noipa)) void
++baz (int a, int b)
++{
++  unsigned long long r;
++  if (b >= 0)
++    return;
++  if (__builtin_mul_overflow (a, b, &r))
++    __builtin_abort ();
++  if (r != 0)
++    __builtin_abort ();
++}
++
++__attribute__((noipa)) void
++qux (int a, int b)
++{
++  unsigned long long r;
++  if (a >= 0)
++    return;
++  if (b < 0)
++    return;
++  if (__builtin_mul_overflow (a, b, &r))
++    __builtin_abort ();
++  if (r != 0)
++    __builtin_abort ();
++}
++
++__attribute__((noipa)) void
++quux (int a, int b)
++{
++  unsigned long long r;
++  if (a < 0)
++    return;
++  if (b >= 0)
++    return;
++  if (__builtin_mul_overflow (a, b, &r))
++    __builtin_abort ();
++  if (r != 0)
++    __builtin_abort ();
++}
++
++int
++main ()
++{
++  foo (-4, 0);
++  foo (0, -4);
++  foo (0, 0);
++  bar (-4, 0);
++  baz (0, -4);
++  qux (-4, 0);
++  quux (0, -4);
++  return 0;
++}
 Index: gcc/testsuite/gcc.c-torture/compile/pr89703-2.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.c-torture/compile/pr89703-2.c	(.../tags/gcc_8_3_0_release)
@@ -26541,6 +27702,42 @@ Index: gcc/testsuite/gcc.c-torture/compile/pr72802.c
  static a[];
  static b, h, m, n, o, p, q, t, u, v, t5, t6, t16, t17, t18, t25;
  c;
+Index: gcc/testsuite/gcc.c-torture/compile/pr91001.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.c-torture/compile/pr91001.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.c-torture/compile/pr91001.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,31 @@
++/* PR middle-end/91001 */
++/* PR middle-end/91105 */
++/* PR middle-end/91106 */
++
++struct __attribute__((packed)) S { short b; char c; };
++struct T { short b, c, d; };
++struct __attribute__((packed)) R { int b; char c; };
++union __attribute__((aligned(128), transparent_union)) U { struct S c; } u;
++union __attribute__((aligned(32), transparent_union)) V { struct T c; } v;
++union __attribute__((aligned(32), transparent_union)) W { struct R c; } w;
++void foo (union U);
++void bar (union V);
++void baz (union W);
++
++void
++qux (void)
++{
++  foo (u);
++}
++
++void
++quux (void)
++{
++  bar (v);
++}
++
++void
++corge (void)
++{
++  baz (w);
++}
 Index: gcc/testsuite/gcc.c-torture/compile/pr89663-1.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.c-torture/compile/pr89663-1.c	(.../tags/gcc_8_3_0_release)
@@ -26626,6 +27823,30 @@ Index: gcc/testsuite/gcc.c-torture/compile/pr89663-1.c
 +  T (ifloorl)
 +  T (lfloorl)
 +  T (llfloorl)
++}
+Index: gcc/testsuite/gcc.c-torture/compile/pr90840.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.c-torture/compile/pr90840.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.c-torture/compile/pr90840.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,19 @@
++/* PR middle-end/90840 */
++struct S { long long a; int b; };
++struct S foo (void);
++struct __attribute__((packed)) T { long long a; char b; };
++struct T baz (void);
++
++void
++bar (void)
++{
++  _Complex long double c;
++  *(struct S *) &c = foo ();
++}
++
++void
++qux (void)
++{
++  _Complex long double c;
++  *(struct T *) &c = baz ();
 +}
 Index: gcc/testsuite/gcc.c-torture/compile/pr89703-1.c
 ===================================================================
@@ -26733,6 +27954,29 @@ Index: gcc/testsuite/gcc.c-torture/compile/pr89412.c
 +      *(struct S *) &h = d;
 +    }
 +}
+Index: gcc/testsuite/gcc.c-torture/compile/pr92056.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.c-torture/compile/pr92056.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.c-torture/compile/pr92056.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,18 @@
++/* PR tree-optimization/92056 */
++
++const char *d;
++
++void
++foo (int c, char *e, const char *a, const char *b)
++{
++  switch (c)
++    {
++    case 33:
++      for (;; d++)
++        if (__builtin_strcmp (b ? : "", d))
++          return;
++      break;
++    case 4:
++      __builtin_sprintf (e, a);
++    }
++}
 Index: gcc/testsuite/gcc.c-torture/compile/pr89663-2.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.c-torture/compile/pr89663-2.c	(.../tags/gcc_8_3_0_release)
@@ -26819,6 +28063,25 @@ Index: gcc/testsuite/gcc.c-torture/compile/pr89663-2.c
 +  T (ifloorl)
 +  T (lfloorl)
 +  T (llfloorl)
++}
+Index: gcc/testsuite/gcc.c-torture/compile/20191108-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.c-torture/compile/20191108-1.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.c-torture/compile/20191108-1.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,14 @@
++/* PR target/92095 */
++/* Testcase by Sergei Trofimovich <slyfox@inbox.ru> */
++
++typedef union {
++  double a;
++  int b[2];
++} c;
++
++double d(int e)
++{
++  c f;
++  (&f)->b[0] = 15728640;
++  return e ? -(&f)->a : (&f)->a;
 +}
 Index: gcc/testsuite/gnat.dg/unchecked_convert13.adb
 ===================================================================
@@ -27998,6 +29261,26 @@ Index: gcc/testsuite/gcc.dg/vect/pr91293-2.c
 +    __builtin_abort ();
 +  return 0;
 +}
+Index: gcc/testsuite/gcc.dg/vect/pr91665.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/vect/pr91665.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.dg/vect/pr91665.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,15 @@
++/* PR tree-optimization/91665 */
++/* { dg-do compile } */
++/* { dg-additional-options "-Ofast" } */
++
++short int v;
++
++void
++foo (short int x, short int y)
++{
++  short int *p = &v;
++
++  x = 1;
++  while (x != 0)
++    x += ++y || (*p = x);
++}
 Index: gcc/testsuite/gcc.dg/vect/pr81740-2.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.dg/vect/pr81740-2.c	(.../tags/gcc_8_3_0_release)
@@ -28394,6 +29677,27 @@ Index: gcc/testsuite/gcc.dg/cpp/isysroot-1.c
    void (*x)(void) = foo;
    return 0;
  }
+Index: gcc/testsuite/gcc.dg/pr90898.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/pr90898.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/gcc.dg/pr90898.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,16 @@
++/* PR c/90898 */
++/* { dg-do compile } */
++/* { dg-options "-O2" } */
++
++void *p;
++int bar (void);
++void baz (int *);
++
++void
++foo (void)
++{
++  p = __builtin_stack_save ();
++  int a[(bar (), 2)];
++  baz (a);
++  __builtin_stack_restore (p);
++}
 Index: gcc/testsuite/gcc.dg/pr90760.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.dg/pr90760.c	(.../tags/gcc_8_3_0_release)
@@ -29014,7 +30318,106 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,2032 @@
+@@ -1,3 +1,2131 @@
++2019-11-21  Jakub Jelinek  <jakub@redhat.com>
++
++	PR tree-optimization/91355
++	* g++.dg/torture/pr91355.C: New test.
++
++	Backported from mainline
++	2019-11-20  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/90840
++	* gcc.c-torture/compile/pr90840.c: New test.
++
++	PR target/90867
++	* gcc.target/i386/pr90867.c: New test.
++
++	PR c/90898
++	* gcc.dg/pr90898.c: New test.
++
++	2019-11-19  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/91450
++	* gcc.c-torture/execute/pr91450-1.c: New test.
++	* gcc.c-torture/execute/pr91450-2.c: New test.
++
++	2019-11-08  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/92384
++	* g++.dg/torture/pr92384.C: New test.
++
++	2019-10-31  Jakub Jelinek  <jakub@redhat.com>
++
++	PR preprocessor/92296
++	* c-c++-common/cpp/pr92296-1.c: New test.
++	* c-c++-common/cpp/pr92296-2.c: New test.
++
++	2019-10-29  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/92201
++	* g++.dg/other/pr92201.C: New test.
++
++	2019-10-17  Jakub Jelinek  <jakub@redhat.com>
++
++	PR tree-optimization/92056
++	* gcc.c-torture/compile/pr92056.c: New test.
++
++	2019-10-04  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/91974
++	* g++.dg/cpp1z/eval-order5.C: New test.
++
++	2019-09-07  Jakub Jelinek  <jakub@redhat.com>
++
++	PR tree-optimization/91665
++	* gcc.dg/vect/pr91665.c: New test.
++
++	2019-09-05  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/91001
++	PR middle-end/91105
++	PR middle-end/91106
++	* gcc.c-torture/compile/pr91001.c: New test.
++
++	2019-09-01  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/91623
++	* gcc.target/i386/pr91623.c: New test.
++
++	2019-08-09  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c/91401
++	* c-c++-common/gomp/pr91401-1.c: New test.
++	* c-c++-common/gomp/pr91401-2.c: New test.
++
++2019-11-20  Peter Bergner <bergner@linux.ibm.com>
++
++	Backport from mainline
++	2019-11-13  David Edelsohn  <dje.gcc@gmail.com>
++
++	* gcc.target/powerpc/pr92090.c: Limit -mbig to powerpc64le-*-*.
++	* gcc.target/powerpc/pr92090-2.c: Likewise.
++
++	2019-11-07  Peter Bergner <bergner@linux.ibm.com>
++
++	PR other/92090
++	* gcc.target/powerpc/pr92090-2.c: New test.
++
++	2019-11-07  Peter Bergner <bergner@linux.ibm.com>
++
++	PR other/92090
++	* gcc.target/powerpc/pr92090.c: New test.
++
++2019-11-08  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* gcc.c-torture/compile/20191108-1.c: New test.
++	* gcc.target/sparc/overflow-1.c: Add -fno-pie to the options.
++	* gcc.target/sparc/overflow-2.c: Likewise.
++	* gcc.target/sparc/overflow-3.c: Likewise.
++	* gcc.target/sparc/overflow-4.c: Likewise.
++	* gcc.target/sparc/overflow-5.c: Likewise.
++
 +2019-11-05  Iain Sandoe  <iain@sandoe.co.uk>
 +
 +	Backport from mainline.
@@ -41521,6 +42924,49 @@ Index: gcc/testsuite/g++.dg/torture/pr91280.C
 +  }
 +};
 +G registrar__body__0__object([](int *) -> H * { O(); return 0; });
+Index: gcc/testsuite/g++.dg/torture/pr92384.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/torture/pr92384.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/torture/pr92384.C	(.../branches/gcc-8-branch)
+@@ -0,0 +1,38 @@
++// PR c++/92384
++// { dg-do run }
++
++struct S {};
++struct T : public S { S a, b, c, d, e, f, g, h, i, j, k, l, m; };
++struct U { long long a, b, c; };
++
++U
++foo (S, S, S, T, T, T, U g)
++{
++  return g;
++}
++
++__attribute__((noipa)) bool
++bar (S a, S b, S c, T d, T e, T f, U g, void **h)
++{
++  h[0] = (void *) &a;
++  h[1] = (void *) &b;
++  h[2] = (void *) &c;
++  h[3] = (void *) &d;
++  h[4] = (void *) &e;
++  h[5] = (void *) &f;
++  h[6] = (void *) &g;
++  asm volatile ("" : : "r" (h) : "memory");
++  return (h[0] != h[1] && h[1] != h[2] && h[2] != h[3]
++	  && h[3] != h[4] && h[4] != h[5] && h[5] != h[6]);
++}
++
++int
++main ()
++{
++  S a;
++  T b;
++  U c = { 1, 2, 3 };
++  void *d[7];
++  if (!bar (a, a, a, b, b, b, c, d))
++    __builtin_abort ();
++}
 Index: gcc/testsuite/g++.dg/torture/pr90194.C
 ===================================================================
 --- a/src/gcc/testsuite/g++.dg/torture/pr90194.C	(.../tags/gcc_8_3_0_release)
@@ -41543,6 +42989,39 @@ Index: gcc/testsuite/g++.dg/torture/pr90194.C
 +af (int xn)
 +{
 +  new (&xn) cb { };
++}
+Index: gcc/testsuite/g++.dg/torture/pr91355.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/torture/pr91355.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/torture/pr91355.C	(.../branches/gcc-8-branch)
+@@ -0,0 +1,28 @@
++// PR tree-optimization/91355
++// { dg-do run }
++// { dg-options "-std=c++14" }
++
++unsigned int d = 0;
++
++struct S {
++  S () { d++; }
++  S (const S &) { d++; }
++  ~S () { d--; }
++};
++
++void
++foo (int i) throw (int) // { dg-warning "dynamic exception specifications are deprecated" }
++{
++  if (i == 0)
++    throw 3;
++  S d;
++  throw 3;
++}
++
++int
++main ()
++{
++  try { foo (1); } catch (...) {}
++  if (d)
++    __builtin_abort ();
 +}
 Index: gcc/testsuite/g++.dg/torture/pr89698.C
 ===================================================================
@@ -42090,6 +43569,42 @@ Index: gcc/testsuite/g++.dg/cpp1z/class-deduction64.C
 +  template <typename> static int foo();
 +  bool b = foo<int>();
 +};
+Index: gcc/testsuite/g++.dg/cpp1z/eval-order5.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/cpp1z/eval-order5.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/cpp1z/eval-order5.C	(.../branches/gcc-8-branch)
+@@ -0,0 +1,31 @@
++// PR c++/91974
++// { dg-do run }
++// { dg-options "-fstrong-eval-order" }
++
++extern "C" void abort ();
++
++bool ok = false;
++
++void
++foo (int x)
++{
++  if (x != 0)
++    abort ();
++  ok = true;
++}
++
++void
++bar (int)
++{
++  abort ();
++}
++
++int
++main ()
++{
++  typedef void (*T) (int);
++  T fn = foo;
++  fn ((fn = bar, 0));
++  if (fn != bar || !ok)
++    abort ();
++}
 Index: gcc/testsuite/g++.dg/cpp1z/class-deduction58.C
 ===================================================================
 --- a/src/gcc/testsuite/g++.dg/cpp1z/class-deduction58.C	(.../tags/gcc_8_3_0_release)
@@ -42381,6 +43896,18 @@ Index: gcc/testsuite/g++.dg/gomp/pr89796.C
 +f6 (int *p)
 +{
 +  return f5 <0> (p);
++}
+Index: gcc/testsuite/g++.dg/other/pr92201.C
+===================================================================
+--- a/src/gcc/testsuite/g++.dg/other/pr92201.C	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/g++.dg/other/pr92201.C	(.../branches/gcc-8-branch)
+@@ -0,0 +1,7 @@
++// PR c++/92201
++
++int
++foo (void (*p) ())
++{
++  return (*reinterpret_cast<int (*)()> (p)) ();
 +}
 Index: gcc/testsuite/g++.dg/other/pr88568.C
 ===================================================================
@@ -43497,6 +45024,121 @@ Index: gcc/testsuite/obj-c++.dg/try-catch-3.mm
    }
 +  return (const char *)0;
  }
+Index: gcc/testsuite/c-c++-common/cpp/pr92296-1.c
+===================================================================
+--- a/src/gcc/testsuite/c-c++-common/cpp/pr92296-1.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/c-c++-common/cpp/pr92296-1.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,32 @@
++/* PR preprocessor/92296 */
++/* { dg-do preprocess } */
++
++#pragma push_macro("__TIMESTAMP__")
++#pragma pop_macro("__TIMESTAMP__")
++
++#pragma push_macro("__TIME__")
++#pragma pop_macro("__TIME__")
++
++#pragma push_macro("__DATE__")
++#pragma pop_macro("__DATE__")
++
++#pragma push_macro("__FILE__")
++#pragma pop_macro("__FILE__")
++
++#pragma push_macro("__BASE_FILE__")
++#pragma pop_macro("__BASE_FILE__")
++
++#pragma push_macro("__LINE__")
++#pragma pop_macro("__LINE__")
++
++#pragma push_macro("__INCLUDE_LEVEL__")
++#pragma pop_macro("__INCLUDE_LEVEL__")
++
++#pragma push_macro("__COUNTER__")
++#pragma pop_macro("__COUNTER__")
++
++#pragma push_macro("__has_attribute")
++#pragma pop_macro("__has_attribute")
++
++#pragma push_macro("__has_cpp_attribute")
++#pragma pop_macro("__has_cpp_attribute")
+Index: gcc/testsuite/c-c++-common/cpp/pr92296-2.c
+===================================================================
+--- a/src/gcc/testsuite/c-c++-common/cpp/pr92296-2.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/c-c++-common/cpp/pr92296-2.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,73 @@
++/* PR preprocessor/92296 */
++/* { dg-do preprocess } */
++/* { dg-options "-Wno-builtin-macro-redefined" } */
++
++#pragma push_macro("__TIMESTAMP__")
++#undef __TIMESTAMP__
++#define __TIMESTAMP__ "Thu Oct 31 12:00:00 2019"
++timestamp1 = __TIMESTAMP__
++#pragma pop_macro("__TIMESTAMP__")
++timestamp2 = __TIMESTAMP__
++
++#pragma push_macro("__TIME__")
++#undef __TIME__
++#define __TIME__ "12:00:00"
++time1 = __TIME__
++#pragma pop_macro("__TIME__")
++time2 = __TIME__
++
++#pragma push_macro("__DATE__")
++#undef __DATE__
++#define __DATE__ "Oct 31 2019"
++date1 = __DATE__
++#pragma pop_macro("__DATE__")
++date2 = __DATE__
++
++#pragma push_macro("__FILE__")
++#undef __FILE__
++#define __FILE__ "pr92296-3.c"
++file1 = __FILE__	/* { dg-final { scan-file pr92296-2.i "file1 = \"pr92296-3.c\"" } } */
++#pragma pop_macro("__FILE__")
++file2 = __FILE__	/* { dg-final { scan-file-not pr92296-2.i "file2 = \"pr92296-3.c\"" } } */
++
++#pragma push_macro("__BASE_FILE__")
++#undef __BASE_FILE__
++#define __BASE_FILE__ "pr92296-4.c"
++filebase1 = __BASE_FILE__	/* { dg-final { scan-file pr92296-2.i "filebase1 = \"pr92296-4.c\"" } } */
++#pragma pop_macro("__BASE_FILE__")
++filebase2 = __BASE_FILE__	/* { dg-final { scan-file-not pr92296-2.i "filebase2 = \"pr92296-4.c\"" } } */
++
++#pragma push_macro("__LINE__")
++#undef __LINE__		/* { dg-warning "undefining" } */
++#define __LINE__ 142
++line1 = __LINE__	/* { dg-final { scan-file pr92296-2.i "line1 = 142" } } */
++#pragma pop_macro("__LINE__")
++line2 = __LINE__	/* { dg-final { scan-file pr92296-2.i "line2 = 45" } } */
++
++#pragma push_macro("__INCLUDE_LEVEL__")
++#undef __INCLUDE_LEVEL__	/* { dg-warning "undefining" } */
++#define __INCLUDE_LEVEL__ 42
++includelevel1 = __INCLUDE_LEVEL__	/* { dg-final { scan-file pr92296-2.i "includelevel1 = 42" } } */
++#pragma pop_macro("__INCLUDE_LEVEL__")
++includelevel2 = __INCLUDE_LEVEL__	/* { dg-final { scan-file pr92296-2.i "includelevel2 = 0" } } */
++
++#pragma push_macro("__COUNTER__")
++#undef __COUNTER__	/* { dg-warning "undefining" } */
++#define __COUNTER__ 172
++counter1 = __COUNTER__	/* { dg-final { scan-file pr92296-2.i "counter1 = 172" } } */
++#pragma pop_macro("__COUNTER__")
++counter2 = __COUNTER__	/* { dg-final { scan-file-not pr92296-2.i "counter2 = 172" } } */
++
++#pragma push_macro("__has_attribute")
++#undef __has_attribute	/* { dg-warning "undefining" } */
++#define __has_attribute(x) 0
++hasattr1 = __has_attribute(noreturn)	/* { dg-final { scan-file pr92296-2.i "hasattr1 = 0" } } */
++#pragma pop_macro("__has_attribute")
++hasattr2 = __has_attribute(noreturn)	/* { dg-final { scan-file-not pr92296-2.i "hasattr2 = 0" } } */
++
++#pragma push_macro("__has_cpp_attribute")
++#undef __has_cpp_attribute	/* { dg-warning "undefining" } */
++#define __has_cpp_attribute(x) 0
++hasattrcpp1 = __has_cpp_attribute(noreturn)	/* { dg-final { scan-file pr92296-2.i "hasattrcpp1 = 0" } } */
++#pragma pop_macro("__has_cpp_attribute")
++hasattrcpp2 = __has_cpp_attribute(noreturn)	/* { dg-final { scan-file-not pr92296-2.i "hasattrcpp2 = 0" } } */
 Index: gcc/testsuite/c-c++-common/pr90108.c
 ===================================================================
 --- a/src/gcc/testsuite/c-c++-common/pr90108.c	(.../tags/gcc_8_3_0_release)
@@ -43531,6 +45173,26 @@ Index: gcc/testsuite/c-c++-common/gomp/pr88588.c
 +      a = v;
 +    }
 +}
+Index: gcc/testsuite/c-c++-common/gomp/pr91401-2.c
+===================================================================
+--- a/src/gcc/testsuite/c-c++-common/gomp/pr91401-2.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/c-c++-common/gomp/pr91401-2.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,15 @@
++#pragma omp declare target
++void f0 (void);
++
++void
++f1 (void)
++{
++  int i;
++  #pragma omp distribute dist_schedule(static) dist_schedule(static)	/* { dg-warning "too many 'dist_schedule' clauses" } */
++  for (i = 0; i < 8; ++i)
++    f0 ();
++  #pragma omp distribute dist_schedule(static,2) dist_schedule(static,4) /* { dg-warning "too many 'dist_schedule' clauses" } */
++  for (i = 0; i < 8; ++i)
++    f0 ();
++}
++#pragma omp end declare target
 Index: gcc/testsuite/c-c++-common/gomp/pr90954.c
 ===================================================================
 --- a/src/gcc/testsuite/c-c++-common/gomp/pr90954.c	(.../tags/gcc_8_3_0_release)
@@ -43562,6 +45224,21 @@ Index: gcc/testsuite/c-c++-common/gomp/pr90954.c
 +{
 +  #pragma omp atomic
 +  i *= (x << y);
++}
+Index: gcc/testsuite/c-c++-common/gomp/pr91401-1.c
+===================================================================
+--- a/src/gcc/testsuite/c-c++-common/gomp/pr91401-1.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/testsuite/c-c++-common/gomp/pr91401-1.c	(.../branches/gcc-8-branch)
+@@ -0,0 +1,10 @@
++/* PR c/91401 */
++
++void
++foo (void)
++{
++  int i;
++  #pragma omp distribute parallel for schedule (static) dist_schedule (static)
++  for (i = 0; i < 64; i++)
++    ;
 +}
 Index: gcc/testsuite/c-c++-common/pr53633-2.c
 ===================================================================
@@ -43880,6 +45557,24 @@ Index: gcc/cp/decl.c
  	      const char *msg;
  	      if (DECL_INLINE_VAR_P (decl))
  		msg = G_("sorry: semantics of inline variable "
+@@ -8326,7 +8347,7 @@
+ 	      (acquire_name, build_function_type_list (integer_type_node,
+ 						       TREE_TYPE (guard_addr),
+ 						       NULL_TREE),
+-	       NULL_TREE, ECF_NOTHROW | ECF_LEAF);
++	       NULL_TREE, ECF_NOTHROW);
+ 	  if (!release_fn || !abort_fn)
+ 	    vfntype = build_function_type_list (void_type_node,
+ 						TREE_TYPE (guard_addr),
+@@ -8333,7 +8354,7 @@
+ 						NULL_TREE);
+ 	  if (!release_fn)
+ 	    release_fn = push_library_fn (release_name, vfntype, NULL_TREE,
+-					   ECF_NOTHROW | ECF_LEAF);
++					  ECF_NOTHROW);
+ 	  if (!abort_fn)
+ 	    abort_fn = push_library_fn (abort_name, vfntype, NULL_TREE,
+ 					ECF_NOTHROW | ECF_LEAF);
 Index: gcc/cp/method.c
 ===================================================================
 --- a/src/gcc/cp/method.c	(.../tags/gcc_8_3_0_release)
@@ -43897,7 +45592,37 @@ Index: gcc/cp/ChangeLog
 ===================================================================
 --- a/src/gcc/cp/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/cp/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,263 @@
+@@ -1,3 +1,293 @@
++2019-11-21  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from mainline
++	2019-10-22  Jakub Jelinek  <jakub@redhat.com>
++
++	PR tree-optimization/85887
++	* decl.c (expand_static_init): Drop ECF_LEAF from __cxa_guard_acquire
++	and __cxa_guard_release.
++
++	2019-10-29  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/92201
++	* cp-gimplify.c (cp_gimplify_expr): If gimplify_to_rvalue changes the
++	function pointer type, re-add cast to the original one.
++
++	2019-10-04  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/91974
++	* cp-gimplify.c (cp_gimplify_expr) <case CALL_EXPR>: For
++	-fstrong-eval-order ensure CALL_EXPR_FN side-effects are evaluated
++	before any arguments.  Additionally, ensure CALL_EXPR_FN that isn't
++	invariant nor OBJ_TYPE_REF nor SSA_NAME is forced into a temporary.
++
++	2019-08-09  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c/91401
++	* parser.c (cp_parser_omp_clause_dist_schedule): Comment out the
++	check_no_duplicate_clause call, instead emit a warning for duplicate
++	dist_schedule clauses.
++
 +2019-11-05  Jason Merrill  <jason@redhat.com>
 +
 +	PR c++/88075
@@ -44221,6 +45946,34 @@ Index: gcc/cp/cp-gimplify.c
    if (exit && !cond_is_first)
      append_to_statement_list (exit, &stmt_list);
  
+@@ -752,6 +775,27 @@
+ 
+     case CALL_EXPR:
+       ret = GS_OK;
++      if (flag_strong_eval_order == 2
++	  && CALL_EXPR_FN (*expr_p)
++	  && cp_get_callee_fndecl_nofold (*expr_p) == NULL_TREE)
++	{
++	  tree fnptrtype = TREE_TYPE (CALL_EXPR_FN (*expr_p));
++	  enum gimplify_status t
++	    = gimplify_expr (&CALL_EXPR_FN (*expr_p), pre_p, NULL,
++			     is_gimple_call_addr, fb_rvalue);
++	  if (t == GS_ERROR)
++	    ret = GS_ERROR;
++	  else if (is_gimple_variable (CALL_EXPR_FN (*expr_p))
++		   && TREE_CODE (CALL_EXPR_FN (*expr_p)) != SSA_NAME)
++	    CALL_EXPR_FN (*expr_p)
++	      = get_initialized_tmp_var (CALL_EXPR_FN (*expr_p), pre_p,
++					 NULL);
++	  /* GIMPLE considers most pointer conversion useless, but for
++	     calls we actually care about the exact function pointer type.  */
++	  if (t != GS_ERROR && TREE_TYPE (CALL_EXPR_FN (*expr_p)) != fnptrtype)
++	    CALL_EXPR_FN (*expr_p)
++	      = build1 (NOP_EXPR, fnptrtype, CALL_EXPR_FN (*expr_p));
++	}
+       if (!CALL_EXPR_FN (*expr_p))
+ 	/* Internal function call.  */;
+       else if (CALL_EXPR_REVERSE_ARGS (*expr_p))
 Index: gcc/cp/typeck2.c
 ===================================================================
 --- a/src/gcc/cp/typeck2.c	(.../tags/gcc_8_3_0_release)
@@ -44753,7 +46506,20 @@ Index: gcc/cp/parser.c
    /* Look for the opening `('.  */
    if (!cp_parser_require (parser, CPP_OPEN_PAREN, RT_OPEN_PAREN))
      return;
-@@ -38680,7 +38743,10 @@
+@@ -33599,8 +33662,10 @@
+   else if (!cp_parser_require (parser, CPP_CLOSE_PAREN, RT_COMMA_CLOSE_PAREN))
+     goto resync_fail;
+ 
+-  check_no_duplicate_clause (list, OMP_CLAUSE_DIST_SCHEDULE, "dist_schedule",
+-			     location);
++  /* check_no_duplicate_clause (list, OMP_CLAUSE_DIST_SCHEDULE,
++				"dist_schedule", location); */
++  if (omp_find_clause (list, OMP_CLAUSE_DIST_SCHEDULE))
++    warning_at (location, 0, "too many %qs clauses", "dist_schedule");
+   OMP_CLAUSE_CHAIN (c) = list;
+   return c;
+ 
+@@ -38680,7 +38745,10 @@
  
    cp_lexer_get_preprocessor_token (NULL, first_token);
    if (cp_parser_pragma_kind (first_token) != PRAGMA_GCC_PCH_PREPROCESS)
@@ -44907,6 +46673,32 @@ Index: gcc/cp/name-lookup.c
      {"shared_ptr", "<memory>", cxx11},
      {"unique_ptr", "<memory>", cxx11},
      {"weak_ptr", "<memory>", cxx11},
+Index: gcc/tree-ssa-ccp.c
+===================================================================
+--- a/src/gcc/tree-ssa-ccp.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/tree-ssa-ccp.c	(.../branches/gcc-8-branch)
+@@ -2082,8 +2082,6 @@
+ 					   visited);
+     else if (chkp_gimple_call_builtin_p (stmt, BUILT_IN_CHKP_BNDRET))
+       continue;
+-    else
+-      gcc_assert (is_gimple_debug (stmt));
+ }
+ 
+ /* Advance the iterator to the previous non-debug gimple statement in the same
+@@ -2108,9 +2106,9 @@
+ /* Find a BUILT_IN_STACK_SAVE dominating gsi_stmt (I), and insert
+    a clobber of VAR before each matching BUILT_IN_STACK_RESTORE.
+ 
+-   It is possible that BUILT_IN_STACK_SAVE cannot be find in a dominator when a
+-   previous pass (such as DOM) duplicated it along multiple paths to a BB.  In
+-   that case the function gives up without inserting the clobbers.  */
++   It is possible that BUILT_IN_STACK_SAVE cannot be found in a dominator when
++   a previous pass (such as DOM) duplicated it along multiple paths to a BB.
++   In that case the function gives up without inserting the clobbers.  */
+ 
+ static void
+ insert_clobbers_for_var (gimple_stmt_iterator i, tree var)
 Index: gcc/cgraphclones.c
 ===================================================================
 --- a/src/gcc/cgraphclones.c	(.../tags/gcc_8_3_0_release)
@@ -45464,6 +47256,15 @@ Index: gcc/tree-ssa-sink.c
 ===================================================================
 --- a/src/gcc/tree-ssa-sink.c	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/tree-ssa-sink.c	(.../branches/gcc-8-branch)
+@@ -229,7 +229,7 @@
+       /* If result of comparsion is unknown, preffer EARLY_BB.
+ 	 Thus use !(...>=..) rather than (...<...)  */
+       && !(best_bb->count.apply_scale (100, 1)
+-	   > (early_bb->count.apply_scale (threshold, 1))))
++	   >= early_bb->count.apply_scale (threshold, 1)))
+     return best_bb;
+ 
+   /* No better block found, so return EARLY_BB, which happens to be the
 @@ -439,7 +439,10 @@
  	  if (sinkbb == frombb)
  	    return false;
@@ -47604,7 +49405,14 @@ Index: gcc/fortran/ChangeLog
 ===================================================================
 --- a/src/gcc/fortran/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/fortran/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,419 @@
+@@ -1,3 +1,426 @@
++2019-11-10  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/92113
++	* trans-decl.c (gfc_get_symbol_decl): If __def_init actually
++	contains a value, put it into  the read-only section.
++
 +2019-10-27  Paul Thomas  <pault@gcc.gnu.org>
 +
 +	Backport from mainline
@@ -48945,16 +50753,30 @@ Index: gcc/fortran/trans-decl.c
  	      gsym->type = GSYM_MODULE;
  	      gsym->ns = gfc_get_namespace (NULL, 0);
  	    }
-@@ -1865,7 +1887,7 @@
+@@ -1863,10 +1885,19 @@
+   if (sym->attr.associate_var)
+     GFC_DECL_ASSOCIATE_VAR_P (decl) = 1;
  
-   if (sym->attr.vtab
-       || (sym->name[0] == '_' && strncmp ("__def_init", sym->name, 10) == 0))
+-  if (sym->attr.vtab
+-      || (sym->name[0] == '_' && strncmp ("__def_init", sym->name, 10) == 0))
 -    TREE_READONLY (decl) = 1;
-+    DECL_ARTIFICIAL (decl) = 1;
++  /* We only mark __def_init as read-only if it actually has an
++     initializer so it does not needlessly take up space in the
++     read-only section and can go into the BSS instead, see PR 84487.
++     Marking this as artificial means that OpenMP will treat this as
++     predetermined shared.  */
  
++  if (sym->attr.vtab || strncmp ("__def_init", sym->name, 10) == 0)
++    {
++      DECL_ARTIFICIAL (decl) = 1;
++      if (sym->attr.vtab || sym->value)
++	TREE_READONLY (decl) = 1;
++    }
++
    return decl;
  }
-@@ -1905,6 +1927,22 @@
+ 
+@@ -1905,6 +1936,22 @@
    tree decl;
    tree attributes;
  
@@ -48977,7 +50799,7 @@ Index: gcc/fortran/trans-decl.c
    decl = sym->backend_decl;
    if (decl)
      return decl;
-@@ -1977,7 +2015,7 @@
+@@ -1977,7 +2024,7 @@
  /* Get a basic decl for an external function.  */
  
  tree
@@ -48986,7 +50808,7 @@ Index: gcc/fortran/trans-decl.c
  {
    tree type;
    tree fndecl;
-@@ -2002,10 +2040,23 @@
+@@ -2002,10 +2049,23 @@
      return get_proc_pointer_decl (sym);
  
    /* See if this is an external procedure from the same file.  If so,
@@ -49013,7 +50835,7 @@ Index: gcc/fortran/trans-decl.c
    if (gsym && !gsym->defined)
      gsym = NULL;
  
-@@ -2150,7 +2201,7 @@
+@@ -2150,7 +2210,7 @@
        mangled_name = gfc_sym_mangled_function_id (sym);
      }
  
@@ -49022,7 +50844,7 @@ Index: gcc/fortran/trans-decl.c
    fndecl = build_decl (input_location,
  		       FUNCTION_DECL, name, type);
  
-@@ -2500,6 +2551,17 @@
+@@ -2500,6 +2560,17 @@
  	  TREE_READONLY (length) = 1;
  	  gfc_finish_decl (length);
  
@@ -49040,7 +50862,7 @@ Index: gcc/fortran/trans-decl.c
  	  /* Remember the passed value.  */
            if (!f->sym->ts.u.cl ||  f->sym->ts.u.cl->passed_length)
              {
-@@ -5384,6 +5446,33 @@
+@@ -5384,6 +5455,33 @@
    /* Handle "static" initializer.  */
    if (sym->value)
      {
@@ -49074,7 +50896,7 @@ Index: gcc/fortran/trans-decl.c
        sym->attr.pointer = 1;
        tmp = gfc_trans_assignment (gfc_lval_expr_from_sym (sym), sym->value,
  				  true, false);
-@@ -5628,9 +5717,11 @@
+@@ -5628,9 +5726,11 @@
  	    }
  	  else if (warn_unused_dummy_argument)
  	    {
@@ -49089,7 +50911,7 @@ Index: gcc/fortran/trans-decl.c
  	      if (sym->backend_decl != NULL_TREE)
  		TREE_NO_WARNING(sym->backend_decl) = 1;
  	    }
-@@ -5722,7 +5813,14 @@
+@@ -5722,7 +5822,14 @@
  
        if (sym->ns && sym->ns->construct_entities)
  	{
@@ -49566,6 +51388,83 @@ Index: gcc/configure.ac
  	  ld_vers_major=`expr "$ld_vers" : '\([0-9]*\)'`
  	  ld_vers_minor=`expr "$ld_vers" : '[0-9]*\.\([0-9]*\)'`
  	fi
+@@ -6143,7 +6139,8 @@
+ all_languages=
+ all_compilers=
+ all_outputs='Makefile'
+-# List of language makefile fragments.
++# List of language configure and makefile fragments.
++all_lang_configurefrags=
+ all_lang_makefrags=
+ # Additional files for gengtype
+ all_gtfiles="$target_gtfiles"
+@@ -6231,6 +6228,7 @@
+ 	esac
+ 	$ok || continue
+ 
++	all_lang_configurefrags="$all_lang_configurefrags \$(srcdir)/$gcc_subdir/config-lang.in"
+ 	all_lang_makefrags="$all_lang_makefrags \$(srcdir)/$gcc_subdir/Make-lang.in"
+ 	if test -f $srcdir/$gcc_subdir/lang.opt; then
+ 	    lang_opt_files="$lang_opt_files $srcdir/$gcc_subdir/lang.opt"
+@@ -6332,6 +6330,7 @@
+ AC_SUBST(srcdir)
+ AC_SUBST(all_compilers)
+ AC_SUBST(all_gtfiles)
++AC_SUBST(all_lang_configurefrags)
+ AC_SUBST(all_lang_makefrags)
+ AC_SUBST(all_languages)
+ AC_SUBST(all_selected_languages)
+Index: gcc/function.c
+===================================================================
+--- a/src/gcc/function.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/function.c	(.../branches/gcc-8-branch)
+@@ -2477,8 +2477,7 @@
+   /* If the parm is to be passed as a transparent union or record, use the
+      type of the first field for the tests below.  We have already verified
+      that the modes are the same.  */
+-  if ((TREE_CODE (passed_type) == UNION_TYPE
+-       || TREE_CODE (passed_type) == RECORD_TYPE)
++  if (RECORD_OR_UNION_TYPE_P (passed_type)
+       && TYPE_TRANSPARENT_AGGR (passed_type))
+     passed_type = TREE_TYPE (first_field (passed_type));
+ 
+@@ -3098,7 +3097,7 @@
+ 	move_block_from_reg (REGNO (entry_parm), mem,
+ 			     size_stored / UNITS_PER_WORD);
+     }
+-  else if (data->stack_parm == 0)
++  else if (data->stack_parm == 0 && !TYPE_EMPTY_P (data->passed_type))
+     {
+       push_to_sequence2 (all->first_conversion_insn, all->last_conversion_insn);
+       emit_block_move (stack_parm, data->entry_parm, GEN_INT (size),
+@@ -3474,7 +3473,9 @@
+       dest = validize_mem (copy_rtx (data->stack_parm));
+       src = validize_mem (copy_rtx (data->entry_parm));
+ 
+-      if (MEM_P (src))
++      if (TYPE_EMPTY_P (data->passed_type))
++	/* Empty types don't really need to be copied.  */;
++      else if (MEM_P (src))
+ 	{
+ 	  /* Use a block move to handle potentially misaligned entry_parm.  */
+ 	  if (!to_conversion)
+@@ -3749,6 +3750,16 @@
+ 	{
+ 	  assign_parm_find_stack_rtl (parm, &data);
+ 	  assign_parm_adjust_entry_rtl (&data);
++	  /* For arguments that occupy no space in the parameter
++	     passing area, have non-zero size and have address taken,
++	     force creation of a stack slot so that they have distinct
++	     address from other parameters.  */
++	  if (TYPE_EMPTY_P (data.passed_type)
++	      && TREE_ADDRESSABLE (parm)
++	      && data.entry_parm == data.stack_parm
++	      && MEM_P (data.entry_parm)
++	      && int_size_in_bytes (data.passed_type))
++	    data.stack_parm = NULL_RTX;
+ 	}
+       if (!POINTER_BOUNDS_TYPE_P (data.passed_type))
+ 	{
 Index: gcc/gcse.c
 ===================================================================
 --- a/src/gcc/gcse.c	(.../tags/gcc_8_3_0_release)
@@ -49782,6 +51681,21 @@ Index: gcc/tree-vect-loop.c
  }
  
  
+@@ -6853,10 +6808,13 @@
+ 	  gcc_assert (TREE_CODE (base) == INTEGER_CST
+ 		      && TREE_CODE (step) == INTEGER_CST);
+ 	  cond_reduc_val = NULL_TREE;
++	  tree res = PHI_RESULT (STMT_VINFO_STMT (cond_stmt_vinfo));
++	  if (!types_compatible_p (TREE_TYPE (res), TREE_TYPE (base)))
++	    ;
+ 	  /* Find a suitable value, for MAX_EXPR below base, for MIN_EXPR
+ 	     above base; punt if base is the minimum value of the type for
+ 	     MAX_EXPR or maximum value of the type for MIN_EXPR for now.  */
+-	  if (tree_int_cst_sgn (step) == -1)
++	  else if (tree_int_cst_sgn (step) == -1)
+ 	    {
+ 	      cond_reduc_op_code = MIN_EXPR;
+ 	      if (tree_int_cst_sgn (base) == -1)
 Index: gcc/tree-data-ref.c
 ===================================================================
 --- a/src/gcc/tree-data-ref.c	(.../tags/gcc_8_3_0_release)
@@ -50144,6 +52058,17 @@ Index: gcc/gimplify.c
  	      && dbg_cnt (asan_use_after_scope)
  	      && !gimplify_omp_ctxp)
  	    {
+@@ -8160,8 +8181,8 @@
+ 			      break;
+ 			    if (scp)
+ 			      continue;
+-			    gcc_assert (offset == NULL_TREE
+-					|| poly_int_tree_p (offset));
++			    gcc_assert (offset2 == NULL_TREE
++					|| poly_int_tree_p (offset2));
+ 			    tree d1 = OMP_CLAUSE_DECL (*sc);
+ 			    tree d2 = OMP_CLAUSE_DECL (c);
+ 			    while (TREE_CODE (d1) == ARRAY_REF)
 @@ -9011,6 +9032,19 @@
  			   omp_find_stores_op, &wi);
  	}
@@ -50271,7 +52196,51 @@ Index: gcc/calls.c
 ===================================================================
 --- a/src/gcc/calls.c	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/calls.c	(.../branches/gcc-8-branch)
-@@ -3754,6 +3754,28 @@
+@@ -2078,8 +2078,7 @@
+       /* If TYPE is a transparent union or record, pass things the way
+ 	 we would pass the first field of the union or record.  We have
+ 	 already verified that the modes are the same.  */
+-      if ((TREE_CODE (type) == UNION_TYPE || TREE_CODE (type) == RECORD_TYPE)
+-	   && TYPE_TRANSPARENT_AGGR (type))
++      if (RECORD_OR_UNION_TYPE_P (type) && TYPE_TRANSPARENT_AGGR (type))
+ 	type = TREE_TYPE (first_field (type));
+ 
+       /* Decide where to pass this arg.
+@@ -2873,6 +2872,9 @@
+ 	  poly_int64 size = 0;
+ 	  HOST_WIDE_INT const_size = 0;
+ 	  rtx_insn *before_arg = get_last_insn ();
++	  tree type = TREE_TYPE (args[i].tree_value);
++	  if (RECORD_OR_UNION_TYPE_P (type) && TYPE_TRANSPARENT_AGGR (type))
++	    type = TREE_TYPE (first_field (type));
+ 	  /* Set non-negative if we must move a word at a time, even if
+ 	     just one word (e.g, partial == 4 && mode == DFmode).  Set
+ 	     to -1 if we just use a normal move insn.  This value can be
+@@ -2885,11 +2887,11 @@
+ 	      gcc_assert (partial % UNITS_PER_WORD == 0);
+ 	      nregs = partial / UNITS_PER_WORD;
+ 	    }
+-	  else if (TYPE_MODE (TREE_TYPE (args[i].tree_value)) == BLKmode)
++	  else if (TYPE_MODE (type) == BLKmode)
+ 	    {
+ 	      /* Variable-sized parameters should be described by a
+ 		 PARALLEL instead.  */
+-	      const_size = int_size_in_bytes (TREE_TYPE (args[i].tree_value));
++	      const_size = int_size_in_bytes (type);
+ 	      gcc_assert (const_size >= 0);
+ 	      nregs = (const_size + (UNITS_PER_WORD - 1)) / UNITS_PER_WORD;
+ 	      size = const_size;
+@@ -3016,8 +3018,7 @@
+ 	  if (GET_CODE (reg) == PARALLEL)
+ 	    use_group_regs (call_fusage, reg);
+ 	  else if (nregs == -1)
+-	    use_reg_mode (call_fusage, reg,
+-			  TYPE_MODE (TREE_TYPE (args[i].tree_value)));
++	    use_reg_mode (call_fusage, reg, TYPE_MODE (type));
+ 	  else if (nregs > 0)
+ 	    use_regs (call_fusage, REGNO (reg), nregs);
+ 	}
+@@ -3754,6 +3755,28 @@
        || dbg_cnt (tail_call) == false)
      try_tail_call = 0;
  
@@ -50420,7 +52389,35 @@ Index: gcc/expmed.c
 ===================================================================
 --- a/src/gcc/expmed.c	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/expmed.c	(.../branches/gcc-8-branch)
-@@ -3352,13 +3352,20 @@
+@@ -838,6 +838,27 @@
+       if (MEM_P (op0))
+ 	op0 = adjust_bitfield_address_size (op0, op0_mode.else_blk (),
+ 					    0, MEM_SIZE (op0));
++      else if (!op0_mode.exists ())
++	{
++	  if (ibitnum == 0
++	      && known_eq (ibitsize, GET_MODE_BITSIZE (GET_MODE (op0)))
++	      && MEM_P (value)
++	      && !reverse)
++	    {
++	      value = adjust_address (value, GET_MODE (op0), 0);
++	      emit_move_insn (op0, value);
++	      return true;
++	    }
++	  if (!fallback_p)
++	    return false;
++	  rtx temp = assign_stack_temp (GET_MODE (op0),
++					GET_MODE_SIZE (GET_MODE (op0)));
++	  emit_move_insn (temp, op0);
++	  store_bit_field_1 (temp, bitsize, bitnum, 0, 0, fieldmode, value,
++			     reverse, fallback_p);
++	  emit_move_insn (op0, temp);
++	  return true;
++	}
+       else
+ 	op0 = gen_lowpart (op0_mode.require (), op0);
+     }
+@@ -3352,13 +3373,20 @@
  	      tem = gen_lowpart (nmode, op0);
  	    }
  
@@ -51416,6 +53413,20 @@ Index: gcc/tree-ssa-phiprop.c
  	continue;
  
        /* Check if we can move the loads.  The def stmt of the virtual use
+Index: gcc/tree-object-size.c
+===================================================================
+--- a/src/gcc/tree-object-size.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/tree-object-size.c	(.../branches/gcc-8-branch)
+@@ -899,6 +899,9 @@
+   else
+     expr_object_size (osi, var, then_);
+ 
++  if (object_sizes[object_size_type][varno] == unknown[object_size_type])
++    return reexamine;
++
+   if (TREE_CODE (else_) == SSA_NAME)
+     reexamine |= merge_object_sizes (osi, var, else_, 0);
+   else
 Index: gcc/tree-outof-ssa.c
 ===================================================================
 --- a/src/gcc/tree-outof-ssa.c	(.../tags/gcc_8_3_0_release)
@@ -51638,6 +53649,27 @@ Index: gcc/opts-global.c
  
    free (ok_langs);
    free (bad_lang);
+Index: gcc/Makefile.in
+===================================================================
+--- a/src/gcc/Makefile.in	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/Makefile.in	(.../branches/gcc-8-branch)
+@@ -1114,6 +1114,7 @@
+ # Support for additional languages (other than C).
+ # C can be supported this way too (leave for later).
+ 
++LANG_CONFIGUREFRAGS  = @all_lang_configurefrags@
+ LANG_MAKEFRAGS = @all_lang_makefrags@
+ 
+ # Used by gcc/jit/Make-lang.in
+@@ -1877,7 +1878,7 @@
+ # Really, really stupid make features, such as SUN's KEEP_STATE, may force
+ # a target to build even if it is up-to-date.  So we must verify that
+ # config.status does not exist before failing.
+-config.status: $(srcdir)/configure $(srcdir)/config.gcc
++config.status: $(srcdir)/configure $(srcdir)/config.gcc $(LANG_CONFIGUREFRAGS)
+ 	@if [ ! -f config.status ] ; then \
+ 	  echo You must configure gcc.  Look at http://gcc.gnu.org/install/ for details.; \
+ 	  false; \
 Index: gcc/tree-ssa-structalias.c
 ===================================================================
 --- a/src/gcc/tree-ssa-structalias.c	(.../tags/gcc_8_3_0_release)
@@ -52309,25 +54341,167 @@ Index: gcc/config/s390/s390-builtins.def
  
  OB_DEF     (s390_vec_store_len,         s390_vec_store_len_s8,s390_vec_store_len_dbl,B_VX,          BT_FN_VOID_OV4SI_VOIDPTR_UINT)
  OB_DEF_VAR (s390_vec_store_len_s8,      s390_vstl,          0,                  0,                  BT_OV_VOID_V16QI_SCHARPTR_UINT)
+Index: gcc/config/sparc/sparc.md
+===================================================================
+--- a/src/gcc/config/sparc/sparc.md	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/sparc/sparc.md	(.../branches/gcc-8-branch)
+@@ -1601,10 +1601,7 @@
+    (clobber (reg:P O7_REG))]
+   "REGNO (operands[0]) == INTVAL (operands[3])"
+ {
+-  if (flag_delayed_branch)
+-    return "sethi\t%%hi(%a1-4), %0\n\tcall\t%a2\n\t add\t%0, %%lo(%a1+4), %0";
+-  else
+-    return "sethi\t%%hi(%a1-8), %0\n\tadd\t%0, %%lo(%a1-4), %0\n\tcall\t%a2\n\t nop";
++  return output_load_pcrel_sym (operands);
+ }
+   [(set (attr "type") (const_string "multi"))
+    (set (attr "length")
+Index: gcc/config/sparc/sparc-protos.h
+===================================================================
+--- a/src/gcc/config/sparc/sparc-protos.h	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/sparc/sparc-protos.h	(.../branches/gcc-8-branch)
+@@ -69,6 +69,7 @@
+ extern void sparc_split_mem_reg (rtx, rtx, machine_mode);
+ extern int sparc_split_reg_reg_legitimate (rtx, rtx);
+ extern void sparc_split_reg_reg (rtx, rtx, machine_mode);
++extern const char *output_load_pcrel_sym (rtx *);
+ extern const char *output_ubranch (rtx, rtx_insn *);
+ extern const char *output_cbranch (rtx, rtx, int, int, int, rtx_insn *);
+ extern const char *output_return (rtx_insn *);
 Index: gcc/config/sparc/sparc.c
 ===================================================================
 --- a/src/gcc/config/sparc/sparc.c	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/config/sparc/sparc.c	(.../branches/gcc-8-branch)
-@@ -4203,6 +4203,13 @@
- static bool
- sparc_cannot_force_const_mem (machine_mode mode, rtx x)
- {
-+  /* After IRA has run in PIC mode, it is too late to put anything into the
-+     constant pool if the PIC register hasn't already been initialized.  */
-+  if ((lra_in_progress || reload_in_progress)
-+      && flag_pic
-+      && !crtl->uses_pic_offset_table)
-+    return true;
+@@ -4238,10 +4238,12 @@
+ }
+ 
+ /* Global Offset Table support.  */
++static GTY(()) rtx got_symbol_rtx = NULL_RTX;
++static GTY(()) rtx got_register_rtx = NULL_RTX;
+ static GTY(()) rtx got_helper_rtx = NULL_RTX;
+-static GTY(()) rtx got_register_rtx = NULL_RTX;
+-static GTY(()) rtx got_symbol_rtx = NULL_RTX;
+ 
++static GTY(()) bool got_helper_needed = false;
 +
-   switch (GET_CODE (x))
+ /* Return the SYMBOL_REF for the Global Offset Table.  */
+ 
+ static rtx
+@@ -4253,27 +4255,6 @@
+   return got_symbol_rtx;
+ }
+ 
+-#ifdef HAVE_GAS_HIDDEN
+-# define USE_HIDDEN_LINKONCE 1
+-#else
+-# define USE_HIDDEN_LINKONCE 0
+-#endif
+-
+-static void
+-get_pc_thunk_name (char name[32], unsigned int regno)
+-{
+-  const char *reg_name = reg_names[regno];
+-
+-  /* Skip the leading '%' as that cannot be used in a
+-     symbol name.  */
+-  reg_name += 1;
+-
+-  if (USE_HIDDEN_LINKONCE)
+-    sprintf (name, "__sparc_get_pc_thunk.%s", reg_name);
+-  else
+-    ASM_GENERATE_INTERNAL_LABEL (name, "LADDPC", regno);
+-}
+-
+ /* Wrapper around the load_pcrel_sym{si,di} patterns.  */
+ 
+ static rtx
+@@ -4293,30 +4274,78 @@
+   return insn;
+ }
+ 
++/* Output the load_pcrel_sym{si,di} patterns.  */
++
++const char *
++output_load_pcrel_sym (rtx *operands)
++{
++  if (flag_delayed_branch)
++    {
++      output_asm_insn ("sethi\t%%hi(%a1-4), %0", operands);
++      output_asm_insn ("call\t%a2", operands);
++      output_asm_insn (" add\t%0, %%lo(%a1+4), %0", operands);
++    }
++  else
++    {
++      output_asm_insn ("sethi\t%%hi(%a1-8), %0", operands);
++      output_asm_insn ("add\t%0, %%lo(%a1-4), %0", operands);
++      output_asm_insn ("call\t%a2", operands);
++      output_asm_insn (" nop", NULL);
++    }
++
++  if (operands[2] == got_helper_rtx)
++    got_helper_needed = true;
++
++  return "";
++}
++
++#ifdef HAVE_GAS_HIDDEN
++# define USE_HIDDEN_LINKONCE 1
++#else
++# define USE_HIDDEN_LINKONCE 0
++#endif
++
+ /* Emit code to load the GOT register.  */
+ 
+ void
+ load_got_register (void)
+ {
+-  if (!got_register_rtx)
+-    got_register_rtx = gen_rtx_REG (Pmode, GLOBAL_OFFSET_TABLE_REGNUM);
++  rtx insn;
+ 
+   if (TARGET_VXWORKS_RTP)
+-    emit_insn (gen_vxworks_load_got ());
++    {
++      if (!got_register_rtx)
++	got_register_rtx = pic_offset_table_rtx;
++
++      insn = gen_vxworks_load_got ();
++    }
+   else
      {
-     case CONST_INT:
-@@ -4452,7 +4459,7 @@
++      if (!got_register_rtx)
++	got_register_rtx = gen_rtx_REG (Pmode, GLOBAL_OFFSET_TABLE_REGNUM);
++
+       /* The GOT symbol is subject to a PC-relative relocation so we need a
+ 	 helper function to add the PC value and thus get the final value.  */
+       if (!got_helper_rtx)
+ 	{
+ 	  char name[32];
+-	  get_pc_thunk_name (name, GLOBAL_OFFSET_TABLE_REGNUM);
++
++	  /* Skip the leading '%' as that cannot be used in a symbol name.  */
++	  if (USE_HIDDEN_LINKONCE)
++	    sprintf (name, "__sparc_get_pc_thunk.%s",
++		     reg_names[REGNO (got_register_rtx)] + 1);
++	  else
++	    ASM_GENERATE_INTERNAL_LABEL (name, "LADDPC",
++					 REGNO (got_register_rtx));
++
+ 	  got_helper_rtx = gen_rtx_SYMBOL_REF (Pmode, ggc_strdup (name));
+ 	}
+ 
+-      emit_insn (gen_load_pcrel_sym (got_register_rtx, sparc_got (),
+-				     got_helper_rtx));
++      insn
++	= gen_load_pcrel_sym (got_register_rtx, sparc_got (), got_helper_rtx);
+     }
++
++  emit_insn (insn);
+ }
+ 
+ /* Ensure that we are not using patterns that are not OK with PIC.  */
+@@ -4452,7 +4481,7 @@
      return true;
  
    if (!HARD_REGISTER_P (pic_offset_table_rtx)
@@ -52336,6 +54510,68 @@ Index: gcc/config/sparc/sparc.c
        && ORIGINAL_REGNO (x) == REGNO (pic_offset_table_rtx))
      return true;
  
+@@ -5468,7 +5497,7 @@
+     return true;
+ 
+   /* GOT register (%l7) if needed.  */
+-  if (regno == GLOBAL_OFFSET_TABLE_REGNUM && got_register_rtx)
++  if (got_register_rtx && regno == REGNO (got_register_rtx))
+     return true;
+ 
+   /* If the function accesses prior frames, the frame pointer and the return
+@@ -12449,10 +12478,9 @@
+ sparc_file_end (void)
+ {
+   /* If we need to emit the special GOT helper function, do so now.  */
+-  if (got_helper_rtx)
++  if (got_helper_needed)
+     {
+       const char *name = XSTR (got_helper_rtx, 0);
+-      const char *reg_name = reg_names[GLOBAL_OFFSET_TABLE_REGNUM];
+ #ifdef DWARF2_UNWIND_INFO
+       bool do_cfi;
+ #endif
+@@ -12489,17 +12517,22 @@
+ #ifdef DWARF2_UNWIND_INFO
+       do_cfi = dwarf2out_do_cfi_asm ();
+       if (do_cfi)
+-	fprintf (asm_out_file, "\t.cfi_startproc\n");
++	output_asm_insn (".cfi_startproc", NULL);
+ #endif
+       if (flag_delayed_branch)
+-	fprintf (asm_out_file, "\tjmp\t%%o7+8\n\t add\t%%o7, %s, %s\n",
+-		 reg_name, reg_name);
++	{
++	  output_asm_insn ("jmp\t%%o7+8", NULL);
++	  output_asm_insn (" add\t%%o7, %0, %0", &got_register_rtx);
++	}
+       else
+-	fprintf (asm_out_file, "\tadd\t%%o7, %s, %s\n\tjmp\t%%o7+8\n\t nop\n",
+-		 reg_name, reg_name);
++	{
++	  output_asm_insn ("add\t%%o7, %0, %0", &got_register_rtx);
++	  output_asm_insn ("jmp\t%%o7+8", NULL);
++	  output_asm_insn (" nop", NULL);
++	}
+ #ifdef DWARF2_UNWIND_INFO
+       if (do_cfi)
+-	fprintf (asm_out_file, "\t.cfi_endproc\n");
++	output_asm_insn (".cfi_endproc", NULL);
+ #endif
+     }
+ 
+@@ -13005,7 +13038,10 @@
+   edge entry_edge;
+   rtx_insn *seq;
+ 
+-  if (!crtl->uses_pic_offset_table)
++  /* In PIC mode, we need to always initialize the PIC register if optimization
++     is enabled, because we are called from IRA and LRA may later force things
++     to the constant pool for optimization purposes.  */
++  if (!flag_pic || (!crtl->uses_pic_offset_table && !optimize))
+     return;
+ 
+   start_sequence ();
 Index: gcc/config/sparc/sparc.h
 ===================================================================
 --- a/src/gcc/config/sparc/sparc.h	(.../tags/gcc_8_3_0_release)
@@ -53685,6 +55921,29 @@ Index: gcc/config/i386/emmintrin.h
  }
  
  extern __inline __m128i __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+Index: gcc/config/i386/intelmic-mkoffload.c
+===================================================================
+--- a/src/gcc/config/i386/intelmic-mkoffload.c	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/i386/intelmic-mkoffload.c	(.../branches/gcc-8-branch)
+@@ -453,8 +453,6 @@
+   if (verbose)
+     obstack_ptr_grow (&argv_obstack, "-v");
+   obstack_ptr_grow (&argv_obstack, "-xlto");
+-  obstack_ptr_grow (&argv_obstack, "-shared");
+-  obstack_ptr_grow (&argv_obstack, "-fPIC");
+   obstack_ptr_grow (&argv_obstack, opt1);
+   for (int i = 1; i < argc; i++)
+     {
+@@ -466,6 +464,9 @@
+   if (!out_obj_filename)
+     fatal_error (input_location, "output file not specified");
+   obstack_ptr_grow (&argv_obstack, opt2);
++  /* NB: Put -fPIC and -shared the last to create shared library.  */
++  obstack_ptr_grow (&argv_obstack, "-fPIC");
++  obstack_ptr_grow (&argv_obstack, "-shared");
+   obstack_ptr_grow (&argv_obstack, "-o");
+   obstack_ptr_grow (&argv_obstack, target_so_filename);
+   compile_for_target (&argv_obstack);
 Index: gcc/config/i386/avxintrin.h
 ===================================================================
 --- a/src/gcc/config/i386/avxintrin.h	(.../tags/gcc_8_3_0_release)
@@ -53872,6 +56131,15 @@ Index: gcc/config/i386/i386.c
  	      replace_with_subreg_in_insn (insn, reg, reg);
  
  	    bitmap_clear_bit (conv, INSN_UID (insn));
+@@ -3488,7 +3380,7 @@
+     | PTA_AVX512VBMI | PTA_AVX512IFMA | PTA_SHA;
+   const wide_int_bitmask PTA_ICELAKE_CLIENT = PTA_CANNONLAKE | PTA_AVX512VNNI
+     | PTA_GFNI | PTA_VAES | PTA_AVX512VBMI2 | PTA_VPCLMULQDQ | PTA_AVX512BITALG
+-    | PTA_RDPID | PTA_CLWB;
++    | PTA_RDPID | PTA_CLWB | PTA_AVX512VPOPCNTDQ;
+   const wide_int_bitmask PTA_ICELAKE_SERVER = PTA_ICELAKE_CLIENT | PTA_PCONFIG
+     | PTA_WBNOINVD;
+   const wide_int_bitmask PTA_KNL = PTA_BROADWELL | PTA_AVX512PF | PTA_AVX512ER
 @@ -4958,6 +4850,12 @@
  			   opts->x_param_values,
  			   opts_set->x_param_values);
@@ -53885,7 +56153,55 @@ Index: gcc/config/i386/i386.c
    return true;
  }
  
-@@ -17313,7 +17211,7 @@
+@@ -5552,7 +5450,25 @@
+ 	      ret = false;
+ 	    }
+ 	  else
+-	    p_strings[opt] = xstrdup (p + opt_len);
++	    {
++	      p_strings[opt] = xstrdup (p + opt_len);
++	      if (opt == IX86_FUNCTION_SPECIFIC_ARCH)
++		{
++		  /* If arch= is set,  clear all bits in x_ix86_isa_flags,
++		     except for ISA_64BIT, ABI_64, ABI_X32, and CODE16
++		     and all bits in x_ix86_isa_flags2.  */
++		  opts->x_ix86_isa_flags &= (OPTION_MASK_ISA_64BIT
++					     | OPTION_MASK_ABI_64
++					     | OPTION_MASK_ABI_X32
++					     | OPTION_MASK_CODE16);
++		  opts->x_ix86_isa_flags_explicit &= (OPTION_MASK_ISA_64BIT
++						      | OPTION_MASK_ABI_64
++						      | OPTION_MASK_ABI_X32
++						      | OPTION_MASK_CODE16);
++		  opts->x_ix86_isa_flags2 = 0;
++		  opts->x_ix86_isa_flags2_explicit = 0;
++		}
++	    }
+ 	}
+ 
+       else if (type == ix86_opt_enum)
+@@ -5627,18 +5543,8 @@
+       /* If we are using the default tune= or arch=, undo the string assigned,
+ 	 and use the default.  */
+       if (option_strings[IX86_FUNCTION_SPECIFIC_ARCH])
+-	{
+-	  opts->x_ix86_arch_string
+-	    = ggc_strdup (option_strings[IX86_FUNCTION_SPECIFIC_ARCH]);
+-
+-	  /* If arch= is set,  clear all bits in x_ix86_isa_flags,
+-	     except for ISA_64BIT, ABI_64, ABI_X32, and CODE16.  */
+-	  opts->x_ix86_isa_flags &= (OPTION_MASK_ISA_64BIT
+-				     | OPTION_MASK_ABI_64
+-				     | OPTION_MASK_ABI_X32
+-				     | OPTION_MASK_CODE16);
+-	  opts->x_ix86_isa_flags2 = 0;
+-	}
++	opts->x_ix86_arch_string
++	  = ggc_strdup (option_strings[IX86_FUNCTION_SPECIFIC_ARCH]);
+       else if (!orig_arch_specified)
+ 	opts->x_ix86_arch_string = NULL;
+ 
+@@ -17313,7 +17219,7 @@
        break;
  
      case SYMBOL_REF:
@@ -53894,7 +56210,7 @@ Index: gcc/config/i386/i386.c
  	output_addr_const (file, x);
        else
  	{
-@@ -18121,6 +18019,7 @@
+@@ -18121,6 +18027,7 @@
     ; -- print a semicolon (after prefixes due to bug in older gas).
     ~ -- print "i" if TARGET_AVX2, "f" otherwise.
     ^ -- print addr32 prefix if TARGET_64BIT and Pmode != word_mode
@@ -53902,7 +56218,7 @@ Index: gcc/config/i386/i386.c
     ! -- print MPX prefix for jxx/call/ret instructions if required.
   */
  
-@@ -18668,6 +18567,26 @@
+@@ -18668,6 +18575,26 @@
  	  putc (TARGET_AVX2 ? 'i' : 'f', file);
  	  return;
  
@@ -53929,7 +56245,7 @@ Index: gcc/config/i386/i386.c
  	case '^':
  	  if (TARGET_64BIT && Pmode != word_mode)
  	    fputs ("addr32 ", file);
-@@ -24062,6 +23981,8 @@
+@@ -24062,6 +23989,8 @@
    else
      {
        code = is_min ? SMIN : SMAX;
@@ -53938,7 +56254,7 @@ Index: gcc/config/i386/i386.c
        tmp = gen_rtx_fmt_ee (code, mode, if_true, if_false);
      }
  
-@@ -28757,6 +28678,25 @@
+@@ -28757,6 +28686,25 @@
    return false;
  }
  
@@ -53964,7 +56280,7 @@ Index: gcc/config/i386/i386.c
  /* Output indirect branch via a call and return thunk.  CALL_OP is a
     register which contains the branch target.  XASM is the assembly
     template for CALL_OP.  Branch is a tail call if SIBCALL_P is true.
-@@ -28798,25 +28738,17 @@
+@@ -28798,25 +28746,17 @@
      thunk_name = NULL;
  
    if (sibcall_p)
@@ -53995,7 +56311,7 @@ Index: gcc/config/i386/i386.c
  	  return;
  	}
  
-@@ -28840,15 +28772,7 @@
+@@ -28840,15 +28780,7 @@
  
        ASM_OUTPUT_INTERNAL_LABEL (asm_out_file, indirectlabel1);
  
@@ -54012,7 +56328,7 @@ Index: gcc/config/i386/i386.c
  
        ASM_OUTPUT_INTERNAL_LABEL (asm_out_file, indirectlabel2);
  
-@@ -28913,15 +28837,7 @@
+@@ -28913,15 +28845,7 @@
    if (sibcall_p)
      {
        output_asm_insn (push_buf, &call_op);
@@ -54029,7 +56345,7 @@ Index: gcc/config/i386/i386.c
      }
    else
      {
-@@ -28980,15 +28896,7 @@
+@@ -28980,15 +28904,7 @@
  
        output_asm_insn (push_buf, &call_op);
  
@@ -54046,7 +56362,7 @@ Index: gcc/config/i386/i386.c
  
        ASM_OUTPUT_INTERNAL_LABEL (asm_out_file, indirectlabel2);
  
-@@ -29057,13 +28965,15 @@
+@@ -29057,13 +28973,15 @@
  	  if (need_prefix == indirect_thunk_prefix_bnd)
  	    {
  	      indirect_return_bnd_needed |= need_thunk;
@@ -54064,7 +56380,7 @@ Index: gcc/config/i386/i386.c
  	}
        else
  	output_indirect_thunk (need_prefix, INVALID_REGNUM);
-@@ -29104,7 +29014,7 @@
+@@ -29104,7 +29022,7 @@
  		  indirect_return_via_cx_bnd = true;
  		  indirect_thunks_bnd_used |= 1 << CX_REG;
  		}
@@ -54073,7 +56389,7 @@ Index: gcc/config/i386/i386.c
  	    }
  	  else
  	    {
-@@ -29113,8 +29023,10 @@
+@@ -29113,8 +29031,10 @@
  		  indirect_return_via_cx = true;
  		  indirect_thunks_used |= 1 << CX_REG;
  		}
@@ -54085,7 +56401,7 @@ Index: gcc/config/i386/i386.c
  	}
        else
  	output_indirect_thunk (need_prefix, regno);
-@@ -32923,6 +32835,7 @@
+@@ -32923,6 +32843,7 @@
      }
    /* Build result decl and add to function_decl. */
    t = build_decl (UNKNOWN_LOCATION, RESULT_DECL, NULL_TREE, ptr_type_node);
@@ -54093,7 +56409,7 @@ Index: gcc/config/i386/i386.c
    DECL_ARTIFICIAL (t) = 1;
    DECL_IGNORED_P (t) = 1;
    DECL_RESULT (decl) = t;
-@@ -39641,7 +39554,7 @@
+@@ -39641,7 +39562,7 @@
  static bool
  use_rsqrt_p ()
  {
@@ -54102,7 +56418,7 @@ Index: gcc/config/i386/i386.c
  	  && flag_finite_math_only
  	  && !flag_trapping_math
  	  && flag_unsafe_math_optimizations);
-@@ -45705,8 +45618,10 @@
+@@ -45705,8 +45626,10 @@
            x2 -= 1;
       Compensate.  Ceil:
          if (x2 < x)
@@ -54115,7 +56431,7 @@ Index: gcc/config/i386/i386.c
     */
    machine_mode mode = GET_MODE (operand0);
    rtx xa, TWO52, tmp, one, res, mask;
-@@ -45732,17 +45647,16 @@
+@@ -45732,17 +45655,16 @@
    /* xa = copysign (xa, operand1) */
    ix86_sse_copysign_to_positive (xa, xa, res, mask);
  
@@ -54138,7 +56454,7 @@ Index: gcc/config/i386/i386.c
    emit_move_insn (res, tmp);
  
    emit_label (label);
-@@ -46379,7 +46293,8 @@
+@@ -46379,7 +46301,8 @@
  expand_vec_perm_blend (struct expand_vec_perm_d *d)
  {
    machine_mode mmode, vmode = d->vmode;
@@ -54148,7 +56464,7 @@ Index: gcc/config/i386/i386.c
    rtx target, op0, op1, maskop, x;
    rtx rperm[32], vperm;
  
-@@ -46433,7 +46348,7 @@
+@@ -46433,7 +46356,7 @@
      case E_V16SImode:
      case E_V8DImode:
        for (i = 0; i < nelt; ++i)
@@ -54157,7 +56473,7 @@ Index: gcc/config/i386/i386.c
        break;
  
      case E_V2DImode:
-@@ -50999,7 +50914,7 @@
+@@ -50999,7 +50922,7 @@
       there is no adddf3 pattern (since x87 floating point only has
       XFmode operations) so the default hook implementation gets this
       wrong.  */
@@ -54166,7 +56482,7 @@ Index: gcc/config/i386/i386.c
  }
  
  /* Implement TARGET_ATOMIC_ASSIGN_EXPAND_FENV.  */
-@@ -51007,7 +50922,7 @@
+@@ -51007,7 +50930,7 @@
  static void
  ix86_atomic_assign_expand_fenv (tree *hold, tree *clear, tree *update)
  {
@@ -54175,7 +56491,7 @@ Index: gcc/config/i386/i386.c
      return;
    tree exceptions_var = create_tmp_var_raw (integer_type_node);
    if (TARGET_80387)
-@@ -51042,7 +50957,7 @@
+@@ -51042,7 +50965,7 @@
        tree update_fldenv = build_call_expr (fldenv, 1, fenv_addr);
        *update = build2 (COMPOUND_EXPR, void_type_node, *update, update_fldenv);
      }
@@ -54184,7 +56500,7 @@ Index: gcc/config/i386/i386.c
      {
        tree mxcsr_orig_var = create_tmp_var_raw (unsigned_type_node);
        tree mxcsr_mod_var = create_tmp_var_raw (unsigned_type_node);
-@@ -51399,7 +51314,7 @@
+@@ -51399,7 +51322,7 @@
  	  return FLT_EVAL_METHOD_PROMOTE_TO_FLOAT;
  	else if (!TARGET_MIX_SSE_I387)
  	  {
@@ -55032,6 +57348,20 @@ Index: gcc/config/rs6000/t-darwin32-biarch
 +# 64-bit libraries can only be built in Darwin 8.x or later.
 +MULTILIB_OPTIONS = m64
 +MULTILIB_DIRNAMES = ppc64
+Index: gcc/config/rs6000/predicates.md
+===================================================================
+--- a/src/gcc/config/rs6000/predicates.md	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/rs6000/predicates.md	(.../branches/gcc-8-branch)
+@@ -1085,8 +1085,7 @@
+     return 1;
+ 
+   /* Allow any integer constant.  */
+-  if (GET_MODE_CLASS (mode) == MODE_INT
+-      && CONST_SCALAR_INT_P (op))
++  if (SCALAR_INT_MODE_P (mode) && CONST_SCALAR_INT_P (op))
+     return 1;
+ 
+   /* Allow easy vector constants.  */
 Index: gcc/config/rs6000/power9.md
 ===================================================================
 --- a/src/gcc/config/rs6000/power9.md	(.../tags/gcc_8_3_0_release)
@@ -58838,6 +61168,98 @@ Index: gcc/config/pa/pa.md
    /* Prevent the insns above from being scheduled into the delay slot
       of the interspace jump because the space register could change.  */
    emit_insn (gen_blockage ());
+@@ -10085,23 +10091,55 @@
+    (set_attr "length" "4,16")])
+ 
+ ;; PA 2.0 hardware supports out-of-order execution of loads and stores, so
+-;; we need a memory barrier to enforce program order for memory references.
+-;; Since we want PA 1.x code to be PA 2.0 compatible, we also need the
+-;; barrier when generating PA 1.x code.
++;; we need memory barriers to enforce program order for memory references
++;; when the TLB and PSW O bits are not set.  We assume all PA 2.0 systems
++;; are weakly ordered since neither HP-UX or Linux set the PSW O bit.  Since
++;; we want PA 1.x code to be PA 2.0 compatible, we also need barriers when
++;; generating PA 1.x code even though all PA 1.x systems are strongly ordered.
+ 
++;; When barriers are needed, we use a strongly ordered ldcw instruction as
++;; the barrier.  Most PA 2.0 targets are cache coherent.  In that case, we
++;; can use the coherent cache control hint and avoid aligning the ldcw
++;; address.  In spite of its description, it is not clear that the sync
++;; instruction works as a barrier.
++
+ (define_expand "memory_barrier"
+-  [(set (match_dup 0)
+-        (unspec:BLK [(match_dup 0)] UNSPEC_MEMORY_BARRIER))]
++  [(parallel
++     [(set (match_dup 0) (unspec:BLK [(match_dup 0)] UNSPEC_MEMORY_BARRIER))
++      (clobber (match_dup 1))])]
+   ""
+ {
+-  operands[0] = gen_rtx_MEM (BLKmode, gen_rtx_SCRATCH (Pmode));
++  /* We don't need a barrier if the target uses ordered memory references.  */
++  if (TARGET_ORDERED)
++    FAIL;
++  operands[1] = gen_reg_rtx (Pmode);
++  operands[0] = gen_rtx_MEM (BLKmode, operands[1]);
+   MEM_VOLATILE_P (operands[0]) = 1;
+ })
+ 
+-(define_insn "*memory_barrier"
++(define_insn "*memory_barrier_coherent"
+   [(set (match_operand:BLK 0 "" "")
+-        (unspec:BLK [(match_dup 0)] UNSPEC_MEMORY_BARRIER))]
++        (unspec:BLK [(match_dup 0)] UNSPEC_MEMORY_BARRIER))
++   (clobber (match_operand 1 "pmode_register_operand" "=r"))]
++  "TARGET_PA_20 && TARGET_COHERENT_LDCW"
++  "ldcw,co 0(%%sp),%1"
++  [(set_attr "type" "binary")
++   (set_attr "length" "4")])
++
++(define_insn "*memory_barrier_64"
++  [(set (match_operand:BLK 0 "" "")
++        (unspec:BLK [(match_dup 0)] UNSPEC_MEMORY_BARRIER))
++    (clobber (match_operand 1 "pmode_register_operand" "=&r"))]
++  "TARGET_64BIT"
++  "ldo 15(%%sp),%1\n\tdepd %%r0,63,3,%1\n\tldcw 0(%1),%1"
++  [(set_attr "type" "binary")
++   (set_attr "length" "12")])
++
++(define_insn "*memory_barrier_32"
++  [(set (match_operand:BLK 0 "" "")
++        (unspec:BLK [(match_dup 0)] UNSPEC_MEMORY_BARRIER))
++    (clobber (match_operand 1 "pmode_register_operand" "=&r"))]
+   ""
+-  "sync"
++  "ldo 15(%%sp),%1\n\t{dep|depw} %%r0,31,3,%1\n\tldcw 0(%1),%1"
+   [(set_attr "type" "binary")
+-   (set_attr "length" "4")])
++   (set_attr "length" "12")])
+Index: gcc/config/pa/pa.opt
+===================================================================
+--- a/src/gcc/config/pa/pa.opt	(.../tags/gcc_8_3_0_release)
++++ b/src/gcc/config/pa/pa.opt	(.../branches/gcc-8-branch)
+@@ -45,6 +45,10 @@
+ Target Report Mask(CALLER_COPIES)
+ Caller copies function arguments passed by hidden reference.
+ 
++mcoherent-ldcw
++Target Report Var(TARGET_COHERENT_LDCW) Init(1)
++Use ldcw/ldcd coherent cache-control hint.
++
+ mdisable-fpregs
+ Target Report Mask(DISABLE_FPREGS)
+ Disable FP regs.
+@@ -90,6 +94,10 @@
+ Target RejectNegative Report Mask(NO_SPACE_REGS)
+ Disable space regs.
+ 
++mordered
++Target Report Var(TARGET_ORDERED) Init(0)
++Assume memory references are ordered and barriers are not needed.
++
+ mpa-risc-1-0
+ Target RejectNegative
+ Generate PA1.0 code.
 Index: gcc/config/pa/pa-protos.h
 ===================================================================
 --- a/src/gcc/config/pa/pa-protos.h	(.../tags/gcc_8_3_0_release)
@@ -59448,6 +61870,17 @@ Index: gcc/config/mips/mips.md
 ===================================================================
 --- a/src/gcc/config/mips/mips.md	(.../tags/gcc_8_3_0_release)
 +++ b/src/gcc/config/mips/mips.md	(.../branches/gcc-8-branch)
+@@ -5772,8 +5772,8 @@
+   "ISA_HAS_ROR"
+ {
+   if (CONST_INT_P (operands[2]))
+-    gcc_assert (INTVAL (operands[2]) >= 0
+-		&& INTVAL (operands[2]) < GET_MODE_BITSIZE (<MODE>mode));
++    operands[2] = GEN_INT (INTVAL (operands[2])
++                           & (GET_MODE_BITSIZE (<MODE>mode) - 1));
+ 
+   return "<d>ror\t%0,%1,%2";
+ }
 @@ -7502,7 +7502,7 @@
  ;; __builtin_mips_get_fcsr: move the FCSR into operand 0.
  (define_expand "mips_get_fcsr"
@@ -60198,6 +62631,31 @@ Index: libgfortran/io/write_float.def
        while (i < nafter)
  	put[i++] = '0';
  
+Index: libcpp/directives.c
+===================================================================
+--- a/src/libcpp/directives.c	(.../tags/gcc_8_3_0_release)
++++ b/src/libcpp/directives.c	(.../branches/gcc-8-branch)
+@@ -1574,6 +1574,8 @@
+   node = _cpp_lex_identifier (pfile, c->name);
+   if (node->type == NT_VOID)
+     c->is_undef = 1;
++  else if (node->type == NT_MACRO && (node->flags & NODE_BUILTIN))
++    c->is_builtin = 1;
+   else
+     {
+       defn = cpp_macro_definition (pfile, node);
+@@ -2504,6 +2506,11 @@
+   cpp_hashnode *node = _cpp_lex_identifier (pfile, c->name);
+   if (node == NULL)
+     return;
++  if (c->is_builtin)
++    {
++      _cpp_restore_special_builtin (pfile, c);
++      return;
++    }
+ 
+   if (pfile->cb.before_define)
+     pfile->cb.before_define (pfile);
 Index: libcpp/line-map.c
 ===================================================================
 --- a/src/libcpp/line-map.c	(.../tags/gcc_8_3_0_release)
@@ -60214,11 +62672,56 @@ Index: libcpp/line-map.c
  	  || range_bits < map->m_range_bits)
  	map = linemap_check_ordinary
  	        (const_cast <line_map *>
+Index: libcpp/init.c
+===================================================================
+--- a/src/libcpp/init.c	(.../tags/gcc_8_3_0_release)
++++ b/src/libcpp/init.c	(.../branches/gcc-8-branch)
+@@ -488,6 +488,26 @@
+     }
+ }
+ 
++/* Restore macro C to builtin macro definition.  */
++
++void
++_cpp_restore_special_builtin (cpp_reader *pfile, struct def_pragma_macro *c)
++{
++  size_t len = strlen (c->name);
++
++  for (const struct builtin_macro *b = builtin_array;
++       b < builtin_array + ARRAY_SIZE (builtin_array); b++)
++    if (b->len == len && memcmp (c->name, b->name, len + 1) == 0)
++      {
++	cpp_hashnode *hp = cpp_lookup (pfile, b->name, b->len);
++	hp->type = NT_MACRO;
++	hp->flags |= NODE_BUILTIN;
++	if (b->always_warn_if_redefined)
++	  hp->flags |= NODE_WARN;
++	hp->value.builtin = (enum cpp_builtin_type) b->value;
++      }
++}
++
+ /* Read the builtins table above and enter them, and language-specific
+    macros, into the hash table.  HOSTED is true if this is a hosted
+    environment.  */
 Index: libcpp/ChangeLog
 ===================================================================
 --- a/src/libcpp/ChangeLog	(.../tags/gcc_8_3_0_release)
 +++ b/src/libcpp/ChangeLog	(.../branches/gcc-8-branch)
-@@ -1,3 +1,22 @@
+@@ -1,3 +1,36 @@
++2019-11-21  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from mainline
++	2019-10-31  Jakub Jelinek  <jakub@redhat.com>
++
++	PR preprocessor/92296
++	* internal.h (struct def_pragma_macro): Add is_builtin bitfield.
++	(_cpp_restore_special_builtin): Declare.
++	* init.c (_cpp_restore_special_builtin): New function.
++	* directives.c (do_pragma_push_macro): For NT_MACRO with NODE_BUILTIN
++	set is_builtin and don't try to grab definition.
++	(cpp_pop_definition): Use _cpp_restore_special_builtin to restore
++	builtin macros.
++
 +2019-03-11  Martin Liska  <mliska@suse.cz>
 +
 +	Backport from mainline
@@ -60241,6 +62744,28 @@ Index: libcpp/ChangeLog
  2019-02-22  Release Manager
  
  	* GCC 8.3.0 released.
+Index: libcpp/internal.h
+===================================================================
+--- a/src/libcpp/internal.h	(.../tags/gcc_8_3_0_release)
++++ b/src/libcpp/internal.h	(.../branches/gcc-8-branch)
+@@ -381,6 +381,8 @@
+ 
+   /* Mark if we save an undefined macro.  */
+   unsigned int is_undef : 1;
++  /* Nonzero if it was a builtin macro.  */
++  unsigned int is_builtin : 1;
+ };
+ 
+ /* A cpp_reader encapsulates the "state" of a pre-processor run.
+@@ -689,6 +691,8 @@
+ /* In init.c.  */
+ extern void _cpp_maybe_push_include_file (cpp_reader *);
+ extern const char *cpp_named_operator2name (enum cpp_ttype type);
++extern void _cpp_restore_special_builtin (cpp_reader *pfile,
++					  struct def_pragma_macro *);
+ 
+ /* In directives.c */
+ extern int _cpp_test_assertion (cpp_reader *, unsigned int *);
 Index: fixincludes/ChangeLog
 ===================================================================
 --- a/src/fixincludes/ChangeLog	(.../tags/gcc_8_3_0_release)
