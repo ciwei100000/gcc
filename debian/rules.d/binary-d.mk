@@ -180,7 +180,7 @@ define __do_libphobos
 	debian/dh_doclink -p$(p_l) $(p_lbase)
 	debian/dh_doclink -p$(p_d) $(p_lbase)
 
-	dh_strip -p$(p_l) --dbg-package=$(p_d)
+	$(call do_strip_lib_dbg, $(p_l), $(p_d), $(v_dbg),,)
 	ln -sf libgphobos.symbols debian/$(p_l).symbols
 	$(cross_makeshlibs) dh_makeshlibs $(ldconfig_arg) -p$(p_l) \
 		-- -a$(call mlib_to_arch,$(2)) || echo XXXXXXXXXXX ERROR $(p_l)
@@ -200,7 +200,7 @@ define __do_libphobos
 	)
 
 	dh_lintian -p$(p_l)
-	echo $(p_l) $(p_d) >> debian/$(lib_binaries)
+	echo $(p_l) $(if $(with_dbg), $(p_d)) >> debian/$(lib_binaries)
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 endef

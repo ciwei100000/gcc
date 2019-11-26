@@ -29,7 +29,11 @@ define(`libidevdep', `lib$2$1`'LS`'AQ (ifelse(`$3',`',`=',`$3') ifelse(`$4',`',`
 ifdef(`TARGET',`ifelse(CROSS_ARCH,`all',`
 define(`libidevdep', `lib$2$1`'LS`'AQ (>= ifelse(`$4',`',`${gcc:SoftVersion}',`$4'))')
 ')')
+ifelse(index(enabled_languages, `libdbg'), -1, `
+define(`libdbgdep', `')
+',`
 define(`libdbgdep', `lib$2$1`'LS`'AQ (ifelse(`$3',`',`>=',`$3') ifelse(`$4',`',`${gcc:Version}',`$4'))')
+')`'dnl libdbg
 
 define(`BUILT_USING', ifelse(add_built_using,yes,`Built-Using: ${Built-Using}
 '))
@@ -216,6 +220,7 @@ ifdef(`TARGET', `dnl
  environment.
 ')`'dnl
 
+ifenabled(`libdbg',`
 Package: libgcc1-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
@@ -234,6 +239,7 @@ ifdef(`TARGET', `dnl
  This package contains files for TARGET architecture, for use in cross-compile
  environment.
 ')`'dnl
+')`'dnl libdbg
 
 Package: libgcc2`'LS
 TARGET_PACKAGE`'dnl
@@ -258,6 +264,7 @@ ifdef(`TARGET', `dnl
  environment.
 ')`'dnl
 
+ifenabled(`libdbg',`
 Package: libgcc2-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`m68k')
@@ -274,6 +281,7 @@ ifdef(`TARGET', `dnl
  This package contains files for TARGET architecture, for use in cross-compile
  environment.
 ')`'dnl
+')`'dnl libdbg
 ')`'dnl libgcc
 
 ifenabled(`cdev',`
@@ -316,6 +324,7 @@ ifdef(`TARGET', `dnl
  environment.
 ')`'dnl
 
+ifenabled(`libdbg',`
 Package: libgcc4-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`hppa')
@@ -332,6 +341,7 @@ ifdef(`TARGET', `dnl
  This package contains files for TARGET architecture, for use in cross-compile
  environment.
 ')`'dnl
+')`'dnl libdbg
 
 ifenabled(`lib64gcc',`
 Package: lib64gcc1`'LS
@@ -354,6 +364,7 @@ ifdef(`TARGET', `dnl
  environment.
 ')`'dnl
 
+ifenabled(`libdbg',`
 Package: lib64gcc1-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
@@ -368,6 +379,7 @@ ifdef(`TARGET', `dnl
  This package contains files for TARGET architecture, for use in cross-compile
  environment.
 ')`'dnl
+')`'dnl libdbg
 ')`'dnl lib64gcc
 
 ifenabled(`cdev',`
@@ -410,6 +422,7 @@ ifdef(`TARGET', `dnl
  environment.
 ')`'dnl
 
+ifenabled(`libdbg',`
 Package: lib32gcc1-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
@@ -424,6 +437,7 @@ ifdef(`TARGET', `dnl
  This package contains files for TARGET architecture, for use in cross-compile
  environment.
 ')`'dnl
+')`'dnl libdbg
 ')`'dnl lib32gcc1
 
 ifenabled(`cdev',`
@@ -483,6 +497,7 @@ ifdef(`TARGET', `dnl
  environment.
 ')`'dnl
 
+ifenabled(`libdbg',`
 Package: libhfgcc1-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
@@ -498,6 +513,7 @@ ifdef(`TARGET', `dnl
  This package contains files for TARGET architecture, for use in cross-compile
  environment.
 ')`'dnl
+')`'dnl libdbg
 ')`'dnl libhfgcc
 
 ifenabled(`cdev',`
@@ -542,6 +558,7 @@ ifdef(`TARGET', `dnl
  environment.
 ')`'dnl
 
+ifenabled(`libdbg',`
 Package: libsfgcc1-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
@@ -557,6 +574,7 @@ ifdef(`TARGET', `dnl
  This package contains files for TARGET architecture, for use in cross-compile
  environment.
 ')`'dnl
+')`'dnl libdbg
 ')`'dnl libsfgcc
 
 ifenabled(`cdev',`
@@ -601,6 +619,7 @@ ifdef(`TARGET', `dnl
  environment.
 ')`'dnl
 
+ifenabled(`libdbg',`
 Package: libn32gcc1-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
@@ -615,6 +634,7 @@ ifdef(`TARGET', `dnl
  This package contains files for TARGET architecture, for use in cross-compile
  environment.
 ')`'dnl
+')`'dnl libdbg
 ')`'dnl libn32gcc
 
 ifenabled(`cdev',`
@@ -656,6 +676,7 @@ ifdef(`TARGET', `dnl
  environment.
 ')`'dnl
 
+ifenabled(`libdbg',`
 Package: libx32gcc1-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
@@ -670,6 +691,7 @@ ifdef(`TARGET', `dnl
  This package contains files for TARGET architecture, for use in cross-compile
  environment.
 ')`'dnl
+')`'dnl libdbg
 ')`'dnl libx32gcc
 
 ifenabled(`cdev',`
@@ -720,7 +742,7 @@ Suggests: ${gcc:multilib}, gcc`'PV-doc (>= ${gcc:SoftVersion}),
 ifenabled(`libvtv',`',`
  libdbgdep(vtv`'VTV_SO-dbg,),
 ')`'dnl
- libdbgdep(quadmath`'QMATH_SO-dbg,)
+ libdbgdep(quadmath`'QMATH_SO-dbg,),
 Provides: c-compiler`'TS
 ifdef(`TARGET',`Conflicts: gcc-multilib
 ')`'dnl
@@ -852,7 +874,7 @@ Section: devel
 Priority: optional
 Depends: BASEDEP, gcc`'PV`'TS (= ${gcc:Version}), libidevdep(stdc++`'PV-dev,,=), ${shlibs:Depends}, ${misc:Depends}
 Provides: c++-compiler`'TS`'ifdef(`TARGET',`',`, c++abi2-dev')
-Suggests: ${gxx:multilib}, gcc`'PV-doc (>= ${gcc:SoftVersion}), libdbgdep(stdc++CXX_SO`'PV-dbg,)
+Suggests: ${gxx:multilib}, gcc`'PV-doc (>= ${gcc:SoftVersion}), libdbgdep(stdc++CXX_SO`'PV-dbg),
 BUILT_USING`'dnl
 Description: GNU C++ compiler`'ifdef(`TARGET',` (cross compiler for TARGET architecture)', `')
  This is the GNU C++ compiler, a fairly portable optimizing compiler for C++.
@@ -994,6 +1016,7 @@ Description: GCC OpenMP (GOMP) support library
  GOMP is an implementation of OpenMP for the C, C++, and Fortran compilers
  in the GNU Compiler Collection.
 
+ifenabled(`libdbg',`
 Package: libgomp`'GOMP_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
@@ -1008,6 +1031,7 @@ BUILT_USING`'dnl
 Description: GCC OpenMP (GOMP) support library (debug symbols)
  GOMP is an implementation of OpenMP for the C, C++, and Fortran compilers
  in the GNU Compiler Collection.
+')`'dnl libdbg
 
 Package: lib32gomp`'GOMP_SO`'LS
 TARGET_PACKAGE`'dnl
@@ -1021,6 +1045,7 @@ Description: GCC OpenMP (GOMP) support library (32bit)
  GOMP is an implementation of OpenMP for the C, C++, and Fortran compilers
  in the GNU Compiler Collection.
 
+ifenabled(`libdbg',`
 Package: lib32gomp`'GOMP_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
@@ -1031,6 +1056,7 @@ BUILT_USING`'dnl
 Description: GCC OpenMP (GOMP) support library (32 bit debug symbols)
  GOMP is an implementation of OpenMP for the C, C++, and Fortran compilers
  in the GNU Compiler Collection.
+')`'dnl libdbg
 
 Package: lib64gomp`'GOMP_SO`'LS
 TARGET_PACKAGE`'dnl
@@ -1043,6 +1069,7 @@ Description: GCC OpenMP (GOMP) support library (64bit)
  GOMP is an implementation of OpenMP for the C, C++, and Fortran compilers
  in the GNU Compiler Collection.
 
+ifenabled(`libdbg',`
 Package: lib64gomp`'GOMP_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
@@ -1053,6 +1080,7 @@ BUILT_USING`'dnl
 Description: GCC OpenMP (GOMP) support library (64bit debug symbols)
  GOMP is an implementation of OpenMP for the C, C++, and Fortran compilers
  in the GNU Compiler Collection.
+')`'dnl libdbg
 
 Package: libn32gomp`'GOMP_SO`'LS
 TARGET_PACKAGE`'dnl
@@ -1065,6 +1093,7 @@ Description: GCC OpenMP (GOMP) support library (n32)
  GOMP is an implementation of OpenMP for the C, C++, and Fortran compilers
  in the GNU Compiler Collection.
 
+ifenabled(`libdbg',`
 Package: libn32gomp`'GOMP_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
@@ -1074,6 +1103,7 @@ Depends: BASELDEP, libdep(gomp`'GOMP_SO,n32,=), ${misc:Depends}
 BUILT_USING`'dnl
 Description: GCC OpenMP (GOMP) support library (n32 debug symbols)
  GOMP is an implementation of OpenMP for the C, C++, and Fortran compilers
+')`'dnl libdbg
 
 ifenabled(`libx32gomp',`
 Package: libx32gomp`'GOMP_SO`'LS
@@ -1087,6 +1117,7 @@ Description: GCC OpenMP (GOMP) support library (x32)
  GOMP is an implementation of OpenMP for the C, C++, and Fortran compilers
  in the GNU Compiler Collection.
 
+ifenabled(`libdbg',`
 Package: libx32gomp`'GOMP_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
@@ -1096,6 +1127,7 @@ Depends: BASELDEP, libdep(gomp`'GOMP_SO,x32,=), ${misc:Depends}
 BUILT_USING`'dnl
 Description: GCC OpenMP (GOMP) support library (x32 debug symbols)
  GOMP is an implementation of OpenMP for the C, C++, and Fortran compilers
+')`'dnl libdbg
 ')`'dnl libx32gomp
 
 ifenabled(`libhfgomp',`
@@ -1111,6 +1143,7 @@ Description: GCC OpenMP (GOMP) support library (hard float ABI)
  GOMP is an implementation of OpenMP for the C, C++, and Fortran compilers
  in the GNU Compiler Collection.
 
+ifenabled(`libdbg',`
 Package: libhfgomp`'GOMP_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
@@ -1121,6 +1154,7 @@ ifdef(`TARGET',`dnl',`Conflicts: libgomp'GOMP_SO`-dbg-armhf [biarchhf_archs]')
 BUILT_USING`'dnl
 Description: GCC OpenMP (GOMP) support library (hard float ABI debug symbols)
  GOMP is an implementation of OpenMP for the C, C++, and Fortran compilers
+')`'dnl libdbg
 ')`'dnl libhfgomp
 
 ifenabled(`libsfgomp',`
@@ -1136,6 +1170,7 @@ Description: GCC OpenMP (GOMP) support library (soft float ABI)
  GOMP is an implementation of OpenMP for the C, C++, and Fortran compilers
  in the GNU Compiler Collection.
 
+ifenabled(`libdbg',`
 Package: libsfgomp`'GOMP_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
@@ -1146,6 +1181,7 @@ ifdef(`TARGET',`dnl',`Conflicts: libgomp'GOMP_SO`-dbg-armel [biarchsf_archs]')
 BUILT_USING`'dnl
 Description: GCC OpenMP (GOMP) support library (soft float ABI debug symbols)
  GOMP is an implementation of OpenMP for the C, C++, and Fortran compilers
+')`'dnl libdbg
 ')`'dnl libsfgomp
 
 ifenabled(`libneongomp',`
@@ -1183,6 +1219,7 @@ Description: GNU Transactional Memory Library
  accesses to the memory of a process, enabling easy-to-use synchronization of
  accesses to shared memory by several threads.
 
+ifenabled(`libdbg',`
 Package: libitm`'ITM_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
@@ -1198,6 +1235,7 @@ Description: GNU Transactional Memory Library (debug symbols)
  GNU Transactional Memory Library (libitm) provides transaction support for
  accesses to the memory of a process, enabling easy-to-use synchronization of
  accesses to shared memory by several threads.
+')`'dnl libdbg
 
 Package: lib32itm`'ITM_SO`'LS
 TARGET_PACKAGE`'dnl
@@ -1212,6 +1250,7 @@ Description: GNU Transactional Memory Library (32bit)
  accesses to the memory of a process, enabling easy-to-use synchronization of
  accesses to shared memory by several threads.
 
+ifenabled(`libdbg',`
 Package: lib32itm`'ITM_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
@@ -1223,6 +1262,7 @@ Description: GNU Transactional Memory Library (32 bit debug symbols)
  GNU Transactional Memory Library (libitm) provides transaction support for
  accesses to the memory of a process, enabling easy-to-use synchronization of
  accesses to shared memory by several threads.
+')`'dnl libdbg
 
 Package: lib64itm`'ITM_SO`'LS
 TARGET_PACKAGE`'dnl
@@ -1236,6 +1276,7 @@ Description: GNU Transactional Memory Library (64bit)
  accesses to the memory of a process, enabling easy-to-use synchronization of
  accesses to shared memory by several threads.
 
+ifenabled(`libdbg',`
 Package: lib64itm`'ITM_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
@@ -1247,6 +1288,7 @@ Description: GNU Transactional Memory Library (64bit debug symbols)
  GNU Transactional Memory Library (libitm) provides transaction support for
  accesses to the memory of a process, enabling easy-to-use synchronization of
  accesses to shared memory by several threads.
+')`'dnl libdbg
 
 #Package: libn32itm`'ITM_SO`'LS
 #Section: ifdef(`TARGET',`devel',`libs')
@@ -1283,6 +1325,7 @@ Description: GNU Transactional Memory Library (x32)
  transaction support for accesses to the memory of a process, enabling
  easy-to-use synchronization of accesses to shared memory by several threads.
 
+ifenabled(`libdbg',`
 Package: libx32itm`'ITM_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
@@ -1294,6 +1337,7 @@ Description: GNU Transactional Memory Library (x32 debug symbols)
  This manual documents the usage and internals of libitm. It provides
  transaction support for accesses to the memory of a process, enabling
  easy-to-use synchronization of accesses to shared memory by several threads.
+')`'dnl libdbg
 ')`'dnl libx32itm
 
 ifenabled(`libhfitm',`
@@ -1310,6 +1354,7 @@ Description: GNU Transactional Memory Library (hard float ABI)
  accesses to the memory of a process, enabling easy-to-use synchronization of
  accesses to shared memory by several threads.
 
+ifenabled(`libdbg',`
 Package: libhfitm`'ITM_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
@@ -1322,6 +1367,7 @@ Description: GNU Transactional Memory Library (hard float ABI debug symbols)
  GNU Transactional Memory Library (libitm) provides transaction support for
  accesses to the memory of a process, enabling easy-to-use synchronization of
  accesses to shared memory by several threads.
+')`'dnl libdbg
 ')`'dnl libhfitm
 
 ifenabled(`libsfitm',`
@@ -1337,6 +1383,7 @@ Description: GNU Transactional Memory Library (soft float ABI)
  accesses to the memory of a process, enabling easy-to-use synchronization of
  accesses to shared memory by several threads.
 
+ifenabled(`libdbg',`
 Package: libsfitm`'ITM_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
@@ -1348,6 +1395,7 @@ Description: GNU Transactional Memory Library (soft float ABI debug symbols)
  GNU Transactional Memory Library (libitm) provides transaction support for
  accesses to the memory of a process, enabling easy-to-use synchronization of
  accesses to shared memory by several threads.
+')`'dnl libdbg
 ')`'dnl libsfitm
 
 ifenabled(`libneonitm',`
@@ -1385,6 +1433,7 @@ Description: support library providing __atomic built-in functions
  library providing __atomic built-in functions. When an atomic call cannot
  be turned into lock-free instructions, GCC will make calls into this library.
 
+ifenabled(`libdbg',`
 Package: libatomic`'ATOMIC_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
@@ -1399,6 +1448,7 @@ BUILT_USING`'dnl
 Description: support library providing __atomic built-in functions (debug symbols)
  library providing __atomic built-in functions. When an atomic call cannot
  be turned into lock-free instructions, GCC will make calls into this library.
+')`'dnl libdbg
 
 Package: lib32atomic`'ATOMIC_SO`'LS
 TARGET_PACKAGE`'dnl
@@ -1412,6 +1462,7 @@ Description: support library providing __atomic built-in functions (32bit)
  library providing __atomic built-in functions. When an atomic call cannot
  be turned into lock-free instructions, GCC will make calls into this library.
 
+ifenabled(`libdbg',`
 Package: lib32atomic`'ATOMIC_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
@@ -1422,6 +1473,7 @@ BUILT_USING`'dnl
 Description: support library providing __atomic built-in functions (32 bit debug symbols)
  library providing __atomic built-in functions. When an atomic call cannot
  be turned into lock-free instructions, GCC will make calls into this library.
+')`'dnl libdbg
 
 Package: lib64atomic`'ATOMIC_SO`'LS
 TARGET_PACKAGE`'dnl
@@ -1434,6 +1486,7 @@ Description: support library providing __atomic built-in functions (64bit)
  library providing __atomic built-in functions. When an atomic call cannot
  be turned into lock-free instructions, GCC will make calls into this library.
 
+ifenabled(`libdbg',`
 Package: lib64atomic`'ATOMIC_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
@@ -1444,6 +1497,7 @@ BUILT_USING`'dnl
 Description: support library providing __atomic built-in functions (64bit debug symbols)
  library providing __atomic built-in functions. When an atomic call cannot
  be turned into lock-free instructions, GCC will make calls into this library.
+')`'dnl libdbg
 
 Package: libn32atomic`'ATOMIC_SO`'LS
 TARGET_PACKAGE`'dnl
@@ -1456,6 +1510,7 @@ Description: support library providing __atomic built-in functions (n32)
  library providing __atomic built-in functions. When an atomic call cannot
  be turned into lock-free instructions, GCC will make calls into this library.
 
+ifenabled(`libdbg',`
 Package: libn32atomic`'ATOMIC_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
@@ -1466,6 +1521,7 @@ BUILT_USING`'dnl
 Description: support library providing __atomic built-in functions (n32 debug symbols)
  library providing __atomic built-in functions. When an atomic call cannot
  be turned into lock-free instructions, GCC will make calls into this library.
+')`'dnl libdbg
 
 ifenabled(`libx32atomic',`
 Package: libx32atomic`'ATOMIC_SO`'LS
@@ -1479,6 +1535,7 @@ Description: support library providing __atomic built-in functions (x32)
  library providing __atomic built-in functions. When an atomic call cannot
  be turned into lock-free instructions, GCC will make calls into this library.
 
+ifenabled(`libdbg',`
 Package: libx32atomic`'ATOMIC_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
@@ -1489,6 +1546,7 @@ BUILT_USING`'dnl
 Description: support library providing __atomic built-in functions (x32 debug symbols)
  library providing __atomic built-in functions. When an atomic call cannot
  be turned into lock-free instructions, GCC will make calls into this library.
+')`'dnl libdbg
 ')`'dnl libx32atomic
 
 ifenabled(`libhfatomic',`
@@ -1504,6 +1562,7 @@ Description: support library providing __atomic built-in functions (hard float A
  library providing __atomic built-in functions. When an atomic call cannot
  be turned into lock-free instructions, GCC will make calls into this library.
 
+ifenabled(`libdbg',`
 Package: libhfatomic`'ATOMIC_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
@@ -1515,6 +1574,7 @@ BUILT_USING`'dnl
 Description: support library providing __atomic built-in functions (hard float ABI debug symbols)
  library providing __atomic built-in functions. When an atomic call cannot
  be turned into lock-free instructions, GCC will make calls into this library.
+')`'dnl libdbg
 ')`'dnl libhfatomic
 
 ifenabled(`libsfatomic',`
@@ -1529,6 +1589,7 @@ Description: support library providing __atomic built-in functions (soft float A
  library providing __atomic built-in functions. When an atomic call cannot
  be turned into lock-free instructions, GCC will make calls into this library.
 
+ifenabled(`libdbg',`
 Package: libsfatomic`'ATOMIC_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
@@ -1539,6 +1600,7 @@ BUILT_USING`'dnl
 Description: support library providing __atomic built-in functions (soft float ABI debug symbols)
  library providing __atomic built-in functions. When an atomic call cannot
  be turned into lock-free instructions, GCC will make calls into this library.
+')`'dnl libdbg
 ')`'dnl libsfatomic
 
 ifenabled(`libneonatomic',`
@@ -1575,6 +1637,7 @@ Description: AddressSanitizer -- a fast memory error detector
  AddressSanitizer (ASan) is a fast memory error detector.  It finds
  use-after-free and {heap,stack,global}-buffer overflow bugs in C/C++ programs.
 
+ifenabled(`libdbg',`
 Package: libasan`'ASAN_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
@@ -1589,6 +1652,7 @@ BUILT_USING`'dnl
 Description: AddressSanitizer -- a fast memory error detector (debug symbols)
  AddressSanitizer (ASan) is a fast memory error detector.  It finds
  use-after-free and {heap,stack,global}-buffer overflow bugs in C/C++ programs.
+')`'dnl libdbg
 
 Package: lib32asan`'ASAN_SO`'LS
 TARGET_PACKAGE`'dnl
@@ -1602,6 +1666,7 @@ Description: AddressSanitizer -- a fast memory error detector (32bit)
  AddressSanitizer (ASan) is a fast memory error detector.  It finds
  use-after-free and {heap,stack,global}-buffer overflow bugs in C/C++ programs.
 
+ifenabled(`libdbg',`
 Package: lib32asan`'ASAN_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
@@ -1612,6 +1677,7 @@ BUILT_USING`'dnl
 Description: AddressSanitizer -- a fast memory error detector (32 bit debug symbols)
  AddressSanitizer (ASan) is a fast memory error detector.  It finds
  use-after-free and {heap,stack,global}-buffer overflow bugs in C/C++ programs.
+')`'dnl libdbg
 
 Package: lib64asan`'ASAN_SO`'LS
 TARGET_PACKAGE`'dnl
@@ -1624,6 +1690,7 @@ Description: AddressSanitizer -- a fast memory error detector (64bit)
  AddressSanitizer (ASan) is a fast memory error detector.  It finds
  use-after-free and {heap,stack,global}-buffer overflow bugs in C/C++ programs.
 
+ifenabled(`libdbg',`
 Package: lib64asan`'ASAN_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
@@ -1634,6 +1701,7 @@ BUILT_USING`'dnl
 Description: AddressSanitizer -- a fast memory error detector (64bit debug symbols)
  AddressSanitizer (ASan) is a fast memory error detector.  It finds
  use-after-free and {heap,stack,global}-buffer overflow bugs in C/C++ programs.
+')`'dnl libdbg
 
 #Package: libn32asan`'ASAN_SO`'LS
 #Section: ifdef(`TARGET',`devel',`libs')
@@ -1667,6 +1735,7 @@ Description: AddressSanitizer -- a fast memory error detector (x32)
  AddressSanitizer (ASan) is a fast memory error detector.  It finds
  use-after-free and {heap,stack,global}-buffer overflow bugs in C/C++ programs.
 
+ifenabled(`libdbg',`
 Package: libx32asan`'ASAN_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
@@ -1677,6 +1746,7 @@ BUILT_USING`'dnl
 Description: AddressSanitizer -- a fast memory error detector (x32 debug symbols)
  AddressSanitizer (ASan) is a fast memory error detector.  It finds
  use-after-free and {heap,stack,global}-buffer overflow bugs in C/C++ programs.
+')`'dnl libdbg
 ')`'dnl libx32asan
 
 ifenabled(`libhfasan',`
@@ -1692,6 +1762,7 @@ Description: AddressSanitizer -- a fast memory error detector (hard float ABI)
  AddressSanitizer (ASan) is a fast memory error detector.  It finds
  use-after-free and {heap,stack,global}-buffer overflow bugs in C/C++ programs.
 
+ifenabled(`libdbg',`
 Package: libhfasan`'ASAN_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
@@ -1703,6 +1774,7 @@ BUILT_USING`'dnl
 Description: AddressSanitizer -- a fast memory error detector (hard float ABI debug symbols)
  AddressSanitizer (ASan) is a fast memory error detector.  It finds
  use-after-free and {heap,stack,global}-buffer overflow bugs in C/C++ programs.
+')`'dnl libdbg
 ')`'dnl libhfasan
 
 ifenabled(`libsfasan',`
@@ -1717,6 +1789,7 @@ Description: AddressSanitizer -- a fast memory error detector (soft float ABI)
  AddressSanitizer (ASan) is a fast memory error detector.  It finds
  use-after-free and {heap,stack,global}-buffer overflow bugs in C/C++ programs.
 
+ifenabled(`libdbg',`
 Package: libsfasan`'ASAN_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
@@ -1727,6 +1800,7 @@ BUILT_USING`'dnl
 Description: AddressSanitizer -- a fast memory error detector (soft float ABI debug symbols)
  AddressSanitizer (ASan) is a fast memory error detector.  It finds
  use-after-free and {heap,stack,global}-buffer overflow bugs in C/C++ programs.
+')`'dnl libdbg
 ')`'dnl libsfasan
 
 ifenabled(`libneonasan',`
@@ -1761,6 +1835,7 @@ Description: LeakSanitizer -- a memory leak detector (runtime)
  LeakSanitizer (Lsan) is a memory leak detector which is integrated
  into AddressSanitizer.
 
+ifenabled(`libdbg',`
 Package: liblsan`'LSAN_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
@@ -1773,6 +1848,7 @@ BUILT_USING`'dnl
 Description: LeakSanitizer -- a memory leak detector (debug symbols)
  LeakSanitizer (Lsan) is a memory leak detector which is integrated
  into AddressSanitizer.
+')`'dnl libdbg
 
 ifenabled(`lib32lsan',`
 Package: lib32lsan`'LSAN_SO`'LS
@@ -1787,6 +1863,7 @@ Description: LeakSanitizer -- a memory leak detector (32bit)
  LeakSanitizer (Lsan) is a memory leak detector which is integrated
  into AddressSanitizer (empty package).
 
+ifenabled(`libdbg',`
 Package: lib32lsan`'LSAN_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
@@ -1797,6 +1874,7 @@ BUILT_USING`'dnl
 Description: LeakSanitizer -- a memory leak detector (32 bit debug symbols)
  LeakSanitizer (Lsan) is a memory leak detector which is integrated
  into AddressSanitizer (empty package).
+')`'dnl libdbg
 ')`'dnl lib32lsan
 
 ifenabled(`lib64lsan',`
@@ -1810,6 +1888,7 @@ ifenabled(`lib64lsan',`
 # LeakSanitizer (Lsan) is a memory leak detector which is integrated
 # into AddressSanitizer.
 
+ifenabled(`libdbg',`
 #Package: lib64lsan`'LSAN_SO-dbg`'LS
 #Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
 #Section: debug
@@ -1819,6 +1898,7 @@ ifenabled(`lib64lsan',`
 #Description: LeakSanitizer -- a memory leak detector (64bit debug symbols)
 # LeakSanitizer (Lsan) is a memory leak detector which is integrated
 # into AddressSanitizer.
+')`'dnl libdbg
 ')`'dnl lib64lsan
 
 ifenabled(`libn32lsan',`
@@ -1832,6 +1912,7 @@ ifenabled(`libn32lsan',`
 # LeakSanitizer (Lsan) is a memory leak detector which is integrated
 # into AddressSanitizer.
 
+ifenabled(`libdbg',`
 #Package: libn32lsan`'LSAN_SO-dbg`'LS
 #Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
 #Section: debug
@@ -1841,6 +1922,7 @@ ifenabled(`libn32lsan',`
 #Description: LeakSanitizer -- a memory leak detector (n32 debug symbols)
 # LeakSanitizer (Lsan) is a memory leak detector which is integrated
 # into AddressSanitizer.
+')`'dnl libdbg
 ')`'dnl libn32lsan
 
 ifenabled(`libx32lsan',`
@@ -1855,6 +1937,7 @@ Description: LeakSanitizer -- a memory leak detector (x32)
  LeakSanitizer (Lsan) is a memory leak detector which is integrated
  into AddressSanitizer (empty package).
 
+ifenabled(`libdbg',`
 Package: libx32lsan`'LSAN_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
@@ -1865,6 +1948,7 @@ BUILT_USING`'dnl
 Description: LeakSanitizer -- a memory leak detector (x32 debug symbols)
  LeakSanitizer (Lsan) is a memory leak detector which is integrated
  into AddressSanitizer (empty package).
+')`'dnl libdbg
 ')`'dnl libx32lsan
 
 ifenabled(`libhflsan',`
@@ -1880,6 +1964,7 @@ Description: LeakSanitizer -- a memory leak detector (hard float ABI)
  LeakSanitizer (Lsan) is a memory leak detector which is integrated
  into AddressSanitizer.
 
+ifenabled(`libdbg',`
 Package: libhflsan`'LSAN_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
@@ -1891,6 +1976,7 @@ BUILT_USING`'dnl
 Description: LeakSanitizer -- a memory leak detector (hard float ABI debug symbols)
  LeakSanitizer (Lsan) is a memory leak detector which is integrated
  into AddressSanitizer.
+')`'dnl libdbg
 ')`'dnl libhflsan
 
 ifenabled(`libsflsan',`
@@ -1905,6 +1991,7 @@ Description: LeakSanitizer -- a memory leak detector (soft float ABI)
  LeakSanitizer (Lsan) is a memory leak detector which is integrated
  into AddressSanitizer.
 
+ifenabled(`libdbg',`
 Package: libsflsan`'LSAN_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
@@ -1915,6 +2002,7 @@ BUILT_USING`'dnl
 Description: LeakSanitizer -- a memory leak detector (soft float ABI debug symbols)
  LeakSanitizer (Lsan) is a memory leak detector which is integrated
  into AddressSanitizer.
+')`'dnl libdbg
 ')`'dnl libsflsan
 
 ifenabled(`libneonlsan',`
@@ -1951,6 +2039,7 @@ Description: ThreadSanitizer -- a Valgrind-based detector of data races (runtime
  ThreadSanitizer (Tsan) is a data race detector for C/C++ programs. 
  The Linux and Mac versions are based on Valgrind. 
 
+ifenabled(`libdbg',`
 Package: libtsan`'TSAN_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
@@ -1965,6 +2054,7 @@ BUILT_USING`'dnl
 Description: ThreadSanitizer -- a Valgrind-based detector of data races (debug symbols)
  ThreadSanitizer (Tsan) is a data race detector for C/C++ programs. 
  The Linux and Mac versions are based on Valgrind. 
+')`'dnl libdbg
 
 ifenabled(`lib32tsan',`
 Package: lib32tsan`'TSAN_SO`'LS
@@ -1979,6 +2069,7 @@ Description: ThreadSanitizer -- a Valgrind-based detector of data races (32bit)
  ThreadSanitizer (Tsan) is a data race detector for C/C++ programs. 
  The Linux and Mac versions are based on Valgrind. 
 
+ifenabled(`libdbg',`
 Package: lib32tsan`'TSAN_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
@@ -1989,6 +2080,7 @@ BUILT_USING`'dnl
 Description: ThreadSanitizer -- a Valgrind-based detector of data races (32 bit debug symbols)
  ThreadSanitizer (Tsan) is a data race detector for C/C++ programs. 
  The Linux and Mac versions are based on Valgrind. 
+')`'dnl libdbg
 ')`'dnl lib32tsan
 
 ifenabled(`lib64tsan',`
@@ -2003,6 +2095,7 @@ Description: ThreadSanitizer -- a Valgrind-based detector of data races (64bit)
  ThreadSanitizer (Tsan) is a data race detector for C/C++ programs. 
  The Linux and Mac versions are based on Valgrind. 
 
+ifenabled(`libdbg',`
 Package: lib64tsan`'TSAN_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
@@ -2013,6 +2106,7 @@ BUILT_USING`'dnl
 Description: ThreadSanitizer -- a Valgrind-based detector of data races (64bit debug symbols)
  ThreadSanitizer (Tsan) is a data race detector for C/C++ programs. 
  The Linux and Mac versions are based on Valgrind. 
+')`'dnl libdbg
 ')`'dnl lib64tsan
 
 ifenabled(`libn32tsan',`
@@ -2027,6 +2121,7 @@ Description: ThreadSanitizer -- a Valgrind-based detector of data races (n32)
  ThreadSanitizer (Tsan) is a data race detector for C/C++ programs. 
  The Linux and Mac versions are based on Valgrind. 
 
+ifenabled(`libdbg',`
 Package: libn32tsan`'TSAN_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
@@ -2037,6 +2132,7 @@ BUILT_USING`'dnl
 Description: ThreadSanitizer -- a Valgrind-based detector of data races (n32 debug symbols)
  ThreadSanitizer (Tsan) is a data race detector for C/C++ programs. 
  The Linux and Mac versions are based on Valgrind. 
+')`'dnl libdbg
 ')`'dnl libn32tsan
 
 ifenabled(`libx32tsan',`
@@ -2051,6 +2147,7 @@ Description: ThreadSanitizer -- a Valgrind-based detector of data races (x32)
  ThreadSanitizer (Tsan) is a data race detector for C/C++ programs. 
  The Linux and Mac versions are based on Valgrind. 
 
+ifenabled(`libdbg',`
 Package: libx32tsan`'TSAN_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
@@ -2061,6 +2158,7 @@ BUILT_USING`'dnl
 Description: ThreadSanitizer -- a Valgrind-based detector of data races (x32 debug symbols)
  ThreadSanitizer (Tsan) is a data race detector for C/C++ programs. 
  The Linux and Mac versions are based on Valgrind. 
+')`'dnl libdbg
 ')`'dnl libx32tsan
 
 ifenabled(`libhftsan',`
@@ -2076,6 +2174,7 @@ Description: ThreadSanitizer -- a Valgrind-based detector of data races (hard fl
  ThreadSanitizer (Tsan) is a data race detector for C/C++ programs. 
  The Linux and Mac versions are based on Valgrind. 
 
+ifenabled(`libdbg',`
 Package: libhftsan`'TSAN_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
@@ -2085,6 +2184,7 @@ Depends: BASELDEP, libdep(tsan`'TSAN_SO,hf,=), ${misc:Depends}
 ifdef(`TARGET',`dnl',`Conflicts: libtsan'TSAN_SO`-armel [biarchsf_archs]')
 BUILT_USING`'dnl
 Description: ThreadSanitizer -- a Valgrind-based detector of data races (hard float ABI debug symbols)
+')`'dnl libdbg
 ')`'dnl libhftsan
 
 ifenabled(`libsftsan',`
@@ -2099,6 +2199,7 @@ Description: ThreadSanitizer -- a Valgrind-based detector of data races (soft fl
  ThreadSanitizer (Tsan) is a data race detector for C/C++ programs. 
  The Linux and Mac versions are based on Valgrind. 
 
+ifenabled(`libdbg',`
 Package: libsftsan`'TSAN_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
@@ -2109,6 +2210,7 @@ BUILT_USING`'dnl
 Description: ThreadSanitizer -- a Valgrind-based detector of data races (soft float ABI debug symbols)
  ThreadSanitizer (Tsan) is a data race detector for C/C++ programs. 
  The Linux and Mac versions are based on Valgrind. 
+')`'dnl libdbg
 ')`'dnl libsftsan
 
 ifenabled(`libneontsan',`
@@ -2146,6 +2248,7 @@ Description: UBSan -- undefined behaviour sanitizer (runtime)
  Various computations will be instrumented to detect undefined behavior
  at runtime. Available for C and C++.
 
+ifenabled(`libdbg',`
 Package: libubsan`'UBSAN_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
@@ -2161,6 +2264,7 @@ Description: UBSan -- undefined behaviour sanitizer (debug symbols)
  UndefinedBehaviorSanitizer can be enabled via -fsanitize=undefined.
  Various computations will be instrumented to detect undefined behavior
  at runtime. Available for C and C++.
+')`'dnl libdbg
 
 ifenabled(`lib32ubsan',`
 Package: lib32ubsan`'UBSAN_SO`'LS
@@ -2176,6 +2280,7 @@ Description: UBSan -- undefined behaviour sanitizer (32bit)
  Various computations will be instrumented to detect undefined behavior
  at runtime. Available for C and C++.
 
+ifenabled(`libdbg',`
 Package: lib32ubsan`'UBSAN_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
@@ -2187,6 +2292,7 @@ Description: UBSan -- undefined behaviour sanitizer (32 bit debug symbols)
  UndefinedBehaviorSanitizer can be enabled via -fsanitize=undefined.
  Various computations will be instrumented to detect undefined behavior
  at runtime. Available for C and C++.
+')`'dnl libdbg
 ')`'dnl lib32ubsan
 
 ifenabled(`lib64ubsan',`
@@ -2202,6 +2308,7 @@ Description: UBSan -- undefined behaviour sanitizer (64bit)
  Various computations will be instrumented to detect undefined behavior
  at runtime. Available for C and C++.
 
+ifenabled(`libdbg',`
 Package: lib64ubsan`'UBSAN_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
@@ -2213,6 +2320,7 @@ Description: UBSan -- undefined behaviour sanitizer (64bit debug symbols)
  UndefinedBehaviorSanitizer can be enabled via -fsanitize=undefined.
  Various computations will be instrumented to detect undefined behavior
  at runtime. Available for C and C++.
+')`'dnl libdbg
 ')`'dnl lib64ubsan
 
 ifenabled(`libn32ubsan',`
@@ -2227,6 +2335,7 @@ ifenabled(`libn32ubsan',`
 # Various computations will be instrumented to detect undefined behavior
 # at runtime. Available for C and C++.
 
+ifenabled(`libdbg',`
 #Package: libn32ubsan`'UBSAN_SO-dbg`'LS
 #Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
 #Section: debug
@@ -2237,6 +2346,7 @@ ifenabled(`libn32ubsan',`
 # UndefinedBehaviorSanitizer can be enabled via -fsanitize=undefined.
 # Various computations will be instrumented to detect undefined behavior
 # at runtime. Available for C and C++.
+')`'dnl libdbg
 ')`'dnl libn32ubsan
 
 ifenabled(`libx32ubsan',`
@@ -2252,6 +2362,7 @@ Description: UBSan -- undefined behaviour sanitizer (x32)
  Various computations will be instrumented to detect undefined behavior
  at runtime. Available for C and C++.
 
+ifenabled(`libdbg',`
 Package: libx32ubsan`'UBSAN_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
@@ -2263,6 +2374,7 @@ Description: UBSan -- undefined behaviour sanitizer (x32 debug symbols)
  UndefinedBehaviorSanitizer can be enabled via -fsanitize=undefined.
  Various computations will be instrumented to detect undefined behavior
  at runtime. Available for C and C++.
+')`'dnl libdbg
 ')`'dnl libx32ubsan
 
 ifenabled(`libhfubsan',`
@@ -2279,6 +2391,7 @@ Description: UBSan -- undefined behaviour sanitizer (hard float ABI)
  Various computations will be instrumented to detect undefined behavior
  at runtime. Available for C and C++.
 
+ifenabled(`libdbg',`
 Package: libhfubsan`'UBSAN_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
@@ -2291,6 +2404,7 @@ Description: UBSan -- undefined behaviour sanitizer (hard float ABI debug symbol
  UndefinedBehaviorSanitizer can be enabled via -fsanitize=undefined.
  Various computations will be instrumented to detect undefined behavior
  at runtime. Available for C and C++.
+')`'dnl libdbg
 ')`'dnl libhfubsan
 
 ifenabled(`libsfubsan',`
@@ -2306,6 +2420,7 @@ Description: UBSan -- undefined behaviour sanitizer (soft float ABI)
  Various computations will be instrumented to detect undefined behavior
  at runtime. Available for C and C++.
 
+ifenabled(`libdbg',`
 Package: libsfubsan`'UBSAN_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
@@ -2317,6 +2432,7 @@ Description: UBSan -- undefined behaviour sanitizer (soft float ABI debug symbol
  UndefinedBehaviorSanitizer can be enabled via -fsanitize=undefined.
  Various computations will be instrumented to detect undefined behavior
  at runtime. Available for C and C++.
+')`'dnl libdbg
 ')`'dnl libsfubsan
 
 ifenabled(`libneonubsan',`
@@ -2354,6 +2470,7 @@ Description: GNU vtable verification library (runtime)
  vtable pointer that is about to be used for a virtual function call is
  not a valid vtable pointer for that call.
 
+ifenabled(`libdbg',`
 Package: libvtv`'VTV_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
@@ -2368,6 +2485,7 @@ Description: GNU vtable verification library (debug symbols)
  is designed to detect and handle (during program execution) when a
  vtable pointer that is about to be used for a virtual function call is
  not a valid vtable pointer for that call.
+')`'dnl libdbg
 
 ifenabled(`lib32vtv',`
 Package: lib32vtv`'VTV_SO`'LS
@@ -2384,6 +2502,7 @@ Description: GNU vtable verification library (32bit)
  vtable pointer that is about to be used for a virtual function call is
  not a valid vtable pointer for that call.
 
+ifenabled(`libdbg',`
 Package: lib32vtv`'VTV_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
@@ -2396,6 +2515,7 @@ Description: GNU vtable verification library (32 bit debug symbols)
  is designed to detect and handle (during program execution) when a
  vtable pointer that is about to be used for a virtual function call is
  not a valid vtable pointer for that call.
+')`'dnl libdbg
 ')`'dnl lib32vtv
 
 ifenabled(`lib64vtv',`
@@ -2412,6 +2532,7 @@ Description: GNU vtable verification library (64bit)
  vtable pointer that is about to be used for a virtual function call is
  not a valid vtable pointer for that call.
 
+ifenabled(`libdbg',`
 Package: lib64vtv`'VTV_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
@@ -2424,6 +2545,7 @@ Description: GNU vtable verification library (64bit debug symbols)
  is designed to detect and handle (during program execution) when a
  vtable pointer that is about to be used for a virtual function call is
  not a valid vtable pointer for that call.
+')`'dnl libdbg
 ')`'dnl lib64vtv
 
 ifenabled(`libn32vtv',`
@@ -2440,6 +2562,7 @@ Description: GNU vtable verification library (n32)
  vtable pointer that is about to be used for a virtual function call is
  not a valid vtable pointer for that call.
 
+ifenabled(`libdbg',`
 Package: libn32vtv`'VTV_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
@@ -2452,6 +2575,7 @@ Description: GNU vtable verification library (n32 debug symbols)
  is designed to detect and handle (during program execution) when a
  vtable pointer that is about to be used for a virtual function call is
  not a valid vtable pointer for that call.
+')`'dnl libdbg
 ')`'dnl libn32vtv
 
 ifenabled(`libx32vtv',`
@@ -2468,6 +2592,7 @@ Description: GNU vtable verification library (x32)
  vtable pointer that is about to be used for a virtual function call is
  not a valid vtable pointer for that call.
 
+ifenabled(`libdbg',`
 Package: libx32vtv`'VTV_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
@@ -2480,6 +2605,7 @@ Description: GNU vtable verification library (x32 debug symbols)
  is designed to detect and handle (during program execution) when a
  vtable pointer that is about to be used for a virtual function call is
  not a valid vtable pointer for that call.
+')`'dnl libdbg
 ')`'dnl libx32vtv
 
 ifenabled(`libhfvtv',`
@@ -2497,6 +2623,7 @@ Description: GNU vtable verification library (hard float ABI)
  vtable pointer that is about to be used for a virtual function call is
  not a valid vtable pointer for that call.
 
+ifenabled(`libdbg',`
 Package: libhfvtv`'VTV_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
@@ -2510,6 +2637,7 @@ Description: GNU vtable verification library (hard float ABI debug symbols)
  is designed to detect and handle (during program execution) when a
  vtable pointer that is about to be used for a virtual function call is
  not a valid vtable pointer for that call.
+')`'dnl libdbg
 ')`'dnl libhfvtv
 
 ifenabled(`libsfvtv',`
@@ -2526,6 +2654,7 @@ Description: GNU vtable verification library (soft float ABI)
  vtable pointer that is about to be used for a virtual function call is
  not a valid vtable pointer for that call.
 
+ifenabled(`libdbg',`
 Package: libsfvtv`'VTV_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
@@ -2538,6 +2667,7 @@ Description: GNU vtable verification library (soft float ABI debug symbols)
  is designed to detect and handle (during program execution) when a
  vtable pointer that is about to be used for a virtual function call is
  not a valid vtable pointer for that call.
+')`'dnl libdbg
 ')`'dnl libsfvtv
 
 ifenabled(`libneonvtv',`
@@ -2576,6 +2706,7 @@ Description: stack backtrace library
  libbacktrace uses the GCC unwind interface to collect a stack trace,
  and parses DWARF debug info to get file/line/function information.
 
+ifenabled(`libdbg',`
 Package: libbacktrace`'BTRACE_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
@@ -2590,6 +2721,7 @@ BUILT_USING`'dnl
 Description: stack backtrace library (debug symbols)
  libbacktrace uses the GCC unwind interface to collect a stack trace,
  and parses DWARF debug info to get file/line/function information.
+')`'dnl libdbg
 
 Package: lib32backtrace`'BTRACE_SO`'LS
 TARGET_PACKAGE`'dnl
@@ -2603,6 +2735,7 @@ Description: stack backtrace library (32bit)
  libbacktrace uses the GCC unwind interface to collect a stack trace,
  and parses DWARF debug info to get file/line/function information.
 
+ifenabled(`libdbg',`
 Package: lib32backtrace`'BTRACE_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
@@ -2613,6 +2746,7 @@ BUILT_USING`'dnl
 Description: stack backtrace library (32 bit debug symbols)
  libbacktrace uses the GCC unwind interface to collect a stack trace,
  and parses DWARF debug info to get file/line/function information.
+')`'dnl libdbg
 
 Package: lib64backtrace`'BTRACE_SO`'LS
 TARGET_PACKAGE`'dnl
@@ -2625,6 +2759,7 @@ Description: stack backtrace library (64bit)
  libbacktrace uses the GCC unwind interface to collect a stack trace,
  and parses DWARF debug info to get file/line/function information.
 
+ifenabled(`libdbg',`
 Package: lib64backtrace`'BTRACE_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
@@ -2635,6 +2770,7 @@ BUILT_USING`'dnl
 Description: stack backtrace library (64bit debug symbols)
  libbacktrace uses the GCC unwind interface to collect a stack trace,
  and parses DWARF debug info to get file/line/function information.
+')`'dnl libdbg
 
 Package: libn32backtrace`'BTRACE_SO`'LS
 TARGET_PACKAGE`'dnl
@@ -2647,6 +2783,7 @@ Description: stack backtrace library (n32)
  libbacktrace uses the GCC unwind interface to collect a stack trace,
  and parses DWARF debug info to get file/line/function information.
 
+ifenabled(`libdbg',`
 Package: libn32backtrace`'BTRACE_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
@@ -2657,6 +2794,7 @@ BUILT_USING`'dnl
 Description: stack backtrace library (n32 debug symbols)
  libbacktrace uses the GCC unwind interface to collect a stack trace,
  and parses DWARF debug info to get file/line/function information.
+')`'dnl libdbg
 
 ifenabled(`libx32backtrace',`
 Package: libx32backtrace`'BTRACE_SO`'LS
@@ -2670,6 +2808,7 @@ Description: stack backtrace library (x32)
  libbacktrace uses the GCC unwind interface to collect a stack trace,
  and parses DWARF debug info to get file/line/function information.
 
+ifenabled(`libdbg',`
 Package: libx32backtrace`'BTRACE_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
@@ -2680,6 +2819,7 @@ BUILT_USING`'dnl
 Description: stack backtrace library (x32 debug symbols)
  libbacktrace uses the GCC unwind interface to collect a stack trace,
  and parses DWARF debug info to get file/line/function information.
+')`'dnl libdbg
 ')`'dnl libx32backtrace
 
 ifenabled(`libhfbacktrace',`
@@ -2695,6 +2835,7 @@ Description: stack backtrace library (hard float ABI)
  libbacktrace uses the GCC unwind interface to collect a stack trace,
  and parses DWARF debug info to get file/line/function information.
 
+ifenabled(`libdbg',`
 Package: libhfbacktrace`'BTRACE_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
@@ -2706,6 +2847,7 @@ BUILT_USING`'dnl
 Description: stack backtrace library (hard float ABI debug symbols)
  libbacktrace uses the GCC unwind interface to collect a stack trace,
  and parses DWARF debug info to get file/line/function information.
+')`'dnl libdbg
 ')`'dnl libhfbacktrace
 
 ifenabled(`libsfbacktrace',`
@@ -2720,6 +2862,7 @@ Description: stack backtrace library (soft float ABI)
  libbacktrace uses the GCC unwind interface to collect a stack trace,
  and parses DWARF debug info to get file/line/function information.
 
+ifenabled(`libdbg',`
 Package: libsfbacktrace`'BTRACE_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
@@ -2730,6 +2873,7 @@ BUILT_USING`'dnl
 Description: stack backtrace library (soft float ABI debug symbols)
  libbacktrace uses the GCC unwind interface to collect a stack trace,
  and parses DWARF debug info to get file/line/function information.
+')`'dnl libdbg
 ')`'dnl libsfbacktrace
 
 ifenabled(`libneonbacktrace',`
@@ -2766,6 +2910,7 @@ Description: GCC Quad-Precision Math Library
  supporting the __float128 datatype. The library is used to provide on such
  targets the REAL(16) type in the GNU Fortran compiler.
 
+ifenabled(`libdbg',`
 Package: libquadmath`'QMATH_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
@@ -2778,6 +2923,7 @@ BUILT_USING`'dnl
 Description: GCC Quad-Precision Math Library (debug symbols)
  A library, which provides quad-precision mathematical functions on targets
  supporting the __float128 datatype.
+')`'dnl libdbg
 
 Package: lib32quadmath`'QMATH_SO`'LS
 TARGET_PACKAGE`'dnl
@@ -2792,6 +2938,7 @@ Description: GCC Quad-Precision Math Library (32bit)
  supporting the __float128 datatype. The library is used to provide on such
  targets the REAL(16) type in the GNU Fortran compiler.
 
+ifenabled(`libdbg',`
 Package: lib32quadmath`'QMATH_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
@@ -2802,6 +2949,7 @@ BUILT_USING`'dnl
 Description: GCC Quad-Precision Math Library (32 bit debug symbols)
  A library, which provides quad-precision mathematical functions on targets
  supporting the __float128 datatype.
+')`'dnl libdbg
 
 Package: lib64quadmath`'QMATH_SO`'LS
 TARGET_PACKAGE`'dnl
@@ -2815,6 +2963,7 @@ Description: GCC Quad-Precision Math Library  (64bit)
  supporting the __float128 datatype. The library is used to provide on such
  targets the REAL(16) type in the GNU Fortran compiler.
 
+ifenabled(`libdbg',`
 Package: lib64quadmath`'QMATH_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
@@ -2825,6 +2974,7 @@ BUILT_USING`'dnl
 Description: GCC Quad-Precision Math Library  (64bit debug symbols)
  A library, which provides quad-precision mathematical functions on targets
  supporting the __float128 datatype.
+')`'dnl libdbg
 
 #Package: libn32quadmath`'QMATH_SO`'LS
 #Section: ifdef(`TARGET',`devel',`libs')
@@ -2837,6 +2987,7 @@ Description: GCC Quad-Precision Math Library  (64bit debug symbols)
 # supporting the __float128 datatype. The library is used to provide on such
 # targets the REAL(16) type in the GNU Fortran compiler.
 
+ifenabled(`libdbg',`
 #Package: libn32quadmath`'QMATH_SO-dbg`'LS
 #Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
 #Section: debug
@@ -2846,6 +2997,7 @@ Description: GCC Quad-Precision Math Library  (64bit debug symbols)
 #Description: GCC Quad-Precision Math Library (n32 debug symbols)
 # A library, which provides quad-precision mathematical functions on targets
 # supporting the __float128 datatype.
+')`'dnl libdbg
 
 ifenabled(`libx32qmath',`
 Package: libx32quadmath`'QMATH_SO`'LS
@@ -2860,6 +3012,7 @@ Description: GCC Quad-Precision Math Library (x32)
  supporting the __float128 datatype. The library is used to provide on such
  targets the REAL(16) type in the GNU Fortran compiler.
 
+ifenabled(`libdbg',`
 Package: libx32quadmath`'QMATH_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
@@ -2870,6 +3023,7 @@ BUILT_USING`'dnl
 Description: GCC Quad-Precision Math Library (x32 debug symbols)
  A library, which provides quad-precision mathematical functions on targets
  supporting the __float128 datatype.
+')`'dnl libdbg
 ')`'dnl libx32qmath
 
 ifenabled(`libhfqmath',`
@@ -2885,6 +3039,7 @@ Description: GCC Quad-Precision Math Library (hard float ABI)
  supporting the __float128 datatype. The library is used to provide on such
  targets the REAL(16) type in the GNU Fortran compiler.
 
+ifenabled(`libdbg',`
 Package: libhfquadmath`'QMATH_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
@@ -2895,6 +3050,7 @@ BUILT_USING`'dnl
 Description: GCC Quad-Precision Math Library (hard float ABI debug symbols)
  A library, which provides quad-precision mathematical functions on targets
  supporting the __float128 datatype.
+')`'dnl libdbg
 ')`'dnl libhfqmath
 
 ifenabled(`libsfqmath',`
@@ -2910,6 +3066,7 @@ Description: GCC Quad-Precision Math Library (soft float ABI)
  supporting the __float128 datatype. The library is used to provide on such
  targets the REAL(16) type in the GNU Fortran compiler.
 
+ifenabled(`libdbg',`
 Package: libsfquadmath`'QMATH_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
@@ -2920,6 +3077,7 @@ BUILT_USING`'dnl
 Description: GCC Quad-Precision Math Library (hard float ABI debug symbols)
  A library, which provides quad-precision mathematical functions on targets
  supporting the __float128 datatype.
+')`'dnl libdbg
 ')`'dnl libsfqmath
 ')`'dnl libqmath
 
@@ -2952,6 +3110,7 @@ Description: GCC just-in-time compilation (shared library)
  libgccjit provides an embeddable shared library with an API for adding
  compilation to existing programs using GCC.
 
+ifenabled(`libdbg',`
 Package: libgccjit`'GCCJIT_SO-dbg
 Section: debug
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
@@ -2965,6 +3124,7 @@ BUILT_USING`'dnl
 Description: GCC just-in-time compilation (debug information)
  libgccjit provides an embeddable shared library with an API for adding
  compilation to existing programs using GCC.
+')`'dnl libdbg
 ')`'dnl libjit
 
 ifenabled(`jit',`
@@ -3037,7 +3197,7 @@ ifdef(`TARGET',`Multi-Arch: foreign
 ')dnl
 Priority: optional
 Depends: BASEDEP, gcc`'PV`'TS (= ${gcc:Version}), ${dep:libcdev}, ${shlibs:Depends}, libidevdep(objc`'PV-dev,,=), ${misc:Depends}
-Suggests: ${gobjc:multilib}, gcc`'PV-doc (>= ${gcc:SoftVersion}), libdbgdep(objc`'OBJC_SO-dbg,)
+Suggests: ${gobjc:multilib}, gcc`'PV-doc (>= ${gcc:SoftVersion}), libdbgdep(objc`'OBJC_SO-dbg),
 Provides: objc-compiler`'TS
 ifdef(`__sparc__',`Conflicts: gcc`'PV-sparc64', `dnl')
 BUILT_USING`'dnl
@@ -3166,6 +3326,7 @@ BUILT_USING`'dnl
 Description: Runtime library for GNU Objective-C applications
  Library needed for GNU ObjC applications linked against the shared library.
 
+ifenabled(`libdbg',`
 Package: libobjc`'OBJC_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -3179,6 +3340,7 @@ Depends: BASELDEP, libdep(objc`'OBJC_SO,,=), libdbgdep(gcc`'GCC_SO-dbg,,>=,${lib
 BUILT_USING`'dnl
 Description: Runtime library for GNU Objective-C applications (debug symbols)
  Library needed for GNU ObjC applications linked against the shared library.
+')`'dnl libdbg
 ')`'dnl libobjc
 
 ifenabled(`lib64objc',`
@@ -3192,6 +3354,7 @@ BUILT_USING`'dnl
 Description: Runtime library for GNU Objective-C applications (64bit)
  Library needed for GNU ObjC applications linked against the shared library.
 
+ifenabled(`libdbg',`
 Package: lib64objc`'OBJC_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -3201,6 +3364,7 @@ Depends: BASELDEP, libdep(objc`'OBJC_SO,64,=), libdbgdep(gcc`'GCC_SO-dbg,64,>=,$
 BUILT_USING`'dnl
 Description: Runtime library for GNU Objective-C applications (64 bit debug symbols)
  Library needed for GNU ObjC applications linked against the shared library.
+')`'dnl libdbg
 ')`'dnl lib64objc
 
 ifenabled(`lib32objc',`
@@ -3215,6 +3379,7 @@ BUILT_USING`'dnl
 Description: Runtime library for GNU Objective-C applications (32bit)
  Library needed for GNU ObjC applications linked against the shared library.
 
+ifenabled(`libdbg',`
 Package: lib32objc`'OBJC_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -3224,6 +3389,7 @@ Depends: BASELDEP, libdep(objc`'OBJC_SO,32,=), libdbgdep(gcc`'GCC_SO-dbg,32,>=,$
 BUILT_USING`'dnl
 Description: Runtime library for GNU Objective-C applications (32 bit debug symbols)
  Library needed for GNU ObjC applications linked against the shared library.
+')`'dnl libdbg
 ')`'dnl lib32objc
 
 ifenabled(`libn32objc',`
@@ -3237,6 +3403,7 @@ BUILT_USING`'dnl
 Description: Runtime library for GNU Objective-C applications (n32)
  Library needed for GNU ObjC applications linked against the shared library.
 
+ifenabled(`libdbg',`
 Package: libn32objc`'OBJC_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -3246,6 +3413,7 @@ Depends: BASELDEP, libdep(objc`'OBJC_SO,n32,=), libdbgdep(gcc`'GCC_SO-dbg,n32,>=
 BUILT_USING`'dnl
 Description: Runtime library for GNU Objective-C applications (n32 debug symbols)
  Library needed for GNU ObjC applications linked against the shared library.
+')`'dnl libdbg
 ')`'dnl libn32objc
 
 ifenabled(`libx32objc',`
@@ -3259,6 +3427,7 @@ BUILT_USING`'dnl
 Description: Runtime library for GNU Objective-C applications (x32)
  Library needed for GNU ObjC applications linked against the shared library.
 
+ifenabled(`libdbg',`
 Package: libx32objc`'OBJC_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -3268,6 +3437,7 @@ Depends: BASELDEP, libdep(objc`'OBJC_SO,x32,=), libdbgdep(gcc`'GCC_SO-dbg,x32,>=
 BUILT_USING`'dnl
 Description: Runtime library for GNU Objective-C applications (x32 debug symbols)
  Library needed for GNU ObjC applications linked against the shared library.
+')`'dnl libdbg
 ')`'dnl libx32objc
 
 ifenabled(`libhfobjc',`
@@ -3282,6 +3452,7 @@ BUILT_USING`'dnl
 Description: Runtime library for GNU Objective-C applications (hard float ABI)
  Library needed for GNU ObjC applications linked against the shared library.
 
+ifenabled(`libdbg',`
 Package: libhfobjc`'OBJC_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -3292,6 +3463,7 @@ ifdef(`TARGET',`dnl',`Conflicts: libobjc'OBJC_SO`-dbg-armhf [biarchhf_archs]')
 BUILT_USING`'dnl
 Description: Runtime library for GNU Objective-C applications (hard float ABI debug symbols)
  Library needed for GNU ObjC applications linked against the shared library.
+')`'dnl libdbg
 ')`'dnl libhfobjc
 
 ifenabled(`libsfobjc',`
@@ -3306,6 +3478,7 @@ BUILT_USING`'dnl
 Description: Runtime library for GNU Objective-C applications (soft float ABI)
  Library needed for GNU ObjC applications linked against the shared library.
 
+ifenabled(`libdbg',`
 Package: libsfobjc`'OBJC_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -3316,6 +3489,7 @@ ifdef(`TARGET',`dnl',`Conflicts: libobjc'OBJC_SO`-dbg-armel [biarchsf_archs]')
 BUILT_USING`'dnl
 Description: Runtime library for GNU Objective-C applications (soft float ABI debug symbols)
  Library needed for GNU ObjC applications linked against the shared library.
+')`'dnl libdbg
 ')`'dnl libsfobjc
 
 ifenabled(`libneonobjc',`
@@ -3345,7 +3519,7 @@ Depends: BASEDEP, gcc`'PV`'TS (= ${gcc:Version}), libidevdep(gfortran`'PV-dev,,=
 ifdef(`TARGET',`',`Provides: fortran95-compiler, ${fortran:mod-version}
 ')dnl
 Suggests: ${gfortran:multilib}, gfortran`'PV-doc,
- libdbgdep(gfortran`'FORTRAN_SO-dbg,),
+ libdbgdep(gfortran`'FORTRAN_SO-dbg),
  libcoarrays-dev
 BUILT_USING`'dnl
 Description: GNU Fortran compiler
@@ -3484,6 +3658,7 @@ Description: Runtime library for GNU Fortran applications
  Library needed for GNU Fortran applications linked against the
  shared library.
 
+ifenabled(`libdbg',`
 Package: libgfortran`'FORTRAN_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -3498,6 +3673,7 @@ BUILT_USING`'dnl
 Description: Runtime library for GNU Fortran applications (debug symbols)
  Library needed for GNU Fortran applications linked against the
  shared library.
+')`'dnl libdbg
 ')`'dnl libgfortran
 
 ifenabled(`lib64gfortran',`
@@ -3512,6 +3688,7 @@ Description: Runtime library for GNU Fortran applications (64bit)
  Library needed for GNU Fortran applications linked against the
  shared library.
 
+ifenabled(`libdbg',`
 Package: lib64gfortran`'FORTRAN_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -3522,6 +3699,7 @@ BUILT_USING`'dnl
 Description: Runtime library for GNU Fortran applications (64bit debug symbols)
  Library needed for GNU Fortran applications linked against the
  shared library.
+')`'dnl libdbg
 ')`'dnl lib64gfortran
 
 ifenabled(`lib32gfortran',`
@@ -3537,6 +3715,7 @@ Description: Runtime library for GNU Fortran applications (32bit)
  Library needed for GNU Fortran applications linked against the
  shared library.
 
+ifenabled(`libdbg',`
 Package: lib32gfortran`'FORTRAN_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -3547,6 +3726,7 @@ BUILT_USING`'dnl
 Description: Runtime library for GNU Fortran applications (32 bit debug symbols)
  Library needed for GNU Fortran applications linked against the
  shared library.
+')`'dnl libdbg
 ')`'dnl lib32gfortran
 
 ifenabled(`libn32gfortran',`
@@ -3561,6 +3741,7 @@ Description: Runtime library for GNU Fortran applications (n32)
  Library needed for GNU Fortran applications linked against the
  shared library.
 
+ifenabled(`libdbg',`
 Package: libn32gfortran`'FORTRAN_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -3571,6 +3752,7 @@ BUILT_USING`'dnl
 Description: Runtime library for GNU Fortran applications (n32 debug symbols)
  Library needed for GNU Fortran applications linked against the
  shared library.
+')`'dnl libdbg
 ')`'dnl libn32gfortran
 
 ifenabled(`libx32gfortran',`
@@ -3585,6 +3767,7 @@ Description: Runtime library for GNU Fortran applications (x32)
  Library needed for GNU Fortran applications linked against the
  shared library.
 
+ifenabled(`libdbg',`
 Package: libx32gfortran`'FORTRAN_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -3595,6 +3778,7 @@ BUILT_USING`'dnl
 Description: Runtime library for GNU Fortran applications (x32 debug symbols)
  Library needed for GNU Fortran applications linked against the
  shared library.
+')`'dnl libdbg
 ')`'dnl libx32gfortran
 
 ifenabled(`libhfgfortran',`
@@ -3610,6 +3794,7 @@ Description: Runtime library for GNU Fortran applications (hard float ABI)
  Library needed for GNU Fortran applications linked against the
  shared library.
 
+ifenabled(`libdbg',`
 Package: libhfgfortran`'FORTRAN_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -3621,6 +3806,7 @@ BUILT_USING`'dnl
 Description: Runtime library for GNU Fortran applications (hard float ABI debug symbols)
  Library needed for GNU Fortran applications linked against the
  shared library.
+')`'dnl libdbg
 ')`'dnl libhfgfortran
 
 ifenabled(`libsfgfortran',`
@@ -3636,6 +3822,7 @@ Description: Runtime library for GNU Fortran applications (soft float ABI)
  Library needed for GNU Fortran applications linked against the
  shared library.
 
+ifenabled(`libdbg',`
 Package: libsfgfortran`'FORTRAN_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -3647,6 +3834,7 @@ BUILT_USING`'dnl
 Description: Runtime library for GNU Fortran applications (hard float ABI debug symbols)
  Library needed for GNU Fortran applications linked against the
  shared library.
+')`'dnl libdbg
 ')`'dnl libsfgfortran
 
 ifenabled(`libneongfortran',`
@@ -3680,7 +3868,7 @@ Priority: optional
 Depends: BASEDEP, ifdef(`STANDALONEGO',`${dep:libcc1}, ',`gcc`'PV`'TS (= ${gcc:Version}), ')libidevdep(go`'PV-dev,,>=), ${dep:libcdev}, ${shlibs:Depends}, ${misc:Depends}
 ifdef(`TARGET',`',`Provides: go-compiler
 ')dnl
-Suggests: ${go:multilib}, gccgo`'PV-doc, libdbgdep(go`'GO_SO-dbg,)
+Suggests: ${go:multilib}, gccgo`'PV-doc, libdbgdep(go`'GO_SO-dbg),
 Conflicts: ${golang:Conflicts}
 BUILT_USING`'dnl
 Description: GNU Go compiler
@@ -3834,6 +4022,7 @@ Description: Runtime library for GNU Go applications
  Library needed for GNU Go applications linked against the
  shared library.
 
+ifenabled(`libdbg',`
 Package: libgo`'GO_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -3849,6 +4038,7 @@ Description: Runtime library for GNU Go applications (debug symbols)
  Library needed for GNU Go applications linked against the
  shared library. This currently is an empty package, because the
  library is completely unstripped.
+')`'dnl libdbg
 ')`'dnl libgo
 
 ifenabled(`lib64ggo',`
@@ -3864,6 +4054,7 @@ Description: Runtime library for GNU Go applications (64bit)
  Library needed for GNU Go applications linked against the
  shared library.
 
+ifenabled(`libdbg',`
 Package: lib64go`'GO_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -3875,6 +4066,7 @@ Description: Runtime library for GNU Go applications (64bit debug symbols)
  Library needed for GNU Go applications linked against the
  shared library. This currently is an empty package, because the
  library is completely unstripped.
+')`'dnl libdbg
 ')`'dnl lib64go
 
 ifenabled(`lib32ggo',`
@@ -3891,6 +4083,7 @@ Description: Runtime library for GNU Go applications (32bit)
  Library needed for GNU Go applications linked against the
  shared library.
 
+ifenabled(`libdbg',`
 Package: lib32go`'GO_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -3902,6 +4095,7 @@ Description: Runtime library for GNU Go applications (32 bit debug symbols)
  Library needed for GNU Go applications linked against the
  shared library. This currently is an empty package, because the
  library is completely unstripped.
+')`'dnl libdbg
 ')`'dnl lib32go
 
 ifenabled(`libn32ggo',`
@@ -3917,6 +4111,7 @@ Description: Runtime library for GNU Go applications (n32)
  Library needed for GNU Go applications linked against the
  shared library.
 
+ifenabled(`libdbg',`
 Package: libn32go`'GO_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -3928,6 +4123,7 @@ Description: Runtime library for GNU Go applications (n32 debug symbols)
  Library needed for GNU Go applications linked against the
  shared library. This currently is an empty package, because the
  library is completely unstripped.
+')`'dnl libdbg
 ')`'dnl libn32go
 
 ifenabled(`libx32ggo',`
@@ -3943,6 +4139,7 @@ Description: Runtime library for GNU Go applications (x32)
  Library needed for GNU Go applications linked against the
  shared library.
 
+ifenabled(`libdbg',`
 Package: libx32go`'GO_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -3954,6 +4151,7 @@ Description: Runtime library for GNU Go applications (x32 debug symbols)
  Library needed for GNU Go applications linked against the
  shared library. This currently is an empty package, because the
  library is completely unstripped.
+')`'dnl libdbg
 ')`'dnl libx32go
 ')`'dnl ggo
 
@@ -4218,9 +4416,15 @@ Conflicts: libstdc++5-dbg`'LS, libstdc++5-3.3-dbg`'LS, libstdc++6-dbg`'LS,
  libstdc++6-4.9-dbg`'LS, libstdc++6-5-dbg`'LS, libstdc++6-6-dbg`'LS,
  libstdc++6-7-dbg`'LS, libstdc++6-8-dbg`'LS
 BUILT_USING`'dnl
+ifelse(index(enabled_languages, `libdbg'), -1, `dnl
+Description: GNU Standard C++ Library v3 (debug build)`'ifdef(`TARGET',` (TARGET)', `')
+ This package contains a debug build of the shared libstdc++ library.  The debug
+ symbols for the default build can be found in the libstdc++6-dbgsym package.
+',`dnl
 Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET',` (TARGET)', `')
  This package contains the shared library of libstdc++ compiled with
  debugging symbols.
+')`'dnl
 ifdef(`TARGET', `dnl
  .
  This package contains files for TARGET architecture, for use in cross-compile
@@ -4265,9 +4469,15 @@ Conflicts: lib32stdc++6-dbg`'LS, lib32stdc++6-4.0-dbg`'LS,
  lib32stdc++6-5-dbg`'LS, lib32stdc++6-6-dbg`'LS, lib32stdc++6-7-dbg`'LS,
  lib32stdc++6-8-dbg`'LS,
 BUILT_USING`'dnl
+ifelse(index(enabled_languages, `libdbg'), -1, `dnl
+Description: GNU Standard C++ Library v3 (debug build)`'ifdef(`TARGET',` (TARGET)', `')
+ This package contains a debug build of the shared libstdc++ library.  The debug
+ symbols for the default build can be found in the libstdc++6-dbgsym package.
+',`dnl
 Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET)',` (TARGET', `')
  This package contains the shared library of libstdc++ compiled with
  debugging symbols.
+')`'dnl
 ifdef(`TARGET', `dnl
  .
  This package contains files for TARGET architecture, for use in cross-compile
@@ -4312,9 +4522,15 @@ Conflicts: lib64stdc++6-dbg`'LS, lib64stdc++6-4.0-dbg`'LS,
  lib64stdc++6-5-dbg`'LS, lib64stdc++6-6-dbg`'LS, lib64stdc++6-7-dbg`'LS,
  lib64stdc++6-8-dbg`'LS,
 BUILT_USING`'dnl
+ifelse(index(enabled_languages, `libdbg'), -1, `dnl
+Description: GNU Standard C++ Library v3 (debug build)`'ifdef(`TARGET',` (TARGET)', `')
+ This package contains a debug build of the shared libstdc++ library.  The debug
+ symbols for the default build can be found in the libstdc++6-dbgsym package.
+',`dnl
 Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET',` (TARGET)', `')
  This package contains the shared library of libstdc++ compiled with
  debugging symbols.
+')`'dnl
 ifdef(`TARGET', `dnl
  .
  This package contains files for TARGET architecture, for use in cross-compile
@@ -4359,9 +4575,15 @@ Conflicts: libn32stdc++6-dbg`'LS, libn32stdc++6-4.0-dbg`'LS,
  libn32stdc++6-5-dbg`'LS, libn32stdc++6-6-dbg`'LS, libn32stdc++6-7-dbg`'LS,
  libn32stdc++6-8-dbg`'LS,
 BUILT_USING`'dnl
+ifelse(index(enabled_languages, `libdbg'), -1, `dnl
+Description: GNU Standard C++ Library v3 (debug build)`'ifdef(`TARGET',` (TARGET)', `')
+ This package contains a debug build of the shared libstdc++ library.  The debug
+ symbols for the default build can be found in the libstdc++6-dbgsym package.
+',`dnl
 Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET)',` (TARGET', `')
  This package contains the shared library of libstdc++ compiled with
  debugging symbols.
+')`'dnl
 ifdef(`TARGET', `dnl
  .
  This package contains files for TARGET architecture, for use in cross-compile
@@ -4407,9 +4629,15 @@ Conflicts: libx32stdc++6-dbg`'LS, libx32stdc++6-4.6-dbg`'LS,
  libx32stdc++6-5-dbg`'LS, libx32stdc++6-6-dbg`'LS, libx32stdc++6-7-dbg`'LS,
  libx32stdc++6-8-dbg`'LS,
 BUILT_USING`'dnl
+ifelse(index(enabled_languages, `libdbg'), -1, `dnl
+Description: GNU Standard C++ Library v3 (debug build)`'ifdef(`TARGET',` (TARGET)', `')
+ This package contains a debug build of the shared libstdc++ library.  The debug
+ symbols for the default build can be found in the libstdc++6-dbgsym package.
+',`dnl
 Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET',` (TARGET)', `')
  This package contains the shared library of libstdc++ compiled with
  debugging symbols.
+')`'dnl
 ifdef(`TARGET', `dnl
  .
  This package contains files for TARGET architecture, for use in cross-compile
@@ -4451,9 +4679,15 @@ ifdef(`TARGET',`Provides: libhfstdc++CXX_SO-dbg-TARGET-dcv1
 ',`')`'dnl
 ifdef(`TARGET',`dnl',`Conflicts: libhfstdc++6-dbg`'LS, libhfstdc++6-4.3-dbg`'LS, libhfstdc++6-4.4-dbg`'LS, libhfstdc++6-4.5-dbg`'LS, libhfstdc++6-4.6-dbg`'LS, libhfstdc++6-4.7-dbg`'LS, libhfstdc++6-4.8-dbg`'LS, libhfstdc++6-4.9-dbg`'LS, libhfstdc++6-5-dbg`'LS, libhfstdc++6-6-dbg`'LS, libhfstdc++6-7-dbg`'LS, libstdc++'CXX_SO`-armhf [biarchhf_archs]')
 BUILT_USING`'dnl
+ifelse(index(enabled_languages, `libdbg'), -1, `dnl
+Description: GNU Standard C++ Library v3 (debug build)`'ifdef(`TARGET',` (TARGET)', `')
+ This package contains a debug build of the shared libstdc++ library.  The debug
+ symbols for the default build can be found in the libstdc++6-dbgsym package.
+',`dnl
 Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET)',` (TARGET', `')
  This package contains the shared library of libstdc++ compiled with
  debugging symbols.
+')`'dnl
 ifdef(`TARGET', `dnl
  .
  This package contains files for TARGET architecture, for use in cross-compile
@@ -4495,9 +4729,15 @@ ifdef(`TARGET',`Provides: libsfstdc++CXX_SO-dbg-TARGET-dcv1
 ',`')`'dnl
 ifdef(`TARGET',`dnl',`Conflicts: libsfstdc++6-dbg`'LS, libsfstdc++6-4.3-dbg`'LS, libsfstdc++6-4.4-dbg`'LS, libsfstdc++6-4.5-dbg`'LS, libsfstdc++6-4.6-dbg`'LS, libsfstdc++6-4.7-dbg`'LS, libsfstdc++6-4.8-dbg`'LS, libsfstdc++6-4.9-dbg`'LS, libsfstdc++6-5-dbg`'LS, libhfstdc++6-6-dbg`'LS, libhfstdc++6-7-dbg`'LS, libstdc++'CXX_SO`-armel [biarchsf_archs]')
 BUILT_USING`'dnl
+ifelse(index(enabled_languages, `libdbg'), -1, `dnl
+Description: GNU Standard C++ Library v3 (debug build)`'ifdef(`TARGET',` (TARGET)', `')
+ This package contains a debug build of the shared libstdc++ library.  The debug
+ symbols for the default build can be found in the libstdc++6-dbgsym package.
+',`dnl
 Description: GNU Standard C++ Library v3 (debugging files)`'ifdef(`TARGET',` (TARGET)', `')
  This package contains the shared library of libstdc++ compiled with
  debugging symbols.
+')`'dnl
 ifdef(`TARGET', `dnl
  .
  This package contains files for TARGET architecture, for use in cross-compile
@@ -4597,6 +4837,7 @@ Description: runtime for applications compiled with GNAT (shared library)
  .
  This package contains the runtime shared library.
 
+ifenabled(`libdbg',`
 Package: libgnat`'-GNAT_V-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -4615,6 +4856,7 @@ Description: runtime for applications compiled with GNAT (debugging symbols)
  applications produced with GNAT.
  .
  This package contains the debugging symbols.
+')`'dnl libdbg
 
 ifdef(`TARGET',`',`
 Package: libgnatvsn`'GNAT_V-dev`'LS
@@ -4660,6 +4902,7 @@ Description: GNU Ada compiler selected components (shared library)
  .
  This package contains the runtime shared library.
 
+ifenabled(`libdbg',`
 Package: libgnatvsn`'GNAT_V-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: any
@@ -4680,6 +4923,7 @@ Description: GNU Ada compiler selected components (debugging symbols)
  GPL, allowing to link proprietary programs with it.
  .
  This package contains the debugging symbols.
+')`'dnl libdbg
 ')`'dnl native
 ')`'dnl libgnat
 
@@ -4877,6 +5121,7 @@ Description: Phobos D standard library (runtime library)
  .
  For more information check http://www.dlang.org/phobos/
 
+ifenabled(`libdbg',`
 Package: libgphobos`'PHOBOS_V-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -4891,6 +5136,7 @@ Description: Phobos D standard library (debug symbols)
  This is the Phobos standard library that comes with the D2 compiler.
  .
  For more information check http://www.dlang.org/phobos/
+')`'dnl libdbg
 
 Package: lib64gphobos`'PHOBOS_V`'LS
 TARGET_PACKAGE`'dnl
@@ -4905,6 +5151,7 @@ Description: Phobos D standard library (runtime library)
  .
  For more information check http://www.dlang.org/phobos/
 
+ifenabled(`libdbg',`
 Package: lib64gphobos`'PHOBOS_V-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -4917,6 +5164,7 @@ Description: Phobos D standard library (debug symbols)
  This is the Phobos standard library that comes with the D2 compiler.
  .
  For more information check http://www.dlang.org/phobos/
+')`'dnl libdbg
 
 Package: lib32gphobos`'PHOBOS_V`'LS
 TARGET_PACKAGE`'dnl
@@ -4931,6 +5179,7 @@ Description: Phobos D standard library (runtime library)
  .
  For more information check http://www.dlang.org/phobos/
 
+ifenabled(`libdbg',`
 Package: lib32gphobos`'PHOBOS_V-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -4943,6 +5192,7 @@ Description: Phobos D standard library (debug symbols)
  This is the Phobos standard library that comes with the D2 compiler.
  .
  For more information check http://www.dlang.org/phobos/
+')`'dnl libdbg
 
 ifenabled(`libn32phobos',`
 Package: libn32gphobos`'PHOBOS_V`'LS
@@ -4957,6 +5207,7 @@ Description: Phobos D standard library (runtime library)
  .
  For more information check http://www.dlang.org/phobos/
 
+ifenabled(`libdbg',`
 Package: libn32gphobos`'PHOBOS_V-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -4968,6 +5219,7 @@ Description: Phobos D standard library (debug symbols)
  This is the Phobos standard library that comes with the D2 compiler.
  .
  For more information check http://www.dlang.org/phobos/
+')`'dnl libdbg
 ')`'dnl libn32phobos
 
 ifenabled(`libx32phobos',`
@@ -4984,6 +5236,7 @@ Description: Phobos D standard library (runtime library)
  .
  For more information check http://www.dlang.org/phobos/
 
+ifenabled(`libdbg',`
 Package: libx32gphobos`'PHOBOS_V-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -4996,6 +5249,7 @@ Description: Phobos D standard library (debug symbols)
  This is the Phobos standard library that comes with the D2 compiler.
  .
  For more information check http://www.dlang.org/phobos/
+')`'dnl libdbg
 ')`'dnl libx32phobos
 
 ifenabled(`armml',`
@@ -5012,6 +5266,7 @@ Description: Phobos D standard library (runtime library)
  .
  For more information check http://www.dlang.org/phobos/
 
+ifenabled(`libdbg',`
 Package: libhfgphobos`'PHOBOS_V-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -5024,6 +5279,7 @@ Description: Phobos D standard library (debug symbols)
  This is the Phobos standard library that comes with the D2 compiler.
  .
  For more information check http://www.dlang.org/phobos/
+')`'dnl libdbg
 
 Package: libsfgphobos`'PHOBOS_V`'LS
 TARGET_PACKAGE`'dnl
@@ -5038,6 +5294,7 @@ Description: Phobos D standard library (runtime library)
  .
  For more information check http://www.dlang.org/phobos/
 
+ifenabled(`libdbg',`
 Package: libsfgphobos`'PHOBOS_V-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -5050,6 +5307,7 @@ Description: Phobos D standard library (debug symbols)
  This is the Phobos standard library that comes with the D2 compiler.
  .
  For more information check http://www.dlang.org/phobos/
+')`'dnl libdbg
 ')`'dnl armml
 ')`'dnl libphobos
 ')`'dnl d
@@ -5186,6 +5444,7 @@ BUILT_USING`'dnl
 Description: GNU Modula-2 standard library (runtime library)
  This is the GNU Modula-2 standard library that comes with the gm2 compiler.
 
+ifenabled(`libdbg',`
 Package: libgm2`'-GM2_V-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -5198,6 +5457,7 @@ Replaces: libgm268-dbg`'LS
 BUILT_USING`'dnl
 Description: GNU Modula-2 standard library (debug symbols)
  This is the GNU Modula-2 standard library that comes with the gm2 compiler.
+')`'dnl libdbg
 
 ifenabled(`multigm2lib',`
 Package: lib64gm2`'-GM2_V`'LS
@@ -5211,6 +5471,7 @@ BUILT_USING`'dnl
 Description: GNU Modula-2 standard library (runtime library)
  This is the GNU Modula-2 standard library that comes with the gm2 compiler.
 
+ifenabled(`libdbg',`
 Package: lib64gm2`'-GM2_V-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -5221,6 +5482,7 @@ Replaces: lib64gm268-dbg`'LS
 BUILT_USING`'dnl
 Description: GNU Modula-2 standard library (debug symbols)
  This is the GNU Modula-2 standard library that comes with the gm2 compiler.
+')`'dnl libdbg
 
 Package: lib32gm2`'-GM2_V`'LS
 TARGET_PACKAGE`'dnl
@@ -5233,6 +5495,7 @@ BUILT_USING`'dnl
 Description: GNU Modula-2 standard library (runtime library)
  This is the GNU Modula-2 standard library that comes with the gm2 compiler.
 
+ifenabled(`libdbg',`
 Package: lib32gm2`'-GM2_V-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -5243,6 +5506,7 @@ Replaces: lib32gm268-dbg`'LS
 BUILT_USING`'dnl
 Description: GNU Modula-2 standard library (debug symbols)
  This is the GNU Modula-2 standard library that comes with the gm2 compiler.
+')`'dnl libdbg
 
 ifenabled(`libn32gm2',`
 Package: libn32gm2`'-GM2_V`'LS
@@ -5255,6 +5519,7 @@ BUILT_USING`'dnl
 Description: GNU Modula-2 standard library (runtime library)
  This is the GNU Modula-2 standard library that comes with the gm2 compiler.
 
+ifenabled(`libdbg',`
 Package: libn32gm2`'-GM2_V-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -5264,6 +5529,7 @@ Depends: BASELDEP, libn32gm2`'-GM2_V`'LS (= ${gm2:Version}), ${misc:Depends}
 BUILT_USING`'dnl
 Description: GNU Modula-2 standard library (debug symbols)
  This is the GNU Modula-2 standard library that comes with the gm2 compiler.
+')`'dnl libdbg
 ')`'dnl libn32gm2
 
 ifenabled(`libx32gm2',`
@@ -5277,6 +5543,7 @@ BUILT_USING`'dnl
 Description: GNU Modula-2 standard library (runtime library)
  This is the GNU Modula-2 standard library that comes with the gm2 compiler.
 
+ifenabled(`libdbg',`
 Package: libx32gm2`'-GM2_V-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -5286,6 +5553,7 @@ Depends: BASELDEP, libx32gm2`'-GM2_V`'LS (= ${gm2:Version}), ${misc:Depends}
 BUILT_USING`'dnl
 Description: GNU Modula-2 standard library (debug symbols)
  This is the GNU Modula-2 standard library that comes with the gm2 compiler.
+')`'dnl libdbg
 ')`'dnl libx32gm2
 
 ifenabled(`armml',`
@@ -5299,6 +5567,7 @@ BUILT_USING`'dnl
 Description: GNU Modula-2 standard library (runtime library)
  This is the GNU Modula-2 standard library that comes with the gm2 compiler.
 
+ifenabled(`libdbg',`
 Package: libhfgm2`'-GM2_V-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -5308,6 +5577,7 @@ Depends: BASELDEP, libhfgm2`'-GM2_V`'LS (= ${gm2:Version}), ${misc:Depends}
 BUILT_USING`'dnl
 Description: GNU Modula-2 standard library (debug symbols)
  This is the GNU Modula-2 standard library that comes with the gm2 compiler.
+')`'dnl libdbg
 
 Package: libsfgm2`'-GM2_V`'LS
 TARGET_PACKAGE`'dnl
@@ -5319,6 +5589,7 @@ BUILT_USING`'dnl
 Description: GNU Modula-2 standard library (runtime library)
  This is the GNU Modula-2 standard library that comes with the gm2 compiler.
 
+ifenabled(`libdbg',`
 Package: libsfgm2`'-GM2_V-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -5328,6 +5599,7 @@ Depends: BASELDEP, libsfgm2`'-GM2_V`'LS (= ${gm2:Version}), ${misc:Depends}
 BUILT_USING`'dnl
 Description: GNU Modula-2 standard library (debug symbols)
  This is the GNU Modula-2 standard library that comes with the gm2 compiler.
+')`'dnl libdbg
 ')`'dnl armml
 ')`'dnl multigm2lib
 ')`'dnl libgm2
@@ -5344,7 +5616,7 @@ Depends: BASEDEP, gcc`'PV`'TS (= ${gcc:Version}), ${dep:libcdev},
   hsail-tools,
   ${shlibs:Depends}, libidevdep(hsail-rt`'PV-dev,,=), ${misc:Depends}
 Suggests: ${gccbrig:multilib},
-  libdbgdep(hsail-rt`'HSAIL_SO-dbg,)
+  libdbgdep(hsail-rt`'HSAIL_SO-dbg),
 Provides: brig-compiler`'TS
 BUILT_USING`'dnl
 Description: GNU BRIG (HSA IL) frontend
@@ -5514,6 +5786,7 @@ Description: HSAIL runtime library
  The library contains both the code required to run kernels on the agent
  and also functions implementing more complex HSAIL instructions.
 
+ifenabled(`libdbg',`
 Package: libhsail-rt`'HSAIL_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -5531,6 +5804,7 @@ Description: HSAIL runtime library (debug symbols)
  .
  The library contains both the code required to run kernels on the agent
  and also functions implementing more complex HSAIL instructions.
+')`'dnl libdbg
 ')`'dnl libhsail
 
 ifenabled(`lib64hsail',`
@@ -5548,6 +5822,7 @@ Description: HSAIL runtime library (64bit)
  The library contains both the code required to run kernels on the agent
  and also functions implementing more complex HSAIL instructions.
 
+ifenabled(`libdbg',`
 Package: lib64hsail-rt`'HSAIL_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -5561,6 +5836,7 @@ Description: HSAIL runtime library (64 bit debug symbols)
  .
  The library contains both the code required to run kernels on the agent
  and also functions implementing more complex HSAIL instructions.
+')`'dnl libdbg
 ')`'dnl lib64hsail
 
 ifenabled(`lib32hsail',`
@@ -5579,6 +5855,7 @@ Description: HSAIL runtime library (32bit)
  The library contains both the code required to run kernels on the agent
  and also functions implementing more complex HSAIL instructions.
 
+ifenabled(`libdbg',`
 Package: lib32hsail-rt`'HSAIL_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -5592,6 +5869,7 @@ Description: HSAIL runtime library (32 bit debug symbols)
  .
  The library contains both the code required to run kernels on the agent
  and also functions implementing more complex HSAIL instructions.
+')`'dnl libdbg
 ')`'dnl lib32hsail
 
 ifenabled(`libn32hsail',`
@@ -5609,6 +5887,7 @@ Description: HSAIL runtime library (n32)
  The library contains both the code required to run kernels on the agent
  and also functions implementing more complex HSAIL instructions.
 
+ifenabled(`libdbg',`
 Package: libn32hsail-rt`'HSAIL_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -5622,6 +5901,7 @@ Description: HSAIL runtime library (n32 debug symbols)
  .
  The library contains both the code required to run kernels on the agent
  and also functions implementing more complex HSAIL instructions.
+')`'dnl libdbg
 ')`'dnl libn32hsail
 
 ifenabled(`libx32hsail',`
@@ -5639,6 +5919,7 @@ Description: HSAIL runtime library (x32)
  The library contains both the code required to run kernels on the agent
  and also functions implementing more complex HSAIL instructions.
 
+ifenabled(`libdbg',`
 Package: libx32hsail-rt`'HSAIL_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -5652,6 +5933,7 @@ Description: HSAIL runtime library (x32 debug symbols)
  .
  The library contains both the code required to run kernels on the agent
  and also functions implementing more complex HSAIL instructions.
+')`'dnl libdbg
 ')`'dnl libx32hsail
 
 ifenabled(`libhfhsail',`
@@ -5670,6 +5952,7 @@ Description: HSAIL runtime library (hard float ABI)
  The library contains both the code required to run kernels on the agent
  and also functions implementing more complex HSAIL instructions.
 
+ifenabled(`libdbg',`
 Package: libhfhsail-rt`'HSAIL_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -5684,6 +5967,7 @@ Description: HSAIL runtime library (hard float ABI debug symbols)
  .
  The library contains both the code required to run kernels on the agent
  and also functions implementing more complex HSAIL instructions.
+')`'dnl libdbg
 ')`'dnl libhfhsailrt
 
 ifenabled(`libsfhsail',`
@@ -5702,6 +5986,7 @@ Description: HSAIL runtime library (soft float ABI)
  The library contains both the code required to run kernels on the agent
  and also functions implementing more complex HSAIL instructions.
 
+ifenabled(`libdbg',`
 Package: libsfhsail-rt`'HSAIL_SO-dbg`'LS
 TARGET_PACKAGE`'dnl
 Section: debug
@@ -5716,6 +6001,7 @@ Description: HSAIL runtime library (soft float ABI debug symbols)
  .
  The library contains both the code required to run kernels on the agent
  and also functions implementing more complex HSAIL instructions.
+')`'dnl libdbg
 ')`'dnl libsfhsailrt
 ')`'dnl brig
 
