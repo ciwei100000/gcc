@@ -1,10 +1,10 @@
-# DP: updates from the 9 branch upto 20191125 (r278667).
+# DP: updates from the 9 branch upto 20191126 (r278718).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Mon Nov 25 09:54:02 CET 2019
-Mon Nov 25 08:54:02 UTC 2019 (revision 278667)
+Tue Nov 26 08:15:22 CET 2019
+Tue Nov 26 07:15:22 UTC 2019 (revision 278718)
 EOF
 }
 
@@ -9780,7 +9780,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-9-branch)
 @@ -1 +1 @@
 -20190812
-+20191125
++20191126
 Index: gcc/gimple-streamer-out.c
 ===================================================================
 --- a/src/gcc/gimple-streamer-out.c	(.../tags/gcc_9_2_0_release)
@@ -13436,6 +13436,64 @@ Index: gcc/testsuite/gfortran.dg/pr70754.f90
      end do
  
      where ((xyz(:,:,2) /= 0) .and. (c /= 0))
+Index: gcc/testsuite/gfortran.dg/pr92050.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr92050.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr92050.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,53 @@
++! { dg-do run }
++! { dg-options "-fcheck=all" }
++! { dg-shouldfail "above upper bound" }
++!
++! PR fortran/92050
++!
++!
++module buggy
++  implicit none (type, external)
++
++  type :: par
++  contains
++    procedure, public :: fun => fun_par
++  end type par
++
++  type comp
++    class(par), allocatable :: p
++  end type comp
++
++  type foo
++    type(comp), allocatable :: m(:)
++  end type foo
++
++contains
++
++  function fun_par(this)
++    class(par) :: this
++    integer    :: fun_par(1)
++    fun_par = 42
++  end function fun_par
++
++  subroutine update_foo(this)
++    class(foo) :: this
++    write(*,*) this%m(1)%p%fun()
++  end subroutine update_foo
++
++  subroutine bad_update_foo(this)
++    class(foo) :: this
++    write(*,*) this%m(2)%p%fun()
++  end subroutine bad_update_foo
++end module buggy
++
++program main
++  use buggy
++  implicit none (type, external)
++  type(foo) :: x
++  allocate(x%m(1))
++  allocate(x%m(1)%p)
++  call update_foo(x)
++  call bad_update_foo(x)
++end program main
++
++! { dg-output "At line 39 of file .*pr92050.f90.*Fortran runtime error: Index '2' of dimension 1 of array 'this%m' above upper bound of 1" }
 Index: gcc/testsuite/gfortran.dg/pr91642.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr91642.f90	(.../tags/gcc_9_2_0_release)
@@ -13870,6 +13928,34 @@ Index: gcc/testsuite/gfortran.dg/pr87993.f90
 +   if (any(a /= 1)) stop 1
 +   if (b /= kind(a)) stop 2
 +end
+Index: gcc/testsuite/gfortran.dg/eof_6.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/eof_6.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/eof_6.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,23 @@
++! { dg-do run }
++! { dg-options "-ffrontend-optimize" }
++! PR 92569 - the EOF condition was not recognized with
++! -ffrontend-optimize.  Originjal test case by Bill Lipa.
++program main
++  implicit none
++  real(kind=8) ::  tdat(1000,10)
++  real(kind=8) :: res (10, 3)
++  integer :: i, j, k, np
++
++  open (unit=20, status="scratch")
++  res = reshape([(real(i),i=1,30)], shape(res))
++  write (20,'(10G12.5)') res
++  rewind 20
++  do  j = 1,1000
++     read (20,*,end=1)(tdat(j,k),k=1,10)
++  end do
++      
++1 continue
++  np = j-1
++  if (np /= 3) stop 1
++  if (any(transpose(res) /= tdat(1:np,:))) stop 2
++end program main
 Index: gcc/testsuite/gfortran.dg/do_subscript_6.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/do_subscript_6.f90	(.../tags/gcc_9_2_0_release)
@@ -15938,6 +16024,35 @@ Index: gcc/testsuite/gcc.c-torture/compile/20191108-1.c
 +  (&f)->b[0] = 15728640;
 +  return e ? -(&f)->a : (&f)->a;
 +}
+Index: gcc/testsuite/gnat.dg/addr14.adb
+===================================================================
+--- a/src/gcc/testsuite/gnat.dg/addr14.adb	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gnat.dg/addr14.adb	(.../branches/gcc-9-branch)
+@@ -0,0 +1,24 @@
++--  { dg-do run }
++
++with System;
++
++procedure Addr14 is
++
++  type Arr is array (1 .. 4) of aliased Integer;
++
++  A : Arr := (1, 2, 3, 4);
++  I : Natural := 0;
++
++  function Get_Address return System.Address is
++  begin
++    I := I + 1;
++    return A(I)'Address;
++  end;
++
++  Foo : Integer with Address => Get_Address;
++
++begin
++  if Foo /= 1 then
++    raise Program_Error;
++  end if;
++end;
 Index: gcc/testsuite/gcc.dg/gomp/pr90637.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.dg/gomp/pr90637.c	(.../tags/gcc_9_2_0_release)
@@ -16659,7 +16774,26 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,928 @@
+@@ -1,3 +1,947 @@
++2019-11-25  Thomas Koenig  <tkoenig@gcc.gnu.org>
++	Harald Anlauf <anlauf@gmx.de>
++
++	Backport from trunk
++	PR fortran/92569
++	* gfortran.dg/eof_6.f90: New test.
++
++2019-11-25  Tobias Burnus  <tobias@codesourcery.com
++
++	Backport from mainline
++	2019-10-11  Tobias Burnus  <tobias@codesourcery.com>
++
++	PR fortran/92050
++	* gfortran.dg/pr92050.f90: New.
++
++2019-11-25  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* gnat.dg/addr14.adb: New test.
++
 +2019-11-21  Jakub Jelinek  <jakub@redhat.com>
 +
 +	PR tree-optimization/91355
@@ -17588,7 +17722,7 @@ Index: gcc/testsuite/ChangeLog
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -427,7 +1352,7 @@
+@@ -427,7 +1371,7 @@
  	Backport from mainline.
  	2019-05-15  Iain Sandoe  <iain@sandoe.co.uk>
  
@@ -17597,7 +17731,7 @@ Index: gcc/testsuite/ChangeLog
  	(check_effective_target_powerpc_p8vector_ok): No support for Darwin.
  	(check_effective_target_powerpc_p9vector_ok): Likewise.
  	(check_effective_target_powerpc_float128_sw_ok): Likewise.
-@@ -720,7 +1645,7 @@
+@@ -720,7 +1664,7 @@
  
  	Backport from mainline
  	PR fortran/91077
@@ -17606,7 +17740,7 @@ Index: gcc/testsuite/ChangeLog
  
  2019-07-05  Szabolcs Nagy  <szabolcs.nagy@arm.com>
  
-@@ -969,7 +1894,7 @@
+@@ -969,7 +1913,7 @@
         * gcc.target/i386/pr82699-6.c: Likewise
         * gcc.target/i386/returninst1.c: Likewise
         * gcc.target/i386/returninst2.c: Likewise
@@ -17615,7 +17749,7 @@ Index: gcc/testsuite/ChangeLog
  
  2019-05-30  Iain Sandoe  <iain@sandoe.co.uk>
  
-@@ -1131,7 +2056,7 @@
+@@ -1131,7 +2075,7 @@
  
  	Backport from trunk
  	PR fortran/90498
@@ -17624,7 +17758,7 @@ Index: gcc/testsuite/ChangeLog
  
  2019-05-17  Jakub Jelinek  <jakub@redhat.com>
  
-@@ -3801,21 +4726,21 @@
+@@ -3801,21 +4745,21 @@
  2019-02-23  Paul Thomas  <pault@gcc.gnu.org>
  
  	PR fortran/88117
@@ -17653,7 +17787,7 @@ Index: gcc/testsuite/ChangeLog
  
  2019-02-22  David Malcolm  <dmalcolm@redhat.com>
  
-@@ -4444,7 +5369,7 @@
+@@ -4444,7 +5388,7 @@
  2019-02-09  Paul Thomas  <pault@gcc.gnu.org>
  
  	PR fortran/89200
@@ -17662,7 +17796,7 @@ Index: gcc/testsuite/ChangeLog
  
  2019-02-09  Jakub Jelinek  <jakub@redhat.com>
  
-@@ -4704,17 +5629,17 @@
+@@ -4704,17 +5648,17 @@
  2019-02-02  Paul Thomas  <pault@gcc.gnu.org>
  
  	PR fortran/88393
@@ -21926,7 +22060,18 @@ Index: gcc/ada/ChangeLog
 ===================================================================
 --- a/src/gcc/ada/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/ada/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,36 @@
+@@ -1,3 +1,47 @@
++2019-11-25  Eric Botcazou  <ebotcazou@adacore.com>
++
++	PR ada/92362
++	* gcc-interface/trans.c (gnat_to_gnu) <N_Attribute_Definition_Clause>:
++	Use a temporary instead of clobbering the result with a freeze node.
++
++2019-11-25  Eric Botcazou  <ebotcazou@adacore.com>
++
++	PR ada/92575
++	* expect.c (__gnat_expect_poll [VMS, HPUX]): Fix typo.
++
 +2019-11-08  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from mainline
@@ -22070,6 +22215,38 @@ Index: gcc/ada/gcc-interface/trans.c
  	by_descriptor = true;
      }
    else if (Nkind (Name (gnat_node)) == N_Attribute_Reference)
+@@ -8310,7 +8308,7 @@
+       gnat_temp = Entity (Name (gnat_node));
+       if (Freeze_Node (gnat_temp))
+ 	{
+-	  tree gnu_address = gnat_to_gnu (Expression (gnat_node));
++	  tree gnu_address = gnat_to_gnu (Expression (gnat_node)), gnu_temp;
+ 
+ 	  /* Get the value to use as the address and save it as the equivalent
+ 	     for the object; when it is frozen, gnat_to_gnu_entity will do the
+@@ -8320,7 +8318,7 @@
+ 	     of the object is limited and it is initialized with the result of
+ 	     a function call.  */
+ 	  if (Is_Subprogram (gnat_temp))
+-	    gnu_result = gnu_address;
++	    gnu_temp = gnu_address;
+ 	  else
+ 	    {
+ 	      tree gnu_type = gnat_to_gnu_type (Etype (gnat_temp));
+@@ -8329,11 +8327,11 @@
+ 	      gnu_type
+ 		= build_reference_type_for_mode (gnu_type, ptr_mode, true);
+ 	      gnu_address = convert (gnu_type, gnu_address);
+-	      gnu_result
++	      gnu_temp
+ 		= build_unary_op (INDIRECT_REF, NULL_TREE, gnu_address);
+ 	    }
+ 
+-	  save_gnu_tree (gnat_temp, gnu_result, true);
++	  save_gnu_tree (gnat_temp, gnu_temp, true);
+ 	}
+       break;
+ 
 Index: gcc/ada/sem_util.adb
 ===================================================================
 --- a/src/gcc/ada/sem_util.adb	(.../tags/gcc_9_2_0_release)
@@ -22199,6 +22376,28 @@ Index: gcc/ada/locales.c
 +  "US", "United-States",
    "UY", "Uruguay",
    "UZ", "Uzbekistan",
+ 
+Index: gcc/ada/expect.c
+===================================================================
+--- a/src/gcc/ada/expect.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/ada/expect.c	(.../branches/gcc-9-branch)
+@@ -265,7 +265,7 @@
+ 	  if ((status & 1) != 1)
+ 	    {
+               ready = -1;
+-              dead_process = i + 1;
++              *dead_process = i + 1;
+               return ready;
+ 	    }
+ 	}
+@@ -450,7 +450,7 @@
+ 	            if (ei.request == TIOCCLOSE)
+ 		      {
+ 		        ioctl (fd[i], TIOCREQSET, &ei);
+-                        dead_process = i + 1;
++                        *dead_process = i + 1;
+ 		        return -1;
+ 		      }
  
 Index: gcc/ada/sem_ch8.adb
 ===================================================================
@@ -22553,7 +22752,21 @@ Index: gcc/fortran/trans-expr.c
  		  if (GFC_DESCRIPTOR_TYPE_P (TREE_TYPE (tmp)))
  		    tmp = gfc_conv_descriptor_data_get (tmp);
  		  tmp = gfc_deallocate_with_status (tmp, NULL_TREE, NULL_TREE,
-@@ -10603,7 +10639,8 @@
+@@ -6782,8 +6818,11 @@
+ 	gfc_allocate_lang_decl (result);
+       GFC_DECL_SAVED_DESCRIPTOR (result) = parmse.expr;
+       gfc_free_expr (class_expr);
+-      gcc_assert (parmse.pre.head == NULL_TREE
+-		  && parmse.post.head == NULL_TREE);
++      /* -fcheck= can add diagnostic code, which has to be placed before
++	 the call. */
++      if (parmse.pre.head != NULL)
++	  gfc_add_expr_to_block (&se->pre, parmse.pre.head);
++      gcc_assert (parmse.post.head == NULL_TREE);
+     }
+ 
+   /* Follow the function call with the argument post block.  */
+@@ -10603,7 +10642,8 @@
        if (expr1->ts.deferred
  	  && gfc_expr_attr (expr1).allocatable
  	  && gfc_check_dependency (expr1, expr2, true))
@@ -23095,7 +23308,16 @@ Index: gcc/fortran/ChangeLog
 ===================================================================
 --- a/src/gcc/fortran/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/fortran/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,403 @@
+@@ -1,3 +1,412 @@
++2019-11-25  Tobias Burnus  <tobias@codesourcery.com
++
++	Backport from mainline
++	2019-10-11  Tobias Burnus  <tobias@codesourcery.com>
++
++	PR fortran/92050
++	* trans-expr.c (gfc_conv_procedure_call): Handle code generated
++	by -fcheck=all.
++
 +2019-11-10  Thomas Koenig  <tkoenig@gcc.gnu.org>
 +
 +	Backport from trunk
@@ -34791,7 +35013,15 @@ Index: libgfortran/ChangeLog
 ===================================================================
 --- a/src/libgfortran/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/libgfortran/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,31 @@
+@@ -1,3 +1,39 @@
++2019-11-25  Thomas Koenig  <tkoenig@gcc.gnu.org>
++	Harald Anlauf <anlauf@gmx.de>
++
++	Backport from trunk
++	PR fortran/92569
++	* io/transfer.c (transfer_array_inner):  If position is
++	at AFTER_ENDFILE in current unit, return from data loop.
++
 +2019-11-13  Tobias Burnus  <tobias@codesourcery.com>
 +
 +	Backport from mainline
@@ -34823,7 +35053,7 @@ Index: libgfortran/ChangeLog
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -24,12 +52,12 @@
+@@ -24,12 +60,12 @@
  2019-05-20  Janne Blomqvist  <jb@gcc.gnu.org>
  
  	Backport from trunk
@@ -34842,6 +35072,88 @@ Index: libgfortran/ChangeLog
  
  2019-05-20  Janne Blomqvist  <jb@gcc.gnu.org>
  
+Index: libgfortran/io/transfer.c
+===================================================================
+--- a/src/libgfortran/io/transfer.c	(.../tags/gcc_9_2_0_release)
++++ b/src/libgfortran/io/transfer.c	(.../branches/gcc-9-branch)
+@@ -2529,26 +2529,62 @@
+ 
+   data = GFC_DESCRIPTOR_DATA (desc);
+ 
+-  while (data)
++  /* When reading, we need to check endfile conditions so we do not miss
++     an END=label.  Make this separate so we do not have an extra test
++     in a tight loop when it is not needed.  */
++
++  if (dtp->u.p.current_unit && dtp->u.p.mode == READING)
+     {
+-      dtp->u.p.transfer (dtp, iotype, data, kind, size, tsize);
+-      data += stride0 * tsize;
+-      count[0] += tsize;
+-      n = 0;
+-      while (count[n] == extent[n])
++      while (data)
+ 	{
+-	  count[n] = 0;
+-	  data -= stride[n] * extent[n];
+-	  n++;
+-	  if (n == rank)
++	  if (unlikely (dtp->u.p.current_unit->endfile == AFTER_ENDFILE))
++	    return;
++
++	  dtp->u.p.transfer (dtp, iotype, data, kind, size, tsize);
++	  data += stride0 * tsize;
++	  count[0] += tsize;
++	  n = 0;
++	  while (count[n] == extent[n])
+ 	    {
+-	      data = NULL;
+-	      break;
++	      count[n] = 0;
++	      data -= stride[n] * extent[n];
++	      n++;
++	      if (n == rank)
++		{
++		  data = NULL;
++		  break;
++		}
++	      else
++		{
++		  count[n]++;
++		  data += stride[n];
++		}
+ 	    }
+-	  else
++	}
++    }
++  else
++    {
++      while (data)
++	{
++	  dtp->u.p.transfer (dtp, iotype, data, kind, size, tsize);
++	  data += stride0 * tsize;
++	  count[0] += tsize;
++	  n = 0;
++	  while (count[n] == extent[n])
+ 	    {
+-	      count[n]++;
+-	      data += stride[n];
++	      count[n] = 0;
++	      data -= stride[n] * extent[n];
++	      n++;
++	      if (n == rank)
++		{
++		  data = NULL;
++		  break;
++		}
++	      else
++		{
++		  count[n]++;
++		  data += stride[n];
++		}
+ 	    }
+ 	}
+     }
 Index: libcpp/directives.c
 ===================================================================
 --- a/src/libcpp/directives.c	(.../tags/gcc_9_2_0_release)
