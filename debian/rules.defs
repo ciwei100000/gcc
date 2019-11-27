@@ -524,6 +524,19 @@ with_common_pkgs := yes
 # XXX: should with_common_libs be "yes" only if this is the default compiler
 # version on the targeted arch?
 
+# build -dbg packages (with_dbg is empty when -dbg package are not built)
+ifneq (,$(filter $(distrelease),wheezy jessie stretch buster precise xenial bionic cosmic disco eoan))
+  with_dbg = yes
+else
+  ifeq ($(derivative),Ubuntu)
+    v_dbg = 8.3.0-26ubuntu1
+  else ifeq ($(derivative),Debian)
+    v_dbg = 8.3.0-26
+  else
+    $(error unknown version for -dbgsym package migration)
+  endif
+endif
+
 # is this a multiarch-enabled build?
 ifeq (,$(filter $(distrelease),lenny etch squeeze dapper hardy jaunty karmic lucid maverick))
   with_multiarch_lib := yes

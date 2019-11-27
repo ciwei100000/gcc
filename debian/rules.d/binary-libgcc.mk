@@ -307,7 +307,7 @@ define __do_libgcc
 	debian/dh_doclink -p$(p_d) $(if $(3),$(3),$(p_lbase))
 	debian/dh_rmemptydirs -p$(p_l)
 	debian/dh_rmemptydirs -p$(p_d)
-	dh_strip -p$(p_l) --dbg-package=$(p_d)
+	$(call do_strip_lib_dbg, $(p_l), $(p_d), $(EPOCH):$(v_dbg),,)
 
 	# see Debian #533843 for the __aeabi symbol handling; this construct is
 	# just to include the symbols for dpkg versions older than 1.15.3 which
@@ -316,7 +316,7 @@ define __do_libgcc
 		$(if $(findstring gcc1,$(p_l)), \
 		ln -sf libgcc.symbols debian/$(p_l).symbols \
 		)
-		$(cross_makeshlibs) dh_makeshlibs $(ldconfig_arg) -p$(p_l) -p$(p_d) \
+		$(cross_makeshlibs) dh_makeshlibs $(ldconfig_arg) -p$(p_l) \
 			-- -v$(DEB_LIBGCC_VERSION) -a$(call mlib_to_arch,$(2)) || echo XXXXXXXXXXXXXX ERROR $(p_l)
 		$(call cross_mangle_shlibs,$(p_l))
 		$(if $(filter arm-linux-gnueabi%,$(DEB_TARGET_GNU_TYPE)),
@@ -340,7 +340,7 @@ define __do_libgcc
 			> $(d_l)/usr/share/lintian/overrides/$(p_l)
 	)
 
-	echo $(p_l) $(p_d) >> debian/$(lib_binaries).epoch
+	echo $(p_l) $(if $(with_dbg), $(p_d)) >> debian/$(lib_binaries)
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 endef

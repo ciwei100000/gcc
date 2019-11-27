@@ -26,22 +26,26 @@ $(binary_stamp)-libgccjit: $(install_jit_stamp)
 	rm -rf $(d_jitlib) $(d_jitdbg)
 	dh_installdirs -p$(p_jitlib) \
 		$(usr_lib)
+ifeq ($(with_dbg),yes)
 	dh_installdirs -p$(p_jitdbg)
+endif
 
 	$(dh_compat2) dh_movefiles -p$(p_jitlib) \
 		$(usr_lib)/libgccjit.so.*
 	rm -f $(d)/$(usr_lib)/libgccjit.so
 
 	debian/dh_doclink -p$(p_jitlib) $(p_base)
+ifeq ($(with_dbg),yes)
 	debian/dh_doclink -p$(p_jitdbg) $(p_base)
+endif
 
-	dh_strip -p$(p_jitlib) --dbg-package=$(p_jitdbg)
+	$(call do_strip_lib_dbg, $(p_jitlib), $(p_jitdbg), $(v_dbg),,)
 	$(cross_makeshlibs) dh_makeshlibs -p$(p_jitlib)
 	$(call cross_mangle_shlibs,$(p_jitlib))
 	$(ignshld)$(cross_shlibdeps) dh_shlibdeps -p$(p_jitlib) \
 		$(if $(filter yes, $(with_common_libs)),,-- -Ldebian/shlibs.common$(2))
 	$(call cross_mangle_substvars,$(p_jitlib))
-	echo $(p_jitlib) $(p_jitdbg) >> debian/arch_binaries
+	echo $(p_jitlib) $(if $(with_dbg), $(p_jitdbg)) >> debian/arch_binaries
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 	touch $@
