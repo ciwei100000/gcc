@@ -128,7 +128,7 @@ ifneq (,$(filter $(build_type), build-native cross-build-native))
 		$(d_lgnat)/usr/share/lintian/overrides/$(p_lgnat)
 endif
 
-	dh_strip -p$(p_lgnat) --dbg-package=$(p_lgnat_dbg)
+	$(call do_strip_lib_dbg, $(p_lgnat), $(p_lgnat_dbg), $(v_dbg),,)
 	$(cross_shlibdeps) dh_shlibdeps -p$(p_lgnat) \
 		$(call shlibdirs_to_search, \
 			$(subst gnat-$(GNAT_SONAME),gcc$(GCC_SONAME),$(p_lgnat)) \
@@ -137,10 +137,11 @@ endif
 		$(if $(filter yes, $(with_common_libs)),,-- -Ldebian/shlibs.common)
 	$(call cross_mangle_substvars,$(p_lgnat))
 
+ifeq ($(with_dbg),yes)
 	: # $(p_lgnat_dbg)
 	debian/dh_doclink -p$(p_lgnat_dbg) $(p_glbase)
-
-	echo $(p_lgnat) $(p_lgnat_dbg) >> debian/$(lib_binaries)
+endif
+	echo $(p_lgnat) $(if $(with_dbg), $(p_lgnat_dbg)) >> debian/$(lib_binaries)
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 
@@ -162,7 +163,7 @@ $(binary_stamp)-libgnatvsn: $(install_stamp)
 	  > $(d_lgnatvsn)/usr/share/lintian/overrides/$(p_lgnatvsn)
 	$(dh_compat2) dh_movefiles -p$(p_lgnatvsn) $(usr_lib)/libgnatvsn.so.$(GNAT_VERSION)
 	debian/dh_doclink -p$(p_lgnatvsn) $(p_glbase)
-	dh_strip -p$(p_lgnatvsn) --dbg-package=$(p_lgnatvsn_dbg)
+	$(call do_strip_lib_dbg, $(p_lgnatvsn), $(p_lgnatvsn_dbg), $(v_dbg),,)
 	$(cross_makeshlibs) dh_makeshlibs $(ldconfig_arg) -p$(p_lgnatvsn) \
 		-V '$(p_lgnatvsn) (>= $(DEB_VERSION))'
 	$(call cross_mangle_shlibs,$(p_lgnatvsn))
@@ -176,10 +177,11 @@ $(binary_stamp)-libgnatvsn: $(install_stamp)
 		$(if $(filter yes, $(with_common_libs)),,-- -Ldebian/shlibs.common)
 	$(call cross_mangle_substvars,$(p_lgnatvsn))
 
+ifeq ($(with_dbg),yes)
 	: # $(p_lgnatvsn_dbg)
 	debian/dh_doclink -p$(p_lgnatvsn_dbg) $(p_glbase)
-
-	echo $(p_lgnatvsn) $(p_lgnatvsn_dev) $(p_lgnatvsn_dbg) >> debian/$(lib_binaries)
+endif
+	echo $(p_lgnatvsn) $(p_lgnatvsn_dev) $(if $(with_dbg), $(p_lgnatvsn_dbg)) >> debian/$(lib_binaries)
 
 	touch $@
 

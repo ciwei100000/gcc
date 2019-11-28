@@ -65,7 +65,7 @@ define __do_libobjc
 	debian/dh_doclink -p$(p_l) $(p_lbase)
 	debian/dh_doclink -p$(p_d) $(p_lbase)
 
-	dh_strip -p$(p_l) --dbg-package=$(p_d)
+	$(call do_strip_lib_dbg, $(p_l), $(p_d), $(v_dbg),,)
 	rm -f debian/$(p_l).symbols
 	$(if $(2),
 	  ln -sf libobjc.symbols debian/$(p_l).symbols ,
@@ -78,7 +78,7 @@ define __do_libobjc
 	$(ignshld)DIRNAME=$(subst n,,$(2)) $(cross_shlibdeps) dh_shlibdeps -p$(p_l) \
 		$(call shlibdirs_to_search,$(subst objc$(OBJC_SONAME),gcc$(GCC_SONAME),$(p_l)),$(2))
 	$(call cross_mangle_substvars,$(p_l))
-	echo $(p_l) $(p_d) >> debian/$(lib_binaries)
+	echo $(p_l) $(if $(with_dbg), $(p_d)) >> debian/$(lib_binaries)
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 endef

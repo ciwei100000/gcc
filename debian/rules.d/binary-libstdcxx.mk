@@ -207,8 +207,10 @@ define __do_libstdcxx
 	debian/dh_doclink -p$(p_l) $(p_lbase)
 	debian/dh_rmemptydirs -p$(p_l)
 
-	dh_strip -p$(p_l) $(if $(filter rtlibs,$(DEB_STAGE)),,--dbg-package=$(1)-$(BASE_VERSION)-dbg$(cross_lib_arch))
-
+	$(if $(with_dbg),
+	  dh_strip -p$(p_l) $(if $(filter rtlibs,$(DEB_STAGE)),,--dbg-package=$(1)-$(BASE_VERSION)-dbg$(cross_lib_arch)),
+	  dh_strip -p$(p_l) $(if $(filter rtlibs,$(DEB_STAGE)),,--dbgsym-migration='$(1)-$(BASE_VERSION)-dbg$(cross_lib_arch) (<< $(v_dbg))')
+	)
 	$(if $(filter $(DEB_TARGET_ARCH), armel hppa sparc64), \
 	  -$(cross_makeshlibs) dh_makeshlibs $(ldconfig_arg) -p$(p_l) \
 	  @echo "FIXME: libstdc++ not feature complete (https://gcc.gnu.org/ml/gcc/2014-07/msg00000.html)", \
@@ -235,7 +237,8 @@ define __do_libstdcxx_dbg
 		$(PF)/lib/debug/$(usr_lib$(2)) \
 		$(usr_lib$(2))
 
-	$(if $(filter yes,$(with_lib$(2)cxx)),
+	$(if $(with_dbg),
+	  $(if $(filter yes,$(with_lib$(2)cxx)),
 		cp -a $(d)/$(usr_lib$(2))/libstdc++.so.*[0-9] \
 			$(d_d)/$(usr_lib$(2))/.;
 		dh_strip -p$(p_d) --keep-debug;
@@ -245,6 +248,7 @@ define __do_libstdcxx_dbg
 			rm -rf $(d_d)/usr/lib/debug/$(PF);
 		)
 		rm -f $(d_d)/$(usr_lib$(2))/libstdc++.so.*[0-9]
+	  )
 	)
 
 	$(if $(filter yes,$(with_cxx_debug)),
@@ -363,6 +367,7 @@ endif
 ifeq ($(with_check),yes)
   libcxxdev_deps += debian/README.libstdc++-baseline
 endif
+# FIXME: the -dev and -dbg packages are built twice ...
 $(binary_stamp)-libstdcxx-dev: $(libcxxdev_deps)
 	dh_testdir
 	dh_testroot
@@ -430,13 +435,14 @@ endif
 		$(d_dbg)/$(PF)/share/gdb/auto-load/$(usr_lib)/debug/libstdc++.so.*.py
 
 ifeq ($(with_libcxx),yes)
+  ifeq ($(with_dbg),yes)
 	cp -a $(d)/$(usr_lib)/libstdc++.so.*[0-9] \
 		$(d_dbg)/$(usr_lib)/
 	dh_strip -p$(p_dbg) --keep-debug
 	rm -f $(d_dbg)/$(usr_lib)/libstdc++.so.*[0-9]
+  endif
 endif
-
-	dh_strip -p$(p_dev) --dbg-package=$(p_dbg)
+	$(call do_strip_lib_dbg, $(p_dev), $(p_dbg), $(v_dbg),,)
 ifneq ($(with_common_libs),yes)
 	: # remove the debug symbols for libstdc++ built by a newer version of GCC
 	rm -rf $(d_dbg)/usr/lib/debug/$(PF)

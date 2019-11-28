@@ -1011,7 +1011,12 @@ define install_gcc_lib
 	rm -f $(d)/$(usr_lib$(3))/$(1)*.{la,so}
 	dh_link -p$(4) \
 	  /$(usr_lib$(3))/$(1).so.$(2) /$(gcc_lib_dir$(3))/$(1).so
+endef
 
+# do_strip_lib_dbg(pkg,pkg_dbg,version,excludes)
+define do_strip_lib_dbg
+	dh_strip -p$(strip $(1)) $(4) \
+	  $(if $(with_dbg),--dbg-package=$(strip $(2)),--dbgsym-migration='$(strip $(2)) (<< $(strip $(3)))')
 endef
 
 checkdirs = $(builddir)

@@ -30,14 +30,14 @@ define __do_itm
 	debian/dh_doclink -p$(p_l) $(p_lbase)
 	debian/dh_doclink -p$(p_d) $(p_lbase)
 
-	dh_strip -p$(p_l) --dbg-package=$(p_d)
+	$(call do_strip_lib_dbg, $(p_l), $(p_d), $(v_dbg),,)
 	ln -sf libitm.symbols debian/$(p_l).symbols
 	$(cross_makeshlibs) dh_makeshlibs $(ldconfig_arg) -p$(p_l)
 	$(call cross_mangle_shlibs,$(p_l))
 	$(ignshld)DIRNAME=$(subst n,,$(2)) $(cross_shlibdeps) dh_shlibdeps -p$(p_l) \
 		$(call shlibdirs_to_search,,$(2))
 	$(call cross_mangle_substvars,$(p_l))
-	echo $(p_l) $(p_d) >> debian/$(lib_binaries)
+	echo $(p_l) $(if $(with_dbg), $(p_d)) >> debian/$(lib_binaries)
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 endef
