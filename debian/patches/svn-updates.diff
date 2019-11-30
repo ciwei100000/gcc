@@ -1,10 +1,10 @@
-# DP: updates from the 9 branch upto 20191127 (r278756).
+# DP: updates from the 9 branch upto 20191130 (r278870).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Wed Nov 27 07:53:15 CET 2019
-Wed Nov 27 06:53:15 UTC 2019 (revision 278756)
+Sat Nov 30 09:16:30 CET 2019
+Sat Nov 30 08:16:30 UTC 2019 (revision 278870)
 EOF
 }
 
@@ -9780,7 +9780,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-9-branch)
 @@ -1 +1 @@
 -20190812
-+20191127
++20191130
 Index: gcc/gimple-streamer-out.c
 ===================================================================
 --- a/src/gcc/gimple-streamer-out.c	(.../tags/gcc_9_2_0_release)
@@ -10552,7 +10552,22 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,1390 @@
+@@ -1,3 +1,1405 @@
++2019-11-27  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2019-10-25  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/92222
++	* tree-vect-slp.c (_slp_oprnd_info::first_pattern): Remove.
++	(_slp_oprnd_info::second_pattern): Likewise.
++	(_slp_oprnd_info::any_pattern): New.
++	(vect_create_oprnd_info): Adjust.
++	(vect_get_and_check_slp_defs): Compute whether any stmt is
++	in a pattern.
++	(vect_build_slp_tree_2): Avoid building up a node from scalars
++	if any of the operand defs, not just the first, is in a pattern.
++
 +2019-11-21  Jakub Jelinek  <jakub@redhat.com>
 +
 +	PR tree-optimization/91355
@@ -11943,7 +11958,7 @@ Index: gcc/ChangeLog
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -513,7 +1900,7 @@
+@@ -513,7 +1915,7 @@
  
  2019-07-11  Uroš Bizjak  <ubizjak@gmail.com>
  
@@ -13605,6 +13620,17 @@ Index: gcc/testsuite/gfortran.dg/typebound_call_22.f03
  
 -! { dg-final { scan-tree-dump-times "base \\(\\);" 1 "optimized" } }
 +! { dg-final { scan-tree-dump-times "base \\(\\);" 1 "optimized" { xfail *-*-* } } }
+Index: gcc/testsuite/gfortran.dg/goacc/pr84963.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/goacc/pr84963.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/goacc/pr84963.f90	(.../branches/gcc-9-branch)
+@@ -1,5 +1,5 @@
+ ! PR ipa/84963
+-! { dg-options "-O2" }
++! { dg-additional-options "-O2" }
+ 
+ program p
+    print *, sin([1.0, 2.0])
 Index: gcc/testsuite/gfortran.dg/use_rename_8.f90
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/use_rename_8.f90	(.../tags/gcc_9_2_0_release)
@@ -14417,6 +14443,22 @@ Index: gcc/testsuite/gfortran.dg/do_subscript_5.f90
 +              p(j) = p(swap(j)) ! { dg-warning "out of bounds" }
 +          endif
 +      enddo
++end program
+Index: gcc/testsuite/gfortran.dg/pr92629.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/pr92629.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/pr92629.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,11 @@
++! { dg-do run }
++! { dg-options "-fno-range-check" }
++!
++! Test the fix for PR92629.
++program bge_tests
++  if (bge (huge (1_1), 128_1)) stop 1
++  if (bge (    128_1 , 255_1)) stop 2
++  if (bge (huge (1_2), 32768_2)) stop 3
++  if (bge (huge (1_4), 2147483648_4)) stop 4
++  if (bge (huge (1_8), 9223372036854775808_8)) stop 5
 +end program
 Index: gcc/testsuite/gfortran.dg/pr91660_2.f90
 ===================================================================
@@ -16405,6 +16447,28 @@ Index: gcc/testsuite/gcc.dg/torture/pr90278.c
 +
 +  return ek[0];
 +}
+Index: gcc/testsuite/gcc.dg/torture/pr92222.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/torture/pr92222.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gcc.dg/torture/pr92222.c	(.../branches/gcc-9-branch)
+@@ -0,0 +1,17 @@
++/* { dg-do compile } */
++/* { dg-additional-options "-ftree-vectorize" } */
++
++unsigned char *a;
++int b;
++void f();
++void c()
++{
++  char *d;
++  int e;
++  for (; b; b++) {
++      e = 7;
++      for (; e >= 0; e--)
++	*d++ = a[b] & 1 << e ? '1' : '0';
++  }
++  f();
++}
 Index: gcc/testsuite/gcc.dg/pr91720.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.dg/pr91720.c	(.../tags/gcc_9_2_0_release)
@@ -16802,7 +16866,30 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,953 @@
+@@ -1,3 +1,976 @@
++2019-11-29  Harald Anlauf  <anlauf@gmx.de>
++
++	Backport from mainline
++	PR fortran/92629
++	* gfortran.dg/pr92629.f90: New testcase.
++
++2019-11-29 Tobias Burnus  <tobias@codesourcery.com>
++
++	Backport from mainline
++	2019-11-29 Tobias Burnus  <tobias@codesourcery.com>
++
++	PR ipa/84963
++	* gfortran.dg/goacc/pr84963.f90: Use dg-additional-options not
++	dg-options as otherwise -fopenacc is not used.
++
++2019-11-27  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2019-10-25  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/92222
++	* gcc.dg/torture/pr92222.c: New testcase.
++
 +2019-11-26  Jerry DeLisle  <jvdelisle@gcc.ngu.org>
 +
 +	Backport from trunk
@@ -17756,7 +17843,7 @@ Index: gcc/testsuite/ChangeLog
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -427,7 +1377,7 @@
+@@ -427,7 +1400,7 @@
  	Backport from mainline.
  	2019-05-15  Iain Sandoe  <iain@sandoe.co.uk>
  
@@ -17765,7 +17852,7 @@ Index: gcc/testsuite/ChangeLog
  	(check_effective_target_powerpc_p8vector_ok): No support for Darwin.
  	(check_effective_target_powerpc_p9vector_ok): Likewise.
  	(check_effective_target_powerpc_float128_sw_ok): Likewise.
-@@ -720,7 +1670,7 @@
+@@ -720,7 +1693,7 @@
  
  	Backport from mainline
  	PR fortran/91077
@@ -17774,7 +17861,7 @@ Index: gcc/testsuite/ChangeLog
  
  2019-07-05  Szabolcs Nagy  <szabolcs.nagy@arm.com>
  
-@@ -969,7 +1919,7 @@
+@@ -969,7 +1942,7 @@
         * gcc.target/i386/pr82699-6.c: Likewise
         * gcc.target/i386/returninst1.c: Likewise
         * gcc.target/i386/returninst2.c: Likewise
@@ -17783,7 +17870,7 @@ Index: gcc/testsuite/ChangeLog
  
  2019-05-30  Iain Sandoe  <iain@sandoe.co.uk>
  
-@@ -1131,7 +2081,7 @@
+@@ -1131,7 +2104,7 @@
  
  	Backport from trunk
  	PR fortran/90498
@@ -17792,7 +17879,7 @@ Index: gcc/testsuite/ChangeLog
  
  2019-05-17  Jakub Jelinek  <jakub@redhat.com>
  
-@@ -3801,21 +4751,21 @@
+@@ -3801,21 +4774,21 @@
  2019-02-23  Paul Thomas  <pault@gcc.gnu.org>
  
  	PR fortran/88117
@@ -17821,7 +17908,7 @@ Index: gcc/testsuite/ChangeLog
  
  2019-02-22  David Malcolm  <dmalcolm@redhat.com>
  
-@@ -4444,7 +5394,7 @@
+@@ -4444,7 +5417,7 @@
  2019-02-09  Paul Thomas  <pault@gcc.gnu.org>
  
  	PR fortran/89200
@@ -17830,7 +17917,7 @@ Index: gcc/testsuite/ChangeLog
  
  2019-02-09  Jakub Jelinek  <jakub@redhat.com>
  
-@@ -4704,17 +5654,17 @@
+@@ -4704,17 +5677,17 @@
  2019-02-02  Paul Thomas  <pault@gcc.gnu.org>
  
  	PR fortran/88393
@@ -22094,7 +22181,17 @@ Index: gcc/ada/ChangeLog
 ===================================================================
 --- a/src/gcc/ada/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/ada/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,47 @@
+@@ -1,3 +1,57 @@
++2019-11-29  Eric Botcazou  <ebotcazou@adacore.com>
++
++	PR ada/92489
++	Backport from mainline
++	2019-07-01  Ed Schonberg  <schonberg@adacore.com>
++
++	* exp_attr.adb (Expand_Attribute_Reference, case Invalid_Value):
++	Resolve result of call to Get_Simple_Init_Val, which may be a
++	conversion of a literal.
++
 +2019-11-25  Eric Botcazou  <ebotcazou@adacore.com>
 +
 +	PR ada/92362
@@ -22433,6 +22530,22 @@ Index: gcc/ada/expect.c
  		        return -1;
  		      }
  
+Index: gcc/ada/exp_attr.adb
+===================================================================
+--- a/src/gcc/ada/exp_attr.adb	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/ada/exp_attr.adb	(.../branches/gcc-9-branch)
+@@ -4242,6 +4242,11 @@
+       when Attribute_Invalid_Value =>
+          Rewrite (N, Get_Simple_Init_Val (Ptyp, N));
+ 
++         --  The value produced may be a conversion of a literal, which
++         --  must be resolved to establish its proper type.
++
++         Analyze_And_Resolve (N);
++
+       ----------
+       -- Last --
+       ----------
 Index: gcc/ada/sem_ch8.adb
 ===================================================================
 --- a/src/gcc/ada/sem_ch8.adb	(.../tags/gcc_9_2_0_release)
@@ -23342,7 +23455,14 @@ Index: gcc/fortran/ChangeLog
 ===================================================================
 --- a/src/gcc/fortran/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/fortran/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,412 @@
+@@ -1,3 +1,419 @@
++2019-11-29  Harald Anlauf  <anlauf@gmx.de>
++
++	Backport from mainline
++	PR fortran/92629
++	* simplify.c (convert_mpz_to_unsigned): Skip assert for argument
++	range when -fno-range-check is specified.
++
 +2019-11-25  Tobias Burnus  <tobias@codesourcery.com
 +
 +	Backport from mainline
@@ -24998,7 +25118,20 @@ Index: gcc/fortran/simplify.c
 ===================================================================
 --- a/src/gcc/fortran/simplify.c	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/fortran/simplify.c	(.../branches/gcc-9-branch)
-@@ -4808,8 +4808,12 @@
+@@ -169,8 +169,10 @@
+     }
+   else
+     {
+-      /* Confirm that no bits above the signed range are set.  */
+-      gcc_assert (mpz_scan1 (x, bitsize-1) == ULONG_MAX);
++      /* Confirm that no bits above the signed range are set if we
++	 are doing range checking.  */
++      if (flag_range_check != 0)
++	gcc_assert (mpz_scan1 (x, bitsize-1) == ULONG_MAX);
+     }
+ }
+ 
+@@ -4808,8 +4810,12 @@
    gfc_constructor *tsource_ctor, *fsource_ctor, *mask_ctor;
  
    if (mask->expr_type == EXPR_CONSTANT)
@@ -25013,7 +25146,7 @@ Index: gcc/fortran/simplify.c
  
    if (!mask->rank || !is_constant_array_expr (mask)
        || !is_constant_array_expr (tsource) || !is_constant_array_expr (fsource))
-@@ -6684,6 +6688,9 @@
+@@ -6684,6 +6690,9 @@
    mpz_init (index);
    rank = 0;
  
@@ -25023,7 +25156,7 @@ Index: gcc/fortran/simplify.c
    for (;;)
      {
        e = gfc_constructor_lookup_expr (shape_exp->value.constructor, rank);
-@@ -6708,9 +6715,29 @@
+@@ -6708,9 +6717,29 @@
      }
    else
      {
@@ -25055,7 +25188,7 @@ Index: gcc/fortran/simplify.c
        for (i = 0; i < rank; i++)
  	{
  	  e = gfc_constructor_lookup_expr (order_exp->value.constructor, i);
-@@ -6718,9 +6745,22 @@
+@@ -6718,9 +6747,22 @@
  
  	  gfc_extract_int (e, &order[i]);
  
@@ -25080,7 +25213,7 @@ Index: gcc/fortran/simplify.c
  	  x[order[i]] = 1;
  	}
      }
-@@ -8494,6 +8534,12 @@
+@@ -8494,6 +8536,12 @@
  	    {
  	      if (c->expr->expr_type == EXPR_ARRAY)
  		tmp = gfc_convert_constant (c->expr, type, kind);
@@ -34499,7 +34632,57 @@ Index: gcc/tree-vect-slp.c
  
    unsigned i;
    FOR_EACH_VEC_ELT (scalar_stmts, i, stmt_info)
-@@ -1051,15 +1052,24 @@
+@@ -150,8 +151,7 @@
+      stmt.  */
+   tree first_op_type;
+   enum vect_def_type first_dt;
+-  bool first_pattern;
+-  bool second_pattern;
++  bool any_pattern;
+ } *slp_oprnd_info;
+ 
+ 
+@@ -171,8 +171,7 @@
+       oprnd_info->def_stmts.create (group_size);
+       oprnd_info->first_dt = vect_uninitialized_def;
+       oprnd_info->first_op_type = NULL_TREE;
+-      oprnd_info->first_pattern = false;
+-      oprnd_info->second_pattern = false;
++      oprnd_info->any_pattern = false;
+       oprnds_info.quick_push (oprnd_info);
+     }
+ 
+@@ -309,13 +308,11 @@
+   tree oprnd;
+   unsigned int i, number_of_oprnds;
+   enum vect_def_type dt = vect_uninitialized_def;
+-  bool pattern = false;
+   slp_oprnd_info oprnd_info;
+   int first_op_idx = 1;
+   unsigned int commutative_op = -1U;
+   bool first_op_cond = false;
+   bool first = stmt_num == 0;
+-  bool second = stmt_num == 1;
+ 
+   if (gcall *stmt = dyn_cast <gcall *> (stmt_info->stmt))
+     {
+@@ -378,13 +375,12 @@
+ 	  return -1;
+ 	}
+ 
+-      if (second)
+-	oprnd_info->second_pattern = pattern;
++      if (def_stmt_info && is_pattern_stmt_p (def_stmt_info))
++	oprnd_info->any_pattern = true;
+ 
+       if (first)
+ 	{
+ 	  oprnd_info->first_dt = dt;
+-	  oprnd_info->first_pattern = pattern;
+ 	  oprnd_info->first_op_type = TREE_TYPE (oprnd);
+ 	}
+       else
+@@ -1051,15 +1047,24 @@
  	dump_printf_loc (MSG_NOTE, vect_location, "re-using %sSLP tree %p\n",
  			 *leader ? "" : "failed ", *leader);
        if (*leader)
@@ -34528,7 +34711,35 @@ Index: gcc/tree-vect-slp.c
    bst_map->put (stmts.copy (), res);
    return res;
  }
-@@ -1463,9 +1473,10 @@
+@@ -1218,7 +1223,7 @@
+ 	      /* ???  Rejecting patterns this way doesn't work.  We'd have to
+ 		 do extra work to cancel the pattern so the uses see the
+ 		 scalar version.  */
+-	      && !is_pattern_stmt_p (SLP_TREE_SCALAR_STMTS (child)[0]))
++	      && !oprnd_info->any_pattern)
+ 	    {
+ 	      slp_tree grandchild;
+ 
+@@ -1262,7 +1267,8 @@
+ 	  /* ???  Rejecting patterns this way doesn't work.  We'd have to
+ 	     do extra work to cancel the pattern so the uses see the
+ 	     scalar version.  */
+-	  && !is_pattern_stmt_p (stmt_info))
++	  && !is_pattern_stmt_p (stmt_info)
++	  && !oprnd_info->any_pattern)
+ 	{
+ 	  if (dump_enabled_p ())
+ 	    dump_printf_loc (MSG_NOTE, vect_location,
+@@ -1393,7 +1399,7 @@
+ 		  /* ???  Rejecting patterns this way doesn't work.  We'd have
+ 		     to do extra work to cancel the pattern so the uses see the
+ 		     scalar version.  */
+-		  && !is_pattern_stmt_p (SLP_TREE_SCALAR_STMTS (child)[0]))
++		  && !oprnd_info->any_pattern)
+ 		{
+ 		  unsigned int j;
+ 		  slp_tree grandchild;
+@@ -1463,9 +1469,10 @@
  
    dump_metadata_t metadata (dump_kind, loc.get_impl_location ());
    dump_user_location_t user_loc = loc.get_user_location ();
