@@ -207,10 +207,10 @@ Depends: BASELDEP, ${shlibs:Depends}, ${misc:Depends}
 Provides: libgcc1`'LS (= ${gcc:EpochVersion}), ifdef(`TARGET',`libgcc-s1-TARGET-dcv1',`libgcc-s1-armel [armel], libgcc-s1-armhf [armhf]')
 ifdef(`MULTIARCH', `Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
+')`'dnl
 ifdef(`TARGET',`dnl
 Breaks: libgcc1`'LS (<< 1:10)
 Replaces: libgcc1`'LS (<< 1:10)
-')dnl
 ')`'dnl
 BUILT_USING`'dnl
 Description: GCC support library`'ifdef(`TARGET',` (TARGET)', `')
