@@ -35,7 +35,7 @@ dirs_gcc = \
 
 # XXX: what about triarch mapping?
 files_gcc = \
-	$(PF)/bin/$(cmd_prefix){gcc,gcov,gcov-tool,gcov-dump}$(pkg_ver) \
+	$(PF)/bin/$(cmd_prefix){gcc,gcov,gcov-tool,gcov-dump,lto-dump}$(pkg_ver) \
 	$(PF)/bin/$(cmd_prefix)gcc-{ar,ranlib,nm}$(pkg_ver) \
 	$(PF)/share/man/man1/$(cmd_prefix)gcc-{ar,nm,ranlib}$(pkg_ver).1 \
 	$(gcc_lexec_dir)/{collect2,lto1,lto-wrapper} \
@@ -64,7 +64,8 @@ endif
 ifneq ($(GFDL_INVARIANT_FREE),yes)
     files_gcc += \
 	$(PF)/share/man/man1/$(cmd_prefix){gcc,gcov}$(pkg_ver).1 \
-	$(PF)/share/man/man1/$(cmd_prefix)gcov-{dump,tool}$(pkg_ver).1
+	$(PF)/share/man/man1/$(cmd_prefix)gcov-{dump,tool}$(pkg_ver).1 \
+	$(PF)/share/man/man1/$(cmd_prefix)lto-dump$(pkg_ver).1
 endif
 
 usr_doc_files = debian/README.Bugs \
@@ -130,12 +131,12 @@ endif
 	$(dh_compat2) dh_movefiles -p$(p_gcc) $(files_gcc)
 
 ifeq ($(unprefixed_names),yes)
-	for i in gcc gcov gcov-dump gcov-tool gcc-ar gcc-nm gcc-ranlib; do \
+	for i in gcc gcov gcov-dump gcov-tool gcc-ar gcc-nm gcc-ranlib lto-dump; do \
 	  ln -sf $(cmd_prefix)$$i$(pkg_ver) \
 	    $(d_gcc)/$(PF)/bin/$$i$(pkg_ver); \
 	done
   ifneq ($(GFDL_INVARIANT_FREE),yes)
-	for i in gcc gcov gcov-dump gcov-tool; do \
+	for i in gcc gcov gcov-dump gcov-tool lto-dump; do \
 	  ln -sf $(cmd_prefix)$$i$(pkg_ver).1.gz \
 	    $(d_gcc)/$(PF)/share/man/man1/$$i$(pkg_ver).1.gz; \
 	done

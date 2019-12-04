@@ -57,11 +57,12 @@ header_files = \
 		    avx512{bw,er,cd,dq,f,ifma,ifmavl,pf,vlbw,vbmi,vldq,vbmivl,vl}intrin.h \
 		    avx512{4fmaps,4vnniw,bitalg,vnni,vnnivl,vpopcntdq,vpopcntdqvl}intrin.h \
 		    avx512vbmi{2,2vl}intrin.h \
+		    avx512{bf16,bf16vl,vp2intersect,vp2intersectvl}intrin.h \
 		    {movdir,pconfig,vpclmulqdq,wbnoinvd}intrin.h \
 		    {cet,clflushopt,clwb,clzero,gfni,pcommit,xsavec,xsaves}intrin.h \
 		    {arm_acle,unwind-arm-common,s390intrin}.h \
-		    {cldemote,waitpkg}intrin.h \
-		    amo.h msa.h \
+		    {cldemote,waitpkg,enqcmd}intrin.h \
+		    amo.h msa.h acc_prof.h \
 		    {cet,cross-stdarg,syslimits,unwind,varargs}.h; \
 		do \
 		  test -e $(d)/$(gcc_lib_dir)/include/$$h \
@@ -109,50 +110,50 @@ ifeq ($(DEB_TARGET_ARCH),tilegx)
     header_files += $(gcc_lib_dir)/include/feedback.h
 endif
 
-p_lgcc		= libgcc$(GCC_SONAME)$(cross_lib_arch)
-p_lgccdbg	= libgcc$(GCC_SONAME)-dbg$(cross_lib_arch)
+p_lgcc		= libgcc-s$(GCC_SONAME)$(cross_lib_arch)
+p_lgccdbg	= libgcc-s$(GCC_SONAME)-dbg$(cross_lib_arch)
 p_lgccdev	= libgcc-$(BASE_VERSION)-dev$(cross_lib_arch)
 d_lgcc		= debian/$(p_lgcc)
 d_lgccdbg	= debian/$(p_lgccdbg)
 d_lgccdev	= debian/$(p_lgccdev)
 
-p_l32gcc	= lib32gcc$(GCC_SONAME)$(cross_lib_arch)
-p_l32gccdbg	= lib32gcc$(GCC_SONAME)-dbg$(cross_lib_arch)
+p_l32gcc	= lib32gcc-s$(GCC_SONAME)$(cross_lib_arch)
+p_l32gccdbg	= lib32gcc-s$(GCC_SONAME)-dbg$(cross_lib_arch)
 p_l32gccdev	= lib32gcc-$(BASE_VERSION)-dev$(cross_lib_arch)
 d_l32gcc	= debian/$(p_l32gcc)
 d_l32gccdbg	= debian/$(p_l32gccdbg)
 d_l32gccdev	= debian/$(p_l32gccdev)
 
-p_l64gcc	= lib64gcc$(GCC_SONAME)$(cross_lib_arch)
-p_l64gccdbg	= lib64gcc$(GCC_SONAME)-dbg$(cross_lib_arch)
+p_l64gcc	= lib64gcc-s$(GCC_SONAME)$(cross_lib_arch)
+p_l64gccdbg	= lib64gcc-s$(GCC_SONAME)-dbg$(cross_lib_arch)
 p_l64gccdev	= lib64gcc-$(BASE_VERSION)-dev$(cross_lib_arch)
 d_l64gcc	= debian/$(p_l64gcc)
 d_l64gccdbg	= debian/$(p_l64gccdbg)
 d_l64gccdev	= debian/$(p_l64gccdev)
 
-p_ln32gcc	= libn32gcc$(GCC_SONAME)$(cross_lib_arch)
-p_ln32gccdbg	= libn32gcc$(GCC_SONAME)-dbg$(cross_lib_arch)
+p_ln32gcc	= libn32gcc-s$(GCC_SONAME)$(cross_lib_arch)
+p_ln32gccdbg	= libn32gcc-s$(GCC_SONAME)-dbg$(cross_lib_arch)
 p_ln32gccdev	= libn32gcc-$(BASE_VERSION)-dev$(cross_lib_arch)
 d_ln32gcc	= debian/$(p_ln32gcc)
 d_ln32gccdbg	= debian/$(p_ln32gccdbg)
 d_ln32gccdev	= debian/$(p_ln32gccdev)
 
-p_lx32gcc	= libx32gcc$(GCC_SONAME)$(cross_lib_arch)
-p_lx32gccdbg	= libx32gcc$(GCC_SONAME)-dbg$(cross_lib_arch)
+p_lx32gcc	= libx32gcc-s$(GCC_SONAME)$(cross_lib_arch)
+p_lx32gccdbg	= libx32gcc-s$(GCC_SONAME)-dbg$(cross_lib_arch)
 p_lx32gccdev	= libx32gcc-$(BASE_VERSION)-dev$(cross_lib_arch)
 d_lx32gcc	= debian/$(p_lx32gcc)
 d_lx32gccdbg	= debian/$(p_lx32gccdbg)
 d_lx32gccdev	= debian/$(p_lx32gccdev)
 
-p_lhfgcc	= libhfgcc$(GCC_SONAME)$(cross_lib_arch)
-p_lhfgccdbg	= libhfgcc$(GCC_SONAME)-dbg$(cross_lib_arch)
+p_lhfgcc	= libhfgcc-s$(GCC_SONAME)$(cross_lib_arch)
+p_lhfgccdbg	= libhfgcc-s$(GCC_SONAME)-dbg$(cross_lib_arch)
 p_lhfgccdev	= libhfgcc-$(BASE_VERSION)-dev$(cross_lib_arch)
 d_lhfgcc	= debian/$(p_lhfgcc)
 d_lhfgccdbg	= debian/$(p_lhfgccdbg)
 d_lhfgccdev	= debian/$(p_lhfgccdev)
 
-p_lsfgcc	= libsfgcc$(GCC_SONAME)$(cross_lib_arch)
-p_lsfgccdbg	= libsfgcc$(GCC_SONAME)-dbg$(cross_lib_arch)
+p_lsfgcc	= libsfgcc-s$(GCC_SONAME)$(cross_lib_arch)
+p_lsfgccdbg	= libsfgcc-s$(GCC_SONAME)-dbg$(cross_lib_arch)
 p_lsfgccdev	= libsfgcc-$(BASE_VERSION)-dev$(cross_lib_arch)
 d_lsfgcc	= debian/$(p_lsfgcc)
 d_lsfgccdbg	= debian/$(p_lsfgccdbg)
@@ -190,15 +191,18 @@ define __do_gcc_devels2
 		set -e; \
 		if [ -h $(4)/libgcc_s.so ]; then \
 		  rm -f $(4)/libgcc_s.so; \
-		  dh_link -p$(2) /$(libgcc_dir$(1))/libgcc_s.so.$(GCC_SONAME) \
-		    /$(3)/libgcc_s.so; \
+		  if [ -z '$(1)' ]; then \
+		    dh_link -p$(2) /$(usr_lib$(1))/libgcc_s.so.$(GCC_SONAME) \
+		      /$(3)/libgcc_s.so; \
+		  else \
+		    dh_link -p$(2) /$(libgcc_dir$(1))/libgcc_s.so.$(GCC_SONAME) \
+		      /$(3)/libgcc_s.so; \
+		  fi; \
 		else \
 		  mv $(4)/libgcc_s.so $(d)/$(3)/libgcc_s.so; \
 		  dh_link -p$(2) /$(libgcc_dir$(1))/libgcc_s.so.$(GCC_SONAME) \
 		    /$(3)/libgcc_s.so.$(GCC_SONAME); \
 		fi; \
-		$(if $(1), dh_link -p$(2) /$(3)/libgcc_s.so \
-		    /$(gcc_lib_dir)/libgcc_s_$(1).so;)
 	)
 	$(dh_compat2) dh_movefiles -p$(2) \
 		$(3)/{libgcc*,libgcov.a,*.o} \
@@ -222,7 +226,7 @@ define __do_gcc_devels2
 	: # If building a flavour, add a lintian override
 	$(if $(1),
 		#TODO: use a file instead of a hacky echo
-		# bu do we want to use one override file (in the source package) per
+		# but do we want to use one override file (in the source package) per
 		# flavour or not since they are essentially the same?
 		mkdir -p debian/$(2)/usr/share/lintian/overrides
 		echo "$(2) binary: binary-from-other-architecture" \
@@ -289,8 +293,14 @@ define __do_libgcc
 		$(libgcc_dir$(2))
 
 	$(if $(filter yes,$(with_shared_libgcc)),
+	  $(if $(2),
 		mv $(d)/$(usr_lib$(2))/libgcc_s.so.$(GCC_SONAME) \
 			$(d_l)/$(libgcc_dir$(2))/.
+	  ,
+		mkdir -p $(d_l)/$(usr_lib$(2))
+		mv $(d)/$(usr_lib$(2))/libgcc_s.so.$(GCC_SONAME) \
+			$(d_l)/$(usr_lib$(2))/.
+	  )
 	)
 
 	$(if $(filter yes, $(with_internal_libunwind)),
@@ -299,17 +309,19 @@ define __do_libgcc
 	)
 
 	debian/dh_doclink -p$(p_l) $(if $(3),$(3),$(p_lbase))
-	debian/dh_doclink -p$(p_d) $(if $(3),$(3),$(p_lbase))
 	debian/dh_rmemptydirs -p$(p_l)
-	debian/dh_rmemptydirs -p$(p_d)
-	$(call do_strip_lib_dbg, $(p_l), $(p_d), $(EPOCH):$(v_dbg),,)
+	$(if $(with_dbg),
+	  debian/dh_doclink -p$(p_d) $(if $(3),$(3),$(p_lbase))
+	  debian/dh_rmemptydirs -p$(p_d)
+	)
+	$(call do_strip_lib_dbg, $(p_l), $(p_d), $(v_dbg),,)
 
 	# see Debian #533843 for the __aeabi symbol handling; this construct is
 	# just to include the symbols for dpkg versions older than 1.15.3 which
 	# didn't allow bypassing the symbol blacklist
 	$(if $(filter yes,$(with_shared_libgcc)),
-		$(if $(findstring gcc1,$(p_l)), \
-		ln -sf libgcc.symbols debian/$(p_l).symbols \
+		$(if $(findstring gcc-s1,$(p_l)), \
+		ln -sf libgcc-s.symbols debian/$(p_l).symbols \
 		)
 		$(cross_makeshlibs) dh_makeshlibs $(ldconfig_arg) -p$(p_l) \
 			-- -v$(DEB_LIBGCC_VERSION) -a$(call mlib_to_arch,$(2)) || echo XXXXXXXXXXXXXX ERROR $(p_l)
@@ -335,12 +347,37 @@ define __do_libgcc
 			> $(d_l)/usr/share/lintian/overrides/$(p_l)
 	)
 
-	echo $(p_l) $(if $(with_dbg), $(p_d)) >> debian/$(lib_binaries).epoch
+	echo $(p_l) $(if $(with_dbg), $(p_d)) >> debian/$(lib_binaries)
+
+	$(if $(filter yes,$(with_libcompatgcc)),
+	  debian/dh_doclink -p$(subst gcc-s,gcc,$(p_l)) $(if $(3),$(3),$(p_lbase))
+	  $(if $(with_dbg),
+	    debian/dh_doclink -p$(subst gcc-s,gcc,$(p_d)) $(if $(3),$(3),$(p_lbase))
+	  )
+
+	  $(if $(2),,
+	    mkdir -p $(subst gcc-s,gcc,$(d_l))/$(libgcc_dir$(2))
+	    cp -p $(d_l)/$(usr_lib$(2))/libgcc_s.so.$(GCC_SONAME) \
+		$(subst gcc-s,gcc,$(d_l))/$(libgcc_dir$(2))/.
+	    mkdir -p $(subst gcc-s,gcc,$(d_l))/DEBIAN
+	    cp -p $(d_l)/DEBIAN/{symbols,shlibs} \
+		$(subst gcc-s,gcc,$(d_l))/DEBIAN/.
+	    cp -p $(d_l).substvars $(subst gcc-s,gcc,$(d_l)).substvars
+	    mkdir -p $(subst gcc-s,gcc,$(d_l))/usr/share/lintian/overrides
+	    ( \
+	      echo '$(subst gcc-s,gcc,$(p_l)): package-name-doesnt-match-sonames'; \
+	      echo '$(subst gcc-s,gcc,$(p_l)): shlibs-declares-dependency-on-other-package'; \
+	      echo '$(subst gcc-s,gcc,$(p_l)): symbols-declares-dependency-on-other-package'; \
+	    ) > $(subst gcc-s,gcc,$(d_l))/usr/share/lintian/overrides/$(subst gcc-s,gcc,$(p_l))
+	  )
+
+	  echo $(subst gcc-s,gcc,$(p_l) $(if $(with_dbg), $(p_d))) >> debian/$(lib_binaries).epoch
+	)
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
 endef
 
-do_libgcc = $(call __do_libgcc,lib$(1)gcc$(GCC_SONAME),$(1),$(2))
+do_libgcc = $(call __do_libgcc,lib$(1)gcc-s$(GCC_SONAME),$(1),$(2))
 # ----------------------------------------------------------------------
 
 $(binary_stamp)-libgcc: $(install_dependencies)

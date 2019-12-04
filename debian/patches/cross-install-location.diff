@@ -14,7 +14,7 @@
  # Where our data files go
 --- a/src/libgfortran/Makefile.in
 +++ b/src/libgfortran/Makefile.in
-@@ -717,7 +717,7 @@ gcc_version := $(shell @get_gcc_base_ver
+@@ -719,7 +719,7 @@ gcc_version := $(shell @get_gcc_base_ver
  @LIBGFOR_USE_SYMVER_GNU_TRUE@@LIBGFOR_USE_SYMVER_TRUE@version_dep = $(srcdir)/gfortran.map
  @LIBGFOR_USE_SYMVER_SUN_TRUE@@LIBGFOR_USE_SYMVER_TRUE@version_dep = gfortran.map-sun
  gfor_c_HEADERS = $(srcdir)/ISO_Fortran_binding.h
@@ -23,7 +23,7 @@
  LTLDFLAGS = $(shell $(SHELL) $(top_srcdir)/../libtool-ldflags $(LDFLAGS)) \
  	    $(lt_host_flags)
  
-@@ -732,12 +732,12 @@ libgfortran_la_LDFLAGS = -version-info `
+@@ -734,12 +734,12 @@ libgfortran_la_LDFLAGS = -version-info `
  
  libgfortran_la_DEPENDENCIES = $(version_dep) libgfortran.spec $(LIBQUADLIB_DEP)
  cafexeclib_LTLIBRARIES = libcaf_single.la
@@ -90,33 +90,29 @@
  AM_CFLAGS = @ac_lto_plugin_warn_cflags@
 --- a/src/libitm/Makefile.in
 +++ b/src/libitm/Makefile.in
-@@ -458,8 +458,8 @@ SUBDIRS = testsuite
+@@ -458,7 +458,7 @@ SUBDIRS = testsuite
  gcc_version := $(shell @get_gcc_base_ver@ $(top_srcdir)/../gcc/BASE-VER)
  abi_version = -fabi-version=4
  search_path = $(addprefix $(top_srcdir)/config/, $(config_path)) $(top_srcdir)
--fincludedir = $(libdir)/gcc/$(target_alias)/$(gcc_version)/finclude
 -libsubincludedir = $(libdir)/gcc/$(target_alias)/$(gcc_version)/include
-+fincludedir = $(libdir)/gcc-cross/$(target_alias)/$(gcc_version)/finclude
 +libsubincludedir = $(libdir)/gcc-cross/$(target_alias)/$(gcc_version)/include
  AM_CPPFLAGS = $(addprefix -I, $(search_path))
  AM_CFLAGS = $(XCFLAGS)
  AM_CXXFLAGS = $(XCFLAGS) -std=gnu++0x -funwind-tables -fno-exceptions \
 --- a/src/libitm/Makefile.am
 +++ b/src/libitm/Makefile.am
-@@ -12,8 +12,8 @@ abi_version = -fabi-version=4
+@@ -12,7 +12,7 @@ abi_version = -fabi-version=4
  config_path = @config_path@
  search_path = $(addprefix $(top_srcdir)/config/, $(config_path)) $(top_srcdir)
  
--fincludedir = $(libdir)/gcc/$(target_alias)/$(gcc_version)/finclude
 -libsubincludedir = $(libdir)/gcc/$(target_alias)/$(gcc_version)/include
-+fincludedir = $(libdir)/gcc-cross/$(target_alias)/$(gcc_version)/finclude
 +libsubincludedir = $(libdir)/gcc-cross/$(target_alias)/$(gcc_version)/include
  
  vpath % $(strip $(search_path))
  
 --- a/src/gcc/gcc.c
 +++ b/src/gcc/gcc.c
-@@ -4482,7 +4482,7 @@ process_command (unsigned int decoded_op
+@@ -4597,7 +4597,7 @@ process_command (unsigned int decoded_op
  	 GCC_EXEC_PREFIX is typically a directory name with a trailing
  	 / (which is ignored by make_relative_prefix), so append a
  	 program name.  */
@@ -125,7 +121,7 @@
        gcc_libexec_prefix = get_relative_prefix (tmp_prefix,
  						standard_exec_prefix,
  						standard_libexec_prefix);
-@@ -4508,15 +4508,15 @@ process_command (unsigned int decoded_op
+@@ -4623,15 +4623,15 @@ process_command (unsigned int decoded_op
      {
        int len = strlen (gcc_exec_prefix);
  
@@ -159,7 +155,7 @@
  # Directory in which all plugin resources are installed
  plugin_resourcesdir = $(libsubdir)/plugin
   # Directory in which plugin headers are installed
-@@ -2160,8 +2160,8 @@ default-d.o: config/default-d.c
+@@ -2179,8 +2179,8 @@ default-d.o: config/default-d.c
  
  DRIVER_DEFINES = \
    -DSTANDARD_STARTFILE_PREFIX=\"$(unlibsubdir)/\" \
@@ -170,7 +166,7 @@
    -DDEFAULT_TARGET_VERSION=\"$(version)\" \
    -DDEFAULT_REAL_TARGET_MACHINE=\"$(real_target_noncanonical)\" \
    -DDEFAULT_TARGET_MACHINE=\"$(target_noncanonical)\" \
-@@ -2853,7 +2853,7 @@ PREPROCESSOR_DEFINES = \
+@@ -2898,7 +2898,7 @@ PREPROCESSOR_DEFINES = \
    -DTOOL_INCLUDE_DIR=\"$(gcc_tooldir)/include\" \
    -DNATIVE_SYSTEM_HEADER_DIR=\"$(NATIVE_SYSTEM_HEADER_DIR)\" \
    -DPREFIX=\"$(prefix)/\" \
@@ -236,7 +232,7 @@
  MULTISRCTOP =
 --- a/src/libada/Makefile.in
 +++ b/src/libada/Makefile.in
-@@ -68,7 +68,7 @@ GCC_DIR=$(MULTIBUILDTOP)../../$(host_sub
+@@ -70,7 +70,7 @@ GCC_DIR=$(MULTIBUILDTOP)../../$(host_sub
  
  target_noncanonical:=@target_noncanonical@
  version := $(shell @get_gcc_base_ver@ $(srcdir)/../gcc/BASE-VER)
@@ -247,7 +243,7 @@
  # exeext should not be used because it's the *host* exeext.  We're building
 --- a/src/libgomp/Makefile.in
 +++ b/src/libgomp/Makefile.in
-@@ -521,8 +521,8 @@ gcc_version := $(shell @get_gcc_base_ver
+@@ -539,8 +539,8 @@ gcc_version := $(shell @get_gcc_base_ver
  search_path = $(addprefix $(top_srcdir)/config/, $(config_path)) $(top_srcdir) \
  	      $(top_srcdir)/../include
  
@@ -348,7 +344,7 @@
  @SANITIZER_SUPPORTED_TRUE@	$(am__append_3) lsan asan ubsan \
 --- a/src/libphobos/configure.ac
 +++ b/src/libphobos/configure.ac
-@@ -200,6 +200,8 @@ AC_SUBST(SPEC_PHOBOS_DEPS)
+@@ -204,6 +204,8 @@ AC_SUBST(SPEC_PHOBOS_DEPS)
  libtool_VERSION=76:3:0
  AC_SUBST(libtool_VERSION)
  

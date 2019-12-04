@@ -13,11 +13,8 @@ series_file	?= $(patchdir)/series
 # which patches should be applied?
 
 debian_patches = \
-	svn-updates \
 	$(if $(with_linaro_branch),gcc-linaro) \
 	$(if $(with_linaro_branch),gcc-linaro-no-macros) \
-	gcc-lto-jobserver \
-	gcc-lto-pick-compile-time-g \
 
 #	svn-updates \
 
@@ -25,8 +22,6 @@ ifneq ($(GFDL_INVARIANT_FREE),yes)
   debian_patches += \
 	$(if $(with_linaro_branch),gcc-linaro-doc) \
 	rename-info-files \
-	gcc-lto-jobserver-doc \
-	gcc-lto-pick-compile-time-g-doc \
 
 #	svn-doc-updates \
 #	$(if $(with_linaro_branch),,svn-doc-updates) \
@@ -39,7 +34,7 @@ debian_patches += \
 debian_patches += \
 	gcc-textdomain \
 	gcc-distro-specs \
-	gcc-driver-extra-langs$(if $(with_linaro_branch),-linaro)
+	gcc-driver-extra-langs
 
 ifneq (,$(filter $(distrelease),etch lenny squeeze wheezy dapper hardy intrepid jaunty karmic lucid))
   debian_patches += gcc-hash-style-both
@@ -79,9 +74,10 @@ debian_patches += \
 	pr87808 \
 	libgomp-no-werror \
 	gdc-cross-build \
-	verbose-lto-linker \
-	libstdc++-futex \
-	pr91307 \
+	gcc-amdgcn-fix \
+
+#TODO: still necessary?
+#	verbose-lto-linker \
 
 # TODO:
 #	pr81829 \
@@ -91,7 +87,7 @@ debian_patches += \
 
 hardening_patches =
 ifneq (,$(filter $(derivative),Ubuntu))
-  ifneq (,$(findstring gcc-9, $(PKGSOURCE)))
+  ifneq (,$(findstring gcc-10, $(PKGSOURCE)))
     hardening_patches += \
 	gcc-distro-specs-doc \
 	gcc-default-fortify-source \
@@ -109,7 +105,7 @@ ifneq (,$(filter $(derivative),Ubuntu))
     endif
   endif
 else ifneq (,$(filter $(derivative),Debian))
-  ifneq (,$(findstring gcc-9, $(PKGSOURCE)))
+  ifneq (,$(findstring gcc-10, $(PKGSOURCE)))
 #    ifneq ($(with_pie),yes)
 #      hardening_patches += \
 #        ignore-pie-specs-when-not-enabled
@@ -124,7 +120,7 @@ endif
 
 # Patches for non-core languages.
 
-debian_patches += gm2 gm2-install-man gm2-updates gm2-bootstrap-compare
+debian_patches += gm2 gm2-texinfo libgm2-target
 # This seems to work now ...
 #debian_patches += gm2-no-lto
 
@@ -151,7 +147,6 @@ ifeq ($(with_ada),yes)
     debian_patches += ada-749574
     debian_patches += ada-lib-info-file-prefix-map
     debian_patches += ada-perl-shebang
-    debian_patches += ada-repinfo-input
 endif
 
 # FIXME: still relevant?
@@ -350,7 +345,7 @@ ifeq ($(with_ssp)-$(with_ssp_default),yes-yes)
 	     >> $(srcdir)/gcc/distro-defaults.h
 endif
 ifneq (,$(filter $(derivative),Ubuntu))
-  ifneq (,$(findstring gcc-9, $(PKGSOURCE)))
+  ifneq (,$(findstring gcc-10, $(PKGSOURCE)))
 # FIXME: this is directly patched
 #	echo '#define DIST_DEFAULT_FORTIFY_SOURCE 1' \
 #	     >> $(srcdir)/gcc/distro-defaults.h
@@ -364,7 +359,7 @@ ifneq (,$(filter $(derivative),Ubuntu))
 	     >> $(srcdir)/gcc/distro-defaults.h
   endif
 else ifneq (,$(filter $(derivative),Debian))
-  ifneq (,$(findstring gcc-9, $(PKGSOURCE)))
+  ifneq (,$(findstring gcc-10, $(PKGSOURCE)))
   endif
 endif
 

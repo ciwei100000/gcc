@@ -19,7 +19,7 @@ libgomp/
 
 --- a/src/gcc/gcc.c
 +++ b/src/gcc/gcc.c
-@@ -301,6 +301,10 @@ static const char *spec_host_machine = D
+@@ -300,6 +300,10 @@ static const char *spec_host_machine = D
  
  static char *offload_targets = NULL;
  
@@ -30,7 +30,7 @@ libgomp/
  /* Nonzero if cross-compiling.
     When -b is used, the value comes from the `specs' file.  */
  
-@@ -4680,7 +4684,10 @@ process_command (unsigned int decoded_op
+@@ -4683,7 +4687,10 @@ process_command (unsigned int decoded_op
    /* If the user didn't specify any, default to all configured offload
       targets.  */
    if (ENABLE_OFFLOADING && offload_targets == NULL)
@@ -42,7 +42,7 @@ libgomp/
  
    if (output_file
        && strcmp (output_file, "-") != 0
-@@ -7898,6 +7905,8 @@ driver::maybe_putenv_OFFLOAD_TARGETS ()
+@@ -7905,6 +7912,8 @@ driver::maybe_putenv_OFFLOAD_TARGETS ()
        obstack_grow (&collect_obstack, offload_targets,
  		    strlen (offload_targets) + 1);
        xputenv (XOBFINISH (&collect_obstack, char *));
@@ -61,7 +61,7 @@ libgomp/
  
  enum lto_mode_d {
    LTO_MODE_NONE,			/* Not doing LTO.  */
-@@ -881,8 +882,10 @@ compile_images_for_offload_targets (unsi
+@@ -882,8 +883,10 @@ compile_images_for_offload_targets (unsi
    if (!target_names)
      return;
    unsigned num_targets = parse_env_var (target_names, &names, NULL);
@@ -72,7 +72,7 @@ libgomp/
    const char *compiler_path = getenv ("COMPILER_PATH");
    if (!compiler_path)
      goto out;
-@@ -895,18 +898,32 @@ compile_images_for_offload_targets (unsi
+@@ -896,18 +899,32 @@ compile_images_for_offload_targets (unsi
        /* HSA does not use LTO-like streaming and a different compiler, skip
  	 it. */
        if (strcmp (names[i], "hsa") == 0)
@@ -88,7 +88,7 @@ libgomp/
  				 linker_opts, linker_opt_count);
        if (!offload_names[next_name_entry])
 -	fatal_error (input_location,
--		     "problem with building target image for %s\n", names[i]);
+-		     "problem with building target image for %s", names[i]);
 +	{
 +	  if (target_names_default != NULL)
 +	    continue;
@@ -110,7 +110,7 @@ libgomp/
  }
 --- a/src/libgomp/target.c
 +++ b/src/libgomp/target.c
-@@ -2592,7 +2592,7 @@ gomp_load_plugin_for_device (struct gomp
+@@ -2727,7 +2727,7 @@ gomp_load_plugin_for_device (struct gomp
  
    void *plugin_handle = dlopen (plugin_name, RTLD_LAZY);
    if (!plugin_handle)

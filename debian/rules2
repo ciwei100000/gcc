@@ -66,26 +66,20 @@ endef
 $(foreach v, CPPFLAGS CFLAGS CXXFLAGS DFLAGS FFLAGS FCFLAGS LDFLAGS OBJCFLAGS OBJCXXFLAGS, $(if $(filter environment,$(origin $(v))),$(eval $(call unsetenv, $(v)))))
 
 CC = $(notdir $(firstword $(wildcard \
+	/usr/bin/$(DEB_HOST_GNU_TYPE)-gcc-10 \
 	/usr/bin/$(DEB_HOST_GNU_TYPE)-gcc-9 \
 	/usr/bin/$(DEB_HOST_GNU_TYPE)-gcc-8 \
-	/usr/bin/$(DEB_HOST_GNU_TYPE)-gcc-7 \
-	/usr/bin/$(DEB_HOST_GNU_TYPE)-gcc-6 \
-	/usr/bin/$(DEB_HOST_GNU_TYPE)-gcc-5 \
 	/usr/bin/$(DEB_HOST_GNU_TYPE)-gcc)))
 CXX = $(notdir $(firstword $(wildcard \
+	/usr/bin/$(DEB_HOST_GNU_TYPE)-g++-10 \
 	/usr/bin/$(DEB_HOST_GNU_TYPE)-g++-9 \
 	/usr/bin/$(DEB_HOST_GNU_TYPE)-g++-8 \
-	/usr/bin/$(DEB_HOST_GNU_TYPE)-g++-7 \
-	/usr/bin/$(DEB_HOST_GNU_TYPE)-g++-6 \
-	/usr/bin/$(DEB_HOST_GNU_TYPE)-g++-5 \
 	/usr/bin/$(DEB_HOST_GNU_TYPE)-g++)))
 ifeq ($(with_ada),yes)
   GNAT = $(notdir $(firstword $(wildcard \
+	/usr/bin/$(DEB_HOST_GNU_TYPE)-gnat-10 \
 	/usr/bin/$(DEB_HOST_GNU_TYPE)-gnat-9 \
 	/usr/bin/$(DEB_HOST_GNU_TYPE)-gnat-8 \
-	/usr/bin/$(DEB_HOST_GNU_TYPE)-gnat-7 \
-	/usr/bin/$(DEB_HOST_GNU_TYPE)-gnat-6 \
-	/usr/bin/$(DEB_HOST_GNU_TYPE)-gnat-5 \
 	/usr/bin/$(DEB_HOST_GNU_TYPE)-gnat /usr/bin/gnatgcc)))
   ifeq ($(GNAT),gnatgcc)
     CC := $(shell readlink /usr/bin/gnatgcc)
@@ -362,12 +356,6 @@ endif
 
 ifeq ($(with_objc)-$(with_objc_gc),yes-yes)
   CONFARGS += --enable-objc-gc=auto
-endif
-
-ifeq ($(with_m2),yes)
-  ifeq ($(DEB_CROSS),yes)
-    CONFARGS += --enable-libpth-m2
-  endif
 endif
 
 ifneq (,$(filter $(DEB_TARGET_GNU_TYPE), i486-linux-gnu i586-linux-gnu i686-linux-gnu))
@@ -1378,7 +1366,7 @@ CONFARGS_NVPTX := \
 	--disable-bootstrap \
 	--disable-sjlj-exceptions \
 	--enable-newlib-io-long-long \
-	--target nvptx-none \
+	--target=nvptx-none \
 	--enable-as-accelerator-for=$(DEB_TARGET_GNU_TYPE) \
 	--enable-languages=c,c++,fortran,lto \
 	--enable-checking=release \
@@ -1392,15 +1380,17 @@ ifeq ($(versioned_packages),yes)
   CONFARGS_NVPTX += --program-suffix=-$(BASE_VERSION)
 endif
 
-# FIXME: must not be run in parrallel with jit and hppa64 builds ...
+# FIXME: must not be run in parallel with jit and hppa64 builds ...
 $(configure_nvptx_stamp): $(build_stamp) \
     $(if $(filter yes, $(with_jit)), $(build_jit_stamp)) \
     $(if $(filter yes, $(with_hppa64)), $(build_hppa64_stamp))
 	dh_testdir
 	rm -f $(configure_nvptx_stamp) $(build_nvptx_stamp)
-	rm -rf $(builddir_nvptx)
+	rm -rf src-nvptx $(builddir_nvptx)
+	cp -al src src-nvptx
+	rm -rf src-nvptx/newlib
+	cp -a $(nl_nvptx_srcdir)/newlib src-nvptx/newlib
 	mkdir $(builddir_nvptx)
-	ln -sf ../$(nl_nvptx_srcdir)/newlib $(srcdir)/newlib
 
 	: # configure nvptx offload
 	cd $(builddir_nvptx) && \
@@ -1408,8 +1398,7 @@ $(configure_nvptx_stamp): $(build_stamp) \
 	  $(SET_SHELL) \
 	  CC="$(BUILT_CC)" \
 	  CXX="$(BUILT_CXX)" \
-	     ../src/configure $(subst ___, ,$(CONFARGS_NVPTX))
-	rm -f $(srcdir)/newlib
+	     ../src-nvptx/configure $(subst ___, ,$(CONFARGS_NVPTX))
 	touch $(configure_nvptx_stamp)
 
 $(build_nvptx_stamp): $(configure_nvptx_stamp) \
@@ -1425,7 +1414,7 @@ $(build_nvptx_stamp): $(configure_nvptx_stamp) \
 	  LD_LIBRARY_PATH=$${LD_LIBRARY_PATH:+$$LD_LIBRARY_PATH:}$(builddir)/gcc \
 	  biarch_multidir_names=none \
 		$(MAKE) -C $(builddir_nvptx) \
-		$(call pass_vars, BOOT_CFLAGS       BOOT_LDFLAGS \
+		$(call pass_vars, BOOT_CFLAGS BOOT_LDFLAGS \
 		                  CFLAGS_FOR_TARGET) \
 		; \
 	  echo $$? > status; \
@@ -1442,12 +1431,99 @@ $(build_nvptx_stamp): $(configure_nvptx_stamp) \
 	fi; \
 	test $$s -eq 0
 
-ifeq ($(with_check),yes)
-#	-$(MAKE) -C $(builddir_nvptx)/gcc check-jit \
-#		RUNTESTFLAGS="-v -v"
-endif
 	rm -f $(srcdir)/newlib
 	touch $(build_nvptx_stamp)
+
+CONFARGS_GCN := \
+	--prefix=/$(PF) \
+        --libexecdir=/$(libexecdir) \
+	--with-gcc-major-version-only \
+	--disable-bootstrap \
+	--disable-sjlj-exceptions \
+	--enable-newlib-io-long-long \
+	--target=$(gcn_target_name) \
+	--enable-as-accelerator-for=$(DEB_TARGET_GNU_TYPE) \
+	--enable-languages=c,fortran,lto \
+	--enable-checking=release \
+	--disable-libstdcxx-pch \
+	--disable-libquadmath-support \
+	--with-system-zlib \
+	--without-isl \
+	--without-gnu-as \
+	--without-gnu-ld \
+	--with-build-time-tools=$(CURDIR)/bin-gcn
+
+#	--without-headers \
+
+CONFARGS_GCN += --program-prefix=$(gcn_target_name)-
+ifeq ($(versioned_packages),yes)
+  CONFARGS_GCN += --program-suffix=-$(BASE_VERSION)
+endif
+
+# FIXME: must not be run in parallel with jit and hppa64 builds ...
+$(configure_gcn_stamp): $(build_stamp) \
+    $(if $(filter yes, $(with_jit)), $(build_jit_stamp)) \
+    $(if $(filter yes, $(with_hppa64)), $(build_hppa64_stamp)) \
+    $(if $(filter yes, $(with_offload_nvptx)), $(build_nvptx_stamp))
+	dh_testdir
+
+	rm -rf bin-gcn
+	mkdir bin-gcn
+	ln -sf /usr/lib/llvm-9/bin/llvm-ar bin-gcn/ar
+	ln -sf /usr/lib/llvm-9/bin/llvm-mc bin-gcn/as
+	ln -sf /usr/lib/llvm-9/bin/lld bin-gcn/ld
+	ln -sf /usr/lib/llvm-9/bin/llvm-nm bin-gcn/nm
+	ln -sf /usr/lib/llvm-9/bin/llvm-ranlib bin-gcn/ranlib
+
+	rm -f $(configure_gcn_stamp) $(build_gcn_stamp)
+	rm -rf src-gcn $(builddir_gcn)
+	cp -al src src-gcn
+	rm -rf src-gcn/newlib
+	cp -a $(nl_gcn_srcdir)/newlib src-gcn/newlib
+	mkdir $(builddir_gcn)
+
+	: # configure gcn offload
+	cd $(builddir_gcn) && \
+	  $(SET_PATH) \
+	  $(SET_SHELL) \
+	  CC="$(BUILT_CC)" \
+	  CXX="$(BUILT_CXX)" \
+	     ../src-gcn/configure $(subst ___, ,$(CONFARGS_GCN))
+	touch $(configure_gcn_stamp)
+
+$(build_gcn_stamp): $(configure_gcn_stamp) \
+    $(if $(filter yes, $(with_jit)), $(build_jit_stamp)) \
+    $(if $(filter yes, $(with_hppa64)), $(build_hppa64_stamp)) \
+    $(if $(filter yes, $(with_offload_nvptx)), $(build_nvptx_stamp))
+	ln -sf ../$(nl_gcn_srcdir)/newlib $(srcdir)/newlib
+
+	( \
+	  set +e; \
+	  $(SET_PATH) \
+	  $(SET_SHELL) \
+	  $(SET_LOCPATH) \
+	  LD_LIBRARY_PATH=$${LD_LIBRARY_PATH:+$$LD_LIBRARY_PATH:}$(builddir)/gcc \
+	  biarch_multidir_names=none \
+		$(MAKE) -C $(builddir_gcn) \
+		$(call pass_vars, BOOT_CFLAGS BOOT_LDFLAGS \
+		                  CFLAGS_FOR_TARGET) \
+		; \
+	  echo $$? > status; \
+	) 2>&1 | tee amdgcn-protocol
+
+	s=`cat status`; rm -f status; \
+	if [ $$s -ne 0 ] && [ -z "$$NO_CONFIG_LOG_DUMP$$NO_CONFIG_LOG_DUMPS" ]; then \
+	  for log in $$(find $(builddir_gcn) -name config.log); do \
+	    case "$$log" in */build/build-*|*/stage1-*|*/prev-*) continue; esac; \
+	    echo LOGFILE START $$log; \
+	    cat $$log; \
+	    echo LOGFILE END $$log; \
+	  done; \
+	fi; \
+	test $$s -eq 0
+
+	rm -f $(srcdir)/newlib
+	touch $(build_gcn_stamp)
 
 ifeq ($(versioned_packages),yes)
   hppa64_configure_flags += --program-suffix=-$(BASE_VERSION)
@@ -1857,6 +1933,7 @@ clean: debian/control
 	rm -f pxxx status
 	rm -f *-summary *-protocol testsuite-comparision summary-diff
 	rm -f $(srcdir)/gcc/po/*.gmo
+	rm -rf src-nvptx src-gcn
 	rm -f debian/lib{gcc,objc,stdc++}{-v3,[0-9]}*.{{pre,post}{inst,rm},shlibs}
 	fs=`echo debian/*BV* debian/*CXX* debian/*LC* debian/*MF* | sort -u`; \
 	for f in $$fs; do \
@@ -1865,7 +1942,7 @@ clean: debian/control
 		| sed 's/BV/$(BASE_VERSION)/;s/CXX/$(CXX_SONAME)/;s/LC/$(GCC_SONAME)/;s/-CRB/$(cross_bin_arch)/;s/\.in$$//'); \
 	  rm -f $$f2; \
 	done
-	rm -f debian/lib*gcc1.symbols
+	rm -f debian/lib*gcc-s1.symbols
 	rm -f debian/lib*{atomic$(ATOMIC_SONAME),gfortran$(FORTRAN_SONAME),gomp$(GOMP_SONAME),itm$(ITM_SONAME),quadmath$(QUADMATH_SONAME),hsail-rt$(HSAIL_SONAME)}.symbols
 	find debian -maxdepth 1 -name '*-cross.symbols' -type l | xargs -r rm -f
 	rm -f debian/gcc-{XX,ar,nm,ranlib}-$(BASE_VERSION).1
@@ -1874,7 +1951,7 @@ clean: debian/control
 	-[ -d debian/bugs ] && $(MAKE) -C debian/bugs clean
 	rm -f debian/README.libstdc++-baseline debian/README.Bugs debian/README.Debian.$(DEB_TARGET_ARCH)
 	rm -f debian/arch_binaries* debian/indep_binaries*
-	rm -rf bin locales share
+	rm -rf bin bin-gcn locales share
 	rm -rf check-inst
 	dh_clean
 ifneq (,$(filter $(build_type), build-cross cross-build-cross))
@@ -1913,7 +1990,7 @@ p_hppa64 = gcc$(pkg_ver)-hppa64-linux-gnu
 
 # needed for shlibs.common* generation
 ifeq (,$(p_lgcc))
-  p_lgcc = libgcc$(GCC_SONAME)$(cross_lib_arch)
+  p_lgcc = libgcc-s$(GCC_SONAME)$(cross_lib_arch)
 endif
 ifeq (,$(p_lib))
   p_lib = libstdc++$(CXX_SONAME)$(cross_lib_arch)
@@ -2075,6 +2152,10 @@ ifeq ($(with_offload_nvptx),yes)
   include debian/rules.d/binary-nvptx.mk
 endif
 
+ifeq ($(with_offload_gcn),yes)
+  include debian/rules.d/binary-gcn.mk
+endif
+
 ifeq ($(with_offload_hsa),yes)
   include debian/rules.d/binary-hsa.mk
 endif
@@ -2131,9 +2212,9 @@ ifeq ($(with_hppa64),yes)
 
 	ls -l $(d)/$(PF)/bin
 	if [ ! -x $(d)/$(PF)/bin/hppa64-linux-gnu-gcc ]; then \
-	  mv $(d)/$(PF)/bin/hppa64-linux-gnu-gcc-9* $(d)/$(PF)/bin/hppa64-linux-gnu-gcc; \
+	  mv $(d)/$(PF)/bin/hppa64-linux-gnu-gcc-10* $(d)/$(PF)/bin/hppa64-linux-gnu-gcc; \
 	else \
-	  rm -f $(d)/$(PF)/bin/hppa64-linux-gnu-gcc-9*; \
+	  rm -f $(d)/$(PF)/bin/hppa64-linux-gnu-gcc-10*; \
 	fi
 
 	for i in ar nm ranlib; do \
@@ -2183,9 +2264,9 @@ endif
 	done
 
 	if [ ! -x $(d)/$(PF)/bin/$(TARGET_ALIAS)-gcc ]; then \
-	  mv $(d)/$(PF)/bin/$(TARGET_ALIAS)-gcc-9* $(d)/$(PF)/bin/$(TARGET_ALIAS)-gcc; \
+	  mv $(d)/$(PF)/bin/$(TARGET_ALIAS)-gcc-10* $(d)/$(PF)/bin/$(TARGET_ALIAS)-gcc; \
 	else \
-	  rm -f $(d)/$(PF)/bin/$(TARGET_ALIAS)-gcc-9*; \
+	  rm -f $(d)/$(PF)/bin/$(TARGET_ALIAS)-gcc-10*; \
 	fi
 	set -e; \
 	  cd $(d)/$(gcc_lib_dir)/include-fixed; \
@@ -2270,6 +2351,21 @@ endif
 	    infodir=/$(PF)/share/info \
 	    mandir=/$(PF)/share/man \
 		install
+
+	@echo III: =============== upstream install $(DEB_TARGET_ARCH) ===============
+	find $(d) ! -type d
+	@echo III: =============== end upstream install $(DEB_TARGET_ARCH) ===============
+
+ifeq ($(with_m2),yes)
+  ifneq (,$(filter $(build_type), build-cross cross-build-cross))
+	: # FIXME: libm2 libs are installed wrong for libgm2
+	for i in $(d)/$(PF)/lib/libm2*; do \
+	  test -e $$i || continue; \
+	  echo mv $$i $(d)/$(PFL)/lib/. ; \
+	  mv $$i $(d)/$(PFL)/lib/. ; \
+	done
+  endif
+endif
 
 ifeq ($(DEB_STAGE)-$(DEB_CROSS),rtlibs-yes)
 	@echo configured_libdir=$(configured_libdir) / libdir=$(libdir) / usr_lib=$(usr_lib)
@@ -2382,9 +2478,9 @@ ifneq ($(with_common_libs),yes)
 	)
 endif
 
-	@echo XXXXX `date -R`
+	@echo III: =============== fixed install $(DEB_TARGET_ARCH) ===============
 	find $(d) ! -type d -print
-	@echo XXXXX
+	@echo III: =============== end fixed install $(DEB_TARGET_ARCH) ===============
 	touch $(install_stamp)
 
 $(install_jit_stamp): $(build_jit_stamp) $(install_stamp)
@@ -2457,6 +2553,61 @@ $(install_nvptx_stamp): $(build_nvptx_stamp) $(install_stamp) \
 	rm -f $(srcdir)/newlib
 	@echo XXXXX `date -R`
 	touch $(install_nvptx_stamp)
+
+$(install_gcn_stamp): $(build_gcn_stamp) $(install_stamp) \
+    $(if $(filter yes, $(with_jit)), $(install_jit_stamp)) \
+    $(if $(filter yes, $(with_hppa64)), $(install_hppa64_stamp)) \
+    $(if $(filter yes, $(with_offload_nvptx)), $(install_nvptx_stamp))
+	dh_testdir
+	dh_testroot
+	ln -sf ../$(nl_gcn_srcdir)/newlib $(srcdir)/newlib
+	rm -rf $(d)-gcn
+	mkdir -p $(d)-gcn/$(PF)
+
+	$(SET_PATH) \
+	  biarch_multidir_names=none \
+	    $(MAKE) -C $(builddir_gcn) \
+		CC="$(CC_FOR_TARGET)" \
+		$(call pass_vars, $(flags_to_pass)) \
+		DESTDIR=$(CURDIR)/$(d)-gcn \
+		    install
+
+	find $(d)-gcn
+	@echo XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	rm -rf $(d)-gcn/$(libexecdir)/$(gcc_subdir_name)/$(gcn_target_name)/$(versiondir)/install-tools
+	rm -rf $(d)-gcn/$(libexecdir)/$(gcc_subdir_name)/$(DEB_HOST_GNU_TYPE)/$(versiondir)/accel/$(gcn_target_name)/{install-tools,plugin,cc1,cc1plus,f951}
+	rm -rf $(d)-gcn/$(PF)/share/{info,man/man7,locale}
+	rm -rf $(d)-gcn/$(PF)/bin/*-{gcov*,lto-dump}-$(versiondir)
+	rm -rf $(d)-gcn/$(PF)/share/man/man1/*-{cpp,gcov*,gfortran,g++,lto-dump}-$(versiondir).1
+	rm -rf $(d)-gcn/$(PF)/lib/gcc/$(gcn_target_name)/$(versiondir)/{install-tools,plugin}
+	rm -rf $(d)-gcn/$(PF)/lib/gcc/$(DEB_HOST_GNU_TYPE)/$(versiondir)/accel/$(gcn_target_name)/{install-tools,plugin,include-fixed}
+	rm -rf $(d)-gcn/$(PF)/lib/libc[cp]1*
+
+	mv -f $(d)-gcn/$(PF)/$(gcn_target_name)/lib/*.{a,spec} \
+	  $(d)-gcn/$(PF)/lib/gcc/$(DEB_HOST_GNU_TYPE)/$(versiondir)/accel/$(gcn_target_name)/
+	mv -f $(d)-gcn/$(PF)/$(gcn_target_name)/lib/gfx900/*.{a,spec} \
+	  $(d)-gcn/$(PF)/lib/gcc/$(DEB_HOST_GNU_TYPE)/$(versiondir)/accel/$(gcn_target_name)/gfx900/.
+	mv -f $(d)-gcn/$(PF)/$(gcn_target_name)/lib/gfx906/*.{a,spec} \
+	  $(d)-gcn/$(PF)/lib/gcc/$(DEB_HOST_GNU_TYPE)/$(versiondir)/accel/$(gcn_target_name)/gfx906/.
+	mv -f $(d)-gcn/$(PF)/lib/gcc/$(gcn_target_name)/$(versiondir)/*.a \
+	  $(d)-gcn/$(PF)/lib/gcc/$(DEB_HOST_GNU_TYPE)/$(versiondir)/accel/$(gcn_target_name)/
+	mv -f $(d)-gcn/$(PF)/lib/gcc/$(gcn_target_name)/$(versiondir)/gfx900/*.a \
+	  $(d)-gcn/$(PF)/lib/gcc/$(DEB_HOST_GNU_TYPE)/$(versiondir)/accel/$(gcn_target_name)/gfx900/.
+	mv -f $(d)-gcn/$(PF)/lib/gcc/$(gcn_target_name)/$(versiondir)/gfx906/*.a \
+	  $(d)-gcn/$(PF)/lib/gcc/$(DEB_HOST_GNU_TYPE)/$(versiondir)/accel/$(gcn_target_name)/gfx906/.
+	find $(d)-gcn -name \*.la | xargs rm -f
+	rm -rf $(d)-gcn/$(PF)/$(gcn_target_name)/include
+	rm -rf $(d)-gcn/$(PF)/lib/gcc/$(DEB_HOST_GNU_TYPE)/$(versiondir)/include
+	rm -rf $(d)-gcn/$(PF)/lib/gcc/$(DEB_HOST_GNU_TYPE)/$(versiondir)/gfx900
+
+	-find $(d)-gcn -type d -empty -delete
+	@echo XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+	find $(d)-gcn
+	@echo XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+	rm -f $(srcdir)/newlib
+	@echo XXXXX `date -R`
+	touch $(install_gcn_stamp)
 
 $(install_hppa64_stamp): $(build_hppa64_stamp)
 	dh_testdir
@@ -2564,6 +2715,10 @@ endif
 	  echo dh_gencontrol $$pkgs -- -v$(DEB_EVERSION) $(common_substvars); \
 	  dh_gencontrol $$pkgs -- -v$(DEB_EVERSION) $(common_substvars); \
 	fi
+ifeq ($(with_libcompatgcc),yes)
+	cp -p debian/.debhelper/generated/$(p_lgcc)/triggers \
+		debian/.debhelper/generated/$(subst gcc-s,gcc,$(p_lgcc))/.
+endif
 	test ! -s debian/arch_binaries.all || \
 	  dh_installdeb $(foreach p,$(shell echo `cat debian/arch_binaries.all`),-p$(p))
 	test ! -s debian/arch_binaries.all || \

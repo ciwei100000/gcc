@@ -198,16 +198,19 @@ Description: GNU Ada compiler (common files)
 ')`'dnl gnatbase
 
 ifenabled(`libgcc',`
-Package: libgcc1`'LS
+Package: libgcc-s1`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
 Section: ifdef(`TARGET',`devel',`libs')
 Priority: optional
 Depends: BASELDEP, ${shlibs:Depends}, ${misc:Depends}
-Provides: ifdef(`TARGET',`libgcc1-TARGET-dcv1',`libgcc1-armel [armel], libgcc1-armhf [armhf]')
+Provides: libgcc1`'LS (= ${gcc:EpochVersion}), ifdef(`TARGET',`libgcc-s1-TARGET-dcv1',`libgcc-s1-armel [armel], libgcc-s1-armhf [armhf]')
 ifdef(`MULTIARCH', `Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
-Breaks: ${multiarch:breaks}
+ifdef(`TARGET',`dnl
+Breaks: libgcc1`'LS (<< 1:10)
+Replaces: libgcc1`'LS (<< 1:10)
+')dnl
 ')`'dnl
 BUILT_USING`'dnl
 Description: GCC support library`'ifdef(`TARGET',` (TARGET)', `')
@@ -220,39 +223,75 @@ ifdef(`TARGET', `dnl
  environment.
 ')`'dnl
 
+ifenabled(`libcompatgcc',`
+Package: libgcc1`'LS
+TARGET_PACKAGE`'dnl
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
+Section: ifdef(`TARGET',`devel',`libs')
+Priority: optional
+Depends: BASELDEP, libgcc-s1`'LS (>= ${gcc:Version}), ${misc:Depends}, ${shlibs:Depends}
+Provides: ifdef(`TARGET',`libgcc1-TARGET-dcv1',`libgcc1-armel [armel], libgcc1-armhf [armhf]')
+ifdef(`MULTIARCH', `Multi-Arch: same
+Breaks: ${multiarch:breaks}
+')`'dnl
+BUILT_USING`'dnl
+Description: GCC support library (dependency package)`'ifdef(`TARGET',` (TARGET)', `')
+ This is a dependency package, and can be safely removed after upgrade.
+')`'dnl libcompatgcc
+
 ifenabled(`libdbg',`
+Package: libgcc-s1-dbg`'LS
+TARGET_PACKAGE`'dnl
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
+Section: debug
+Priority: optional
+Depends: BASELDEP, libdep(gcc-s1,,=,${gcc:Version}), ${misc:Depends}
+ifdef(`TARGET',`',`Provides: libgcc-s1-dbg-armel [armel], libgcc-s1-dbg-armhf [armhf]
+')dnl
+ifdef(`MULTIARCH',`Multi-Arch: same
+')dnl
+Breaks: libgcc1-dbg`'LS (<< 1:10)
+Replaces: libgcc1-dbg`'LS (<< 1:10)
+BUILT_USING`'dnl
+Description: GCC support library (debug symbols)`'ifdef(`TARGET',` (TARGET)', `')
+ Debug symbols for the GCC support library.
+ifdef(`TARGET', `dnl
+ .
+ This package contains files for TARGET architecture, for use in cross-compile
+ environment.
+')`'dnl
+
+ifenabled(`libcompatgcc',`
 Package: libgcc1-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
 Section: debug
 Priority: optional
-Depends: BASELDEP, libdep(gcc1,,=,${gcc:EpochVersion}), ${misc:Depends}
+Depends: BASELDEP, libgcc-s1-dbg`'LS, libdep(gcc1,,=,${gcc:EpochVersion}), ${misc:Depends}
 ifdef(`TARGET',`',`Provides: libgcc1-dbg-armel [armel], libgcc1-dbg-armhf [armhf]
 ')dnl
 ifdef(`MULTIARCH',`Multi-Arch: same
 ')dnl
 BUILT_USING`'dnl
 Description: GCC support library (debug symbols)`'ifdef(`TARGET',` (TARGET)', `')
- Debug symbols for the GCC support library.
-ifdef(`TARGET', `dnl
- .
- This package contains files for TARGET architecture, for use in cross-compile
- environment.
-')`'dnl
+ This is a dependency package, and can be safely removed after upgrade.
+')`'dnl libcompatgcc
 ')`'dnl libdbg
 
-Package: libgcc2`'LS
+Package: libgcc-s2`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`m68k')
 Section: ifdef(`TARGET',`devel',`libs')
 Priority: optional
-Depends: BASELDEP, ${shlibs:Depends}, ${misc:Depends}
-ifdef(`TARGET',`Provides: libgcc2-TARGET-dcv1
-')`'dnl
 ifdef(`MULTIARCH', `Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
-Breaks: ${multiarch:breaks}
 ')`'dnl
+Depends: BASELDEP, ${shlibs:Depends}, ${misc:Depends}
+Provides: libgcc2`'LS (= ${gcc:EpochVersion}), ifdef(`TARGET',`Provides: libgcc-s2-TARGET-dcv1')`'
+ifdef(`TARGET',`dnl
+Breaks: libgcc2`'LS (<< 1:10)
+Replaces: libgcc2`'LS (<< 1:10)
+')dnl
 BUILT_USING`'dnl
 Description: GCC support library`'ifdef(`TARGET',` (TARGET)', `')
  Shared version of the support library, a library of internal subroutines
@@ -264,16 +303,35 @@ ifdef(`TARGET', `dnl
  environment.
 ')`'dnl
 
+ifenabled(`libcompatgcc',`
+Package: libgcc2`'LS
+TARGET_PACKAGE`'dnl
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`m68k')
+Section: ifdef(`TARGET',`devel',`libs')
+Priority: optional
+Depends: BASELDEP, libgcc-s2`'LS (>= ${gcc:Version}), ${misc:Depends}, ${shlibs:Depends}
+ifdef(`TARGET',`Provides: libgcc-s2-TARGET-dcv1
+')`'dnl
+ifdef(`MULTIARCH', `Multi-Arch: same
+Breaks: ${multiarch:breaks}
+')`'dnl
+BUILT_USING`'dnl
+Description: GCC support library (dependency package)`'ifdef(`TARGET',` (TARGET)', `')
+ This is a dependency package, and can be safely removed after upgrade.
+')`'dnl libcompatgcc
+
 ifenabled(`libdbg',`
-Package: libgcc2-dbg`'LS
+Package: libgcc-s2-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`m68k')
 Section: debug
 Priority: optional
-Depends: BASELDEP, libdep(gcc2,,=,${gcc:EpochVersion}), ${misc:Depends}
+Depends: BASELDEP, libdep(gcc-s2,,=,${gcc:Version}), ${misc:Depends}
 ifdef(`MULTIARCH', `Multi-Arch: same
 ')`'dnl
 BUILT_USING`'dnl
+Breaks: libgcc2-dbg`'LS (<< 1:10)
+Replaces: libgcc2-dbg`'LS (<< 1:10)
 Description: GCC support library (debug symbols)`'ifdef(`TARGET',` (TARGET)', `')
  Debug symbols for the GCC support library.
 ifdef(`TARGET', `dnl
@@ -281,6 +339,20 @@ ifdef(`TARGET', `dnl
  This package contains files for TARGET architecture, for use in cross-compile
  environment.
 ')`'dnl
+
+ifenabled(`libcompatgcc',`
+Package: libgcc2-dbg`'LS
+TARGET_PACKAGE`'dnl
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`m68k')
+Section: debug
+Priority: optional
+Depends: BASELDEP, libgcc-s2-dbg`'LS, libdep(gcc2,,=,${gcc:EpochVersion}), ${misc:Depends}
+ifdef(`MULTIARCH',`Multi-Arch: same
+')dnl
+BUILT_USING`'dnl
+Description: GCC support library (debug symbols, debug symbols)`'ifdef(`TARGET',` (TARGET)', `')
+ This is a dependency package, and can be safely removed after upgrade.
+')`'dnl libcompatgcc
 ')`'dnl libdbg
 ')`'dnl libgcc
 
@@ -301,15 +373,19 @@ BUILT_USING`'dnl
 Description: GCC support library (development files)
  This package contains the headers and static library files necessary for
  building C programs which use libgcc, libgomp, libquadmath, libssp or libitm.
-')`'dnl libgcc
+')`'dnl cdev
 
-Package: libgcc4`'LS
+Package: libgcc-s4`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`hppa')
 ifdef(`MULTIARCH', `Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
-Breaks: ${multiarch:breaks}
 ')`'dnl
+Provides: libgcc4`'LS (= ${gcc:EpochVersion})
+ifdef(`TARGET',`dnl
+Breaks: libgcc4`'LS (<< 1:10)
+Replaces: libgcc4`'LS (<< 1:10)
+')dnl
 Section: ifdef(`TARGET',`devel',`libs')
 Priority: optional
 Depends: BASELDEP, ${shlibs:Depends}, ${misc:Depends}
@@ -324,16 +400,33 @@ ifdef(`TARGET', `dnl
  environment.
 ')`'dnl
 
+ifenabled(`libcompatgcc',`
+Package: libgcc4`'LS
+TARGET_PACKAGE`'dnl
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`hppa')
+Section: ifdef(`TARGET',`devel',`libs')
+Priority: optional
+Depends: BASELDEP, libgcc-s4`'LS (>= ${gcc:Version}), ${misc:Depends}, ${shlibs:Depends}
+ifdef(`MULTIARCH', `Multi-Arch: same
+Breaks: ${multiarch:breaks}
+')`'dnl
+BUILT_USING`'dnl
+Description: GCC support library (dependency package)`'ifdef(`TARGET',` (TARGET)', `')
+ This is a dependency package, and can be safely removed after upgrade.
+')`'dnl libcompatgcc
+
 ifenabled(`libdbg',`
-Package: libgcc4-dbg`'LS
+Package: libgcc-s4-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`hppa')
 ifdef(`MULTIARCH', `Multi-Arch: same
 ')`'dnl
 Section: debug
 Priority: optional
-Depends: BASELDEP, libdep(gcc4,,=,${gcc:EpochVersion}), ${misc:Depends}
+Depends: BASELDEP, libdep(gcc-s4,,=,${gcc:Version}), ${misc:Depends}
 BUILT_USING`'dnl
+Breaks: libgcc4-dbg`'LS (<< 1:10)
+Replaces: libgcc4-dbg`'LS (<< 1:10)
 Description: GCC support library (debug symbols)`'ifdef(`TARGET',` (TARGET)', `')
  Debug symbols for the GCC support library.
 ifdef(`TARGET', `dnl
@@ -341,18 +434,33 @@ ifdef(`TARGET', `dnl
  This package contains files for TARGET architecture, for use in cross-compile
  environment.
 ')`'dnl
+
+ifenabled(`libcompatgcc',`
+Package: libgcc4-dbg`'LS
+TARGET_PACKAGE`'dnl
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`hppa')
+Section: debug
+Priority: optional
+Depends: BASELDEP, libgcc-s4-dbg`'LS, libdep(gcc4,,=,${gcc:EpochVersion}), ${misc:Depends}
+ifdef(`MULTIARCH',`Multi-Arch: same
+')dnl
+BUILT_USING`'dnl
+Description: GCC support library (debug symbols, debug symbols)`'ifdef(`TARGET',` (TARGET)', `')
+ This is a dependency package, and can be safely removed after upgrade.
+')`'dnl libcompatgcc
 ')`'dnl libdbg
 
 ifenabled(`lib64gcc',`
-Package: lib64gcc1`'LS
+Package: lib64gcc-s1`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
 Section: ifdef(`TARGET',`devel',`libs')
 Priority: optional
 Depends: BASELDEP, ${dep:libcbiarch}, ${misc:Depends}
-ifdef(`TARGET',`Provides: lib64gcc1-TARGET-dcv1
+ifdef(`TARGET',`Provides: lib64gcc-s1-TARGET-dcv1
 ',`')`'dnl
-Conflicts: libdep(gcc`'GCC_SO,,<=,1:3.3-0pre9)
+Breaks: lib64gcc1`'LS (<< 1:10)
+Replaces: lib64gcc1`'LS (<< 1:10)
 BUILT_USING`'dnl
 Description: GCC support library`'ifdef(`TARGET',` (TARGET)', `') (64bit)
  Shared version of the support library, a library of internal subroutines
@@ -364,13 +472,29 @@ ifdef(`TARGET', `dnl
  environment.
 ')`'dnl
 
+ifenabled(`libcompatgcc',`
+Package: lib64gcc1`'LS
+TARGET_PACKAGE`'dnl
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
+Section: ifdef(`TARGET',`devel',`libs')
+Priority: optional
+Depends: BASELDEP, lib64gcc-s1`'LS (>= ${gcc:Version}), ${dep:libcbiarch}, ${misc:Depends}
+ifdef(`TARGET',`Provides: lib64gcc1-TARGET-dcv1
+',`')`'dnl
+BUILT_USING`'dnl
+Description: GCC support library (dependency package)`'ifdef(`TARGET',` (TARGET)', `') (64bit)
+ This is a dependency package, and can be safely removed after upgrade.
+')`'dnl libcompatgcc
+
 ifenabled(`libdbg',`
-Package: lib64gcc1-dbg`'LS
+Package: lib64gcc-s1-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
 Section: debug
 Priority: optional
-Depends: BASELDEP, libdep(gcc1,64,=,${gcc:EpochVersion}), ${misc:Depends}
+Depends: BASELDEP, libdep(gcc-s1,64,=,${gcc:Version}), ${misc:Depends}
+Breaks: lib64gcc1-dbg`'LS (<< 1:10)
+Replaces: lib64gcc1-dbg`'LS (<< 1:10)
 BUILT_USING`'dnl
 Description: GCC support library (debug symbols)`'ifdef(`TARGET',` (TARGET)', `')
  Debug symbols for the GCC support library.
@@ -379,6 +503,18 @@ ifdef(`TARGET', `dnl
  This package contains files for TARGET architecture, for use in cross-compile
  environment.
 ')`'dnl
+
+ifenabled(`libcompatgcc',`
+Package: lib64gcc1-dbg`'LS
+TARGET_PACKAGE`'dnl
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
+Section: debug
+Priority: optional
+Depends: BASELDEP, lib64gcc-s1-dbg`'LS, libdep(gcc1,64,=,${gcc:EpochVersion}), ${misc:Depends}
+BUILT_USING`'dnl
+Description: GCC support library (debug symbols)`'ifdef(`TARGET',` (TARGET)', `')
+ This is a dependency package, and can be safely removed after upgrade.
+')`'dnl libcompatgcc
 ')`'dnl libdbg
 ')`'dnl lib64gcc
 
@@ -402,14 +538,16 @@ Description: GCC support library (64bit development files)
 ')`'dnl cdev
 
 ifenabled(`lib32gcc',`
-Package: lib32gcc1`'LS
+Package: lib32gcc-s1`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
 Section: ifdef(`TARGET',`devel',`libs')
 Priority: optional
 Depends: BASELDEP, ${dep:libcbiarch}, ${misc:Depends}
 Conflicts: ${confl:lib32}
-ifdef(`TARGET',`Provides: lib32gcc1-TARGET-dcv1
+Breaks: lib32gcc1`'LS (<< 1:10)
+Replaces: lib32gcc1`'LS (<< 1:10)
+ifdef(`TARGET',`Provides: lib32gcc-s1-TARGET-dcv1
 ',`')`'dnl
 BUILT_USING`'dnl
 Description: GCC support library (32 bit Version)
@@ -422,13 +560,30 @@ ifdef(`TARGET', `dnl
  environment.
 ')`'dnl
 
+ifenabled(`libcompatgcc',`
+Package: lib32gcc1`'LS
+TARGET_PACKAGE`'dnl
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
+Section: ifdef(`TARGET',`devel',`libs')
+Priority: optional
+Depends: BASELDEP, lib32gcc-s1`'LS (>= ${gcc:Version}), ${dep:libcbiarch}, ${misc:Depends}
+Conflicts: ${confl:lib32}
+ifdef(`TARGET',`Provides: lib32gcc1-TARGET-dcv1
+',`')`'dnl
+BUILT_USING`'dnl
+Description: GCC support library (dependency package, 32bit)
+ This is a dependency package, and can be safely removed after upgrade.
+')`'dnl libcompatgcc
+
 ifenabled(`libdbg',`
-Package: lib32gcc1-dbg`'LS
+Package: lib32gcc-s1-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
 Section: debug
 Priority: optional
-Depends: BASELDEP, libdep(gcc1,32,=,${gcc:EpochVersion}), ${misc:Depends}
+Depends: BASELDEP, libdep(gcc-s1,32,=,${gcc:Version}), ${misc:Depends}
+Breaks: lib32gcc1-dbg`'LS (<< 1:10)
+Replaces: lib32gcc1-dbg`'LS (<< 1:10)
 BUILT_USING`'dnl
 Description: GCC support library (debug symbols)`'ifdef(`TARGET',` (TARGET)', `')
  Debug symbols for the GCC support library.
@@ -437,6 +592,18 @@ ifdef(`TARGET', `dnl
  This package contains files for TARGET architecture, for use in cross-compile
  environment.
 ')`'dnl
+
+ifenabled(`libcompatgcc',`
+Package: lib32gcc1-dbg`'LS
+TARGET_PACKAGE`'dnl
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
+Section: debug
+Priority: optional
+Depends: BASELDEP, lib32gcc-s1-dbg`'LS, libdep(gcc1,32,=,${gcc:EpochVersion}), ${misc:Depends}
+BUILT_USING`'dnl
+Description: GCC support library (debug symbols)`'ifdef(`TARGET',` (TARGET)', `')
+ This is a dependency package, and can be safely removed after upgrade.
+')`'dnl libcompatgcc
 ')`'dnl libdbg
 ')`'dnl lib32gcc1
 
@@ -477,15 +644,17 @@ Description: GCC support library [neon optimized]
 ')`'dnl libneongcc1
 
 ifenabled(`libhfgcc',`
-Package: libhfgcc1`'LS
+Package: libhfgcc-s1`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
 Section: ifdef(`TARGET',`devel',`libs')
 Priority: optional
 Depends: BASELDEP, ${dep:libcbiarch}, ${misc:Depends}
-ifdef(`TARGET',`Provides: libhfgcc1-TARGET-dcv1
-',`Conflicts: libgcc1-armhf [biarchhf_archs]
+ifdef(`TARGET',`Provides: libhfgcc-s1-TARGET-dcv1
+',`Conflicts: libgcc-s1-armhf [biarchhf_archs]
 ')`'dnl
+Breaks: libhfgcc1`'LS (<< 1:10)
+Replaces: libhfgcc1`'LS (<< 1:10)
 BUILT_USING`'dnl
 Description: GCC support library`'ifdef(`TARGET',` (TARGET)', `') (hard float ABI)
  Shared version of the support library, a library of internal subroutines
@@ -497,14 +666,31 @@ ifdef(`TARGET', `dnl
  environment.
 ')`'dnl
 
+ifenabled(`libcompatgcc',`
+Package: libhfgcc1`'LS
+TARGET_PACKAGE`'dnl
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
+Section: ifdef(`TARGET',`devel',`libs')
+Priority: optional
+Depends: BASELDEP, libhfgcc-s1`'LS (>= ${gcc:Version}), ${dep:libcbiarch}, ${misc:Depends}
+ifdef(`TARGET',`Provides: libhfgcc1-TARGET-dcv1
+',`Conflicts: libgcc1-armhf [biarchhf_archs]
+')`'dnl
+BUILT_USING`'dnl
+Description: GCC support library`'ifdef(`TARGET',` (TARGET)', `') (hard float ABI)
+ This is a dependency package, and can be safely removed after upgrade.
+')`'dnl libcompatgcc
+
 ifenabled(`libdbg',`
-Package: libhfgcc1-dbg`'LS
+Package: libhfgcc-s1-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
 Section: debug
 Priority: optional
-Depends: BASELDEP, libdep(gcc1,hf,=,${gcc:EpochVersion}), ${misc:Depends}
-ifdef(`TARGET',`dnl',`Conflicts: libgcc1-dbg-armhf [biarchhf_archs]')
+Depends: BASELDEP, libdep(gcc-s1,hf,=,${gcc:Version}), ${misc:Depends}
+ifdef(`TARGET',`dnl',`Conflicts: libgcc-s1-dbg-armhf [biarchhf_archs]')
+Breaks: libhfgcc1-dbg`'LS (<< 1:10)
+Replaces: libhfgcc1-dbg`'LS (<< 1:10)
 BUILT_USING`'dnl
 Description: GCC support library (debug symbols)`'ifdef(`TARGET',` (TARGET)', `')
  Debug symbols for the GCC support library.
@@ -513,6 +699,19 @@ ifdef(`TARGET', `dnl
  This package contains files for TARGET architecture, for use in cross-compile
  environment.
 ')`'dnl
+
+ifenabled(`libcompatgcc',`
+Package: libhfgcc1-dbg`'LS
+TARGET_PACKAGE`'dnl
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
+Section: debug
+Priority: optional
+Depends: BASELDEP, libhfgcc-s1-dbg`'LS, libdep(gcc1,hf,=,${gcc:EpochVersion}), ${misc:Depends}
+ifdef(`TARGET',`dnl',`Conflicts: libgcc1-dbg-armhf [biarchhf_archs]')
+BUILT_USING`'dnl
+Description: GCC support library (debug symbols)`'ifdef(`TARGET',` (TARGET)', `')
+ This is a dependency package, and can be safely removed after upgrade.
+')`'dnl libcompatgcc
 ')`'dnl libdbg
 ')`'dnl libhfgcc
 
@@ -538,15 +737,17 @@ Description: GCC support library (hard float ABI development files)
 ')`'dnl cdev
 
 ifenabled(`libsfgcc',`
-Package: libsfgcc1`'LS
+Package: libsfgcc-s1`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
 Section: ifdef(`TARGET',`devel',`libs')
 Priority: optional
 Depends: BASELDEP, ${dep:libcbiarch}, ${misc:Depends}
-ifdef(`TARGET',`Provides: libsfgcc1-TARGET-dcv1
-',`Conflicts: libgcc1-armel [biarchsf_archs]
+ifdef(`TARGET',`Provides: libsfgcc-s1-TARGET-dcv1
+',`Conflicts: libgcc-s1-armel [biarchsf_archs]
 ')`'dnl
+Breaks: libsfgcc1`'LS (<< 1:10)
+Replaces: libsfgcc1`'LS (<< 1:10)
 BUILT_USING`'dnl
 Description: GCC support library`'ifdef(`TARGET',` (TARGET)', `') (soft float ABI)
  Shared version of the support library, a library of internal subroutines
@@ -558,14 +759,31 @@ ifdef(`TARGET', `dnl
  environment.
 ')`'dnl
 
+ifenabled(`libcompatgcc',`
+Package: libsfgcc1`'LS
+TARGET_PACKAGE`'dnl
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
+Section: ifdef(`TARGET',`devel',`libs')
+Priority: optional
+Depends: BASELDEP, libsfgcc-s1`'LS (>= ${gcc:Version}), ${dep:libcbiarch}, ${misc:Depends}
+ifdef(`TARGET',`Provides: libsfgcc1-TARGET-dcv1
+',`Conflicts: libgcc1-armel [biarchsf_archs]
+')`'dnl
+BUILT_USING`'dnl
+Description: GCC support library`'ifdef(`TARGET',` (TARGET)', `') (soft float ABI)
+ This is a dependency package, and can be safely removed after upgrade.
+')`'dnl libcompatgcc
+
 ifenabled(`libdbg',`
-Package: libsfgcc1-dbg`'LS
+Package: libsfgcc-s1-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
 Section: debug
 Priority: optional
-Depends: BASELDEP, libdep(gcc1,sf,=,${gcc:EpochVersion}), ${misc:Depends}
+Depends: BASELDEP, libdep(gcc-s1,sf,=,${gcc:Version}), ${misc:Depends}
 ifdef(`TARGET',`dnl',`Conflicts: libgcc1-dbg-armel [biarchsf_archs]')
+Breaks: libsfgcc1-dbg`'LS (<< 1:10)
+Replaces: libsfgcc1-dbg`'LS (<< 1:10)
 BUILT_USING`'dnl
 Description: GCC support library (debug symbols)`'ifdef(`TARGET',` (TARGET)', `')
  Debug symbols for the GCC support library.
@@ -574,6 +792,19 @@ ifdef(`TARGET', `dnl
  This package contains files for TARGET architecture, for use in cross-compile
  environment.
 ')`'dnl
+
+ifenabled(`libcompatgcc',`
+Package: libsfgcc1-dbg`'LS
+TARGET_PACKAGE`'dnl
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
+Section: debug
+Priority: optional
+Depends: BASELDEP, libsfgcc-s1-dbg`'LS, libdep(gcc1,sf,=,${gcc:EpochVersion}), ${misc:Depends}
+ifdef(`TARGET',`dnl',`Conflicts: libgcc1-dbg-armel [biarchsf_archs]')
+BUILT_USING`'dnl
+Description: GCC support library (debug symbols)`'ifdef(`TARGET',` (TARGET)', `')
+ Debug symbols for the GCC support library.
+')`'dnl libcompatgcc
 ')`'dnl libdbg
 ')`'dnl libsfgcc
 
@@ -599,15 +830,16 @@ Description: GCC support library (soft float ABI development files)
 ')`'dnl cdev
 
 ifenabled(`libn32gcc',`
-Package: libn32gcc1`'LS
+Package: libn32gcc-s1`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
 Section: ifdef(`TARGET',`devel',`libs')
 Priority: optional
 Depends: BASELDEP, ${dep:libcbiarch}, ${misc:Depends}
-Conflicts: libdep(gcc`'GCC_SO,,<=,1:3.3-0pre9)
-ifdef(`TARGET',`Provides: libn32gcc1-TARGET-dcv1
+ifdef(`TARGET',`Provides: libn32gcc-s1-TARGET-dcv1
 ',`')`'dnl
+Breaks: libn32gcc1`'LS (<< 1:10)
+Replaces: libn32gcc1`'LS (<< 1:10)
 BUILT_USING`'dnl
 Description: GCC support library`'ifdef(`TARGET',` (TARGET)', `') (n32)
  Shared version of the support library, a library of internal subroutines
@@ -619,13 +851,29 @@ ifdef(`TARGET', `dnl
  environment.
 ')`'dnl
 
+ifenabled(`libcompatgcc',`
+Package: libn32gcc1`'LS
+TARGET_PACKAGE`'dnl
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
+Section: ifdef(`TARGET',`devel',`libs')
+Priority: optional
+Depends: BASELDEP, libn32gcc-s1`'LS, ${dep:libcbiarch}, ${misc:Depends}
+ifdef(`TARGET',`Provides: libn32gcc1-TARGET-dcv1
+',`')`'dnl
+BUILT_USING`'dnl
+Description: GCC support library`'ifdef(`TARGET',` (TARGET)', `') (n32)
+ This is a dependency package, and can be safely removed after upgrade.
+')`'dnl libcompatgcc
+
 ifenabled(`libdbg',`
-Package: libn32gcc1-dbg`'LS
+Package: libn32gcc-s1-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
 Section: debug
 Priority: optional
-Depends: BASELDEP, libdep(gcc1,n32,=,${gcc:EpochVersion}), ${misc:Depends}
+Depends: BASELDEP, libdep(gcc-s1,n32,=,${gcc:Version}), ${misc:Depends}
+Breaks: libn32gcc1-dbg`'LS (<< 1:10)
+Replaces: libn32gcc1-dbg`'LS (<< 1:10)
 BUILT_USING`'dnl
 Description: GCC support library (debug symbols)`'ifdef(`TARGET',` (TARGET)', `')
  Debug symbols for the GCC support library.
@@ -634,6 +882,18 @@ ifdef(`TARGET', `dnl
  This package contains files for TARGET architecture, for use in cross-compile
  environment.
 ')`'dnl
+
+ifenabled(`libcompatgcc',`
+Package: libn32gcc1-dbg`'LS
+TARGET_PACKAGE`'dnl
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
+Section: debug
+Priority: optional
+Depends: BASELDEP, libn32gcc-s1-dbg`'LS, libdep(gcc1,n32,=,${gcc:EpochVersion}), ${misc:Depends}
+BUILT_USING`'dnl
+Description: GCC support library (debug symbols)`'ifdef(`TARGET',` (TARGET)', `')
+ This is a dependency package, and can be safely removed after upgrade.
+')`'dnl libcompatgcc
 ')`'dnl libdbg
 ')`'dnl libn32gcc
 
@@ -657,14 +917,16 @@ Description: GCC support library (n32 development files)
 ')`'dnl cdev
 
 ifenabled(`libx32gcc',`
-Package: libx32gcc1`'LS
+Package: libx32gcc-s1`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
 Section: ifdef(`TARGET',`devel',`libs')
 Priority: optional
 Depends: BASELDEP, ${dep:libcbiarch}, ${misc:Depends}
-ifdef(`TARGET',`Provides: libx32gcc1-TARGET-dcv1
+ifdef(`TARGET',`Provides: libx32gcc-s1-TARGET-dcv1
 ',`')`'dnl
+Breaks: libx32gcc1`'LS (<< 1:10)
+Replaces: libx32gcc1`'LS (<< 1:10)
 BUILT_USING`'dnl
 Description: GCC support library`'ifdef(`TARGET',` (TARGET)', `') (x32)
  Shared version of the support library, a library of internal subroutines
@@ -676,13 +938,29 @@ ifdef(`TARGET', `dnl
  environment.
 ')`'dnl
 
+ifenabled(`libcompatgcc',`
+Package: libx32gcc1`'LS
+TARGET_PACKAGE`'dnl
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
+Section: ifdef(`TARGET',`devel',`libs')
+Priority: optional
+Depends: BASELDEP, libx32gcc-s1`'LS (>= ${gcc:Version}), ${dep:libcbiarch}, ${misc:Depends}
+ifdef(`TARGET',`Provides: libx32gcc1-TARGET-dcv1
+',`')`'dnl
+BUILT_USING`'dnl
+Description: GCC support library`'ifdef(`TARGET',` (TARGET)', `') (x32)
+ This is a dependency package, and can be safely removed after upgrade.
+')`'dnl libcompatgcc
+
 ifenabled(`libdbg',`
-Package: libx32gcc1-dbg`'LS
+Package: libx32gcc-s1-dbg`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
 Section: debug
 Priority: optional
-Depends: BASELDEP, libdep(gcc1,x32,=,${gcc:EpochVersion}), ${misc:Depends}
+Depends: BASELDEP, libdep(gcc-s1,x32,=,${gcc:Version}), ${misc:Depends}
+Breaks: libx32gcc1-dbg`'LS (<< 1:10)
+Replaces: libx32gcc1-dbg`'LS (<< 1:10)
 BUILT_USING`'dnl
 Description: GCC support library (debug symbols)`'ifdef(`TARGET',` (TARGET)', `')
  Debug symbols for the GCC support library.
@@ -691,6 +969,18 @@ ifdef(`TARGET', `dnl
  This package contains files for TARGET architecture, for use in cross-compile
  environment.
 ')`'dnl
+
+ifenabled(`libcompatgcc',`
+Package: libx32gcc1-dbg`'LS
+TARGET_PACKAGE`'dnl
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
+Section: debug
+Priority: optional
+Depends: BASELDEP, libx32gcc-s1-dbg`'LS, libdep(gcc1,x32,=,${gcc:EpochVersion}), ${misc:Depends}
+BUILT_USING`'dnl
+Description: GCC support library (debug symbols)`'ifdef(`TARGET',` (TARGET)', `')
+ This is a dependency package, and can be safely removed after upgrade.
+')`'dnl libcompatgcc
 ')`'dnl libdbg
 ')`'dnl libx32gcc
 
@@ -731,7 +1021,7 @@ Recommends: ${dep:libcdev}
 Replaces: cpp`'PV`'TS (<< 7.1.1-8)
 Suggests: ${gcc:multilib}, gcc`'PV-doc (>= ${gcc:SoftVersion}),
  gcc`'PV-locales (>= ${gcc:SoftVersion}),
- libdbgdep(gcc`'GCC_SO-dbg,,>=,${libgcc:Version}),
+ libdbgdep(gcc-s`'GCC_SO-dbg,,>=,${libgcc:Version}),
  libdbgdep(gomp`'GOMP_SO-dbg,),
  libdbgdep(itm`'ITM_SO-dbg,),
  libdbgdep(atomic`'ATOMIC_SO-dbg,),
@@ -3134,6 +3424,7 @@ Architecture: all
 Priority: optional
 Depends: BASEDEP, ${misc:Depends}
 Conflicts: libgccjit-5-doc, libgccjit-6-doc, libgccjit-7-doc, libgccjit-8-doc,
+  libgccjit-9-doc,
 Description: GCC just-in-time compilation (documentation)
  libgccjit provides an embeddable shared library with an API for adding
  compilation to existing programs using GCC.
@@ -3336,7 +3627,7 @@ ifdef(`TARGET',`',`Provides: libobjc'OBJC_SO`-dbg-armel [armel], libobjc'OBJC_SO
 ifdef(`MULTIARCH', `Multi-Arch: same
 ')`'dnl
 Priority: optional
-Depends: BASELDEP, libdep(objc`'OBJC_SO,,=), libdbgdep(gcc`'GCC_SO-dbg,,>=,${libgcc:Version}), ${misc:Depends}
+Depends: BASELDEP, libdep(objc`'OBJC_SO,,=), libdbgdep(gcc-s`'GCC_SO-dbg,,>=,${libgcc:Version}), ${misc:Depends}
 BUILT_USING`'dnl
 Description: Runtime library for GNU Objective-C applications (debug symbols)
  Library needed for GNU ObjC applications linked against the shared library.
@@ -3360,7 +3651,7 @@ TARGET_PACKAGE`'dnl
 Section: debug
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
 Priority: optional
-Depends: BASELDEP, libdep(objc`'OBJC_SO,64,=), libdbgdep(gcc`'GCC_SO-dbg,64,>=,${gcc:EpochVersion}), ${misc:Depends}
+Depends: BASELDEP, libdep(objc`'OBJC_SO,64,=), libdbgdep(gcc-s`'GCC_SO-dbg,64,>=,${gcc:EpochVersion}), ${misc:Depends}
 BUILT_USING`'dnl
 Description: Runtime library for GNU Objective-C applications (64 bit debug symbols)
  Library needed for GNU ObjC applications linked against the shared library.
@@ -3385,7 +3676,7 @@ TARGET_PACKAGE`'dnl
 Section: debug
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
 Priority: optional
-Depends: BASELDEP, libdep(objc`'OBJC_SO,32,=), libdbgdep(gcc`'GCC_SO-dbg,32,>=,${gcc:EpochVersion}), ${misc:Depends}
+Depends: BASELDEP, libdep(objc`'OBJC_SO,32,=), libdbgdep(gcc-s`'GCC_SO-dbg,32,>=,${gcc:EpochVersion}), ${misc:Depends}
 BUILT_USING`'dnl
 Description: Runtime library for GNU Objective-C applications (32 bit debug symbols)
  Library needed for GNU ObjC applications linked against the shared library.
@@ -3409,7 +3700,7 @@ TARGET_PACKAGE`'dnl
 Section: debug
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
 Priority: optional
-Depends: BASELDEP, libdep(objc`'OBJC_SO,n32,=), libdbgdep(gcc`'GCC_SO-dbg,n32,>=,${gcc:EpochVersion}), ${misc:Depends}
+Depends: BASELDEP, libdep(objc`'OBJC_SO,n32,=), libdbgdep(gcc-s`'GCC_SO-dbg,n32,>=,${gcc:EpochVersion}), ${misc:Depends}
 BUILT_USING`'dnl
 Description: Runtime library for GNU Objective-C applications (n32 debug symbols)
  Library needed for GNU ObjC applications linked against the shared library.
@@ -3433,7 +3724,7 @@ TARGET_PACKAGE`'dnl
 Section: debug
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
 Priority: optional
-Depends: BASELDEP, libdep(objc`'OBJC_SO,x32,=), libdbgdep(gcc`'GCC_SO-dbg,x32,>=,${gcc:EpochVersion}), ${misc:Depends}
+Depends: BASELDEP, libdep(objc`'OBJC_SO,x32,=), libdbgdep(gcc-s`'GCC_SO-dbg,x32,>=,${gcc:EpochVersion}), ${misc:Depends}
 BUILT_USING`'dnl
 Description: Runtime library for GNU Objective-C applications (x32 debug symbols)
  Library needed for GNU ObjC applications linked against the shared library.
@@ -3458,7 +3749,7 @@ TARGET_PACKAGE`'dnl
 Section: debug
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
 Priority: optional
-Depends: BASELDEP, libdep(objc`'OBJC_SO,hf,=), libdbgdep(gcc`'GCC_SO-dbg,hf,>=,${gcc:EpochVersion}), ${misc:Depends}
+Depends: BASELDEP, libdep(objc`'OBJC_SO,hf,=), libdbgdep(gcc-s`'GCC_SO-dbg,hf,>=,${gcc:EpochVersion}), ${misc:Depends}
 ifdef(`TARGET',`dnl',`Conflicts: libobjc'OBJC_SO`-dbg-armhf [biarchhf_archs]')
 BUILT_USING`'dnl
 Description: Runtime library for GNU Objective-C applications (hard float ABI debug symbols)
@@ -3484,7 +3775,7 @@ TARGET_PACKAGE`'dnl
 Section: debug
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
 Priority: optional
-Depends: BASELDEP, libdep(objc`'OBJC_SO,sf,=), libdbgdep(gcc`'GCC_SO-dbg,sf,>=,${gcc:EpochVersion}), ${misc:Depends}
+Depends: BASELDEP, libdep(objc`'OBJC_SO,sf,=), libdbgdep(gcc-s`'GCC_SO-dbg,sf,>=,${gcc:EpochVersion}), ${misc:Depends}
 ifdef(`TARGET',`dnl',`Conflicts: libobjc'OBJC_SO`-dbg-armel [biarchsf_archs]')
 BUILT_USING`'dnl
 Description: Runtime library for GNU Objective-C applications (soft float ABI debug symbols)
@@ -3668,7 +3959,7 @@ ifdef(`TARGET',`',`Provides: libgfortran'FORTRAN_SO`-dbg-armel [armel], libgfort
 ifdef(`MULTIARCH', `Multi-Arch: same
 ')`'dnl
 Priority: optional
-Depends: BASELDEP, libdep(gfortran`'FORTRAN_SO,,=), libdbgdep(gcc`'GCC_SO-dbg,,>=,${libgcc:Version}), ${misc:Depends}
+Depends: BASELDEP, libdep(gfortran`'FORTRAN_SO,,=), libdbgdep(gcc-s`'GCC_SO-dbg,,>=,${libgcc:Version}), ${misc:Depends}
 BUILT_USING`'dnl
 Description: Runtime library for GNU Fortran applications (debug symbols)
  Library needed for GNU Fortran applications linked against the
@@ -3912,8 +4203,6 @@ ifdef(`MULTIARCH', `Multi-Arch: same
 Section: libdevel
 Priority: optional
 Depends: BASELDEP, libdevdep(gcc`'PV-dev,), libdep(go`'GO_SO,), ${shlibs:Depends}, ${misc:Depends}
-Breaks: gccgo-9 (<< 9-20190319-1~)
-Replaces: gccgo-9 (<< 9-20190319-1~)
 BUILT_USING`'dnl
 Description: Runtime library for GNU Go applications (development files)
  This package contains the headers and static library files needed to build
@@ -3925,8 +4214,6 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
 Section: libdevel
 Priority: optional
 Depends: BASELDEP, libdevdep(gcc`'PV-dev,64), libdep(go`'GO_SO,64), ${shlibs:Depends}, ${misc:Depends}
-Breaks: gccgo-9-multilib (<< 9-20190319-1~)
-Replaces: gccgo-9-multilib (<< 9-20190319-1~)
 BUILT_USING`'dnl
 Description: Runtime library for GNU Go applications (64bit development files)
  This package contains the headers and static library files needed to build
@@ -3938,8 +4225,6 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
 Section: libdevel
 Priority: optional
 Depends: BASELDEP, libdevdep(gcc`'PV-dev,32), libdep(go`'GO_SO,32), ${shlibs:Depends}, ${misc:Depends}
-Breaks: gccgo-9-multilib (<< 9-20190319-1~)
-Replaces: gccgo-9-multilib (<< 9-20190319-1~)
 BUILT_USING`'dnl
 Description: Runtime library for GNU Go applications (32bit development files)
  This package contains the headers and static library files needed to build
@@ -3951,8 +4236,6 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
 Section: libdevel
 Priority: optional
 Depends: BASELDEP, libdevdep(gcc`'PV-dev,n32), libdep(go`'GO_SO,n32), ${shlibs:Depends}, ${misc:Depends}
-Breaks: gccgo-9-multilib (<< 9-20190319-1~)
-Replaces: gccgo-9-multilib (<< 9-20190319-1~)
 BUILT_USING`'dnl
 Description: Runtime library for GNU Go applications (n32 development files)
  This package contains the headers and static library files needed to build
@@ -3965,8 +4248,6 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
 Section: libdevel
 Priority: optional
 Depends: BASELDEP, libdevdep(gcc`'PV-dev,x32), libdep(go`'GO_SO,x32), ${shlibs:Depends}, ${misc:Depends}
-Breaks: gccgo-9-multilib (<< 9-20190319-1~)
-Replaces: gccgo-9-multilib (<< 9-20190319-1~)
 BUILT_USING`'dnl
 Description: Runtime library for GNU Go applications (x32 development files)
  This package contains the headers and static library files needed to build
@@ -3980,8 +4261,6 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
 Section: libdevel
 Priority: optional
 Depends: BASELDEP, libdevdep(gcc`'PV-dev,hf), libdep(go`'GO_SO,hf), ${shlibs:Depends}, ${misc:Depends}
-Breaks: gccgo-9-multilib (<< 9-20190319-1~)
-Replaces: gccgo-9-multilib (<< 9-20190319-1~)
 BUILT_USING`'dnl
 Description: Runtime library for GNU Go applications (hard float ABI development files)
  This package contains the headers and static library files needed to build
@@ -3995,8 +4274,6 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
 Section: libdevel
 Priority: optional
 Depends: BASELDEP, libdevdep(gcc`'PV-dev,sf), libdep(go`'GO_SO,sf), ${shlibs:Depends}, ${misc:Depends}
-Breaks: gccgo-9-multilib (<< 9-20190319-1~)
-Replaces: gccgo-9-multilib (<< 9-20190319-1~)
 BUILT_USING`'dnl
 Description: Runtime library for GNU Go applications (soft float development files)
  This package contains the headers and static library files needed to build
@@ -4016,7 +4293,6 @@ Pre-Depends: ${misc:Pre-Depends}
 ')`'dnl
 Priority: optional
 Depends: BASELDEP, ${shlibs:Depends}, ${misc:Depends}
-Replaces: libgo3`'LS, libgo8`'LS
 BUILT_USING`'dnl
 Description: Runtime library for GNU Go applications
  Library needed for GNU Go applications linked against the
@@ -4048,7 +4324,6 @@ Section: ifdef(`TARGET',`devel',`libs')
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
 Priority: optional
 Depends: BASELDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
-Replaces: lib64go3`'LS, lib64go8`'LS
 BUILT_USING`'dnl
 Description: Runtime library for GNU Go applications (64bit)
  Library needed for GNU Go applications linked against the
@@ -4077,7 +4352,6 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
 Priority: optional
 Depends: BASELDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
 Conflicts: ${confl:lib32}
-Replaces: lib32go3`'LS, lib32go8`'LS
 BUILT_USING`'dnl
 Description: Runtime library for GNU Go applications (32bit)
  Library needed for GNU Go applications linked against the
@@ -4105,7 +4379,6 @@ Section: ifdef(`TARGET',`devel',`libs')
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
 Priority: optional
 Depends: BASELDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
-Replaces: libn32go3`'LS, libn32go8`'LS
 BUILT_USING`'dnl
 Description: Runtime library for GNU Go applications (n32)
  Library needed for GNU Go applications linked against the
@@ -4133,7 +4406,6 @@ Section: ifdef(`TARGET',`devel',`libs')
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
 Priority: optional
 Depends: BASELDEP, ${dep:libcbiarch}, ${shlibs:Depends}, ${misc:Depends}
-Replaces: libx32go3`'LS, libx32go8`'LS
 BUILT_USING`'dnl
 Description: Runtime library for GNU Go applications (x32)
  Library needed for GNU Go applications linked against the
@@ -4404,7 +4676,7 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
 Section: debug
 Priority: optional
 Depends: BASELDEP, libdep(stdc++CXX_SO,),
- libdbgdep(gcc`'GCC_SO-dbg,,>=,${libgcc:Version}), ${shlibs:Depends}, ${misc:Depends}
+ libdbgdep(gcc-s`'GCC_SO-dbg,,>=,${libgcc:Version}), ${shlibs:Depends}, ${misc:Depends}
 Provides: ifdef(`TARGET',`libstdc++CXX_SO-dbg-TARGET-dcv1',`libstdc++'CXX_SO`'PV`-dbg-armel [armel], libstdc++'CXX_SO`'PV`-dbg-armhf [armhf]')
 ifdef(`MULTIARCH', `Multi-Arch: same
 ')`'dnl
@@ -4414,7 +4686,7 @@ Conflicts: libstdc++5-dbg`'LS, libstdc++5-3.3-dbg`'LS, libstdc++6-dbg`'LS,
  libstdc++6-4.3-dbg`'LS, libstdc++6-4.4-dbg`'LS, libstdc++6-4.5-dbg`'LS,
  libstdc++6-4.6-dbg`'LS, libstdc++6-4.7-dbg`'LS, libstdc++6-4.8-dbg`'LS,
  libstdc++6-4.9-dbg`'LS, libstdc++6-5-dbg`'LS, libstdc++6-6-dbg`'LS,
- libstdc++6-7-dbg`'LS, libstdc++6-8-dbg`'LS
+ libstdc++6-7-dbg`'LS, libstdc++6-8-dbg`'LS, libstdc++6-9-dbg`'LS
 BUILT_USING`'dnl
 ifelse(index(enabled_languages, `libdbg'), -1, `dnl
 Description: GNU Standard C++ Library v3 (debug build)`'ifdef(`TARGET',` (TARGET)', `')
@@ -4458,7 +4730,7 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
 Section: debug
 Priority: optional
 Depends: BASELDEP, libdep(stdc++CXX_SO,32),
- libdevdep(stdc++`'PV-dev,), libdbgdep(gcc`'GCC_SO-dbg,32,>=,${gcc:EpochVersion}),
+ libdevdep(stdc++`'PV-dev,), libdbgdep(gcc-s`'GCC_SO-dbg,32,>=,${gcc:EpochVersion}),
  ${shlibs:Depends}, ${misc:Depends}
 ifdef(`TARGET',`Provides: lib32stdc++CXX_SO-dbg-TARGET-dcv1
 ',`')`'dnl
@@ -4467,7 +4739,7 @@ Conflicts: lib32stdc++6-dbg`'LS, lib32stdc++6-4.0-dbg`'LS,
  lib32stdc++6-4.4-dbg`'LS, lib32stdc++6-4.5-dbg`'LS, lib32stdc++6-4.6-dbg`'LS,
  lib32stdc++6-4.7-dbg`'LS, lib32stdc++6-4.8-dbg`'LS, lib32stdc++6-4.9-dbg`'LS,
  lib32stdc++6-5-dbg`'LS, lib32stdc++6-6-dbg`'LS, lib32stdc++6-7-dbg`'LS,
- lib32stdc++6-8-dbg`'LS,
+ lib32stdc++6-8-dbg`'LS, lib32stdc++6-9-dbg`'LS,
 BUILT_USING`'dnl
 ifelse(index(enabled_languages, `libdbg'), -1, `dnl
 Description: GNU Standard C++ Library v3 (debug build)`'ifdef(`TARGET',` (TARGET)', `')
@@ -4511,7 +4783,7 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
 Section: debug
 Priority: optional
 Depends: BASELDEP, libdep(stdc++CXX_SO,64),
- libdevdep(stdc++`'PV-dev,), libdbgdep(gcc`'GCC_SO-dbg,64,>=,${gcc:EpochVersion}),
+ libdevdep(stdc++`'PV-dev,), libdbgdep(gcc-s`'GCC_SO-dbg,64,>=,${gcc:EpochVersion}),
  ${shlibs:Depends}, ${misc:Depends}
 ifdef(`TARGET',`Provides: lib64stdc++CXX_SO-dbg-TARGET-dcv1
 ',`')`'dnl
@@ -4520,7 +4792,7 @@ Conflicts: lib64stdc++6-dbg`'LS, lib64stdc++6-4.0-dbg`'LS,
  lib64stdc++6-4.4-dbg`'LS, lib64stdc++6-4.5-dbg`'LS, lib64stdc++6-4.6-dbg`'LS,
  lib64stdc++6-4.7-dbg`'LS, lib64stdc++6-4.8-dbg`'LS, lib64stdc++6-4.9-dbg`'LS,
  lib64stdc++6-5-dbg`'LS, lib64stdc++6-6-dbg`'LS, lib64stdc++6-7-dbg`'LS,
- lib64stdc++6-8-dbg`'LS,
+ lib64stdc++6-8-dbg`'LS, lib64stdc++6-9-dbg`'LS,
 BUILT_USING`'dnl
 ifelse(index(enabled_languages, `libdbg'), -1, `dnl
 Description: GNU Standard C++ Library v3 (debug build)`'ifdef(`TARGET',` (TARGET)', `')
@@ -4564,7 +4836,7 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
 Section: debug
 Priority: optional
 Depends: BASELDEP, libdep(stdc++CXX_SO,n32),
- libdevdep(stdc++`'PV-dev,), libdbgdep(gcc`'GCC_SO-dbg,n32,>=,${gcc:EpochVersion}),
+ libdevdep(stdc++`'PV-dev,), libdbgdep(gcc-s`'GCC_SO-dbg,n32,>=,${gcc:EpochVersion}),
  ${shlibs:Depends}, ${misc:Depends}
 ifdef(`TARGET',`Provides: libn32stdc++CXX_SO-dbg-TARGET-dcv1
 ',`')`'dnl
@@ -4573,7 +4845,7 @@ Conflicts: libn32stdc++6-dbg`'LS, libn32stdc++6-4.0-dbg`'LS,
  libn32stdc++6-4.4-dbg`'LS, libn32stdc++6-4.5-dbg`'LS, libn32stdc++6-4.6-dbg`'LS,
  libn32stdc++6-4.7-dbg`'LS, libn32stdc++6-4.8-dbg`'LS, libn32stdc++6-4.9-dbg`'LS,
  libn32stdc++6-5-dbg`'LS, libn32stdc++6-6-dbg`'LS, libn32stdc++6-7-dbg`'LS,
- libn32stdc++6-8-dbg`'LS,
+ libn32stdc++6-8-dbg`'LS, libn32stdc++6-9-dbg`'LS,
 BUILT_USING`'dnl
 ifelse(index(enabled_languages, `libdbg'), -1, `dnl
 Description: GNU Standard C++ Library v3 (debug build)`'ifdef(`TARGET',` (TARGET)', `')
@@ -4620,14 +4892,14 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
 Section: debug
 Priority: optional
 Depends: BASELDEP, libdep(stdc++CXX_SO,x32),
- libdevdep(stdc++`'PV-dev,), libdbgdep(gcc`'GCC_SO-dbg,x32,>=,${gcc:EpochVersion}),
+ libdevdep(stdc++`'PV-dev,), libdbgdep(gcc-s`'GCC_SO-dbg,x32,>=,${gcc:EpochVersion}),
  ${shlibs:Depends}, ${misc:Depends}
 ifdef(`TARGET',`Provides: libx32stdc++CXX_SO-dbg-TARGET-dcv1
 ',`')`'dnl
 Conflicts: libx32stdc++6-dbg`'LS, libx32stdc++6-4.6-dbg`'LS,
  libx32stdc++6-4.7-dbg`'LS, libx32stdc++6-4.8-dbg`'LS, libx32stdc++6-4.9-dbg`'LS,
  libx32stdc++6-5-dbg`'LS, libx32stdc++6-6-dbg`'LS, libx32stdc++6-7-dbg`'LS,
- libx32stdc++6-8-dbg`'LS,
+ libx32stdc++6-8-dbg`'LS, libx32stdc++6-9-dbg`'LS,
 BUILT_USING`'dnl
 ifelse(index(enabled_languages, `libdbg'), -1, `dnl
 Description: GNU Standard C++ Library v3 (debug build)`'ifdef(`TARGET',` (TARGET)', `')
@@ -4673,7 +4945,7 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
 Section: debug
 Priority: optional
 Depends: BASELDEP, libdep(stdc++CXX_SO,hf),
- libdevdep(stdc++`'PV-dev,), libdbgdep(gcc`'GCC_SO-dbg,hf,>=,${gcc:EpochVersion}),
+ libdevdep(stdc++`'PV-dev,), libdbgdep(gcc-s`'GCC_SO-dbg,hf,>=,${gcc:EpochVersion}),
  ${shlibs:Depends}, ${misc:Depends}
 ifdef(`TARGET',`Provides: libhfstdc++CXX_SO-dbg-TARGET-dcv1
 ',`')`'dnl
@@ -4723,11 +4995,11 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
 Section: debug
 Priority: optional
 Depends: BASELDEP, libdep(stdc++CXX_SO,sf),
- libdevdep(stdc++`'PV-dev,), libdbgdep(gcc`'GCC_SO-dbg,sf,>=,${gcc:EpochVersion}),
+ libdevdep(stdc++`'PV-dev,), libdbgdep(gcc-s`'GCC_SO-dbg,sf,>=,${gcc:EpochVersion}),
  ${shlibs:Depends}, ${misc:Depends}
 ifdef(`TARGET',`Provides: libsfstdc++CXX_SO-dbg-TARGET-dcv1
 ',`')`'dnl
-ifdef(`TARGET',`dnl',`Conflicts: libsfstdc++6-dbg`'LS, libsfstdc++6-4.3-dbg`'LS, libsfstdc++6-4.4-dbg`'LS, libsfstdc++6-4.5-dbg`'LS, libsfstdc++6-4.6-dbg`'LS, libsfstdc++6-4.7-dbg`'LS, libsfstdc++6-4.8-dbg`'LS, libsfstdc++6-4.9-dbg`'LS, libsfstdc++6-5-dbg`'LS, libhfstdc++6-6-dbg`'LS, libhfstdc++6-7-dbg`'LS, libstdc++'CXX_SO`-armel [biarchsf_archs]')
+ifdef(`TARGET',`dnl',`Conflicts: libsfstdc++6-dbg`'LS, libsfstdc++6-4.3-dbg`'LS, libsfstdc++6-4.4-dbg`'LS, libsfstdc++6-4.5-dbg`'LS, libsfstdc++6-4.6-dbg`'LS, libsfstdc++6-4.7-dbg`'LS, libsfstdc++6-4.8-dbg`'LS, libsfstdc++6-4.9-dbg`'LS, libsfstdc++6-5-dbg`'LS, libhfstdc++6-6-dbg`'LS, libhfstdc++6-7-dbg`'LS, libhfstdc++6-8-dbg`'LS, libhfstdc++6-9-dbg`'LS, libstdc++'CXX_SO`-armel [biarchsf_archs]')
 BUILT_USING`'dnl
 ifelse(index(enabled_languages, `libdbg'), -1, `dnl
 Description: GNU Standard C++ Library v3 (debug build)`'ifdef(`TARGET',` (TARGET)', `')
@@ -4755,7 +5027,7 @@ Conflicts: libstdc++5-doc, libstdc++5-3.3-doc, libstdc++6-doc,
  libstdc++6-4.0-doc, libstdc++6-4.1-doc, libstdc++6-4.2-doc, libstdc++6-4.3-doc,
  libstdc++6-4.4-doc, libstdc++6-4.5-doc, libstdc++6-4.6-doc, libstdc++6-4.7-doc,
  libstdc++-4.8-doc, libstdc++-4.9-doc, libstdc++-5-doc, libstdc++-6-doc,
- libstdc++-7-doc, libstdc++-8-doc,
+ libstdc++-7-doc, libstdc++-8-doc, libstdc++-9-doc,
 Description: GNU Standard C++ Library v3 (documentation files)
  This package contains documentation files for the GNU stdc++ library.
  .
@@ -4787,7 +5059,7 @@ Replaces: gnat (<< 4.6.1), dh-ada-library (<< 6.0), gnat-4.6-base (= 4.6.4-2),
 # Newer versions of gnat and dh-ada-library will not provide these files.
 Conflicts: gnat (<< 4.1), gnat-3.1, gnat-3.2, gnat-3.3, gnat-3.4, gnat-3.5,
  gnat-4.0, gnat-4.1, gnat-4.2, gnat-4.3, gnat-4.4, gnat-4.6, gnat-4.7, gnat-4.8,
- gnat-4.9, gnat-5`'TS, gnat-6`'TS, gnat-7`'TS, gnat-8`'TS,
+ gnat-4.9, gnat-5`'TS, gnat-6`'TS, gnat-7`'TS, gnat-8`'TS, gnat-9`'TS,
 # These other packages will continue to provide /usr/bin/gnatmake and
 # other files.
 BUILT_USING`'dnl
@@ -4954,7 +5226,7 @@ Suggests: gnat`'PV
 Conflicts: gnat-4.1-doc, gnat-4.2-doc,
   gnat-4.3-doc, gnat-4.4-doc,
   gnat-4.6-doc, gnat-4.9-doc,
-  gnat-5-doc, gnat-6-doc, gnat-7-doc, gnat-8-doc,
+  gnat-5-doc, gnat-6-doc, gnat-7-doc, gnat-8-doc, gnat-9-doc,
 BUILT_USING`'dnl
 Description: GNU Ada compiler (documentation)
  GNAT is a compiler for the Ada programming language. It produces optimized
@@ -5796,7 +6068,7 @@ ifdef(`TARGET',`',`Provides: libhsail-rt'HSAIL_SO`-dbg-armel [armel], libhsail-r
 ifdef(`MULTIARCH', `Multi-Arch: same
 ')`'dnl
 Priority: optional
-Depends: BASELDEP, libdep(hsail-rt`'HSAIL_SO,,=), libdbgdep(gcc`'GCC_SO-dbg,,>=,${libgcc:Version}), ${misc:Depends}
+Depends: BASELDEP, libdep(hsail-rt`'HSAIL_SO,,=), libdbgdep(gcc-s`'GCC_SO-dbg,,>=,${libgcc:Version}), ${misc:Depends}
 BUILT_USING`'dnl
 Description: HSAIL runtime library (debug symbols)
  This library implements the agent-side runtime functionality required
@@ -5828,7 +6100,7 @@ TARGET_PACKAGE`'dnl
 Section: debug
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
 Priority: optional
-Depends: BASELDEP, libdep(hsail-rt`'HSAIL_SO,64,=), libdbgdep(gcc`'GCC_SO-dbg,64,>=,${gcc:EpochVersion}), ${misc:Depends}
+Depends: BASELDEP, libdep(hsail-rt`'HSAIL_SO,64,=), libdbgdep(gcc-s`'GCC_SO-dbg,64,>=,${gcc:EpochVersion}), ${misc:Depends}
 BUILT_USING`'dnl
 Description: HSAIL runtime library (64 bit debug symbols)
  This library implements the agent-side runtime functionality required
@@ -5861,7 +6133,7 @@ TARGET_PACKAGE`'dnl
 Section: debug
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
 Priority: optional
-Depends: BASELDEP, libdep(hsail-rt`'HSAIL_SO,32,=), libdbgdep(gcc`'GCC_SO-dbg,32,>=,${gcc:EpochVersion}), ${misc:Depends}
+Depends: BASELDEP, libdep(hsail-rt`'HSAIL_SO,32,=), libdbgdep(gcc-s`'GCC_SO-dbg,32,>=,${gcc:EpochVersion}), ${misc:Depends}
 BUILT_USING`'dnl
 Description: HSAIL runtime library (32 bit debug symbols)
  This library implements the agent-side runtime functionality required
@@ -5893,7 +6165,7 @@ TARGET_PACKAGE`'dnl
 Section: debug
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
 Priority: optional
-Depends: BASELDEP, libdep(hsail-rt`'HSAIL_SO,n32,=), libdbgdep(gcc`'GCC_SO-dbg,n32,>=,${gcc:EpochVersion}), ${misc:Depends}
+Depends: BASELDEP, libdep(hsail-rt`'HSAIL_SO,n32,=), libdbgdep(gcc-s`'GCC_SO-dbg,n32,>=,${gcc:EpochVersion}), ${misc:Depends}
 BUILT_USING`'dnl
 Description: HSAIL runtime library (n32 debug symbols)
  This library implements the agent-side runtime functionality required
@@ -5925,7 +6197,7 @@ TARGET_PACKAGE`'dnl
 Section: debug
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
 Priority: optional
-Depends: BASELDEP, libdep(hsail-rt`'HSAIL_SO,x32,=), libdbgdep(gcc`'GCC_SO-dbg,x32,>=,${gcc:EpochVersion}), ${misc:Depends}
+Depends: BASELDEP, libdep(hsail-rt`'HSAIL_SO,x32,=), libdbgdep(gcc-s`'GCC_SO-dbg,x32,>=,${gcc:EpochVersion}), ${misc:Depends}
 BUILT_USING`'dnl
 Description: HSAIL runtime library (x32 debug symbols)
  This library implements the agent-side runtime functionality required
@@ -5958,7 +6230,7 @@ TARGET_PACKAGE`'dnl
 Section: debug
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
 Priority: optional
-Depends: BASELDEP, libdep(hsail-rt`'HSAIL_SO,hf,=), libdbgdep(gcc`'GCC_SO-dbg,hf,>=,${gcc:EpochVersion}), ${misc:Depends}
+Depends: BASELDEP, libdep(hsail-rt`'HSAIL_SO,hf,=), libdbgdep(gcc-s`'GCC_SO-dbg,hf,>=,${gcc:EpochVersion}), ${misc:Depends}
 ifdef(`TARGET',`dnl',`Conflicts: libhsail-rt'HSAIL_SO`-dbg-armhf [biarchhf_archs]')
 BUILT_USING`'dnl
 Description: HSAIL runtime library (hard float ABI debug symbols)
@@ -5992,7 +6264,7 @@ TARGET_PACKAGE`'dnl
 Section: debug
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
 Priority: optional
-Depends: BASELDEP, libdep(hsail-rt`'HSAIL_SO,sf,=), libdbgdep(gcc`'GCC_SO-dbg,sf,>=,${gcc:EpochVersion}), ${misc:Depends}
+Depends: BASELDEP, libdep(hsail-rt`'HSAIL_SO,sf,=), libdbgdep(gcc-s`'GCC_SO-dbg,sf,>=,${gcc:EpochVersion}), ${misc:Depends}
 ifdef(`TARGET',`dnl',`Conflicts: libhsail-rt'HSAIL_SO`-dbg-armel [biarchsf_archs]')
 BUILT_USING`'dnl
 Description: HSAIL runtime library (soft float ABI debug symbols)
@@ -6064,6 +6336,36 @@ Description: GCC OpenMP v4.5 plugin for offloading to NVPTX
  installed separately.
 ')`'dnl libgompnvptx
 ')`'dnl olnvptx
+
+ifenabled(`olgcn',`
+Package: gcc`'PV-offload-amdgcn
+Architecture: amd64
+ifdef(`TARGET',`Multi-Arch: foreign
+')dnl
+Priority: optional
+Depends: BASEDEP, gcc`'PV (= ${gcc:Version}), ${dep:libcdev},
+  libgomp-plugin-amdgcn`'GOMP_SO (>= ${gcc:Version}),
+  llvm-9, lld-9,
+  ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: GCC offloading compiler to GCN
+ The package provides offloading support for AMD GCN.  OpenMP and OpenACC
+ programs linked with -fopenmp will by default add GCN code into the binaries,
+ which can be offloaded to AMD GCN capable devices if available.
+
+ifenabled(`libgompgcn',`
+Package: libgomp-plugin-amdgcn`'GOMP_SO
+Architecture: amd64
+Multi-Arch: same
+Section: libs
+Depends: BASEDEP, libgomp`'GOMP_SO`'LS, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: GCC OpenMP v4.5 plugin for offloading to GCN
+ This package contains libgomp plugin for offloading to AMD GCN.
+ The plugin needs libcuda.so.1 shared library that has to be
+ installed separately.
+')`'dnl libgompgcn
+')`'dnl olgcn
 
 ifenabled(`olhsa',`
 ifenabled(`libgomphsa',`

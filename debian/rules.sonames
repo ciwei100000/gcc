@@ -54,7 +54,9 @@ ifeq (,$(wildcard debian/soname-cache))
 	echo GPHOBOS_SONAME=76 >> $$cache; \
 	echo GDRUNTIME_SONAME=76 >> $$cache; \
 	echo HSAIL_SONAME=0 >> $$cache; \
-	echo GM2_SONAME=0 >> $$cache; \
+	v=`awk -F= '/^libtool_VERSION/ {split($$2,v,":"); print v[1]}' \
+		$(srcdir)/libgm2/configure.ac`; \
+	echo GM2_SONAME=$$v >> $$cache; \
 	cat $$cache)
 else
   SONAME_VARS := $(shell cat debian/soname-cache)
