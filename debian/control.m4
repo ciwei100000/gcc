@@ -287,7 +287,7 @@ ifdef(`MULTIARCH', `Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
 ')`'dnl
 Depends: BASELDEP, ${shlibs:Depends}, ${misc:Depends}
-Provides: libgcc2`'LS (= ${gcc:EpochVersion}), ifdef(`TARGET',`Provides: libgcc-s2-TARGET-dcv1')`'
+Provides: libgcc2`'LS (= ${gcc:EpochVersion}), ifdef(`TARGET',`libgcc-s2-TARGET-dcv1')`'
 ifdef(`TARGET',`dnl
 Breaks: libgcc2`'LS (<< 1:10)
 Replaces: libgcc2`'LS (<< 1:10)
