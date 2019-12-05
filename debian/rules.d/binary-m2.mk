@@ -184,11 +184,8 @@ define __do_libgm2
 	  echo "$(p_l) binary: dev-pkg-without-shlib-symlink"; \
 	  echo "$(p_l) binary: shared-lib-without-dependency-information"; \
 	  echo "$(p_l) binary: package-name-doesnt-match-sonames"; \
+	  echo "$(p_l) binary: library-not-linked-against-libc"; \
 	) >> $(d_l)/usr/share/lintian/overrides/$(p_l)
-	$(if $(2),
-	  echo "$$pkgname binary: embedded-library" \
-		>> $(d_l)/usr/share/lintian/overrides/$(p_l)
-	)
 
 	dh_lintian -p$(p_l)
 	echo $(p_l) $(if $(with_dbg), $(p_d)) >> debian/$(lib_binaries)

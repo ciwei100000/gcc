@@ -193,9 +193,11 @@ define __do_libphobos
 		$(if $(filter yes, $(with_common_libs)),,-- -Ldebian/shlibs.common$(2))
 	$(call cross_mangle_substvars,$(p_l))
 
-	$(if $(2),
 	mkdir -p $(d_l)/usr/share/lintian/overrides; \
-	echo "$$pkgname binary: embedded-library" \
+	echo "$(p_l) binary: symbols-file-contains-debian-revision" \
+		>> $(d_l)/usr/share/lintian/overrides/$(p_l)
+	$(if $(2),
+	  echo "$(p_l) binary: embedded-library" \
 		>> $(d_l)/usr/share/lintian/overrides/$(p_l)
 	)
 
