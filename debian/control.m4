@@ -231,7 +231,7 @@ Section: ifdef(`TARGET',`devel',`libs')
 Priority: optional
 Depends: BASELDEP, libgcc-s1`'LS (>= ${gcc:Version}), ${misc:Depends}, ${shlibs:Depends}
 Provides: ifdef(`TARGET',`libgcc1-TARGET-dcv1',`libgcc1-armel [armel], libgcc1-armhf [armhf]')
-ifdef(`MULTIARCH', `Multi-Arch: same
+ifdef(`MULTIxxxARCH', `Multi-Arch: same
 Breaks: ${multiarch:breaks}
 ')`'dnl
 BUILT_USING`'dnl
@@ -270,7 +270,7 @@ Priority: optional
 Depends: BASELDEP, libgcc-s1-dbg`'LS, libdep(gcc1,,=,${gcc:EpochVersion}), ${misc:Depends}
 ifdef(`TARGET',`',`Provides: libgcc1-dbg-armel [armel], libgcc1-dbg-armhf [armhf]
 ')dnl
-ifdef(`MULTIARCH',`Multi-Arch: same
+ifdef(`MULTIxxxARCH',`Multi-Arch: same
 ')dnl
 BUILT_USING`'dnl
 Description: GCC support library (debug symbols)`'ifdef(`TARGET',` (TARGET)', `')
@@ -312,7 +312,7 @@ Priority: optional
 Depends: BASELDEP, libgcc-s2`'LS (>= ${gcc:Version}), ${misc:Depends}, ${shlibs:Depends}
 ifdef(`TARGET',`Provides: libgcc-s2-TARGET-dcv1
 ')`'dnl
-ifdef(`MULTIARCH', `Multi-Arch: same
+ifdef(`MULTIxxxARCH', `Multi-Arch: same
 Breaks: ${multiarch:breaks}
 ')`'dnl
 BUILT_USING`'dnl
@@ -347,7 +347,7 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`m68k')
 Section: debug
 Priority: optional
 Depends: BASELDEP, libgcc-s2-dbg`'LS, libdep(gcc2,,=,${gcc:EpochVersion}), ${misc:Depends}
-ifdef(`MULTIARCH',`Multi-Arch: same
+ifdef(`MULTIxxxARCH',`Multi-Arch: same
 ')dnl
 BUILT_USING`'dnl
 Description: GCC support library (debug symbols, debug symbols)`'ifdef(`TARGET',` (TARGET)', `')
@@ -407,7 +407,7 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`hppa')
 Section: ifdef(`TARGET',`devel',`libs')
 Priority: optional
 Depends: BASELDEP, libgcc-s4`'LS (>= ${gcc:Version}), ${misc:Depends}, ${shlibs:Depends}
-ifdef(`MULTIARCH', `Multi-Arch: same
+ifdef(`MULTIxxxARCH', `Multi-Arch: same
 Breaks: ${multiarch:breaks}
 ')`'dnl
 BUILT_USING`'dnl
@@ -442,7 +442,7 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`hppa')
 Section: debug
 Priority: optional
 Depends: BASELDEP, libgcc-s4-dbg`'LS, libdep(gcc4,,=,${gcc:EpochVersion}), ${misc:Depends}
-ifdef(`MULTIARCH',`Multi-Arch: same
+ifdef(`MULTIxxxARCH',`Multi-Arch: same
 ')dnl
 BUILT_USING`'dnl
 Description: GCC support library (debug symbols, debug symbols)`'ifdef(`TARGET',` (TARGET)', `')

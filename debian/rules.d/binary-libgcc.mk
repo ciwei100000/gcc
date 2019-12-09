@@ -358,7 +358,7 @@ define __do_libgcc
 	  $(if $(2),,
 	    mkdir -p $(subst gcc-s,gcc,$(d_l))/$(libgcc_dir$(2))
 	    cp -p $(d_l)/$(usr_lib$(2))/libgcc_s.so.$(GCC_SONAME) \
-		$(subst gcc-s,gcc,$(d_l))/$(libgcc_dir$(2))/.
+		$(subst gcc-s,gcc,$(d_l))/$(PF)/lib/.
 	    mkdir -p $(subst gcc-s,gcc,$(d_l))/DEBIAN
 	    cp -p $(d_l)/DEBIAN/{symbols,shlibs} \
 		$(subst gcc-s,gcc,$(d_l))/DEBIAN/.
