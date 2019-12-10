@@ -195,7 +195,7 @@ define __do_libphobos
 
 	$(if $(2),
 	mkdir -p $(d_l)/usr/share/lintian/overrides; \
-	echo "$$pkgname binary: embedded-library" \
+	echo "$(p_l) binary: embedded-library" \
 		>> $(d_l)/usr/share/lintian/overrides/$(p_l)
 	)
 

@@ -6056,7 +6056,7 @@ Architecture: amd64 ppc64el
 Multi-Arch: same
 Section: libs
 Depends: BASEDEP, libgomp`'GOMP_SO`'LS, ${shlibs:Depends}, ${misc:Depends}
-Suggests: libcuda1
+Suggests: libcuda1 [amd64] | libnvidia-tesla-cuda1 [amd64 ppc64el] | libcuda1-any
 BUILT_USING`'dnl
 Description: GCC OpenMP v4.5 plugin for offloading to NVPTX
  This package contains libgomp plugin for offloading to NVidia
