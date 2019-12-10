@@ -1,10 +1,10 @@
-# DP: updates from the 9 branch upto 20191130 (r278870).
+# DP: updates from the 9 branch upto 20191210 (r279160).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Sat Nov 30 09:16:30 CET 2019
-Sat Nov 30 08:16:30 UTC 2019 (revision 278870)
+Tue Dec 10 11:38:08 CET 2019
+Tue Dec 10 10:38:08 UTC 2019 (revision 279160)
 EOF
 }
 
@@ -235,6 +235,28 @@ Index: libstdc++-v3/src/c++17/string-inst.cc
  #include <string>
  
  namespace std _GLIBCXX_VISIBILITY(default)
+Index: libstdc++-v3/src/c++17/fs_path.cc
+===================================================================
+--- a/src/libstdc++-v3/src/c++17/fs_path.cc	(.../tags/gcc_9_2_0_release)
++++ b/src/libstdc++-v3/src/c++17/fs_path.cc	(.../branches/gcc-9-branch)
+@@ -968,16 +968,7 @@
+ 	}
+ 
+       if (it != last && it->_M_type() == _Type::_Root_dir)
+-	{
+-	  ++it;
+-	  if (it == last)
+-	    {
+-	      // This root-dir becomes a trailing slash
+-	      auto pos = _M_pathname.length() + p._M_pathname.length();
+-	      ::new(output++) _Cmpt({}, _Type::_Filename, pos);
+-	      ++_M_cmpts._M_impl->_M_size;
+-	    }
+-	}
++	++it;
+ 
+       while (it != last)
+ 	{
 Index: libstdc++-v3/src/filesystem/ops-common.h
 ===================================================================
 --- a/src/libstdc++-v3/src/filesystem/ops-common.h	(.../tags/gcc_9_2_0_release)
@@ -2298,7 +2320,19 @@ Index: libstdc++-v3/ChangeLog
 ===================================================================
 --- a/src/libstdc++-v3/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/libstdc++-v3/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,342 @@
+@@ -1,3 +1,354 @@
++2019-12-09  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backport from mainline
++	2019-12-09  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/92853
++	* src/c++17/fs_path.cc (filesystem::path::operator+=(const path&)):
++	Do not process a trailing directory separator twice.
++	* testsuite/27_io/filesystem/path/concat/92853.cc: New test.
++	* testsuite/27_io/filesystem/path/concat/path.cc: Test more cases.
++	* testsuite/27_io/filesystem/path/concat/strings.cc: Test more cases.
++
 +2019-11-22  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	Backport from mainline
@@ -3538,6 +3572,150 @@ Index: libstdc++-v3/testsuite/27_io/filesystem/iterators/91067.cc
 +  test03();
 +  test04();
  }
+Index: libstdc++-v3/testsuite/27_io/filesystem/path/concat/path.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/27_io/filesystem/path/concat/path.cc	(.../tags/gcc_9_2_0_release)
++++ b/src/libstdc++-v3/testsuite/27_io/filesystem/path/concat/path.cc	(.../branches/gcc-9-branch)
+@@ -55,6 +55,8 @@
+     path x("//blah/di/blah");
+     p += x;
+     VERIFY( p.native() == prior_native + x.native() );
++    path copy(p);
++    compare_paths( copy, p );
+   }
+ }
+ 
+@@ -66,6 +68,23 @@
+   compare_paths(p, "a//b");
+ }
+ 
++void
++test04()
++{
++  // Concat every test path onto every test path.
++  for (path p : __gnu_test::test_paths)
++  {
++    for (path x : __gnu_test::test_paths)
++    {
++      auto prior_native = p.native();
++      p += x;
++      VERIFY( p.native() == prior_native + x.native() );
++      path copy(p); // PR libstdc++/98523
++      compare_paths( copy, p );
++    }
++  }
++}
++
+ int
+ main()
+ {
+@@ -72,4 +91,5 @@
+   test01();
+   test02();
+   test03();
++  test04();
+ }
+Index: libstdc++-v3/testsuite/27_io/filesystem/path/concat/strings.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/27_io/filesystem/path/concat/strings.cc	(.../tags/gcc_9_2_0_release)
++++ b/src/libstdc++-v3/testsuite/27_io/filesystem/path/concat/strings.cc	(.../branches/gcc-9-branch)
+@@ -113,6 +113,24 @@
+   p4 += s;
+   compare_paths(p4, path(s0+'/'+s));
+ }
++
++void
++test04()
++{
++  // Concat every test path onto every test path.
++  for (path p : __gnu_test::test_paths)
++  {
++    for (path x : __gnu_test::test_paths)
++    {
++      auto prior_native = p.native();
++      p += x.native();
++      VERIFY( p.native() == prior_native + x.native() );
++      path copy(p);
++      compare_paths( copy, p );
++    }
++  }
++}
++
+ int
+ main()
+ {
+@@ -119,4 +137,5 @@
+   test01();
+   test02();
+   test03();
++  test04();
+ }
+Index: libstdc++-v3/testsuite/27_io/filesystem/path/concat/92853.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/27_io/filesystem/path/concat/92853.cc	(.../tags/gcc_9_2_0_release)
++++ b/src/libstdc++-v3/testsuite/27_io/filesystem/path/concat/92853.cc	(.../branches/gcc-9-branch)
+@@ -0,0 +1,61 @@
++// Copyright (C) 2019 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-options "-std=gnu++17" }
++// { dg-do run { target c++17 } }
++
++#include <filesystem>
++#include <testsuite_fs.h>
++
++void
++test01()
++{
++  // PR libstdc++/92853
++  using std::filesystem::path;
++  path p1{ "." }, p2{ "/" };
++  p1 += p2;	// corrupts heap
++  path p3{ p1 };	// CRASH!
++  __gnu_test::compare_paths( p3, "./" );
++}
++
++void
++test02()
++{
++  using std::filesystem::path;
++  path p1{ "." }, p2{ "////" };
++  p1 += p2;
++  path p3{ p1 };
++  __gnu_test::compare_paths( p3, ".////" );
++}
++
++void
++test03()
++{
++  using std::filesystem::path;
++  path p1{ "./" }, p2{ "/" };
++  p1 += p2;
++  path p3{ p1 };
++  __gnu_test::compare_paths( p3, ".//" );
++}
++
++int
++main()
++{
++  test01();
++  test02();
++  test03();
++}
 Index: libstdc++-v3/testsuite/26_numerics/transform_inclusive_scan/1.cc
 ===================================================================
 --- a/src/libstdc++-v3/testsuite/26_numerics/transform_inclusive_scan/1.cc	(.../tags/gcc_9_2_0_release)
@@ -9434,7 +9612,15 @@ Index: gcc/c/ChangeLog
 ===================================================================
 --- a/src/gcc/c/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/c/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,33 @@
+@@ -1,3 +1,41 @@
++2019-12-02  Sandra Loosemore  <sandra@codesourcery.com>
++
++	Fix bugs relating to flexibly-sized objects in nios2 backend.
++	
++	PR target/92499
++
++	* c-decl.c (flexible_array_type_p): Move to common code.
++
 +2019-10-21  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from mainline
@@ -9664,6 +9850,50 @@ Index: gcc/c/c-typeck.c
  		  share_name = "shared";
  		  break;
  		case OMP_CLAUSE_DEFAULT_PRIVATE:
+Index: gcc/c/c-decl.c
+===================================================================
+--- a/src/gcc/c/c-decl.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/c/c-decl.c	(.../branches/gcc-9-branch)
+@@ -5586,39 +5586,6 @@
+ 		"defining a type in a compound literal is invalid in C++");
+ }
+ 
+-/* Determine whether TYPE is a structure with a flexible array member,
+-   or a union containing such a structure (possibly recursively).  */
+-
+-static bool
+-flexible_array_type_p (tree type)
+-{
+-  tree x;
+-  switch (TREE_CODE (type))
+-    {
+-    case RECORD_TYPE:
+-      x = TYPE_FIELDS (type);
+-      if (x == NULL_TREE)
+-	return false;
+-      while (DECL_CHAIN (x) != NULL_TREE)
+-	x = DECL_CHAIN (x);
+-      if (TREE_CODE (TREE_TYPE (x)) == ARRAY_TYPE
+-	  && TYPE_SIZE (TREE_TYPE (x)) == NULL_TREE
+-	  && TYPE_DOMAIN (TREE_TYPE (x)) != NULL_TREE
+-	  && TYPE_MAX_VALUE (TYPE_DOMAIN (TREE_TYPE (x))) == NULL_TREE)
+-	return true;
+-      return false;
+-    case UNION_TYPE:
+-      for (x = TYPE_FIELDS (type); x != NULL_TREE; x = DECL_CHAIN (x))
+-	{
+-	  if (flexible_array_type_p (TREE_TYPE (x)))
+-	    return true;
+-	}
+-      return false;
+-    default:
+-    return false;
+-  }
+-}
+-
+ /* Performs sanity checks on the TYPE and WIDTH of the bit-field NAME,
+    replacing with appropriate values if they are invalid.  */
+ 
 Index: gcc/cgraph.c
 ===================================================================
 --- a/src/gcc/cgraph.c	(.../tags/gcc_9_2_0_release)
@@ -9780,7 +10010,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-9-branch)
 @@ -1 +1 @@
 -20190812
-+20191130
++20191210
 Index: gcc/gimple-streamer-out.c
 ===================================================================
 --- a/src/gcc/gimple-streamer-out.c	(.../tags/gcc_9_2_0_release)
@@ -9851,7 +10081,28 @@ Index: gcc/tree.c
 ===================================================================
 --- a/src/gcc/tree.c	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/tree.c	(.../branches/gcc-9-branch)
-@@ -5514,8 +5514,7 @@
+@@ -265,7 +265,7 @@
+ static void print_debug_expr_statistics (void);
+ static void print_value_expr_statistics (void);
+ 
+-static tree build_array_type_1 (tree, tree, bool, bool);
++static tree build_array_type_1 (tree, tree, bool, bool, bool);
+ 
+ tree global_trees[TI_MAX];
+ tree integer_types[itk_none];
+@@ -5251,8 +5251,9 @@
+      = map->get_or_insert (t, &existed);
+   if (!existed)
+     {
+-      array = build_array_type_1 (t2, TYPE_DOMAIN (t),
+-				  TYPE_TYPELESS_STORAGE (t), false);
++      array
++	= build_array_type_1 (t2, TYPE_DOMAIN (t), TYPE_TYPELESS_STORAGE (t),
++			      false, false);
+       TYPE_CANONICAL (array) = TYPE_CANONICAL (t);
+       if (!fld->pset.add (array))
+ 	add_tree_to_fld_list (array, fld);
+@@ -5514,8 +5515,7 @@
  	  free_lang_data_in_binfo (TYPE_BINFO (type));
  	  /* We need to preserve link to bases and virtual table for all
  	     polymorphic types to make devirtualization machinery working.  */
@@ -9861,7 +10112,7 @@ Index: gcc/tree.c
  	    TYPE_BINFO (type) = NULL;
  	}
      }
-@@ -5778,7 +5777,8 @@
+@@ -5778,7 +5778,8 @@
        while (*nextp)
  	{
  	  tree var = *nextp;
@@ -9871,7 +10122,7 @@ Index: gcc/tree.c
  	    *nextp = TREE_CHAIN (var);
  	  else
  	    nextp = &TREE_CHAIN (var);
-@@ -5937,8 +5937,9 @@
+@@ -5937,8 +5938,9 @@
      {
        for (tree *tem = &BLOCK_VARS (t); *tem; )
  	{
@@ -9883,7 +10134,7 @@ Index: gcc/tree.c
  	    {
  	      gcc_assert (TREE_CODE (*tem) != RESULT_DECL
  			  && TREE_CODE (*tem) != PARM_DECL);
-@@ -6107,6 +6108,13 @@
+@@ -6107,6 +6109,13 @@
  	    {
  	      tree arg = gimple_op (stmt, i);
  	      find_decls_types (arg, fld);
@@ -9897,11 +10148,126 @@ Index: gcc/tree.c
  	    }
  	}
      }
+@@ -8359,11 +8368,12 @@
+ /* Construct, lay out and return the type of arrays of elements with ELT_TYPE
+    and number of elements specified by the range of values of INDEX_TYPE.
+    If TYPELESS_STORAGE is true, TYPE_TYPELESS_STORAGE flag is set on the type.
+-   If SHARED is true, reuse such a type that has already been constructed.  */
++   If SHARED is true, reuse such a type that has already been constructed.
++   If SET_CANONICAL is true, compute TYPE_CANONICAL from the element type.  */
+ 
+ static tree
+ build_array_type_1 (tree elt_type, tree index_type, bool typeless_storage,
+-		    bool shared)
++		    bool shared, bool set_canonical)
+ {
+   tree t;
+ 
+@@ -8380,12 +8390,6 @@
+   TYPE_TYPELESS_STORAGE (t) = typeless_storage;
+   layout_type (t);
+ 
+-  /* If the element type is incomplete at this point we get marked for
+-     structural equality.  Do not record these types in the canonical
+-     type hashtable.  */
+-  if (TYPE_STRUCTURAL_EQUALITY_P (t))
+-    return t;
+-
+   if (shared)
+     {
+       hashval_t hash = type_hash_canon_hash (t);
+@@ -8392,7 +8396,7 @@
+       t = type_hash_canon (hash, t);
+     }
+ 
+-  if (TYPE_CANONICAL (t) == t)
++  if (TYPE_CANONICAL (t) == t && set_canonical)
+     {
+       if (TYPE_STRUCTURAL_EQUALITY_P (elt_type)
+ 	  || (index_type && TYPE_STRUCTURAL_EQUALITY_P (index_type))
+@@ -8404,7 +8408,7 @@
+ 	  = build_array_type_1 (TYPE_CANONICAL (elt_type),
+ 				index_type
+ 				? TYPE_CANONICAL (index_type) : NULL_TREE,
+-				typeless_storage, shared);
++				typeless_storage, shared, set_canonical);
+     }
+ 
+   return t;
+@@ -8415,7 +8419,8 @@
+ tree
+ build_array_type (tree elt_type, tree index_type, bool typeless_storage)
+ {
+-  return build_array_type_1 (elt_type, index_type, typeless_storage, true);
++  return
++    build_array_type_1 (elt_type, index_type, typeless_storage, true, true);
+ }
+ 
+ /* Wrapper around build_array_type_1 with SHARED set to false.  */
+@@ -8423,7 +8428,7 @@
+ tree
+ build_nonshared_array_type (tree elt_type, tree index_type)
+ {
+-  return build_array_type_1 (elt_type, index_type, false, false);
++  return build_array_type_1 (elt_type, index_type, false, false, true);
+ }
+ 
+ /* Return a representation of ELT_TYPE[NELTS], using indices of type
+@@ -14972,6 +14977,41 @@
+   return default_is_empty_type (TYPE_MAIN_VARIANT (type));
+ }
+ 
++/* Determine whether TYPE is a structure with a flexible array member,
++   or a union containing such a structure (possibly recursively).  */
++
++bool
++flexible_array_type_p (const_tree type)
++{
++  tree x, last;
++  switch (TREE_CODE (type))
++    {
++    case RECORD_TYPE:
++      last = NULL_TREE;
++      for (x = TYPE_FIELDS (type); x != NULL_TREE; x = DECL_CHAIN (x))
++	if (TREE_CODE (x) == FIELD_DECL)
++	  last = x;
++      if (last == NULL_TREE)
++	return false;
++      if (TREE_CODE (TREE_TYPE (last)) == ARRAY_TYPE
++	  && TYPE_SIZE (TREE_TYPE (last)) == NULL_TREE
++	  && TYPE_DOMAIN (TREE_TYPE (last)) != NULL_TREE
++	  && TYPE_MAX_VALUE (TYPE_DOMAIN (TREE_TYPE (last))) == NULL_TREE)
++	return true;
++      return false;
++    case UNION_TYPE:
++      for (x = TYPE_FIELDS (type); x != NULL_TREE; x = DECL_CHAIN (x))
++	{
++	  if (TREE_CODE (x) == FIELD_DECL
++	      && flexible_array_type_p (TREE_TYPE (x)))
++	    return true;
++	}
++      return false;
++    default:
++      return false;
++  }
++}
++
+ /* Like int_size_in_bytes, but handle empty records specially.  */
+ 
+ HOST_WIDE_INT
 Index: gcc/tree.h
 ===================================================================
 --- a/src/gcc/tree.h	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/tree.h	(.../branches/gcc-9-branch)
-@@ -5946,12 +5946,12 @@
+@@ -5900,6 +5900,7 @@
+ 
+ extern bool nonnull_arg_p (const_tree);
+ extern bool default_is_empty_record (const_tree);
++extern bool flexible_array_type_p (const_tree);
+ extern HOST_WIDE_INT arg_int_size_in_bytes (const_tree);
+ extern tree arg_size_in_bytes (const_tree);
+ extern bool expr_type_first_operand_type_p (tree_code);
+@@ -5946,12 +5947,12 @@
  
     Note that it is different from the DECL_IS_BUILTIN accessor.  For
     instance, user declared prototypes of C library functions are not
@@ -9916,7 +10282,7 @@ Index: gcc/tree.h
  }
  
  /* Return true if a FUNCTION_DECL NODE is a GCC built-in function
-@@ -5960,7 +5960,7 @@
+@@ -5960,7 +5961,7 @@
  inline bool
  fndecl_built_in_p (const_tree node, built_in_class klass)
  {
@@ -10552,7 +10918,48 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,1405 @@
+@@ -1,3 +1,1446 @@
++2019-12-09  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* tree.c (build_array_type_1): Add SET_CANONICAL parameter and compute
++	TYPE_CANONICAL from the element type only if it is true.  Remove a few
++	obsolete lines and adjust recursive call.
++	(fld_process_array_type): Adjust call to build_array_type_1.
++	(build_array_type): Likewise.
++	(build_nonshared_array_type): Likewise.
++
++2019-12-02  Sandra Loosemore  <sandra@codesourcery.com>
++
++	Fix bugs relating to flexibly-sized objects in nios2 backend.
++	
++	PR target/92499
++	* config/nios2/nios2.c (nios2_in_small_data_p): Do not consider
++	objects of flexible types to be small if they have internal linkage
++	or are declared extern.
++	* config/nios2/nios2.h (ASM_OUTPUT_ALIGNED_LOCAL): Replace with...
++	(ASM_OUTPUT_ALIGNED_DECL_LOCAL): ...this.  Use targetm.in_small_data_p
++	instead of the size of the object initializer.
++	* tree.c (flexible_array_type_p): Move from C front end, and
++	generalize to handle fields in non-C structures.
++	* tree.h (flexible_array_type_p): Declare.
++
++2019-12-02  Li Jia He  <helijia@linux.ibm.com>
++
++	Partial backport from mainline
++	PR target/92098
++	2019-11-08  Kewen Lin  <linkw@gcc.gnu.org>
++
++	PR target/92132
++	* config/rs6000/predicates.md
++	(signed_or_equality_comparison_operator): New predicate.
++	(unsigned_or_equality_comparison_operator): Likewise.
++	* config/rs6000/rs6000.md (one_cmpl<mode>2): Remove expand.
++	(one_cmpl<mode>3_internal): Rename to one_cmpl<mode>2.
++	* config/rs6000/vector.md
++	(vcond_mask_<mode><mode> for VEC_I and VEC_I): New expand.
++	(vec_cmp<mode><mode> for VEC_I and VEC_I): Likewise.
++	(vec_cmpu<mode><mode> for VEC_I and VEC_I): Likewise.
++
 +2019-11-27  Richard Biener  <rguenther@suse.de>
 +
 +	Backport from mainline
@@ -11958,7 +12365,7 @@ Index: gcc/ChangeLog
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -513,7 +1915,7 @@
+@@ -513,7 +1956,7 @@
  
  2019-07-11  Uroš Bizjak  <ubizjak@gmail.com>
  
@@ -12159,6 +12566,137 @@ Index: gcc/testsuite/gcc.target/powerpc/pr92090-2.c
 +  d = 1.79769313486231580793728971405301199e308L;
 +  m = 1;
 +}
+Index: gcc/testsuite/gcc.target/powerpc/pr92098-int-2.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/pr92098-int-2.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/pr92098-int-2.c	(.../branches/gcc-9-branch)
+@@ -0,0 +1,126 @@
++/* { dg-do run } */
++/* { dg-require-effective-target p8vector_hw } */
++/* { dg-options "-O2 -ftree-vectorize -mdejagnu-cpu=power8 -fno-vect-cost-model -fdump-tree-vect-details" } */
++
++/* To test condition reduction vectorization, where comparison operands are of
++   unsigned int type and condition true/false values are integer type.  */
++
++#include <math.h>
++
++extern void
++abort (void) __attribute__ ((noreturn));
++
++#define N 27
++#define INT_TYPE unsigned int 
++
++__attribute__ ((noinline)) unsigned int
++test_eq (INT_TYPE *a, INT_TYPE min_v)
++{
++  unsigned int last = 0;
++
++  for (unsigned int i = 0; i < N; i++)
++    if (a[i] == min_v)
++      last = i;
++
++  return last;
++}
++
++__attribute__ ((noinline)) unsigned int
++test_ne (INT_TYPE *a, INT_TYPE min_v)
++{
++  unsigned int last = 0;
++
++  for (unsigned int i = 0; i < N; i++)
++    if (a[i] != min_v)
++      last = i;
++
++  return last;
++}
++
++__attribute__ ((noinline)) unsigned int
++test_gt (INT_TYPE *a, INT_TYPE min_v)
++{
++  unsigned int last = 0;
++
++  for (unsigned int i = 0; i < N; i++)
++    if (a[i] > min_v)
++      last = i;
++
++  return last;
++}
++
++__attribute__ ((noinline)) unsigned int
++test_ge (INT_TYPE *a, INT_TYPE min_v)
++{
++  unsigned int last = 0;
++
++  for (unsigned int i = 0; i < N; i++)
++    if (a[i] >= min_v)
++      last = i;
++
++  return last;
++}
++
++__attribute__ ((noinline)) unsigned int
++test_lt (INT_TYPE *a, INT_TYPE min_v)
++{
++  unsigned int last = 0;
++
++  for (unsigned int i = 0; i < N; i++)
++    if (a[i] < min_v)
++      last = i;
++
++  return last;
++}
++
++__attribute__ ((noinline)) unsigned int
++test_le (INT_TYPE *a, INT_TYPE min_v)
++{
++  unsigned int last = 0;
++
++  for (unsigned int i = 0; i < N; i++)
++    if (a[i] <= min_v)
++      last = i;
++
++  return last;
++}
++
++int
++main (void)
++{
++  int ret = 0;
++
++  INT_TYPE a1[N] = {11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 1,  2,  3, 4,
++		   5,  6,  7,  8,  9,  10, 21, 22, 23, 24, 25, 26, 27};
++
++  INT_TYPE a2[N] = {21, 22, 23, 24, 25, 26, 27, 28, 29, 10, 11, 12, 13, 14,
++		   15, 16, 17, 18, 19, 20, 1,  2,  3,  4,  5,  6,  7};
++
++  ret = test_eq (a1, 10);
++  if (ret != 19)
++    abort ();
++
++  ret = test_ne (a1, 10);
++  if (ret != 26)
++    abort ();
++
++  ret = test_gt (a2, 10);
++  if (ret != 19)
++    abort ();
++
++  ret = test_ge (a2, 10);
++  if (ret != 19)
++    abort ();
++
++  ret = test_lt (a1, 10);
++  if (ret != 18)
++    abort ();
++
++  ret = test_le (a1, 10);
++  if (ret != 19)
++    abort ();
++
++  return 0;
++}
++
++/* { dg-final { scan-tree-dump-times "LOOP VECTORIZED" 6 "vect" } } */
 Index: gcc/testsuite/gcc.target/powerpc/pr91275.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/powerpc/pr91275.c	(.../tags/gcc_9_2_0_release)
@@ -12283,6 +12821,137 @@ Index: gcc/testsuite/gcc.target/powerpc/pr92090.c
 +  for (int h; h; h++)
 +    j = 0;
 +}
+Index: gcc/testsuite/gcc.target/powerpc/pr92098-int-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.target/powerpc/pr92098-int-1.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gcc.target/powerpc/pr92098-int-1.c	(.../branches/gcc-9-branch)
+@@ -0,0 +1,126 @@
++/* { dg-do run } */
++/* { dg-require-effective-target p8vector_hw } */
++/* { dg-options "-O2 -ftree-vectorize -mdejagnu-cpu=power8 -fno-vect-cost-model -fdump-tree-vect-details" } */
++
++/* To test condition reduction vectorization, where comparison operands are of
++   signed int type and condition true/false values are integer type.  */
++
++#include <math.h>
++
++extern void
++abort (void) __attribute__ ((noreturn));
++
++#define N 27
++#define INT_TYPE signed int 
++
++__attribute__ ((noinline)) int
++test_eq (INT_TYPE *a, INT_TYPE min_v)
++{
++  int last = 0;
++
++  for (int i = 0; i < N; i++)
++    if (a[i] == min_v)
++      last = i;
++
++  return last;
++}
++
++__attribute__ ((noinline)) int
++test_ne (INT_TYPE *a, INT_TYPE min_v)
++{
++  int last = 0;
++
++  for (int i = 0; i < N; i++)
++    if (a[i] != min_v)
++      last = i;
++
++  return last;
++}
++
++__attribute__ ((noinline)) int
++test_gt (INT_TYPE *a, INT_TYPE min_v)
++{
++  int last = 0;
++
++  for (int i = 0; i < N; i++)
++    if (a[i] > min_v)
++      last = i;
++
++  return last;
++}
++
++__attribute__ ((noinline)) int
++test_ge (INT_TYPE *a, INT_TYPE min_v)
++{
++  int last = 0;
++
++  for (int i = 0; i < N; i++)
++    if (a[i] >= min_v)
++      last = i;
++
++  return last;
++}
++
++__attribute__ ((noinline)) int
++test_lt (INT_TYPE *a, INT_TYPE min_v)
++{
++  int last = 0;
++
++  for (int i = 0; i < N; i++)
++    if (a[i] < min_v)
++      last = i;
++
++  return last;
++}
++
++__attribute__ ((noinline)) int
++test_le (INT_TYPE *a, INT_TYPE min_v)
++{
++  int last = 0;
++
++  for (int i = 0; i < N; i++)
++    if (a[i] <= min_v)
++      last = i;
++
++  return last;
++}
++
++int
++main (void)
++{
++  int ret = 0;
++
++  INT_TYPE a1[N] = {11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 1,  2,  3, 4,
++		   5,  6,  7,  8,  9,  10, 21, 22, 23, 24, 25, 26, 27};
++
++  INT_TYPE a2[N] = {21, 22, 23, 24, 25, 26, 27, 28, 29, 10, 11, 12, 13, 14,
++		   15, 16, 17, 18, 19, 20, 1,  2,  3,  4,  5,  6,  7};
++
++  ret = test_eq (a1, 10);
++  if (ret != 19)
++    abort ();
++
++  ret = test_ne (a1, 10);
++  if (ret != 26)
++    abort ();
++
++  ret = test_gt (a2, 10);
++  if (ret != 19)
++    abort ();
++
++  ret = test_ge (a2, 10);
++  if (ret != 19)
++    abort ();
++
++  ret = test_lt (a1, 10);
++  if (ret != 18)
++    abort ();
++
++  ret = test_le (a1, 10);
++  if (ret != 19)
++    abort ();
++
++  return 0;
++}
++
++/* { dg-final { scan-tree-dump-times "LOOP VECTORIZED" 6 "vect" } } */
 Index: gcc/testsuite/gcc.target/arm/acle/crc_hf_1.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.target/arm/acle/crc_hf_1.c	(.../tags/gcc_9_2_0_release)
@@ -14246,6 +14915,25 @@ Index: gcc/testsuite/gfortran.dg/bind_c_array_params_3_aux.c
 +  for(i=0; i<ub[0]-lb[0]+1; i++) auxp[i]=i;
 +  return;
 +}
+Index: gcc/testsuite/gfortran.dg/dependency_56.f90
+===================================================================
+--- a/src/gcc/testsuite/gfortran.dg/dependency_56.f90	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gfortran.dg/dependency_56.f90	(.../branches/gcc-9-branch)
+@@ -0,0 +1,14 @@
++! { dg-do compile }
++! PR 91783 - used to cause an ICE in dependency checking.
++! Test case by Gerhard Steinmetz.
++program p
++   class(*), allocatable :: a(:)
++   a = [1, 2, 3]
++   a = f(a)
++contains
++   function f(x) result(y)
++      class(*), allocatable, intent(in) :: x(:)
++      class(*), allocatable :: y(:)
++      y = x
++   end
++end
 Index: gcc/testsuite/gfortran.dg/pr91568.f
 ===================================================================
 --- a/src/gcc/testsuite/gfortran.dg/pr91568.f	(.../tags/gcc_9_2_0_release)
@@ -16123,6 +16811,31 @@ Index: gcc/testsuite/gnat.dg/addr14.adb
 +    raise Program_Error;
 +  end if;
 +end;
+Index: gcc/testsuite/gnat.dg/lto23.adb
+===================================================================
+--- a/src/gcc/testsuite/gnat.dg/lto23.adb	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gnat.dg/lto23.adb	(.../branches/gcc-9-branch)
+@@ -0,0 +1,20 @@
++-- { dg-do compile }
++-- { dg-options "-flto" { target lto } }
++
++procedure Lto23 (N : Natural) is
++
++  type Root is tagged null record;
++
++  type Vec is array (Positive range <>) of Root;
++
++  type Rec is record
++    V : Vec (1 .. N);
++  end record;
++
++  type Arr is array (Positive range <>) of Rec;
++
++  A : Arr (1 .. 4);
++
++begin
++  null;
++end;
 Index: gcc/testsuite/gcc.dg/gomp/pr90637.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.dg/gomp/pr90637.c	(.../tags/gcc_9_2_0_release)
@@ -16866,7 +17579,37 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,976 @@
+@@ -1,3 +1,1006 @@
++2019-12-09  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* gnat.dg/lto23.adb: New test.
++
++2019-12-02  Sandra Loosemore  <sandra@codesourcery.com>
++
++	Fix bugs relating to flexibly-sized objects in nios2 backend.
++	
++	PR target/92499
++	* gcc.target/nios2/pr92499-1.c: New.
++	* gcc.target/nios2/pr92499-2.c: New.
++	* gcc.target/nios2/pr92499-3.c: New.
++
++2019-12-02  Li Jia He  <helijia@linux.ibm.com>
++
++	Partial backport from trunk
++	PR target/92098
++	2019-11-08  Kewen Lin  <linkw@gcc.gnu.org>
++
++	PR target/92132
++	* gcc.target/powerpc/pr92132-fp-1.c: New test.
++	* gcc.target/powerpc/pr92132-fp-2.c: New test.
++
++2019-11-30  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/91783
++	* gfortran.dg/dependency_56.f90: New test. Backport from trunk on
++	the off-chance that somebody backports something that will break
++	this test case.
++
 +2019-11-29  Harald Anlauf  <anlauf@gmx.de>
 +
 +	Backport from mainline
@@ -17843,7 +18586,7 @@ Index: gcc/testsuite/ChangeLog
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -427,7 +1400,7 @@
+@@ -427,7 +1430,7 @@
  	Backport from mainline.
  	2019-05-15  Iain Sandoe  <iain@sandoe.co.uk>
  
@@ -17852,7 +18595,7 @@ Index: gcc/testsuite/ChangeLog
  	(check_effective_target_powerpc_p8vector_ok): No support for Darwin.
  	(check_effective_target_powerpc_p9vector_ok): Likewise.
  	(check_effective_target_powerpc_float128_sw_ok): Likewise.
-@@ -720,7 +1693,7 @@
+@@ -720,7 +1723,7 @@
  
  	Backport from mainline
  	PR fortran/91077
@@ -17861,7 +18604,7 @@ Index: gcc/testsuite/ChangeLog
  
  2019-07-05  Szabolcs Nagy  <szabolcs.nagy@arm.com>
  
-@@ -969,7 +1942,7 @@
+@@ -969,7 +1972,7 @@
         * gcc.target/i386/pr82699-6.c: Likewise
         * gcc.target/i386/returninst1.c: Likewise
         * gcc.target/i386/returninst2.c: Likewise
@@ -17870,7 +18613,7 @@ Index: gcc/testsuite/ChangeLog
  
  2019-05-30  Iain Sandoe  <iain@sandoe.co.uk>
  
-@@ -1131,7 +2104,7 @@
+@@ -1131,7 +2134,7 @@
  
  	Backport from trunk
  	PR fortran/90498
@@ -17879,7 +18622,7 @@ Index: gcc/testsuite/ChangeLog
  
  2019-05-17  Jakub Jelinek  <jakub@redhat.com>
  
-@@ -3801,21 +4774,21 @@
+@@ -3801,21 +4804,21 @@
  2019-02-23  Paul Thomas  <pault@gcc.gnu.org>
  
  	PR fortran/88117
@@ -17908,7 +18651,7 @@ Index: gcc/testsuite/ChangeLog
  
  2019-02-22  David Malcolm  <dmalcolm@redhat.com>
  
-@@ -4444,7 +5417,7 @@
+@@ -4444,7 +5447,7 @@
  2019-02-09  Paul Thomas  <pault@gcc.gnu.org>
  
  	PR fortran/89200
@@ -17917,7 +18660,7 @@ Index: gcc/testsuite/ChangeLog
  
  2019-02-09  Jakub Jelinek  <jakub@redhat.com>
  
-@@ -4704,17 +5677,17 @@
+@@ -4704,17 +5707,17 @@
  2019-02-02  Paul Thomas  <pault@gcc.gnu.org>
  
  	PR fortran/88393
@@ -31069,6 +31812,51 @@ Index: gcc/config/xtensa/xtensa.c
  	{
  	  rtx tmp_reg = gen_rtx_REG (Pmode, A9_REG);
  	  emit_move_insn (tmp_reg, GEN_INT (total_size -
+Index: gcc/config/nios2/nios2.h
+===================================================================
+--- a/src/gcc/config/nios2/nios2.h	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/config/nios2/nios2.h	(.../branches/gcc-9-branch)
+@@ -467,10 +467,10 @@
+    the linker seems to want the alignment of data objects
+    to depend on their types.  We do exactly that here.  */
+ 
+-#undef  ASM_OUTPUT_ALIGNED_LOCAL
+-#define ASM_OUTPUT_ALIGNED_LOCAL(FILE, NAME, SIZE, ALIGN)               \
++#undef  ASM_OUTPUT_ALIGNED_DECL_LOCAL
++#define ASM_OUTPUT_ALIGNED_DECL_LOCAL(FILE, DECL, NAME, SIZE, ALIGN)	\
+ do {                                                                    \
+-  if ((SIZE) <= nios2_section_threshold)                                \
++ if (targetm.in_small_data_p (DECL))					\
+     switch_to_section (sbss_section);					\
+   else                                                                  \
+     switch_to_section (bss_section);					\
+Index: gcc/config/nios2/nios2.c
+===================================================================
+--- a/src/gcc/config/nios2/nios2.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/config/nios2/nios2.c	(.../branches/gcc-9-branch)
+@@ -2373,6 +2373,22 @@
+ 	  if (nios2_small_section_name_p (section))
+ 	    return true;
+ 	}
++      else if (flexible_array_type_p (TREE_TYPE (exp))
++	       && (!TREE_PUBLIC (exp) || DECL_EXTERNAL (exp)))
++	{
++	  /* We really should not consider any objects of any flexibly-sized
++	     type to be small data, but pre-GCC 10 did not test
++	     for this and just fell through to the next case.  Thus older
++	     code compiled with -mgpopt=global could contain GP-relative
++	     accesses to objects defined in this compilation unit with
++	     external linkage.  We retain the possible small-data treatment
++	     of such definitions for backward ABI compatibility, but
++	     no longer generate GP-relative accesses for external
++	     references (so that the ABI could be changed in the future
++	     with less potential impact), or objects with internal
++	     linkage.  */
++	  return false;
++	}
+       else
+ 	{
+ 	  HOST_WIDE_INT size = int_size_in_bytes (TREE_TYPE (exp));
 Index: gcc/config/riscv/riscv.md
 ===================================================================
 --- a/src/gcc/config/riscv/riscv.md	(.../tags/gcc_9_2_0_release)
@@ -31429,6 +32217,112 @@ Index: gcc/config/aarch64/aarch64.c
        gcc_assert (code == UNKNOWN);
      }
  
+Index: gcc/config/rs6000/vector.md
+===================================================================
+--- a/src/gcc/config/rs6000/vector.md	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/config/rs6000/vector.md	(.../branches/gcc-9-branch)
+@@ -493,6 +493,101 @@
+     FAIL;
+ })
+ 
++;; To support vector condition vectorization, define vcond_mask and vec_cmp.
++
++;; Same mode for condition true/false values and predicate operand.
++(define_expand "vcond_mask_<mode><mode>"
++  [(match_operand:VEC_I 0 "vint_operand")
++   (match_operand:VEC_I 1 "vint_operand")
++   (match_operand:VEC_I 2 "vint_operand")
++   (match_operand:VEC_I 3 "vint_operand")]
++  "VECTOR_UNIT_ALTIVEC_OR_VSX_P (<MODE>mode)"
++{
++  emit_insn (gen_vector_select_<mode> (operands[0], operands[2], operands[1],
++                                  operands[3]));
++  DONE;
++})
++
++;; For signed integer vectors comparison.
++(define_expand "vec_cmp<mode><mode>"
++  [(set (match_operand:VEC_I 0 "vint_operand")
++        (match_operator 1 "signed_or_equality_comparison_operator"
++          [(match_operand:VEC_I 2 "vint_operand")
++           (match_operand:VEC_I 3 "vint_operand")]))]
++  "VECTOR_UNIT_ALTIVEC_OR_VSX_P (<MODE>mode)"
++{
++  enum rtx_code code = GET_CODE (operands[1]);
++  rtx tmp = gen_reg_rtx (<MODE>mode);
++  switch (code)
++    {
++    case NE:
++      emit_insn (gen_vector_eq<mode> (operands[0], operands[2], operands[3]));
++      emit_insn (gen_one_cmpl<mode>2 (operands[0], operands[0]));
++      break;
++    case EQ:
++      emit_insn (gen_vector_eq<mode> (operands[0], operands[2], operands[3]));
++      break;
++    case GE:
++      emit_insn (gen_vector_nlt<mode> (operands[0],operands[2], operands[3],
++                                       tmp));
++      break;
++    case GT:
++      emit_insn (gen_vector_gt<mode> (operands[0], operands[2], operands[3]));
++      break;
++    case LE:
++      emit_insn (gen_vector_ngt<mode> (operands[0], operands[2], operands[3],
++                                       tmp));
++      break;
++    case LT:
++      emit_insn (gen_vector_gt<mode> (operands[0], operands[3], operands[2]));
++      break;
++    default:
++      gcc_unreachable ();
++      break;
++    }
++  DONE;
++})
++
++;; For unsigned integer vectors comparison.
++(define_expand "vec_cmpu<mode><mode>"
++  [(set (match_operand:VEC_I 0 "vint_operand")
++        (match_operator 1 "unsigned_or_equality_comparison_operator"
++          [(match_operand:VEC_I 2 "vint_operand")
++           (match_operand:VEC_I 3 "vint_operand")]))]
++  "VECTOR_UNIT_ALTIVEC_OR_VSX_P (<MODE>mode)"
++{
++  enum rtx_code code = GET_CODE (operands[1]);
++  rtx tmp = gen_reg_rtx (<MODE>mode);
++  switch (code)
++    {
++    case NE:
++      emit_insn (gen_vector_eq<mode> (operands[0], operands[2], operands[3]));
++      emit_insn (gen_one_cmpl<mode>2 (operands[0], operands[0]));
++      break;
++    case EQ:
++      emit_insn (gen_vector_eq<mode> (operands[0], operands[2], operands[3]));
++      break;
++    case GEU:
++      emit_insn (gen_vector_nltu<mode> (operands[0], operands[2], operands[3],
++                                        tmp));
++      break;
++    case GTU:
++      emit_insn (gen_vector_gtu<mode> (operands[0], operands[2], operands[3]));
++      break;
++    case LEU:
++      emit_insn (gen_vector_ngtu<mode> (operands[0], operands[2], operands[3],
++                                        tmp));
++      break;
++    case LTU:
++      emit_insn (gen_vector_gtu<mode> (operands[0], operands[3], operands[2]));
++      break;
++    default:
++      gcc_unreachable ();
++      break;
++    }
++  DONE;
++})
++
+ (define_expand "vector_eq<mode>"
+   [(set (match_operand:VEC_C 0 "vlogical_operand")
+ 	(eq:VEC_C (match_operand:VEC_C 1 "vlogical_operand")
 Index: gcc/config/rs6000/darwin.md
 ===================================================================
 --- a/src/gcc/config/rs6000/darwin.md	(.../tags/gcc_9_2_0_release)
@@ -31482,6 +32376,23 @@ Index: gcc/config/rs6000/predicates.md
      return 1;
  
    /* Allow easy vector constants.  */
+@@ -1154,6 +1153,16 @@
+ (define_predicate "signed_comparison_operator"
+   (match_code "lt,gt,le,ge"))
+ 
++;; Return 1 if OP is a signed comparison or an equality operator.
++(define_predicate "signed_or_equality_comparison_operator"
++  (ior (match_operand 0 "equality_operator")
++       (match_operand 0 "signed_comparison_operator")))
++
++;; Return 1 if OP is an unsigned comparison or an equality operator.
++(define_predicate "unsigned_or_equality_comparison_operator"
++  (ior (match_operand 0 "equality_operator")
++       (match_operand 0 "unsigned_comparison_operator")))
++
+ ;; Return 1 if OP is a comparison operation that is valid for an SCC insn --
+ ;; it must be a positive comparison.
+ (define_predicate "scc_comparison_operator"
 Index: gcc/config/rs6000/rs6000-builtin.def
 ===================================================================
 --- a/src/gcc/config/rs6000/rs6000-builtin.def	(.../tags/gcc_9_2_0_release)
@@ -32230,7 +33141,29 @@ Index: gcc/config/rs6000/rs6000.md
        emit_insn (gen_iordi3 (tmp_di, tmp_di, tmp_rn));
  
        /* Need to write to field 7.  The fields are [0:15].  The equation to
-@@ -6818,13 +6824,6 @@
+@@ -6424,12 +6430,6 @@
+   ""
+   "")
+ 
+-(define_expand "one_cmpl<mode>2"
+-  [(set (match_operand:BOOL_128 0 "vlogical_operand")
+-        (not:BOOL_128 (match_operand:BOOL_128 1 "vlogical_operand")))]
+-  ""
+-  "")
+-
+ (define_expand "nor<mode>3"
+   [(set (match_operand:BOOL_128 0 "vlogical_operand")
+ 	(and:BOOL_128
+@@ -6724,7 +6724,7 @@
+ 	 (const_string "16")))])
+ 
+ ;; 128-bit one's complement
+-(define_insn_and_split "*one_cmpl<mode>3_internal"
++(define_insn_and_split "one_cmpl<mode>2"
+   [(set (match_operand:BOOL_128 0 "vlogical_operand" "=<BOOL_REGS_OUTPUT>")
+ 	(not:BOOL_128
+ 	  (match_operand:BOOL_128 1 "vlogical_operand" "<BOOL_REGS_UNARY>")))]
+@@ -6818,13 +6818,6 @@
  ;; do the load 16-bits at a time.  We could do this by loading from memory,
  ;; and this is even supposed to be faster, but it is simpler not to get
  ;; integers in the TOC.
@@ -32244,7 +33177,7 @@ Index: gcc/config/rs6000/rs6000.md
  
  ;;		MR           LA           LWZ          LFIWZX       LXSIWZX
  ;;		STW          STFIWX       STXSIWX      LI           LIS
-@@ -14322,7 +14321,225 @@
+@@ -14322,7 +14315,225 @@
     "xscmpuqp %0,%1,%2"
    [(set_attr "type" "veccmp")
     (set_attr "size" "128")])
