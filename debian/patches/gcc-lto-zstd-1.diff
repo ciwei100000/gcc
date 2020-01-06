@@ -1,0 +1,403 @@
+# DP: Backport the LTO zstd compression support (part 1)
+
+gcc/
+
+2019-07-03  Martin Liska  <mliska@suse.cz>
+
+	* Makefile.in: Define ZSTD_LIB.
+	* common.opt: Adjust compression level
+	to support also zstd levels.
+	* config.in: Regenerate.
+	* configure: Likewise.
+	* configure.ac: Add --with-zstd and --with-zstd-include options
+	and detect ZSTD.
+	* doc/install.texi: Mention zstd dependency.
+	* gcc.c: Print supported LTO compression algorithms.
+	* lto-compress.c (lto_normalized_zstd_level): Likewise.
+	(lto_compression_zstd): Likewise.
+	(lto_uncompression_zstd): Likewise.
+	(lto_end_compression): Dispatch in between zlib and zstd.
+	(lto_compression_zlib): Mark with ATTRIBUTE_UNUSED.
+	(lto_uncompression_zlib): Make it static.
+	* lto-compress.h (lto_end_uncompression): Fix GNU coding style.
+	* lto-section-in.c (lto_get_section_data): Pass info
+	about used compression.
+	* lto-streamer-out.c: By default use zstd when possible.
+	* timevar.def (TV_IPA_LTO_DECOMPRESS): Rename to decompression
+	(TV_IPA_LTO_COMPRESS): Likewise for compression.
+
+--- a/src/gcc/gcc.c
++++ b/src/gcc/gcc.c
+@@ -6887,6 +6887,11 @@ print_configuration (FILE *file)
+ #endif
+ 
+   fnotice (file, "Thread model: %s\n", thrmod);
++  fnotice (file, "Supported LTO compression algorithms: zlib");
++#ifdef HAVE_ZSTD_H
++  fnotice (file, " zstd");
++#endif
++  fnotice (file, "\n");
+ 
+   /* compiler_version is truncated at the first space when initialized
+   from version string, so truncate version_string at the first space
+--- a/src/gcc/lto-compress.c
++++ b/src/gcc/lto-compress.c
+@@ -35,6 +35,10 @@ along with GCC; see the file COPYING3.
+ #include "lto-compress.h"
+ #include "timevar.h"
+ 
++#ifdef HAVE_ZSTD_H
++#include <zstd.h>
++#endif
++
+ /* Compression stream structure, holds the flush callback and opaque token,
+    the buffered data, and a note of whether compressing or uncompressing.  */
+ 
+@@ -92,6 +96,91 @@ lto_normalized_zlib_level (void)
+   return level;
+ }
+ 
++/* Free the buffer and memory associated with STREAM.  */
++
++static void
++lto_destroy_compression_stream (struct lto_compression_stream *stream)
++{
++  free (stream->buffer);
++  free (stream);
++}
++
++#ifdef HAVE_ZSTD_H
++/* Return a zstd compression level that zstd will not reject.  Normalizes
++   the compression level from the command line flag, clamping non-default
++   values to the appropriate end of their valid range.  */
++
++static int
++lto_normalized_zstd_level (void)
++{
++  int level = flag_lto_compression_level;
++
++  if (level != ZSTD_CLEVEL_DEFAULT)
++    {
++      if (level < 1)
++	level = 1;
++      else if (level > ZSTD_maxCLevel ())
++	level = ZSTD_maxCLevel ();
++    }
++
++  return level;
++}
++
++/* Compress STREAM using ZSTD algorithm.  */
++
++static void
++lto_compression_zstd (struct lto_compression_stream *stream)
++{
++  unsigned char *cursor = (unsigned char *) stream->buffer;
++  size_t size = stream->bytes;
++
++  timevar_push (TV_IPA_LTO_COMPRESS);
++  size_t const outbuf_length = ZSTD_compressBound (size);
++  char *outbuf = (char *) xmalloc (outbuf_length);
++
++  size_t const csize = ZSTD_compress (outbuf, outbuf_length, cursor, size,
++				      lto_normalized_zstd_level ());
++
++  if (ZSTD_isError (csize))
++    internal_error ("compressed stream: %s", ZSTD_getErrorName (csize));
++
++  stream->callback (outbuf, csize, NULL);
++
++  lto_destroy_compression_stream (stream);
++  free (outbuf);
++  timevar_pop (TV_IPA_LTO_COMPRESS);
++}
++
++/* Uncompress STREAM using ZSTD algorithm.  */
++
++static void
++lto_uncompression_zstd (struct lto_compression_stream *stream)
++{
++  unsigned char *cursor = (unsigned char *) stream->buffer;
++  size_t size = stream->bytes;
++
++  timevar_push (TV_IPA_LTO_DECOMPRESS);
++  unsigned long long const rsize = ZSTD_getFrameContentSize (cursor, size);
++  if (rsize == ZSTD_CONTENTSIZE_ERROR)
++    internal_error ("original not compressed with zstd");
++  else if (rsize == ZSTD_CONTENTSIZE_UNKNOWN)
++    internal_error ("original size unknown");
++
++  char *outbuf = (char *) xmalloc (rsize);
++  size_t const dsize = ZSTD_decompress (outbuf, rsize, cursor, size);
++
++  if (ZSTD_isError (dsize))
++    internal_error ("decompressed stream: %s", ZSTD_getErrorName (dsize));
++
++  stream->callback (outbuf, dsize, stream->opaque);
++
++  lto_destroy_compression_stream (stream);
++  free (outbuf);
++  timevar_pop (TV_IPA_LTO_DECOMPRESS);
++}
++
++#endif
++
+ /* Create a new compression stream, with CALLBACK flush function passed
+    OPAQUE token, IS_COMPRESSION indicates if compressing or uncompressing.  */
+ 
+@@ -132,15 +221,6 @@ lto_append_to_compression_stream (struct
+   stream->bytes += num_chars;
+ }
+ 
+-/* Free the buffer and memory associated with STREAM.  */
+-
+-static void
+-lto_destroy_compression_stream (struct lto_compression_stream *stream)
+-{
+-  free (stream->buffer);
+-  free (stream);
+-}
+-
+ /* Return a new compression stream, with CALLBACK flush function passed
+    OPAQUE token.  */
+ 
+@@ -163,10 +243,8 @@ lto_compress_block (struct lto_compressi
+   lto_stats.num_output_il_bytes += num_chars;
+ }
+ 
+-/* Finalize STREAM compression, and free stream allocations.  */
+-
+-void
+-lto_end_compression (struct lto_compression_stream *stream)
++static void ATTRIBUTE_UNUSED
++lto_compression_zlib (struct lto_compression_stream *stream)
+ {
+   unsigned char *cursor = (unsigned char *) stream->buffer;
+   size_t remaining = stream->bytes;
+@@ -226,6 +304,16 @@ lto_end_compression (struct lto_compress
+   timevar_pop (TV_IPA_LTO_COMPRESS);
+ }
+ 
++void
++lto_end_compression (struct lto_compression_stream *stream)
++{
++#ifdef HAVE_ZSTD_H
++  lto_compression_zstd (stream);
++#else
++  lto_compression_zlib (stream);
++#endif
++}
++
+ /* Return a new uncompression stream, with CALLBACK flush function passed
+    OPAQUE token.  */
+ 
+@@ -248,14 +336,8 @@ lto_uncompress_block (struct lto_compres
+   lto_stats.num_input_il_bytes += num_chars;
+ }
+ 
+-/* Finalize STREAM uncompression, and free stream allocations.
+-
+-   Because of the way LTO IL streams are compressed, there may be several
+-   concatenated compressed segments in the accumulated data, so for this
+-   function we iterate decompressions until no data remains.  */
+-
+-void
+-lto_end_uncompression (struct lto_compression_stream *stream)
++static void
++lto_uncompression_zlib (struct lto_compression_stream *stream)
+ {
+   unsigned char *cursor = (unsigned char *) stream->buffer;
+   size_t remaining = stream->bytes;
+@@ -318,3 +400,20 @@ lto_end_uncompression (struct lto_compre
+   free (outbuf);
+   timevar_pop (TV_IPA_LTO_DECOMPRESS);
+ }
++
++void
++lto_end_uncompression (struct lto_compression_stream *stream,
++		       lto_compression compression)
++{
++#ifdef HAVE_ZSTD_H
++  if (compression == ZSTD)
++    {
++      lto_uncompression_zstd (stream);
++      return;
++    }
++#endif
++  if (compression == ZSTD)
++    internal_error ("compiler does not support ZSTD LTO compression");
++
++  lto_uncompression_zlib (stream);
++}
+--- a/src/gcc/lto-compress.h
++++ b/src/gcc/lto-compress.h
+@@ -37,6 +37,7 @@ extern struct lto_compression_stream
+ 			    void *opaque);
+ extern void lto_uncompress_block (struct lto_compression_stream *stream,
+ 				  const char *base, size_t num_chars);
+-extern void lto_end_uncompression (struct lto_compression_stream *stream);
++extern void lto_end_uncompression (struct lto_compression_stream *stream,
++				  lto_compression compression);
+ 
+ #endif /* GCC_LTO_COMPRESS_H  */
+--- a/src/gcc/lto-streamer-out.c
++++ b/src/gcc/lto-streamer-out.c
+@@ -2398,7 +2398,11 @@ produce_lto_section ()
+   lto_begin_section (section_name, false);
+   free (section_name);
+ 
++#ifdef HAVE_ZSTD_H
++  lto_compression compression = ZSTD;
++#else
+   lto_compression compression = ZLIB;
++#endif
+ 
+   bool slim_object = flag_generate_lto && !flag_fat_lto_objects;
+   lto_section s
+--- a/src/gcc/config.in
++++ b/src/gcc/config.in
+@@ -1926,6 +1926,12 @@
+ #endif
+ 
+ 
++/* Define if you have a working <zstd.h> header file. */
++#ifndef USED_FOR_TARGET
++#undef HAVE_ZSTD_H
++#endif
++
++
+ /* Define if isl is in use. */
+ #ifndef USED_FOR_TARGET
+ #undef HAVE_isl
+--- a/src/gcc/timevar.def
++++ b/src/gcc/timevar.def
+@@ -78,8 +78,8 @@ DEFTIMEVAR (TV_IPA_INLINING          , "
+ DEFTIMEVAR (TV_IPA_FNSPLIT           , "ipa function splitting")
+ DEFTIMEVAR (TV_IPA_COMDATS	     , "ipa comdats")
+ DEFTIMEVAR (TV_IPA_OPT		     , "ipa various optimizations")
+-DEFTIMEVAR (TV_IPA_LTO_DECOMPRESS    , "lto stream inflate")
+-DEFTIMEVAR (TV_IPA_LTO_COMPRESS      , "lto stream deflate")
++DEFTIMEVAR (TV_IPA_LTO_DECOMPRESS    , "lto stream decompression")
++DEFTIMEVAR (TV_IPA_LTO_COMPRESS      , "lto stream compression")
+ DEFTIMEVAR (TV_IPA_LTO_OUTPUT        , "lto stream output")
+ DEFTIMEVAR (TV_IPA_LTO_GIMPLE_IN     , "ipa lto gimple in")
+ DEFTIMEVAR (TV_IPA_LTO_GIMPLE_OUT    , "ipa lto gimple out")
+--- a/src/gcc/configure.ac
++++ b/src/gcc/configure.ac
+@@ -1258,6 +1258,72 @@ if test $gcc_cv_header_inttypes_h = yes;
+ 	[Define if you have a working <inttypes.h> header file.])
+ fi
+ 
++# Look for the ZSTD package.
++ZSTD_INCLUDE=
++ZSTD_LIB=
++AC_SUBST(ZSTD_INCLUDE)
++AC_SUBST(ZSTD_LIB)
++ZSTD_CPPFLAGS=
++ZSTD_LDFLAGS=
++AC_ARG_WITH(zstd,
++	[AS_HELP_STRING([--with-zstd=PATH],
++		[specify prefix directory for installed zstd library.
++		 Equivalent to --with-zstd-include=PATH/include
++		 plus --with-zstd-lib=PATH/lib])])
++AC_ARG_WITH(zstd-include,
++	[AS_HELP_STRING([--with-zstd-include=PATH],
++		[specify directory for installed zstd include files])])
++AC_ARG_WITH(zstd-lib,
++	[AS_HELP_STRING([--with-zstd-lib=PATH],
++		[specify directory for the installed zstd library])])
++case "x$with_zstd" in
++  x) ;;
++  xno)
++    ZSTD_INCLUDE=no
++    ZSTD_LIB=no
++    ;;
++  *) ZSTD_INCLUDE=$with_zstd/include
++     ZSTD_LIB=$with_zstd/lib
++     ;;
++esac
++if test "x$with_zstd_include" != x; then
++  ZSTD_INCLUDE=$with_zstd_include
++fi
++if test "x$with_zstd_lib" != x; then
++  ZSTD_LIB=$with_zstd_lib
++fi
++if test "x$ZSTD_INCLUDE" != x \
++   && test "x$ZSTD_INCLUDE" != xno; then
++  ZSTD_CPPFLAGS=-I$ZSTD_INCLUDE
++fi
++if test "x$ZSTD_LIB" != x \
++   && test "x$ZSTD_LIB" != xno; then
++  ZSTD_LDFLAGS=-L$ZSTD_LIB
++fi
++
++CXXFLAGS="$CXXFLAGS $ZSTD_CPPFLAGS"
++LDFLAGS="$LDFLAGS $ZSTD_LDFLAGS"
++
++AC_MSG_CHECKING(for zstd.h)
++AC_CACHE_VAL(gcc_cv_header_zstd_h,
++[AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
++[[#include <zstd.h>]])],
++  [gcc_cv_header_zstd_h=yes],
++  [gcc_cv_header_zstd_h=no])])
++AC_MSG_RESULT($gcc_cv_header_zstd_h)
++if test $gcc_cv_header_zstd_h = yes; then
++  AC_DEFINE(HAVE_ZSTD_H, 1,
++	[Define if you have a working <zstd.h> header file.])
++fi
++
++# LTO can use zstd compression algorithm
++save_LIBS="$LIBS"
++LIBS=
++AC_SEARCH_LIBS(ZSTD_compress, zstd)
++ZSTD_LIB="$LIBS"
++LIBS="$save_LIBS"
++AC_SUBST(ZSTD_LIB)
++
+ dnl Disabled until we have a complete test for buggy enum bitfields.
+ dnl gcc_AC_C_ENUM_BF_UNSIGNED
+ 
+--- a/src/gcc/lto-section-in.c
++++ b/src/gcc/lto-section-in.c
+@@ -161,7 +161,7 @@ lto_get_section_data (struct lto_file_de
+ 
+       stream = lto_start_uncompression (lto_append_data, &buffer);
+       lto_uncompress_block (stream, data, *len);
+-      lto_end_uncompression (stream);
++      lto_end_uncompression (stream, file_data->lto_section_header.compression);
+ 
+       *len = buffer.length - header_length;
+       data = buffer.data + header_length;
+--- a/src/gcc/common.opt
++++ b/src/gcc/common.opt
+@@ -1884,8 +1884,8 @@ Specify the algorithm to partition symbo
+ 
+ ; The initial value of -1 comes from Z_DEFAULT_COMPRESSION in zlib.h.
+ flto-compression-level=
+-Common Joined RejectNegative UInteger Var(flag_lto_compression_level) Init(-1) IntegerRange(0, 9)
+--flto-compression-level=<number>	Use zlib compression level <number> for IL.
++Common Joined RejectNegative UInteger Var(flag_lto_compression_level) Init(-1) IntegerRange(0, 19)
++-flto-compression-level=<number>	Use zlib/zstd compression level <number> for IL.
+ 
+ flto-odr-type-merging
+ Common Report Var(flag_lto_odr_type_mering) Init(1)
+--- a/src/gcc/Makefile.in
++++ b/src/gcc/Makefile.in
+@@ -1065,7 +1065,7 @@ BUILD_LIBDEPS= $(BUILD_LIBIBERTY)
+ LIBS = @LIBS@ libcommon.a $(CPPLIB) $(LIBINTL) $(LIBICONV) $(LIBBACKTRACE) \
+ 	$(LIBIBERTY) $(LIBDECNUMBER) $(HOST_LIBS)
+ BACKENDLIBS = $(ISLLIBS) $(GMPLIBS) $(PLUGINLIBS) $(HOST_LIBS) \
+-	$(ZLIB)
++	$(ZLIB) $(ZSTD_LIB)
+ # Any system libraries needed just for GNAT.
+ SYSLIBS = @GNAT_LIBEXC@
+ 
+@@ -1076,6 +1076,8 @@ GNATMAKE = @GNATMAKE@
+ # Libs needed (at present) just for jcf-dump.
+ LDEXP_LIB = @LDEXP_LIB@
+ 
++ZSTD_LIB = @ZSTD_LIB@
++
+ # Likewise, for use in the tools that must run on this machine
+ # even if we are cross-building GCC.
+ BUILD_LIBS = $(BUILD_LIBIBERTY)

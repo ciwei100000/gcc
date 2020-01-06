@@ -1,0 +1,239 @@
+# DP: Backort Add .gnu.lto_.lto section support.
+
+gcc/
+
+2019-07-03  Martin Liska  <mliska@suse.cz>
+
+	* lto-section-in.c (lto_get_section_data): Add "lto" section.
+	* lto-section-out.c (lto_destroy_simple_output_block): Never
+	compress LTO_section_lto section.
+	* lto-streamer-out.c (produce_asm): Do not set major_version
+	and minor_version.
+	(lto_output_toplevel_asms): Likewise.
+	(produce_lto_section): New function.
+	(lto_output): Call produce_lto_section.
+	(lto_write_mode_table): Do not set major_version and
+	minor_version.
+	(produce_asm_for_decls): Likewise.
+	* lto-streamer.h (enum lto_section_type): Add LTO_section_lto
+	type.
+	(struct lto_header): Remove.
+	(struct lto_section): New struct.
+	(struct lto_simple_header): Do not inherit from lto_header.
+	(struct lto_file_decl_data): Add lto_section_header field.
+
+gcc/lto/
+
+2019-07-03  Martin Liska  <mliska@suse.cz>
+
+	* lto-common.c: Read LTO section and verify header.
+
+--- a/src/gcc/lto-streamer-out.c
++++ b/src/gcc/lto-streamer-out.c
+@@ -1970,10 +1970,6 @@ produce_asm (struct output_block *ob, tr
+   /* The entire header is stream computed here.  */
+   memset (&header, 0, sizeof (struct lto_function_header));
+ 
+-  /* Write the header.  */
+-  header.major_version = LTO_major_version;
+-  header.minor_version = LTO_minor_version;
+-
+   if (section_type == LTO_section_function_body)
+     header.cfg_size = ob->cfg_stream->total_size;
+   header.main_size = ob->main_stream->total_size;
+@@ -2273,10 +2269,6 @@ lto_output_toplevel_asms (void)
+   /* The entire header stream is computed here.  */
+   memset (&header, 0, sizeof (header));
+ 
+-  /* Write the header.  */
+-  header.major_version = LTO_major_version;
+-  header.minor_version = LTO_minor_version;
+-
+   header.main_size = ob->main_stream->total_size;
+   header.string_size = ob->string_stream->total_size;
+   lto_write_data (&header, sizeof header);
+@@ -2393,6 +2385,29 @@ prune_offload_funcs (void)
+     DECL_PRESERVE_P (fn_decl) = 1;
+ }
+ 
++/* Produce LTO section that contains global information
++   about LTO bytecode.  */
++
++static void
++produce_lto_section ()
++{
++  /* Stream LTO meta section.  */
++  output_block *ob = create_output_block (LTO_section_lto);
++
++  char * section_name = lto_get_section_name (LTO_section_lto, NULL, NULL);
++  lto_begin_section (section_name, false);
++  free (section_name);
++
++  lto_compression compression = ZLIB;
++
++  bool slim_object = flag_generate_lto && !flag_fat_lto_objects;
++  lto_section s
++    = { LTO_major_version, LTO_minor_version, slim_object, compression, 0 };
++  lto_write_data (&s, sizeof s);
++  lto_end_section ();
++  destroy_output_block (ob);
++}
++
+ /* Main entry point from the pass manager.  */
+ 
+ void
+@@ -2411,6 +2426,8 @@ lto_output (void)
+   /* Initialize the streamer.  */
+   lto_streamer_init ();
+ 
++  produce_lto_section ();
++
+   n_nodes = lto_symtab_encoder_size (encoder);
+   /* Process only the functions with bodies.  */
+   for (i = 0; i < n_nodes; i++)
+@@ -2824,10 +2841,6 @@ lto_write_mode_table (void)
+   struct lto_simple_header_with_strings header;
+   memset (&header, 0, sizeof (header));
+ 
+-  /* Write the header.  */
+-  header.major_version = LTO_major_version;
+-  header.minor_version = LTO_minor_version;
+-
+   header.main_size = ob->main_stream->total_size;
+   header.string_size = ob->string_stream->total_size;
+   lto_write_data (&header, sizeof header);
+@@ -2898,9 +2911,6 @@ produce_asm_for_decls (void)
+       lto_output_decl_state_streams (ob, fn_out_state);
+     }
+ 
+-  header.major_version = LTO_major_version;
+-  header.minor_version = LTO_minor_version;
+-
+   /* Currently not used.  This field would allow us to preallocate
+      the globals vector, so that it need not be resized as it is extended.  */
+   header.num_nodes = -1;
+--- a/src/gcc/lto-section-in.c
++++ b/src/gcc/lto-section-in.c
+@@ -52,10 +52,10 @@ const char *lto_section_name[LTO_N_SECTI
+   "icf",
+   "offload_table",
+   "mode_table",
+-  "hsa"
++  "hsa",
++  "lto"
+ };
+ 
+-
+ /* Hooks so that the ipa passes can call into the lto front end to get
+    sections.  */
+ 
+@@ -146,7 +146,7 @@ lto_get_section_data (struct lto_file_de
+   /* WPA->ltrans streams are not compressed with exception of function bodies
+      and variable initializers that has been verbatim copied from earlier
+      compilations.  */
+-  if (!flag_ltrans || decompress)
++  if ((!flag_ltrans || decompress) && section_type != LTO_section_lto)
+     {
+       /* Create a mapping header containing the underlying data and length,
+ 	 and prepend this to the uncompression buffer.  The uncompressed data
+@@ -167,9 +167,6 @@ lto_get_section_data (struct lto_file_de
+       data = buffer.data + header_length;
+     }
+ 
+-  lto_check_version (((const lto_header *)data)->major_version,
+-		     ((const lto_header *)data)->minor_version,
+-		     file_data->file_name);
+   return data;
+ }
+ 
+--- a/src/gcc/lto/lto.c
++++ b/src/gcc/lto/lto.c
+@@ -2085,6 +2085,21 @@ lto_file_finalize (struct lto_file_decl_
+ #else
+   file_data->mode_table = lto_mode_identity_table;
+ #endif
++
++  /* Read and verify LTO section.  */
++  data = lto_get_section_data (file_data, LTO_section_lto, NULL, &len, false);
++  if (data == NULL)
++    {
++      fatal_error (input_location, "bytecode stream in file %qs generated "
++		   "with GCC compiler older than 10.0", file_data->file_name);
++      return;
++    }
++
++  file_data->lto_section_header = *(const lto_section *)data;
++  lto_check_version (file_data->lto_section_header.major_version,
++		     file_data->lto_section_header.minor_version,
++		     file_data->file_name);
++
+   data = lto_get_section_data (file_data, LTO_section_decls, NULL, &len);
+   if (data == NULL)
+     {
+--- a/src/gcc/lto-section-out.c
++++ b/src/gcc/lto-section-out.c
+@@ -285,8 +285,6 @@ lto_destroy_simple_output_block (struct
+   /* Write the header which says how to decode the pieces of the
+      t.  */
+   memset (&header, 0, sizeof (struct lto_simple_header));
+-  header.major_version = LTO_major_version;
+-  header.minor_version = LTO_minor_version;
+   header.main_size = ob->main_stream->total_size;
+   lto_write_data (&header, sizeof header);
+ 
+--- a/src/gcc/lto-streamer.h
++++ b/src/gcc/lto-streamer.h
+@@ -234,6 +234,7 @@ enum lto_section_type
+   LTO_section_offload_table,
+   LTO_section_mode_table,
+   LTO_section_ipa_hsa,
++  LTO_section_lto,
+   LTO_N_SECTION_TYPES		/* Must be last.  */
+ };
+ 
+@@ -378,18 +379,31 @@ public:
+   unsigned int len;
+ };
+ 
++/* Compression algorithm used for compression of LTO bytecode.  */
+ 
+-/* The is the first part of the record for a function or constructor
+-   in the .o file.  */
+-struct lto_header
++enum lto_compression
++{
++  ZLIB,
++  ZSTD
++};
++
++/* Structure that represents LTO ELF section with information
++   about the format.  */
++
++struct lto_section
+ {
+   int16_t major_version;
+   int16_t minor_version;
++  unsigned char slim_object: 1;
++  lto_compression compression: 4;
++  int32_t reserved0: 27;
+ };
+ 
++STATIC_ASSERT (sizeof (lto_section) == 8);
++
+ /* The is the first part of the record in an LTO file for many of the
+    IPA passes.  */
+-struct lto_simple_header : lto_header
++struct lto_simple_header
+ {
+   /* Size of main gimple body of function.  */
+   int32_t main_size;
+@@ -589,6 +603,9 @@ struct GTY(()) lto_file_decl_data
+ 
+   /* Mode translation table.  */
+   const unsigned char *mode_table;
++
++  /* Read LTO section.  */
++  lto_section lto_section_header;
+ };
+ 
+ typedef struct lto_file_decl_data *lto_file_decl_data_ptr;
