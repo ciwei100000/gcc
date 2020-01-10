@@ -1,10 +1,10 @@
-# DP: updates from the 9 branch upto 20200104 (r279880).
+# DP: updates from the 9 branch upto 20200110 (r280102).
 
 last_update()
 {
 	cat > ${dir}LAST_UPDATED <EOF
-Sat Jan  4 10:43:34 CET 2020
-Sat Jan  4 09:43:34 UTC 2020 (revision 279880)
+Fri Jan 10 13:17:50 CET 2020
+Fri Jan 10 12:17:50 UTC 2020 (revision 280102)
 EOF
 }
 
@@ -499,6 +499,32 @@ Index: libstdc++-v3/python/libstdcxx/v6/xmethods.py
          return refcounts['_M_use_count'] if refcounts else 0
  
  class SharedPtrUniqueWorker(SharedPtrUseCountWorker):
+Index: libstdc++-v3/src/c++17/memory_resource.cc
+===================================================================
+--- a/src/libstdc++-v3/src/c++17/memory_resource.cc	(.../tags/gcc_9_2_0_release)
++++ b/src/libstdc++-v3/src/c++17/memory_resource.cc	(.../branches/gcc-9-branch)
+@@ -37,6 +37,10 @@
+ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ namespace pmr
+ {
++  // This was defined inline in 9.1 and 9.2 so code compiled by those
++  // versions will not use this symbol.
++  memory_resource::~memory_resource() = default;
++
+   namespace
+   {
+     class newdel_res_t final : public memory_resource
+@@ -167,6 +171,10 @@
+ 
+   // Member functions for std::pmr::monotonic_buffer_resource
+ 
++  // This was defined inline in 9.1 and 9.2 so code compiled by those
++  // versions will not use this symbol.
++  monotonic_buffer_resource::~monotonic_buffer_resource() { release(); }
++
+   // Memory allocated by the upstream resource is managed in a linked list
+   // of _Chunk objects. A _Chunk object recording the size and alignment of
+   // the allocated block and a pointer to the previous chunk is placed
 Index: libstdc++-v3/src/c++17/string-inst.cc
 ===================================================================
 --- a/src/libstdc++-v3/src/c++17/string-inst.cc	(.../tags/gcc_9_2_0_release)
@@ -538,6 +564,62 @@ Index: libstdc++-v3/src/c++17/fs_path.cc
  
        while (it != last)
  	{
+Index: libstdc++-v3/src/c++17/fs_ops.cc
+===================================================================
+--- a/src/libstdc++-v3/src/c++17/fs_ops.cc	(.../tags/gcc_9_2_0_release)
++++ b/src/libstdc++-v3/src/c++17/fs_ops.cc	(.../branches/gcc-9-branch)
+@@ -1299,12 +1299,17 @@
+   uintmax_t count = 0;
+   if (s.type() == file_type::directory)
+     {
+-      for (directory_iterator d(p, ec), end; !ec && d != end; d.increment(ec))
+-	count += fs::remove_all(d->path(), ec);
+-      if (ec.value() == ENOENT)
+-	ec.clear();
+-      else if (ec)
+-	return -1;
++      directory_iterator d(p, ec), end;
++      while (!ec && d != end)
++	{
++	  const auto removed = fs::remove_all(d->path(), ec);
++	  if (removed == numeric_limits<uintmax_t>::max())
++	    return -1;
++	  count += removed;
++	  d.increment(ec);
++	  if (ec)
++	    return -1;
++	}
+     }
+ 
+   if (fs::remove(p, ec))
+Index: libstdc++-v3/src/filesystem/ops.cc
+===================================================================
+--- a/src/libstdc++-v3/src/filesystem/ops.cc	(.../tags/gcc_9_2_0_release)
++++ b/src/libstdc++-v3/src/filesystem/ops.cc	(.../branches/gcc-9-branch)
+@@ -1098,12 +1098,17 @@
+   uintmax_t count = 0;
+   if (s.type() == file_type::directory)
+     {
+-      for (directory_iterator d(p, ec), end; !ec && d != end; d.increment(ec))
+-	count += fs::remove_all(d->path(), ec);
+-      if (ec.value() == ENOENT)
+-	ec.clear();
+-      else if (ec)
+-	return -1;
++      directory_iterator d(p, ec), end;
++      while (!ec && d != end)
++	{
++	  const auto removed = fs::remove_all(d->path(), ec);
++	  if (removed == numeric_limits<uintmax_t>::max())
++	    return -1;
++	  count += removed;
++	  d.increment(ec);
++	  if (ec)
++	    return -1;
++	}
+     }
+ 
+   if (fs::remove(p, ec))
 Index: libstdc++-v3/src/filesystem/ops-common.h
 ===================================================================
 --- a/src/libstdc++-v3/src/filesystem/ops-common.h	(.../tags/gcc_9_2_0_release)
@@ -1341,6 +1423,28 @@ Index: libstdc++-v3/include/std/type_traits
    template<typename _Fn, typename... _ArgTypes>
      struct __is_invocable
      : __is_invocable_impl<__invoke_result<_Fn, _ArgTypes...>, void>::type
+Index: libstdc++-v3/include/std/memory_resource
+===================================================================
+--- a/src/libstdc++-v3/include/std/memory_resource	(.../tags/gcc_9_2_0_release)
++++ b/src/libstdc++-v3/include/std/memory_resource	(.../branches/gcc-9-branch)
+@@ -88,7 +88,7 @@
+   public:
+     memory_resource() = default;
+     memory_resource(const memory_resource&) = default;
+-    virtual ~memory_resource() = default;
++    virtual ~memory_resource(); // key function
+ 
+     memory_resource& operator=(const memory_resource&) = default;
+ 
+@@ -600,7 +600,7 @@
+ 
+     monotonic_buffer_resource(const monotonic_buffer_resource&) = delete;
+ 
+-    virtual ~monotonic_buffer_resource() { release(); }
++    virtual ~monotonic_buffer_resource(); // key function
+ 
+     monotonic_buffer_resource&
+     operator=(const monotonic_buffer_resource&) = delete;
 Index: libstdc++-v3/include/std/version
 ===================================================================
 --- a/src/libstdc++-v3/include/std/version	(.../tags/gcc_9_2_0_release)
@@ -2711,7 +2815,30 @@ Index: libstdc++-v3/ChangeLog
 ===================================================================
 --- a/src/libstdc++-v3/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/libstdc++-v3/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,372 @@
+@@ -1,3 +1,395 @@
++2020-01-09  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/93208
++	* config/abi/pre/gnu.ver: Add new exports.
++	* include/std/memory_resource (memory_resource::~memory_resource()):
++	Do not define inline.
++	(monotonic_buffer_resource::~monotonic_buffer_resource()): Likewise.
++	* src/c++17/memory_resource.cc (memory_resource::~memory_resource()):
++	Define.
++	(monotonic_buffer_resource::~monotonic_buffer_resource()): Define.
++	* testsuite/20_util/monotonic_buffer_resource/93208.cc: New test.
++
++2020-01-08  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/93201
++	* src/c++17/fs_ops.cc (remove_all(const path&, error_code&)): Check
++	result of recursive call before incrementing iterator.
++	* src/filesystem/ops.cc (remove_all(const path&, error_code&)):
++	Likewise.
++	* testsuite/27_io/filesystem/operations/remove_all.cc: Check errors
++	are reported correctly.
++	* testsuite/experimental/filesystem/operations/remove_all.cc: Likewise.
++
 +2019-12-11  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	Backport from mainline
@@ -3951,6 +4078,55 @@ Index: libstdc++-v3/testsuite/23_containers/list/requirements/dr438/constructor_
  // { dg-prune-output "no matching function .*_M_fill_initialize" }
  
  #include <list>
+Index: libstdc++-v3/testsuite/27_io/filesystem/operations/remove_all.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/27_io/filesystem/operations/remove_all.cc	(.../tags/gcc_9_2_0_release)
++++ b/src/libstdc++-v3/testsuite/27_io/filesystem/operations/remove_all.cc	(.../branches/gcc-9-branch)
+@@ -140,6 +140,38 @@
+   VERIFY( !exists(p) );
+ }
+ 
++void
++test04()
++{
++#if defined(__MINGW32__) || defined(__MINGW64__)
++  // no permissions
++#else
++  // PR libstdc++/93201
++  std::error_code ec;
++  std::uintmax_t n;
++
++  auto dir = __gnu_test::nonexistent_path();
++  fs::create_directory(dir);
++  __gnu_test::scoped_file f(dir/"file");
++  // remove write permission on the directory:
++  fs::permissions(dir, fs::perms::owner_read|fs::perms::owner_exec);
++  n = fs::remove_all(dir, ec);
++  VERIFY( n == -1 );
++  VERIFY( ec == std::errc::permission_denied ); // not ENOTEMPTY
++
++  try {
++    fs::remove_all(dir);
++    VERIFY( false );
++  } catch (const fs::filesystem_error& e) {
++    VERIFY( e.code() == std::errc::permission_denied );
++    // First path is the argument to remove_all
++    VERIFY( e.path1() == dir );
++  }
++
++  fs::permissions(dir, fs::perms::owner_write, fs::perm_options::add);
++#endif
++}
++
+ int
+ main()
+ {
+@@ -146,4 +178,5 @@
+   test01();
+   test02();
+   test03();
++  test04();
+ }
 Index: libstdc++-v3/testsuite/27_io/filesystem/iterators/91067.cc
 ===================================================================
 --- a/src/libstdc++-v3/testsuite/27_io/filesystem/iterators/91067.cc	(.../tags/gcc_9_2_0_release)
@@ -5205,6 +5381,53 @@ Index: libstdc++-v3/testsuite/26_numerics/exclusive_scan/1.cc
 +  test01();
 +  test02();
 +}
+Index: libstdc++-v3/testsuite/experimental/filesystem/operations/remove_all.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/experimental/filesystem/operations/remove_all.cc	(.../tags/gcc_9_2_0_release)
++++ b/src/libstdc++-v3/testsuite/experimental/filesystem/operations/remove_all.cc	(.../branches/gcc-9-branch)
+@@ -108,9 +108,42 @@
+   VERIFY( !exists(dir) );
+ }
+ 
++void
++test04()
++{
++#if defined(__MINGW32__) || defined(__MINGW64__)
++  // no permissions
++#else
++  // PR libstdc++/93201
++  std::error_code ec;
++  std::uintmax_t n;
++
++  auto dir = __gnu_test::nonexistent_path();
++  fs::create_directory(dir);
++  __gnu_test::scoped_file f(dir/"file");
++  // remove write permission on the directory:
++  fs::permissions(dir, fs::perms::owner_read|fs::perms::owner_exec);
++  n = fs::remove_all(dir, ec);
++  VERIFY( n == -1 );
++  VERIFY( ec == std::errc::permission_denied ); // not ENOTEMPTY
++
++  try {
++    fs::remove_all(dir);
++    VERIFY( false );
++  } catch (const fs::filesystem_error& e) {
++    VERIFY( e.code() == std::errc::permission_denied );
++    // First path is the argument to remove_all
++    VERIFY( e.path1() == dir );
++  }
++
++  fs::permissions(dir, fs::perms::owner_write|fs::perms::add_perms);
++#endif
++}
++
+ int
+ main()
+ {
+   test01();
+   test02();
++  test04();
+ }
 Index: libstdc++-v3/testsuite/experimental/names.cc
 ===================================================================
 --- a/src/libstdc++-v3/testsuite/experimental/names.cc	(.../tags/gcc_9_2_0_release)
@@ -6022,6 +6245,40 @@ Index: libstdc++-v3/testsuite/20_util/is_nothrow_invocable/value.cc
  
    static_assert( ! is_nt_invocable< F, int, int >(),
  		   "would call private member");
+Index: libstdc++-v3/testsuite/20_util/monotonic_buffer_resource/93208.cc
+===================================================================
+--- a/src/libstdc++-v3/testsuite/20_util/monotonic_buffer_resource/93208.cc	(.../tags/gcc_9_2_0_release)
++++ b/src/libstdc++-v3/testsuite/20_util/monotonic_buffer_resource/93208.cc	(.../branches/gcc-9-branch)
+@@ -0,0 +1,29 @@
++// Copyright (C) 2020 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-options "-std=gnu++17" }
++// { dg-do compile { target c++17 } }
++// { dg-final { scan-assembler-not "_ZT\[IS\]NSt3pmr15memory_resourceE" } }
++// { dg-final { scan-assembler-not "_ZT\[IS\]NSt3pmr25monotonic\[a-z_\]*E" } }
++
++#include <memory_resource>
++
++void* f(int n)
++{
++  std::pmr::monotonic_buffer_resource res;
++  return res.allocate(n);
++}
 Index: libstdc++-v3/testsuite/20_util/is_invocable/91456.cc
 ===================================================================
 --- a/src/libstdc++-v3/testsuite/20_util/is_invocable/91456.cc	(.../tags/gcc_9_2_0_release)
@@ -9000,7 +9257,7 @@ Index: libstdc++-v3/config/abi/pre/gnu.ver
      _ZNSt12__shared_ptrINSt10filesystem28recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE[012]EEC2Ev;
      _ZNSt12__shared_ptrINSt10filesystem7__cxx1128recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE[012]EEC2Ev;
  
-@@ -2282,6 +2282,18 @@
+@@ -2282,6 +2282,24 @@
  
  } GLIBCXX_3.4.26;
  
@@ -9013,6 +9270,12 @@ Index: libstdc++-v3/config/abi/pre/gnu.ver
 +    # __shared_ptr<recursive_directory_iterator::_Dir_stack>::__shared_ptr(__shared_ptr&&) (base object ctor)
 +    _ZNSt12__shared_ptrINSt10filesystem28recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE[012]EEC2EOS5_;
 +    _ZNSt12__shared_ptrINSt10filesystem7__cxx1128recursive_directory_iterator10_Dir_stackELN9__gnu_cxx12_Lock_policyE[012]EEC2EOS6_;
++
++    # key functions, vtables and rtti for memory resources
++    _ZNSt3pmr15memory_resourceD[0125]Ev;
++    _ZT[ISV]NSt3pmr15memory_resourceE;
++    _ZNSt3pmr25monotonic_buffer_resourceD[0125]Ev;
++    _ZT[ISV]NSt3pmr25monotonic_buffer_resourceE;
 +
 +} GLIBCXX_3.4.27;
 +
@@ -10581,7 +10844,7 @@ Index: gcc/DATESTAMP
 +++ b/src/gcc/DATESTAMP	(.../branches/gcc-9-branch)
 @@ -1 +1 @@
 -20190812
-+20200104
++20200110
 Index: gcc/gimple-streamer-out.c
 ===================================================================
 --- a/src/gcc/gimple-streamer-out.c	(.../tags/gcc_9_2_0_release)
@@ -11548,7 +11811,34 @@ Index: gcc/ChangeLog
 ===================================================================
 --- a/src/gcc/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,1586 @@
+@@ -1,3 +1,1613 @@
++2020-01-09  Martin Liska  <mliska@suse.cz>
++
++	Backport from mainline
++	2019-12-12  Jan Hubicka  <hubicka@ucw.cz>
++
++	* ipa-prop.c (read_ipcp_transformation_info): Fix undefined ordering
++	of execution of function call parameters.
++
++2020-01-08  Georg-Johann Lay  <avr@gjlay.de>
++
++	Backport from 2020-01-08 trunk r279995.
++
++	Add -nodevicespecs option for avr.
++
++	PR target/93182
++	* config/avr/avr.opt (-nodevicespecs): New driver option.
++	* config/avr/driver-avr.c (avr_devicespecs_file): Only issue
++	"-specs=device-specs/..." if that option is not set.
++	* doc/invoke.texi (AVR Options) <-nodevicespecs>: Document.
++
++2020-01-06  John David Anglin  <danglin@gcc.gnu.org>
++
++	* config/pa/pa.md: Revert change to use ordered_comparison_operator
++	instead of cmpib_comparison_operator in cmpib patterns.
++	* config/pa/predicates.md (cmpib_comparison_operator): Revert removal
++	of cmpib_comparison_operator.  Revise comment.
++
 +2020-01-01  John David Anglin  <danglin@gcc.gnu.org>
 +
 +	PR target/67834
@@ -13135,7 +13425,7 @@ Index: gcc/ChangeLog
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -513,7 +2096,7 @@
+@@ -513,7 +2123,7 @@
  
  2019-07-11  Uroš Bizjak  <ubizjak@gmail.com>
  
@@ -18687,6 +18977,28 @@ Index: gcc/testsuite/gcc.dg/vect/vect-fma-3.c
 +}
 +
 +/* { dg-final { scan-tree-dump-times "LOOP VECTORIZED" 1 "vect" { target vect_double } } } */
+Index: gcc/testsuite/gcc.dg/darwin-version-1.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/darwin-version-1.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/testsuite/gcc.dg/darwin-version-1.c	(.../branches/gcc-9-branch)
+@@ -1,6 +1,11 @@
+ /* Basic test of the -mmacosx-version-min option.  */
+ 
+-/* { dg-options "-mmacosx-version-min=10.1" } */
++/* Darwin4 corresponds to MacOS 10.0.  */
++/* { dg-options "-mmacosx-version-min=10.1" { target *-*-darwin[456789]* } } */
++/* Later Darwin linkers decline to link for less than Darwin8/MacOS 10.4.
++   However, we need to make the link for 10.6 because the relevant libgcc_s
++   shim files for 10.4 and 10.5 are also not installed in later SDKs.  */
++/* { dg-options "-mmacosx-version-min=10.6" { target *-*-darwin[123]* } } */
+ /* { dg-do link { target *-*-darwin* } } */
+ 
+ int main()
+@@ -7,4 +12,3 @@
+ {
+   return 0;
+ }
+-
 Index: gcc/testsuite/gcc.dg/pr90898.c
 ===================================================================
 --- a/src/gcc/testsuite/gcc.dg/pr90898.c	(.../tags/gcc_9_2_0_release)
@@ -19029,7 +19341,15 @@ Index: gcc/testsuite/ChangeLog
 ===================================================================
 --- a/src/gcc/testsuite/ChangeLog	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/testsuite/ChangeLog	(.../branches/gcc-9-branch)
-@@ -1,3 +1,1157 @@
+@@ -1,3 +1,1165 @@
++2020-01-07  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backport from mainline.
++	2020-01-05  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* gcc.dg/darwin-version-1.c: Adjust test to use different
++	options for Darwin4-9 and Darwin10+.
++
 +2020-01-02  Jakub Jelinek  <jakub@redhat.com>
 +
 +	PR c/90677
@@ -20187,7 +20507,7 @@ Index: gcc/testsuite/ChangeLog
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -427,7 +1581,7 @@
+@@ -427,7 +1589,7 @@
  	Backport from mainline.
  	2019-05-15  Iain Sandoe  <iain@sandoe.co.uk>
  
@@ -20196,7 +20516,7 @@ Index: gcc/testsuite/ChangeLog
  	(check_effective_target_powerpc_p8vector_ok): No support for Darwin.
  	(check_effective_target_powerpc_p9vector_ok): Likewise.
  	(check_effective_target_powerpc_float128_sw_ok): Likewise.
-@@ -720,7 +1874,7 @@
+@@ -720,7 +1882,7 @@
  
  	Backport from mainline
  	PR fortran/91077
@@ -20205,7 +20525,7 @@ Index: gcc/testsuite/ChangeLog
  
  2019-07-05  Szabolcs Nagy  <szabolcs.nagy@arm.com>
  
-@@ -969,7 +2123,7 @@
+@@ -969,7 +2131,7 @@
         * gcc.target/i386/pr82699-6.c: Likewise
         * gcc.target/i386/returninst1.c: Likewise
         * gcc.target/i386/returninst2.c: Likewise
@@ -20214,7 +20534,7 @@ Index: gcc/testsuite/ChangeLog
  
  2019-05-30  Iain Sandoe  <iain@sandoe.co.uk>
  
-@@ -1131,7 +2285,7 @@
+@@ -1131,7 +2293,7 @@
  
  	Backport from trunk
  	PR fortran/90498
@@ -20223,7 +20543,7 @@ Index: gcc/testsuite/ChangeLog
  
  2019-05-17  Jakub Jelinek  <jakub@redhat.com>
  
-@@ -3801,21 +4955,21 @@
+@@ -3801,21 +4963,21 @@
  2019-02-23  Paul Thomas  <pault@gcc.gnu.org>
  
  	PR fortran/88117
@@ -20252,7 +20572,7 @@ Index: gcc/testsuite/ChangeLog
  
  2019-02-22  David Malcolm  <dmalcolm@redhat.com>
  
-@@ -4444,7 +5598,7 @@
+@@ -4444,7 +5606,7 @@
  2019-02-09  Paul Thomas  <pault@gcc.gnu.org>
  
  	PR fortran/89200
@@ -20261,7 +20581,7 @@ Index: gcc/testsuite/ChangeLog
  
  2019-02-09  Jakub Jelinek  <jakub@redhat.com>
  
-@@ -4704,17 +5858,17 @@
+@@ -4704,17 +5866,17 @@
  2019-02-02  Paul Thomas  <pault@gcc.gnu.org>
  
  	PR fortran/88393
@@ -25574,6 +25894,20 @@ Index: gcc/match.pd
     /* Transform sqrt(x) cmp sqrt(y) -> x cmp y.  */
     (simplify
      (cmp (sq @0) (sq @1))
+Index: gcc/go/gofrontend/escape.cc
+===================================================================
+--- a/src/gcc/go/gofrontend/escape.cc	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/go/gofrontend/escape.cc	(.../branches/gcc-9-branch)
+@@ -1879,7 +1879,8 @@
+             this->context_->track(addr_node);
+ 
+             Node::Escape_state* addr_state = addr_node->state(this->context_, NULL);
+-            addr_state->loop_depth = array_state->loop_depth;
++            if (array_state->loop_depth != 0)
++              addr_state->loop_depth = array_state->loop_depth;
+           }
+       }
+       break;
 Index: gcc/go/gofrontend/expressions.cc
 ===================================================================
 --- a/src/gcc/go/gofrontend/expressions.cc	(.../tags/gcc_9_2_0_release)
@@ -29784,6 +30118,19 @@ Index: gcc/ipa-prop.c
  /* Set the aggregate replacements of NODE to be AGGVALS.  */
  
  void
+@@ -4703,9 +4715,10 @@
+ 	  bool known = bp_unpack_value (&bp, 1);
+ 	  if (known)
+ 	    {
++	      const widest_int value = streamer_read_widest_int (ib);
++	      const widest_int mask = streamer_read_widest_int (ib);
+ 	      ipa_bits *bits
+-		= ipa_get_ipa_bits_for_value (streamer_read_widest_int (ib),
+-					      streamer_read_widest_int (ib));
++		= ipa_get_ipa_bits_for_value (value, mask);
+ 	      (*ts->bits)[i] = bits;
+ 	    }
+ 	}
 Index: gcc/ipa-prop.h
 ===================================================================
 --- a/src/gcc/ipa-prop.h	(.../tags/gcc_9_2_0_release)
@@ -37160,6 +37507,18 @@ Index: gcc/config/avr/avr-devices.c
  };
  
  
+Index: gcc/config/avr/avr.opt
+===================================================================
+--- a/src/gcc/config/avr/avr.opt	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/config/avr/avr.opt	(.../branches/gcc-9-branch)
+@@ -118,3 +118,7 @@
+ nodevicelib
+ Driver Target Report RejectNegative
+ Do not link against the device-specific library lib<MCU>.a.
++
++nodevicespecs
++Driver Target Report RejectNegative
++Do not use the device-specific specs file device-specs/specs-<MCU>.
 Index: gcc/config/avr/avr-mcus.def
 ===================================================================
 --- a/src/gcc/config/avr/avr-mcus.def	(.../tags/gcc_9_2_0_release)
@@ -37931,6 +38290,32 @@ Index: gcc/config/avr/gen-avr-mmcu-specs.c
        fprintf (f, "\n\n");
      }
  
+Index: gcc/config/avr/driver-avr.c
+===================================================================
+--- a/src/gcc/config/avr/driver-avr.c	(.../tags/gcc_9_2_0_release)
++++ b/src/gcc/config/avr/driver-avr.c	(.../branches/gcc-9-branch)
+@@ -26,8 +26,8 @@
+ #include "diagnostic.h"
+ #include "tm.h"
+ 
+-// Remove -nodevicelib from the command line if not needed
+-#define X_NODEVLIB "%<nodevicelib"
++// Remove -nodevicelib and -nodevicespecs from the command line if not needed.
++#define X_NODEVLIB "%<nodevicelib %<nodevicespecs"
+ 
+ static const char dir_separator_str[] = { DIR_SEPARATOR, 0 };
+ 
+@@ -102,8 +102,8 @@
+         return X_NODEVLIB;
+       }
+ 
+-  return concat ("-specs=device-specs", dir_separator_str, "specs-",
+-                 mmcu, "%s"
++  return concat ("%{!nodevicespecs:-specs=device-specs", dir_separator_str,
++		 "specs-", mmcu, "%s} %<nodevicespecs"
+ #if defined (WITH_AVRLIBC)
+                  " %{mmcu=avr*:" X_NODEVLIB "} %{!mmcu=*:" X_NODEVLIB "}",
+ #else
 Index: gcc/config/avr/avr.c
 ===================================================================
 --- a/src/gcc/config/avr/avr.c	(.../tags/gcc_9_2_0_release)
@@ -41344,19 +41729,17 @@ Index: gcc/config/pa/predicates.md
 ===================================================================
 --- a/src/gcc/config/pa/predicates.md	(.../tags/gcc_9_2_0_release)
 +++ b/src/gcc/config/pa/predicates.md	(.../branches/gcc-9-branch)
-@@ -662,12 +662,6 @@
+@@ -662,8 +662,8 @@
    (and (match_code "symbol_ref")
         (match_test "SYMBOL_REF_TLS_MODEL (op) == TLS_MODEL_LOCAL_EXEC")))
  
 -;; True iff this is a comparison operator.  This allows the use of
 -;; MATCH_OPERATOR to recognize all the branch insns.
--
--(define_predicate "cmpib_comparison_operator"
--  (match_code "eq,ne,lt,le,leu,gt,gtu,ge"))
--
- ;; True iff OP is an operator suitable for use in a movb instruction.
++;; True iff OP is an operator suitable for use in a double-word cmpib
++;; instruction.
  
- (define_predicate "movb_comparison_operator"
+ (define_predicate "cmpib_comparison_operator"
+   (match_code "eq,ne,lt,le,leu,gt,gtu,ge"))
 Index: gcc/config/pa/pa.md
 ===================================================================
 --- a/src/gcc/config/pa/pa.md	(.../tags/gcc_9_2_0_release)
@@ -41548,24 +41931,6 @@ Index: gcc/config/pa/pa.md
 +	 (match_operator 3 "ordered_comparison_operator"
  			 [(match_operand:DI 1 "reg_or_0_operand" "rM")
  			  (match_operand:DI 2 "reg_or_0_operand" "rM")])
- 	 (pc)
-@@ -1524,7 +1524,7 @@
- (define_insn ""
-   [(set (pc)
- 	(if_then_else
--	 (match_operator 3 "cmpib_comparison_operator"
-+	 (match_operator 3 "ordered_comparison_operator"
- 			 [(match_operand:DI 1 "reg_or_0_operand" "rM")
- 			  (match_operand:DI 2 "arith5_operand" "rL")])
- 	 (label_ref (match_operand 0 "" ""))
-@@ -1553,7 +1553,7 @@
- (define_insn ""
-   [(set (pc)
- 	(if_then_else
--	 (match_operator 3 "cmpib_comparison_operator"
-+	 (match_operator 3 "ordered_comparison_operator"
- 			 [(match_operand:DI 1 "reg_or_0_operand" "rM")
- 			  (match_operand:DI 2 "arith5_operand" "rL")])
  	 (pc)
 @@ -9062,7 +9062,7 @@
  (define_insn "decrement_and_branch_until_zero"
