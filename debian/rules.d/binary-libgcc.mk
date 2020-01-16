@@ -47,7 +47,7 @@ endif
 header_files = \
 	$(gcc_lib_dir)/include/std*.h \
 	$(shell for h in \
-		    README features.h arm_fp16.h arm_neon.h arm_cmse.h loongson.h \
+		    README features.h arm_{bf16,fp16,cmse,neon,sve}.h loongson.h \
 		    {cpuid,decfloat,float,gcov,iso646,limits,mm3dnow,mm_malloc}.h \
 		    {ppu_intrinsics,paired,spu2vmx,vec_types,si2vmx}.h \
 		    {,a,b,e,i,n,p,s,t,w,x}mmintrin.h mmintrin-common.h \
