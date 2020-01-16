@@ -28,9 +28,9 @@ gcc/testsuite/
 	* gcc.target/aarch64/sve/peel_ind_3.c: Likewise.
 	* gcc.target/i386/volatile-bitfields-2.c: Allow movl or movq.
 
---- a/src/gcc/doc/invoke.texi	(revision 278509)
-+++ a/src/gcc/doc/invoke.texi	(revision 278505)
-@@ -569,7 +569,7 @@
+--- a/src/gcc/doc/invoke.texi
++++ b/src/gcc/doc/invoke.texi
+@@ -571,7 +571,7 @@ Objective-C and Objective-C++ Dialects}.
  -fnon-call-exceptions  -fdelete-dead-exceptions  -funwind-tables @gol
  -fasynchronous-unwind-tables @gol
  -fno-gnu-unique @gol
@@ -39,15 +39,15 @@ gcc/testsuite/
  -fpcc-struct-return  -fpic  -fPIC  -fpie  -fPIE  -fno-plt @gol
  -fno-jump-tables @gol
  -frecord-gcc-switches @gol
-@@ -14112,28 +14112,36 @@
+@@ -14178,27 +14178,35 @@ useful for building programs to run unde
  code that is not binary compatible with code generated without that switch.
  Use it to conform to a non-default application binary interface.
  
 -@item -fcommon
+-@opindex fcommon
 +@item -fno-common
-+@opindex fno-common
- @opindex fcommon
--@opindex fno-common
+ @opindex fno-common
++@opindex fcommon
  @cindex tentative definitions
 -In C code, this option controls the placement of global variables
 -defined without an initializer, known as @dfn{tentative definitions}
@@ -69,16 +69,16 @@ gcc/testsuite/
 +uninitialized global variables in a common block.  This allows the
 +linker to resolve all tentative definitions of the same variable
  in different compilation units to the same object, or to a non-tentative
--definition.  This behavior does not conform to ISO C, is inconsistent with C++,
--and on many targets implies a speed and code size penalty on global variable
--references.  It is mainly useful to enable legacy code to link without errors.
+-definition.  This behavior is inconsistent with C++, and on many targets implies
+-a speed and code size penalty on global variable references.  It is mainly
+-useful to enable legacy code to link without errors.
 +definition.  
 +This is the behavior specified by @option{-fcommon}, and is the default for 
 +GCC on most targets.  
 +On the other hand, this behavior is not required by ISO
 +C, and on some targets may carry a speed or code size penalty on
 +variable references.
- 
++
 +The @option{-fno-common} option specifies that the compiler should instead
 +place uninitialized global variables in the BSS section of the object file.
 +This inhibits the merging of tentative definitions by the linker so
@@ -88,7 +88,6 @@ gcc/testsuite/
 +it provides better performance, or if you wish to verify that the
 +program will work on other systems that always treat uninitialized
 +variable definitions this way.
-+
+ 
  @item -fno-ident
  @opindex fno-ident
- @opindex fident
