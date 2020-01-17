@@ -16,14 +16,14 @@ debian_patches = \
 	$(if $(with_linaro_branch),gcc-linaro) \
 	$(if $(with_linaro_branch),gcc-linaro-no-macros) \
 
-#	svn-updates \
+#	git-updates \
 
 ifneq ($(GFDL_INVARIANT_FREE),yes)
   debian_patches += \
 	$(if $(with_linaro_branch),gcc-linaro-doc) \
 	rename-info-files \
 
-#	svn-doc-updates \
+#	git-doc-updates \
 #	$(if $(with_linaro_branch),,svn-doc-updates) \
 
 else
@@ -308,11 +308,6 @@ $(patch_stamp): $(unpack_stamp) $(series_stamp)
 	sync
 	QUILT_PATCHES=$(patchdir) QUILT_PATCH_OPTS='-E' \
 	  quilt --quiltrc /dev/null push -a || test $$? = 2
-
-ifneq (,$(filter svn-updates, $(debian_patches)))
-	awk '/^EOF/ {exit} p==1 {print} /EOF$$/ {p=1}' \
-	  $(patchdir)/svn-updates.diff > src/LAST_UPDATED
-endif
 
 	: # only needed when we have changes, and currently fails with autogen 5.18
 	: #cd $(srcdir)/fixincludes && ./genfixes
