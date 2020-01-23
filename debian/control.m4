@@ -6362,8 +6362,6 @@ Depends: BASEDEP, libgomp`'GOMP_SO`'LS, ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
 Description: GCC OpenMP v4.5 plugin for offloading to GCN
  This package contains libgomp plugin for offloading to AMD GCN.
- The plugin needs libcuda.so.1 shared library that has to be
- installed separately.
 ')`'dnl libgompgcn
 ')`'dnl olgcn
 
