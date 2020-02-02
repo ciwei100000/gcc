@@ -1,7 +1,7 @@
-# DP: updates from the 9 branch upto 20200123 (6dd69b78671).
+# DP: updates from the 9 branch upto 20200202 (40f23be6e93).
 
 LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
-	a0c06cc27d2146b7d86758ffa236516c6143d62c 6dd69b78671cf9da8028f38011b1c02a5c61d23c \
+	a0c06cc27d2146b7d86758ffa236516c6143d62c 40f23be6e93efb7e15721e9aab2b659f665caf06 \
 	| awk '/^diff .*\.texi/ {skip=1; next} /^diff / { skip=0 } skip==0' \
 	| grep -v -E '^(diff|index)'
 
@@ -366,7 +366,51 @@ new file mode 100644
 +9.2.1
 --- a/src/gcc/ChangeLog
 +++ b/src/gcc/ChangeLog
-@@ -1,3 +1,1726 @@
+@@ -1,3 +1,1770 @@
++2020-01-30  John David Anglin  <danglin@gcc.gnu.org>
++
++	* config/pa/pa.c (pa_elf_select_rtx_section): Place function pointers
++	without a DECL in .data.rel.ro.local.
++
++2020-01-30  Kito Cheng  <kito.cheng@sifive.com>
++
++	Backport from mainline
++	2020-01-21  Kito Cheng  <kito.cheng@sifive.com>
++
++	PR target/93304
++	* config/riscv/riscv-protos.h (riscv_hard_regno_rename_ok): New.
++	* config/riscv/riscv.c (riscv_hard_regno_rename_ok): New.
++	* config/riscv/riscv.h (HARD_REGNO_RENAME_OK): Defined.
++
++2020-01-29  Szabolcs Nagy  <szabolcs.nagy@arm.com>
++
++	Backport from mainline
++	2020-01-21  Szabolcs Nagy  <szabolcs.nagy@arm.com>
++
++	PR target/92424
++	* config/aarch64/aarch64.c (aarch64_declare_function_name): Set
++	cfun->machine->label_is_assembled.
++	(aarch64_print_patchable_function_entry): New.
++	(TARGET_ASM_PRINT_PATCHABLE_FUNCTION_ENTRY): Define.
++	* config/aarch64/aarch64.h (struct machine_function): New field,
++	label_is_assembled.
++
++2020-01-27  Wilco Dijkstra  <wdijkstr@arm.com>
++
++	PR target/92692
++	* config/aarch64/aarch64.c (aarch64_split_compare_and_swap)
++	Add assert to ensure prolog has been emitted.
++	(aarch64_split_atomic_op): Likewise.
++	* config/aarch64/atomics.md (aarch64_compare_and_swap<mode>)
++	Use epilogue_completed rather than reload_completed.
++	(aarch64_atomic_exchange<mode>): Likewise.
++	(aarch64_atomic_<atomic_optab><mode>): Likewise.
++	(atomic_nand<mode>): Likewise.
++	(aarch64_atomic_fetch_<atomic_optab><mode>): Likewise.
++	(atomic_fetch_nand<mode>): Likewise.
++	(aarch64_atomic_<atomic_optab>_fetch<mode>): Likewise.
++	(atomic_nand_fetch<mode>): Likewise.
++
 +2020-01-22  Jakub Jelinek  <jakub@redhat.com>
 +
 +	PR target/93335
@@ -2093,7 +2137,7 @@ new file mode 100644
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -513,7 +2236,7 @@
+@@ -513,7 +2280,7 @@
  
  2019-07-11  Uroš Bizjak  <ubizjak@gmail.com>
  
@@ -2106,7 +2150,7 @@ new file mode 100644
 +++ b/src/gcc/DATESTAMP
 @@ -1 +1 @@
 -20190812
-+20200123
++20200202
 --- a/src/gcc/Makefile.in
 +++ b/src/gcc/Makefile.in
 @@ -1120,6 +1120,7 @@ endif
@@ -2717,7 +2761,12 @@ new file mode 100644
  #endif /* GCC_BUILTINS_H */
 --- a/src/gcc/c-family/ChangeLog
 +++ b/src/gcc/c-family/ChangeLog
-@@ -1,3 +1,64 @@
+@@ -1,3 +1,69 @@
++2020-01-29  Jason Merrill  <jason@redhat.com>
++
++	PR c++/89357
++	* c-attribs.c (check_cxx_fundamental_alignment_constraints): Remove.
++
 +2019-12-20  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from mainline
@@ -2827,6 +2876,82 @@ new file mode 100644
  	}
        else if (VECTOR_MODE_P (mode)
  	       ? TREE_CODE (type) != TREE_CODE (TREE_TYPE (typefm))
+@@ -1921,65 +1922,6 @@ fail:
+   return NULL_TREE;
+ }
+ 
+-/* If in c++-11, check if the c++-11 alignment constraint with respect
+-   to fundamental alignment (in [dcl.align]) are satisfied.  If not in
+-   c++-11 mode, does nothing.
+-
+-   [dcl.align]2/ says:
+-
+-   [* if the constant expression evaluates to a fundamental alignment,
+-   the alignment requirement of the declared entity shall be the
+-   specified fundamental alignment.
+-
+-   * if the constant expression evaluates to an extended alignment
+-   and the implementation supports that alignment in the context
+-   of the declaration, the alignment of the declared entity shall
+-   be that alignment
+-
+-   * if the constant expression evaluates to an extended alignment
+-   and the implementation does not support that alignment in the
+-   context of the declaration, the program is ill-formed].  */
+-
+-static bool
+-check_cxx_fundamental_alignment_constraints (tree node,
+-					     unsigned align_log,
+-					     int flags)
+-{
+-  bool alignment_too_large_p = false;
+-  unsigned requested_alignment = (1U << align_log) * BITS_PER_UNIT;
+-  unsigned max_align = 0;
+-
+-  if ((!(flags & ATTR_FLAG_CXX11) && !warn_cxx_compat)
+-      || (node == NULL_TREE || node == error_mark_node))
+-    return true;
+-
+-  if (cxx_fundamental_alignment_p (requested_alignment))
+-    return true;
+-
+-  if (VAR_P (node))
+-    {
+-      if (TREE_STATIC (node) || DECL_EXTERNAL (node))
+-	/* For file scope variables and static members, the target supports
+-	   alignments that are at most MAX_OFILE_ALIGNMENT.  */
+-	max_align = MAX_OFILE_ALIGNMENT;
+-      else
+-	/* For stack variables, the target supports at most
+-	   MAX_STACK_ALIGNMENT.  */
+-	max_align = MAX_STACK_ALIGNMENT;
+-      if (requested_alignment > max_align)
+-	alignment_too_large_p = true;
+-    }
+-  /* Let's be liberal for types and fields; don't limit their alignment any
+-     more than check_user_alignment already did.  */
+-
+-  if (alignment_too_large_p)
+-    pedwarn (input_location, OPT_Wattributes,
+-	     "requested alignment %d is larger than %d",
+-	     requested_alignment / BITS_PER_UNIT, max_align / BITS_PER_UNIT);
+-
+-  return !alignment_too_large_p;
+-}
+-
+ /* Common codes shared by handle_warn_if_not_aligned_attribute and
+    handle_aligned_attribute.  */
+ 
+@@ -2023,8 +1965,7 @@ common_handle_aligned_attribute (tree *node, tree name, tree args, int flags,
+   /* Log2 of specified alignment.  */
+   int pow2align = check_user_alignment (align_expr, objfile,
+ 					/* warn_zero = */ true);
+-  if (pow2align == -1
+-      || !check_cxx_fundamental_alignment_constraints (*node, pow2align, flags))
++  if (pow2align == -1)
+     {
+       *no_add_attrs = true;
+       return NULL_TREE;
 --- a/src/gcc/c-family/c-common.h
 +++ b/src/gcc/c-family/c-common.h
 @@ -800,6 +800,7 @@ extern void c_register_addr_space (const char *str, addr_space_t as);
@@ -3652,7 +3777,62 @@ new file mode 100644
     Disabling "sve" just disables "sve".  */
 --- a/src/gcc/config/aarch64/aarch64.c
 +++ b/src/gcc/config/aarch64/aarch64.c
-@@ -17247,14 +17247,15 @@ aarch64_expand_subvti (rtx op0, rtx low_dest, rtx low_in1,
+@@ -15343,6 +15343,34 @@ aarch64_declare_function_name (FILE *stream, const char* name,
+   /* Don't forget the type directive for ELF.  */
+   ASM_OUTPUT_TYPE_DIRECTIVE (stream, name, "function");
+   ASM_OUTPUT_LABEL (stream, name);
++
++  cfun->machine->label_is_assembled = true;
++}
++
++/* Implement PRINT_PATCHABLE_FUNCTION_ENTRY.  Check if the patch area is after
++   the function label and emit a BTI if necessary.  */
++
++void
++aarch64_print_patchable_function_entry (FILE *file,
++					unsigned HOST_WIDE_INT patch_area_size,
++					bool record_p)
++{
++  if (cfun->machine->label_is_assembled
++      && aarch64_bti_enabled ()
++      && !cgraph_node::get (cfun->decl)->only_called_directly_p ())
++    {
++      /* Remove the BTI that follows the patch area and insert a new BTI
++	 before the patch area right after the function label.  */
++      rtx_insn *insn = next_real_nondebug_insn (get_insns ());
++      if (insn
++	  && INSN_P (insn)
++	  && GET_CODE (PATTERN (insn)) == UNSPEC_VOLATILE
++	  && XINT (PATTERN (insn), 1) == UNSPECV_BTI_C)
++	delete_insn (insn);
++      asm_fprintf (file, "\thint\t34 // bti c\n");
++    }
++
++  default_print_patchable_function_entry (file, patch_area_size, record_p);
+ }
+ 
+ /* Implement ASM_OUTPUT_DEF_FROM_DECLS.  Output .variant_pcs for aliases.  */
+@@ -15504,6 +15532,9 @@ aarch64_emit_post_barrier (enum memmodel model)
+ void
+ aarch64_split_compare_and_swap (rtx operands[])
+ {
++  /* Split after prolog/epilog to avoid interactions with shrinkwrapping.  */
++  gcc_assert (epilogue_completed);
++
+   rtx rval, mem, oldval, newval, scratch;
+   machine_mode mode;
+   bool is_weak;
+@@ -15620,6 +15651,9 @@ void
+ aarch64_split_atomic_op (enum rtx_code code, rtx old_out, rtx new_out, rtx mem,
+ 			 rtx value, rtx model_rtx, rtx cond)
+ {
++  /* Split after prolog/epilog to avoid interactions with shrinkwrapping.  */
++  gcc_assert (epilogue_completed);
++
+   machine_mode mode = GET_MODE (mem);
+   machine_mode wmode = (mode == DImode ? DImode : SImode);
+   const enum memmodel model = memmodel_from_int (INTVAL (model_rtx));
+@@ -17247,14 +17281,15 @@ aarch64_expand_subvti (rtx op0, rtx low_dest, rtx low_in1,
      }
    else
      {
@@ -3674,7 +3854,7 @@ new file mode 100644
  
        if (unsigned_p)
  	emit_insn (gen_usubdi3_carryinC (high_dest, high_in1, high_in2));
-@@ -18162,19 +18163,21 @@ aarch64_gen_adjusted_ldpstp (rtx *operands, bool load,
+@@ -18162,19 +18197,21 @@ aarch64_gen_adjusted_ldpstp (rtx *operands, bool load,
    /* Sort the operands.  */
    qsort (temp_operands, 4, 2 * sizeof (rtx *), aarch64_ldrstr_offset_compare);
  
@@ -3703,6 +3883,26 @@ new file mode 100644
 +      mem_4 = copy_rtx (temp_operands[6]);
        gcc_assert (code == UNKNOWN);
      }
+ 
+@@ -18944,6 +18981,9 @@ aarch64_run_selftests (void)
+ #undef TARGET_ASM_TRAMPOLINE_TEMPLATE
+ #define TARGET_ASM_TRAMPOLINE_TEMPLATE aarch64_asm_trampoline_template
+ 
++#undef TARGET_ASM_PRINT_PATCHABLE_FUNCTION_ENTRY
++#define TARGET_ASM_PRINT_PATCHABLE_FUNCTION_ENTRY aarch64_print_patchable_function_entry
++
+ #undef TARGET_BUILD_BUILTIN_VA_LIST
+ #define TARGET_BUILD_BUILTIN_VA_LIST aarch64_build_builtin_va_list
+ 
+--- a/src/gcc/config/aarch64/aarch64.h
++++ b/src/gcc/config/aarch64/aarch64.h
+@@ -731,6 +731,7 @@ typedef struct GTY (()) machine_function
+   struct aarch64_frame frame;
+   /* One entry for each hard register.  */
+   bool reg_is_wrapped_separately[LAST_SAVED_REGNUM];
++  bool label_is_assembled;
+ } machine_function;
+ #endif
  
 --- a/src/gcc/config/aarch64/aarch64.md
 +++ b/src/gcc/config/aarch64/aarch64.md
@@ -3747,6 +3947,89 @@ new file mode 100644
  Optimize for CPU.
  
  mabi=
+--- a/src/gcc/config/aarch64/atomics.md
++++ b/src/gcc/config/aarch64/atomics.md
+@@ -56,7 +56,7 @@
+    (clobber (match_scratch:SI 7 "=&r"))]
+   ""
+   "#"
+-  "&& reload_completed"
++  "&& epilogue_completed"
+   [(const_int 0)]
+   {
+     aarch64_split_compare_and_swap (operands);
+@@ -80,7 +80,7 @@
+    (clobber (match_scratch:SI 7 "=&r"))]
+   ""
+   "#"
+-  "&& reload_completed"
++  "&& epilogue_completed"
+   [(const_int 0)]
+   {
+     aarch64_split_compare_and_swap (operands);
+@@ -166,7 +166,7 @@
+    (clobber (match_scratch:SI 4 "=&r"))]
+   ""
+   "#"
+-  "&& reload_completed"
++  "&& epilogue_completed"
+   [(const_int 0)]
+   {
+     aarch64_split_atomic_op (SET, operands[0], NULL, operands[1],
+@@ -254,7 +254,7 @@
+   (clobber (match_scratch:SI 4 "=&r"))]
+   ""
+   "#"
+-  "&& reload_completed"
++  "&& epilogue_completed"
+   [(const_int 0)]
+   {
+     aarch64_split_atomic_op (<CODE>, NULL, operands[3], operands[0],
+@@ -310,7 +310,7 @@
+    (clobber (match_scratch:SI 4 "=&r"))]
+   ""
+   "#"
+-  "&& reload_completed"
++  "&& epilogue_completed"
+   [(const_int 0)]
+   {
+      aarch64_split_atomic_op (NOT, NULL, operands[3], operands[0],
+@@ -380,7 +380,7 @@
+    (clobber (match_scratch:SI 5 "=&r"))]
+   ""
+   "#"
+-  "&& reload_completed"
++  "&& epilogue_completed"
+   [(const_int 0)]
+   {
+     aarch64_split_atomic_op (<CODE>, operands[0], operands[4], operands[1],
+@@ -427,7 +427,7 @@
+    (clobber (match_scratch:SI 5 "=&r"))]
+   ""
+   "#"
+-  "&& reload_completed"
++  "&& epilogue_completed"
+   [(const_int 0)]
+   {
+     aarch64_split_atomic_op (NOT, operands[0], operands[4], operands[1],
+@@ -480,7 +480,7 @@
+    (clobber (match_scratch:SI 4 "=&r"))]
+   ""
+   "#"
+-  "&& reload_completed"
++  "&& epilogue_completed"
+   [(const_int 0)]
+   {
+     aarch64_split_atomic_op (<CODE>, NULL, operands[0], operands[1],
+@@ -504,7 +504,7 @@
+    (clobber (match_scratch:SI 4 "=&r"))]
+   ""
+   "#"
+-  "&& reload_completed"
++  "&& epilogue_completed"
+   [(const_int 0)]
+   {
+     aarch64_split_atomic_op (NOT, NULL, operands[0], operands[1],
 --- a/src/gcc/config/alpha/alpha.c
 +++ b/src/gcc/config/alpha/alpha.c
 @@ -8839,6 +8839,9 @@ alpha_handle_trap_shadows (void)
@@ -7823,7 +8106,7 @@ new file mode 100644
 +    {
 +      tree decl = SYMBOL_REF_DECL (x);
 +
-+      if (DECL_P (decl) && DECL_COMDAT_GROUP (decl))
++      if (!decl || (DECL_P (decl) && DECL_COMDAT_GROUP (decl)))
 +	return get_named_section (NULL, ".data.rel.ro.local", 1);
 +    }
 +
@@ -8335,6 +8618,13 @@ new file mode 100644
  extern bool riscv_legitimize_move (machine_mode, rtx, rtx);
  extern rtx riscv_subword (rtx, bool);
  extern bool riscv_split_64bit_move_p (rtx, rtx);
+@@ -88,4 +88,6 @@ extern void riscv_init_builtins (void);
+ /* Routines implemented in riscv-common.c.  */
+ extern std::string riscv_arch_str ();
+ 
++extern bool riscv_hard_regno_rename_ok (unsigned, unsigned);
++
+ #endif /* ! GCC_RISCV_PROTOS_H */
 --- a/src/gcc/config/riscv/riscv.c
 +++ b/src/gcc/config/riscv/riscv.c
 @@ -508,8 +508,8 @@ riscv_split_integer (HOST_WIDE_INT val, machine_mode mode)
@@ -8502,6 +8792,35 @@ new file mode 100644
      }
  
    fprintf (file, "%s(", reloc);
+@@ -4892,6 +4907,19 @@ riscv_promote_function_mode (const_tree type ATTRIBUTE_UNUSED,
+   return mode;
+ }
+ 
++/* Return nonzero if register FROM_REGNO can be renamed to register
++   TO_REGNO.  */
++
++bool
++riscv_hard_regno_rename_ok (unsigned from_regno ATTRIBUTE_UNUSED,
++			    unsigned to_regno)
++{
++  /* Interrupt functions can only use registers that have already been
++     saved by the prologue, even if they would normally be
++     call-clobbered.  */
++  return !cfun->machine->interrupt_handler_p || df_regs_ever_live_p (to_regno);
++}
++
+ /* Initialize the GCC target structure.  */
+ #undef TARGET_ASM_ALIGNED_HI_OP
+ #define TARGET_ASM_ALIGNED_HI_OP "\t.half\t"
+--- a/src/gcc/config/riscv/riscv.h
++++ b/src/gcc/config/riscv/riscv.h
+@@ -908,4 +908,6 @@ extern unsigned riscv_stack_boundary;
+ #define SWSP_REACH (4LL << C_SxSP_BITS)
+ #define SDSP_REACH (8LL << C_SxSP_BITS)
+ 
++#define HARD_REGNO_RENAME_OK(FROM, TO) riscv_hard_regno_rename_ok (FROM, TO)
++
+ #endif /* ! GCC_RISCV_H */
 --- a/src/gcc/config/riscv/riscv.md
 +++ b/src/gcc/config/riscv/riscv.md
 @@ -1051,7 +1051,9 @@
@@ -11190,7 +11509,33 @@ new file mode 100644
  AC_SUBST(all_selected_languages)
 --- a/src/gcc/cp/ChangeLog
 +++ b/src/gcc/cp/ChangeLog
-@@ -1,3 +1,408 @@
+@@ -1,3 +1,434 @@
++2020-01-28  Jason Merrill  <jason@redhat.com>
++
++	PR c++/90546
++	* call.c (build_user_type_conversion_1): Allow a template conversion
++	returning an rvalue reference to bind directly to an lvalue.
++
++	PR c++/90731
++	* decl.c (grokdeclarator): Propagate eh spec from typedef.
++
++	PR c++/90966
++	* pt.c (tsubst_copy) [STRING_CST]: Don't use fold_convert.
++
++	PR c++/93279 - ICE with lambda in member operator.
++	* name-lookup.c (maybe_save_operator_binding): Don't remember
++	class-scope bindings.
++
++2020-01-27  Nathan Sidwell  <nathan@acm.org>
++
++	PR c++/91826
++	* name-lookup.c (is_ancestor): Allow CHILD to be a namespace alias.
++
++2020-01-24  Jason Merrill  <jason@redhat.com>
++
++	PR c++/92852 - ICE with generic lambda and reference var.
++	* constexpr.c (maybe_constant_value): Likewise.
++
 +2020-01-22  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from mainline
@@ -11599,7 +11944,7 @@ new file mode 100644
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -16,7 +421,7 @@
+@@ -16,7 +447,7 @@
  
  	Backported from mainline
  	2019-08-02  Marek Polacek  <polacek@redhat.com>
@@ -11622,7 +11967,16 @@ new file mode 100644
    if (NULLPTR_TYPE_P (type))
      return true;
  
-@@ -5186,46 +5185,56 @@ build_conditional_expr_1 (const op_location_t &loc,
+@@ -4035,6 +4034,8 @@ build_user_type_conversion_1 (tree totype, tree expr, int flags,
+ 						       EXPR_LOCATION (expr));
+ 	    }
+ 	  else if (TYPE_REF_P (totype) && !ics->rvaluedness_matches_p
++		   /* Limit this to non-templates for now (PR90546).  */
++		   && !cand->template_decl
+ 		   && TREE_CODE (TREE_TYPE (totype)) != FUNCTION_TYPE)
+ 	    {
+ 	      /* If we are called to convert to a reference type, we are trying
+@@ -5186,46 +5187,56 @@ build_conditional_expr_1 (const op_location_t &loc,
    arg3_type = unlowered_expr_type (arg3);
    if (VOID_TYPE_P (arg2_type) || VOID_TYPE_P (arg3_type))
      {
@@ -11700,7 +12054,7 @@ new file mode 100644
        else
  	{
            if (complain & tf_error)
-@@ -5244,6 +5253,7 @@ build_conditional_expr_1 (const op_location_t &loc,
+@@ -5244,6 +5255,7 @@ build_conditional_expr_1 (const op_location_t &loc,
  	  return error_mark_node;
  	}
  
@@ -11708,7 +12062,7 @@ new file mode 100644
        goto valid_operands;
      }
    /* [expr.cond]
-@@ -5361,6 +5371,10 @@ build_conditional_expr_1 (const op_location_t &loc,
+@@ -5361,6 +5373,10 @@ build_conditional_expr_1 (const op_location_t &loc,
        && same_type_p (arg2_type, arg3_type))
      {
        result_type = arg2_type;
@@ -11719,7 +12073,7 @@ new file mode 100644
        arg2 = mark_lvalue_use (arg2);
        arg3 = mark_lvalue_use (arg3);
        goto valid_operands;
-@@ -5558,13 +5572,6 @@ build_conditional_expr_1 (const op_location_t &loc,
+@@ -5558,13 +5574,6 @@ build_conditional_expr_1 (const op_location_t &loc,
      return error_mark_node;
  
   valid_operands:
@@ -11733,7 +12087,7 @@ new file mode 100644
    result = build3_loc (loc, COND_EXPR, result_type, arg1, arg2, arg3);
  
    /* If the ARG2 and ARG3 are the same and don't have side-effects,
-@@ -7536,7 +7543,12 @@ convert_arg_to_ellipsis (tree arg, tsubst_flags_t complain)
+@@ -7536,7 +7545,12 @@ convert_arg_to_ellipsis (tree arg, tsubst_flags_t complain)
        arg = convert_to_real_nofold (double_type_node, arg);
      }
    else if (NULLPTR_TYPE_P (arg_type))
@@ -11747,7 +12101,7 @@ new file mode 100644
    else if (INTEGRAL_OR_ENUMERATION_TYPE_P (arg_type))
      {
        if (SCOPED_ENUM_P (arg_type))
-@@ -9551,8 +9563,11 @@ complain_about_no_candidates_for_method_call (tree instance,
+@@ -9551,8 +9565,11 @@ complain_about_no_candidates_for_method_call (tree instance,
  	  if (const conversion_info *conv
  		= maybe_get_bad_conversion_for_unmatched_call (candidate))
  	    {
@@ -11760,7 +12114,7 @@ new file mode 100644
  					   candidate->fn, conv->n_arg);
  	      return;
  	    }
-@@ -10732,7 +10747,9 @@ joust (struct z_candidate *cand1, struct z_candidate *cand2, bool warn,
+@@ -10732,7 +10749,9 @@ joust (struct z_candidate *cand1, struct z_candidate *cand2, bool warn,
       either between a constructor and a conversion op, or between two
       conversion ops.  */
    if ((complain & tf_warning)
@@ -11771,7 +12125,7 @@ new file mode 100644
        && (!DECL_CONSTRUCTOR_P (cand1->fn) || !DECL_CONSTRUCTOR_P (cand2->fn))
        && winner != compare_ics (cand1->second_conv, cand2->second_conv))
      {
-@@ -11412,6 +11429,8 @@ make_temporary_var_for_ref_to_temp (tree decl, tree type)
+@@ -11412,6 +11431,8 @@ make_temporary_var_for_ref_to_temp (tree decl, tree type)
  
        TREE_STATIC (var) = TREE_STATIC (decl);
        TREE_PUBLIC (var) = TREE_PUBLIC (decl);
@@ -11780,7 +12134,7 @@ new file mode 100644
        if (vague_linkage_p (decl))
  	comdat_linkage (var);
  
-@@ -11437,7 +11456,7 @@ make_temporary_var_for_ref_to_temp (tree decl, tree type)
+@@ -11437,7 +11458,7 @@ make_temporary_var_for_ref_to_temp (tree decl, tree type)
  
  static tree
  set_up_extended_ref_temp (tree decl, tree expr, vec<tree, va_gc> **cleanups,
@@ -11789,7 +12143,7 @@ new file mode 100644
  {
    tree init;
    tree type;
-@@ -11468,7 +11487,8 @@ set_up_extended_ref_temp (tree decl, tree expr, vec<tree, va_gc> **cleanups,
+@@ -11468,7 +11489,8 @@ set_up_extended_ref_temp (tree decl, tree expr, vec<tree, va_gc> **cleanups,
  
    /* Recursively extend temps in this initializer.  */
    TARGET_EXPR_INITIAL (expr)
@@ -11799,7 +12153,7 @@ new file mode 100644
  
    /* Any reference temp has a non-trivial initializer.  */
    DECL_NONTRIVIALLY_INITIALIZED_P (var) = true;
-@@ -11509,7 +11529,29 @@ set_up_extended_ref_temp (tree decl, tree expr, vec<tree, va_gc> **cleanups,
+@@ -11509,7 +11531,29 @@ set_up_extended_ref_temp (tree decl, tree expr, vec<tree, va_gc> **cleanups,
  	{
  	  tree cleanup = cxx_maybe_build_cleanup (var, tf_warning_or_error);
  	  if (cleanup)
@@ -11830,7 +12184,7 @@ new file mode 100644
  	}
  
        /* We must be careful to destroy the temporary only
-@@ -11614,7 +11656,8 @@ initialize_reference (tree type, tree expr,
+@@ -11614,7 +11658,8 @@ initialize_reference (tree type, tree expr,
     which is bound either to a reference or a std::initializer_list.  */
  
  static tree
@@ -11840,7 +12194,7 @@ new file mode 100644
  {
    tree sub = init;
    tree *p;
-@@ -11622,20 +11665,52 @@ extend_ref_init_temps_1 (tree decl, tree init, vec<tree, va_gc> **cleanups)
+@@ -11622,20 +11667,52 @@ extend_ref_init_temps_1 (tree decl, tree init, vec<tree, va_gc> **cleanups)
    if (TREE_CODE (sub) == COMPOUND_EXPR)
      {
        TREE_OPERAND (sub, 1)
@@ -11897,7 +12251,7 @@ new file mode 100644
        recompute_tree_invariant_for_addr_expr (sub);
        if (init != sub)
  	init = fold_convert (TREE_TYPE (init), sub);
-@@ -11650,13 +11725,14 @@ extend_ref_init_temps_1 (tree decl, tree init, vec<tree, va_gc> **cleanups)
+@@ -11650,13 +11727,14 @@ extend_ref_init_temps_1 (tree decl, tree init, vec<tree, va_gc> **cleanups)
     lifetime to match that of DECL.  */
  
  tree
@@ -11914,7 +12268,7 @@ new file mode 100644
    else
      {
        tree ctor = init;
-@@ -11669,7 +11745,8 @@ extend_ref_init_temps (tree decl, tree init, vec<tree, va_gc> **cleanups)
+@@ -11669,7 +11747,8 @@ extend_ref_init_temps (tree decl, tree init, vec<tree, va_gc> **cleanups)
  	      /* The temporary array underlying a std::initializer_list
  		 is handled like a reference temporary.  */
  	      tree array = CONSTRUCTOR_ELT (ctor, 0)->value;
@@ -11924,7 +12278,7 @@ new file mode 100644
  	      CONSTRUCTOR_ELT (ctor, 0)->value = array;
  	    }
  	  else
-@@ -11678,7 +11755,8 @@ extend_ref_init_temps (tree decl, tree init, vec<tree, va_gc> **cleanups)
+@@ -11678,7 +11757,8 @@ extend_ref_init_temps (tree decl, tree init, vec<tree, va_gc> **cleanups)
  	      constructor_elt *p;
  	      vec<constructor_elt, va_gc> *elts = CONSTRUCTOR_ELTS (ctor);
  	      FOR_EACH_VEC_SAFE_ELT (elts, i, p)
@@ -12099,6 +12453,15 @@ new file mode 100644
  	/* We expect something in the form of &x.D.2103.D.2094; get x. */
  	if (TREE_CODE (obj) != ADDR_EXPR
  	    || !DECL_P (get_base_address (TREE_OPERAND (obj, 0))))
+@@ -5551,7 +5582,7 @@ maybe_constant_value (tree t, tree decl, bool manifestly_const_eval)
+   if (cv_cache == NULL)
+     cv_cache = hash_map<tree, tree>::create_ggc (101);
+   if (tree *cached = cv_cache->get (t))
+-    return *cached;
++    return unshare_expr_without_location (*cached);
+ 
+   r = cxx_eval_outermost_constant_expr (t, true, true, false, decl);
+   gcc_checking_assert (r == t
 @@ -5917,6 +5948,7 @@ potential_constant_expression_1 (tree t, bool want_rval, bool strict, bool now,
      case LABEL_DECL:
      case LABEL_EXPR:
@@ -12325,7 +12688,15 @@ new file mode 100644
  		    if (cxx_dialect < cxx11)
  		      /* Not using maybe_warn_cpp0x because this should
  			 always be an error.  */
-@@ -13042,7 +13060,9 @@ check_default_argument (tree decl, tree arg, tsubst_flags_t complain)
+@@ -12163,6 +12181,7 @@ grokdeclarator (const cp_declarator *declarator,
+ 	  memfn_quals |= type_memfn_quals (type);
+ 	  rqual = type_memfn_rqual (type);
+ 	  type_quals = TYPE_UNQUALIFIED;
++	  raises = TYPE_RAISES_EXCEPTIONS (type);
+ 	}
+     }
+ 
+@@ -13042,7 +13061,9 @@ check_default_argument (tree decl, tree arg, tsubst_flags_t complain)
    /* Avoid redundant -Wzero-as-null-pointer-constant warnings at
       the call sites.  */
    if (TYPE_PTR_OR_PTRMEM_P (decl_type)
@@ -12336,7 +12707,7 @@ new file mode 100644
      return nullptr_node;
  
    /* [dcl.fct.default]
-@@ -15612,7 +15632,8 @@ start_preparsed_function (tree decl1, tree attrs, int flags)
+@@ -15612,7 +15633,8 @@ start_preparsed_function (tree decl1, tree attrs, int flags)
        && !implicit_default_ctor_p (decl1))
      cp_ubsan_maybe_initialize_vtbl_ptrs (current_class_ptr);
  
@@ -12346,7 +12717,7 @@ new file mode 100644
  
    return true;
  }
-@@ -16020,7 +16041,8 @@ finish_function (bool inline_p)
+@@ -16020,7 +16042,8 @@ finish_function (bool inline_p)
    if (fndecl == NULL_TREE)
      return error_mark_node;
  
@@ -12356,7 +12727,7 @@ new file mode 100644
  
    if (c_dialect_objc ())
      objc_finish_function ();
-@@ -16137,7 +16159,7 @@ finish_function (bool inline_p)
+@@ -16137,7 +16160,7 @@ finish_function (bool inline_p)
      invoke_plugin_callbacks (PLUGIN_PRE_GENERICIZE, fndecl);
  
    /* Perform delayed folding before NRV transformation.  */
@@ -12365,7 +12736,7 @@ new file mode 100644
      cp_fold_function (fndecl);
  
    /* Set up the named return value optimization, if we can.  Candidate
-@@ -16260,7 +16282,8 @@ finish_function (bool inline_p)
+@@ -16260,7 +16283,8 @@ finish_function (bool inline_p)
    if (!processing_template_decl)
      {
        struct language_function *f = DECL_SAVED_FUNCTION_DATA (fndecl);
@@ -12486,7 +12857,66 @@ new file mode 100644
        return;
      }
  
-@@ -5656,7 +5656,7 @@ get_std_name_hint (const char *name)
+@@ -4117,38 +4117,46 @@ is_nested_namespace (tree ancestor, tree descendant, bool inline_only)
+   return ancestor == descendant;
+ }
+ 
+-/* Returns true if ROOT (a namespace, class, or function) encloses
+-   CHILD.  CHILD may be either a class type or a namespace.  */
++/* Returns true if ROOT (a non-alias namespace, class, or function)
++   encloses CHILD.  CHILD may be either a class type or a namespace
++   (maybe alias).  */
+ 
+ bool
+ is_ancestor (tree root, tree child)
+ {
+-  gcc_assert ((TREE_CODE (root) == NAMESPACE_DECL
+-	       || TREE_CODE (root) == FUNCTION_DECL
+-	       || CLASS_TYPE_P (root)));
+-  gcc_assert ((TREE_CODE (child) == NAMESPACE_DECL
+-	       || CLASS_TYPE_P (child)));
++  gcc_checking_assert ((TREE_CODE (root) == NAMESPACE_DECL
++			&& !DECL_NAMESPACE_ALIAS (root))
++		       || TREE_CODE (root) == FUNCTION_DECL
++		       || CLASS_TYPE_P (root));
++  gcc_checking_assert (TREE_CODE (child) == NAMESPACE_DECL
++		       || CLASS_TYPE_P (child));
+ 
+-  /* The global namespace encloses everything.  */
++  /* The global namespace encloses everything.  Early-out for the
++     common case.  */
+   if (root == global_namespace)
+     return true;
+ 
+-  /* Search until we reach namespace scope.  */
++  /* Search CHILD until we reach namespace scope.  */
+   while (TREE_CODE (child) != NAMESPACE_DECL)
+     {
+       /* If we've reached the ROOT, it encloses CHILD.  */
+       if (root == child)
+ 	return true;
++
+       /* Go out one level.  */
+       if (TYPE_P (child))
+ 	child = TYPE_NAME (child);
+       child = CP_DECL_CONTEXT (child);
+     }
+ 
+-  if (TREE_CODE (root) == NAMESPACE_DECL)
+-    return is_nested_namespace (root, child);
++  if (TREE_CODE (root) != NAMESPACE_DECL)
++    /* Failed to meet the non-namespace we were looking for.  */
++    return false;
+ 
+-  return false;
++  if (tree alias = DECL_NAMESPACE_ALIAS (child))
++    child = alias;
++
++  return is_nested_namespace (root, child);
+ }
+ 
+ /* Enter the class or namespace scope indicated by T suitable for name
+@@ -5656,7 +5664,7 @@ get_std_name_hint (const char *name)
      {"bitset", "<bitset>", cxx11},
      /* <complex>.  */
      {"complex", "<complex>", cxx98},
@@ -12495,7 +12925,7 @@ new file mode 100644
      /* <condition_variable>. */
      {"condition_variable", "<condition_variable>", cxx11},
      {"condition_variable_any", "<condition_variable>", cxx11},
-@@ -5718,7 +5718,7 @@ get_std_name_hint (const char *name)
+@@ -5718,7 +5726,7 @@ get_std_name_hint (const char *name)
      {"multimap", "<map>", cxx98},
      /* <memory>.  */
      {"make_shared", "<memory>", cxx11},
@@ -12504,6 +12934,19 @@ new file mode 100644
      {"shared_ptr", "<memory>", cxx11},
      {"unique_ptr", "<memory>", cxx11},
      {"weak_ptr", "<memory>", cxx11},
+@@ -7618,6 +7626,12 @@ maybe_save_operator_binding (tree e)
+ 
+   if (!fns && (fns = op_unqualified_lookup (fnname)))
+     {
++      tree fn = get_first_fn (fns);
++      if (DECL_CLASS_SCOPE_P (fn))
++	/* We don't need to remember class-scope functions, normal unqualified
++	   lookup will find them again.  */
++	return;
++
+       bindings = tree_cons (fnname, fns, bindings);
+       if (attr)
+ 	TREE_VALUE (attr) = bindings;
 --- a/src/gcc/cp/parser.c
 +++ b/src/gcc/cp/parser.c
 @@ -2650,6 +2650,7 @@ static bool cp_parser_init_statement_p
@@ -12857,7 +13300,34 @@ new file mode 100644
  					    DECLTYPE_FOR_REF_CAPTURE (t));
  	else if (DECLTYPE_FOR_LAMBDA_PROXY (t))
  	  type = lambda_proxy_type (type);
-@@ -18014,6 +18054,33 @@ tsubst_non_call_postfix_expression (tree t, tree args,
+@@ -16147,7 +16187,6 @@ tsubst_copy (tree t, tree args, tsubst_flags_t complain, tree in_decl)
+ 
+     case INTEGER_CST:
+     case REAL_CST:
+-    case STRING_CST:
+     case COMPLEX_CST:
+       {
+ 	/* Instantiate any typedefs in the type.  */
+@@ -16157,6 +16196,18 @@ tsubst_copy (tree t, tree args, tsubst_flags_t complain, tree in_decl)
+ 	return r;
+       }
+ 
++    case STRING_CST:
++      {
++	tree type = tsubst (TREE_TYPE (t), args, complain, in_decl);
++	r = t;
++	if (type != TREE_TYPE (t))
++	  {
++	    r = copy_node (t);
++	    TREE_TYPE (r) = type;
++	  }
++	return r;
++      }
++
+     case PTRMEM_CST:
+       /* These can sometimes show up in a partial instantiation, but never
+ 	 involve template parms.  */
+@@ -18014,6 +18065,33 @@ tsubst_non_call_postfix_expression (tree t, tree args,
    return t;
  }
  
@@ -12891,7 +13361,7 @@ new file mode 100644
  /* T is a LAMBDA_EXPR.  Generate a new LAMBDA_EXPR for the current
     instantiation context.  Instantiating a pack expansion containing a lambda
     might result in multiple lambdas all based on the same lambda in the
-@@ -18025,17 +18092,8 @@ tsubst_lambda_expr (tree t, tree args, tsubst_flags_t complain, tree in_decl)
+@@ -18025,17 +18103,8 @@ tsubst_lambda_expr (tree t, tree args, tsubst_flags_t complain, tree in_decl)
    tree oldfn = lambda_function (t);
    in_decl = oldfn;
  
@@ -12909,7 +13379,7 @@ new file mode 100644
    LAMBDA_EXPR_LOCATION (r)
      = LAMBDA_EXPR_LOCATION (t);
    LAMBDA_EXPR_DEFAULT_CAPTURE_MODE (r)
-@@ -18088,15 +18146,15 @@ tsubst_lambda_expr (tree t, tree args, tsubst_flags_t complain, tree in_decl)
+@@ -18088,15 +18157,15 @@ tsubst_lambda_expr (tree t, tree args, tsubst_flags_t complain, tree in_decl)
  	  gcc_assert (TREE_CODE (init) == TREE_VEC
  		      && TREE_VEC_LENGTH (init) == len);
  	  for (int i = 0; i < len; ++i)
@@ -12931,7 +13401,7 @@ new file mode 100644
  
  	  if (id_equal (DECL_NAME (field), "__this"))
  	    LAMBDA_EXPR_THIS_CAPTURE (r) = field;
-@@ -19525,13 +19583,8 @@ tsubst_copy_and_build (tree t,
+@@ -19525,13 +19594,8 @@ tsubst_copy_and_build (tree t,
        {
  	tree type1 = tsubst (TRAIT_EXPR_TYPE1 (t), args,
  			     complain, in_decl);
@@ -12947,7 +13417,7 @@ new file mode 100644
  	RETURN (finish_trait_expr (TRAIT_EXPR_KIND (t), type1, type2));
        }
  
-@@ -20571,7 +20624,7 @@ static bool
+@@ -20571,7 +20635,7 @@ static bool
  deducible_expression (tree expr)
  {
    /* Strip implicit conversions.  */
@@ -12956,7 +13426,7 @@ new file mode 100644
      expr = TREE_OPERAND (expr, 0);
    return (TREE_CODE (expr) == TEMPLATE_PARM_INDEX);
  }
-@@ -22041,8 +22094,9 @@ unify (tree tparms, tree targs, tree parm, tree arg, int strict,
+@@ -22041,8 +22105,9 @@ unify (tree tparms, tree targs, tree parm, tree arg, int strict,
    /* I don't think this will do the right thing with respect to types.
       But the only case I've seen it in so far has been array bounds, where
       signedness is the only information lost, and I think that will be
@@ -12968,7 +13438,7 @@ new file mode 100644
      parm = TREE_OPERAND (parm, 0);
  
    if (arg == error_mark_node)
-@@ -24321,12 +24375,11 @@ maybe_instantiate_noexcept (tree fn, tsubst_flags_t complain)
+@@ -24321,12 +24386,11 @@ maybe_instantiate_noexcept (tree fn, tsubst_flags_t complain)
  	}
        else if (push_tinst_level (fn))
  	{
@@ -12982,7 +13452,7 @@ new file mode 100644
  	  /* If needed, set current_class_ptr for the benefit of
  	     tsubst_copy/PARM_DECL.  */
  	  tree tdecl = DECL_TEMPLATE_RESULT (DECL_TI_TEMPLATE (fn));
-@@ -24352,9 +24405,6 @@ maybe_instantiate_noexcept (tree fn, tsubst_flags_t complain)
+@@ -24352,9 +24416,6 @@ maybe_instantiate_noexcept (tree fn, tsubst_flags_t complain)
  					/*function_p=*/false,
  					/*i_c_e_p=*/true);
  
@@ -12992,7 +13462,7 @@ new file mode 100644
  	  /* Build up the noexcept-specification.  */
  	  spec = build_noexcept_spec (noex, tf_warning_or_error);
  
-@@ -24364,6 +24414,7 @@ maybe_instantiate_noexcept (tree fn, tsubst_flags_t complain)
+@@ -24364,6 +24425,7 @@ maybe_instantiate_noexcept (tree fn, tsubst_flags_t complain)
  	  pop_deferring_access_checks ();
  	  pop_access_scope (fn);
  	  pop_tinst_level ();
@@ -13000,7 +13470,7 @@ new file mode 100644
  	}
        else
  	spec = noexcept_false_spec;
-@@ -25232,8 +25283,9 @@ invalid_nontype_parm_type_p (tree type, tsubst_flags_t complain)
+@@ -25232,8 +25294,9 @@ invalid_nontype_parm_type_p (tree type, tsubst_flags_t complain)
      {
        if (cxx_dialect < cxx2a)
  	{
@@ -13012,7 +13482,7 @@ new file mode 100644
  	  return true;
  	}
        if (dependent_type_p (type))
-@@ -26715,7 +26767,7 @@ build_non_dependent_expr (tree expr)
+@@ -26715,7 +26778,7 @@ build_non_dependent_expr (tree expr)
    if (TREE_CODE (expr) == COND_EXPR)
      return build3 (COND_EXPR,
  		   TREE_TYPE (expr),
@@ -13021,7 +13491,7 @@ new file mode 100644
  		   (TREE_OPERAND (expr, 1)
  		    ? build_non_dependent_expr (TREE_OPERAND (expr, 1))
  		    : build_non_dependent_expr (TREE_OPERAND (expr, 0))),
-@@ -27615,6 +27667,9 @@ do_auto_deduction (tree type, tree init, tree auto_node,
+@@ -27615,6 +27678,9 @@ do_auto_deduction (tree type, tree init, tree auto_node,
      }
    else
      {
@@ -22472,7 +22942,30 @@ new file mode 100644
       down the refernces to libraries bit more because linker will otherwise
 --- a/src/gcc/testsuite/ChangeLog
 +++ b/src/gcc/testsuite/ChangeLog
-@@ -1,3 +1,1323 @@
+@@ -1,3 +1,1346 @@
++2020-01-30  Kito Cheng  <kito.cheng@sifive.com>
++
++	Backport from mainline
++	2020-01-21  Kito Cheng  <kito.cheng@sifive.com>
++
++	PR target/93304
++	* gcc.target/riscv/pr93304.c: New test.
++
++2020-01-29  Szabolcs Nagy  <szabolcs.nagy@arm.com>
++
++	Backport from mainline
++	2020-01-21  Szabolcs Nagy  <szabolcs.nagy@arm.com>
++
++	PR target/92424
++	* gcc.target/aarch64/pr92424-2.c: New test.
++	* gcc.target/aarch64/pr92424-3.c: New test.
++
++2020-01-26  Rainer Orth  <ro@CeBiTec.Uni-Bielefeld.DE>
++
++	* gcc.target/i386/pr91298-1.c: xfail on Solaris/x86 with native
++	assembler.
++	* gcc.target/i386/pr91298-2.c: Likewise.
++
 +2020-01-22  Jakub Jelinek  <jakub@redhat.com>
 +
 +	PR target/93335
@@ -23796,7 +24289,7 @@ new file mode 100644
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -427,7 +1747,7 @@
+@@ -427,7 +1770,7 @@
  	Backport from mainline.
  	2019-05-15  Iain Sandoe  <iain@sandoe.co.uk>
  
@@ -23805,7 +24298,7 @@ new file mode 100644
  	(check_effective_target_powerpc_p8vector_ok): No support for Darwin.
  	(check_effective_target_powerpc_p9vector_ok): Likewise.
  	(check_effective_target_powerpc_float128_sw_ok): Likewise.
-@@ -720,7 +2040,7 @@
+@@ -720,7 +2063,7 @@
  
  	Backport from mainline
  	PR fortran/91077
@@ -23814,7 +24307,7 @@ new file mode 100644
  
  2019-07-05  Szabolcs Nagy  <szabolcs.nagy@arm.com>
  
-@@ -803,7 +2123,7 @@
+@@ -803,7 +2146,7 @@
  	Backport fom mainline
  	2019-06-21  Jeff Law  <law@redhat.com>
  
@@ -23823,7 +24316,7 @@ new file mode 100644
  	* gcc.c-torture/execute/pr90949.c: New test.
  
  2019-06-26  Martin Jambor  <mjambor@suse.cz>
-@@ -969,7 +2289,7 @@
+@@ -969,7 +2312,7 @@
         * gcc.target/i386/pr82699-6.c: Likewise
         * gcc.target/i386/returninst1.c: Likewise
         * gcc.target/i386/returninst2.c: Likewise
@@ -23832,7 +24325,7 @@ new file mode 100644
  
  2019-05-30  Iain Sandoe  <iain@sandoe.co.uk>
  
-@@ -1131,7 +2451,7 @@
+@@ -1131,7 +2474,7 @@
  
  	Backport from trunk
  	PR fortran/90498
@@ -23841,7 +24334,7 @@ new file mode 100644
  
  2019-05-17  Jakub Jelinek  <jakub@redhat.com>
  
-@@ -3801,21 +5121,21 @@
+@@ -3801,21 +5144,21 @@
  2019-02-23  Paul Thomas  <pault@gcc.gnu.org>
  
  	PR fortran/88117
@@ -23870,7 +24363,7 @@ new file mode 100644
  
  2019-02-22  David Malcolm  <dmalcolm@redhat.com>
  
-@@ -4444,7 +5764,7 @@
+@@ -4444,7 +5787,7 @@
  2019-02-09  Paul Thomas  <pault@gcc.gnu.org>
  
  	PR fortran/89200
@@ -23879,7 +24372,7 @@ new file mode 100644
  
  2019-02-09  Jakub Jelinek  <jakub@redhat.com>
  
-@@ -4704,17 +6024,17 @@
+@@ -4704,17 +6047,17 @@
  2019-02-02  Paul Thomas  <pault@gcc.gnu.org>
  
  	PR fortran/88393
@@ -24660,6 +25153,24 @@ new file mode 100644
 +};
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/g++.dg/cpp0x/alignas17.C
+@@ -0,0 +1,14 @@
++// PR c++/89357
++// { dg-do compile { target c++11 } }
++
++void g(int &);
++
++void f0() {
++  __attribute__((aligned(128))) static int x;
++  g(x);
++}
++
++void f1() {
++  alignas(128) int x;
++  g(x);
++}
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/g++.dg/cpp0x/constexpr-92015.C
 @@ -0,0 +1,7 @@
 +// PR c++/92015
@@ -24854,6 +25365,24 @@ new file mode 100644
 +int d [[gnu::another_nonexistent_attr(1,"abcd",g+6)]];	// { dg-warning "ignored" }
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/g++.dg/cpp0x/initlist-array10.C
+@@ -0,0 +1,14 @@
++// PR c++/90966
++// { dg-do compile { target c++11 } }
++
++template<typename I>
++void f()
++{
++  using S = signed char;
++  constexpr const S v[]{0};
++}
++
++int main()
++{
++  f<int>();
++}
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/g++.dg/cpp0x/initlist-new2.C
 @@ -0,0 +1,15 @@
 +// PR c++/57082
@@ -24870,6 +25399,25 @@ new file mode 100644
 +  new X;    // OK
 +  new X();  // OK
 +  new X{};  // { dg-bogus "" }
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/g++.dg/cpp0x/lambda/lambda-template16.C
+@@ -0,0 +1,15 @@
++// PR c++/93279
++// { dg-do compile { target c++11 } }
++
++template <typename T> struct B { using f = int; };
++template <typename T, int N> struct E {
++  template <typename U, typename B<E>::f = 0>
++  void operator*(U l) { [l](T m) { m * l; }; }
++};
++
++int
++main ()
++{
++  E<E<float, 4>, 1> n;
++  n * 4.f;
 +}
 new file mode 100644
 --- /dev/null
@@ -25015,6 +25563,25 @@ new file mode 100644
 +  for(auto i: a)
      ;
  }
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/g++.dg/cpp0x/rv-conv3.C
+@@ -0,0 +1,15 @@
++// PR c++/90546
++// { dg-do link { target c++11 } }
++
++struct Foo { };
++void test(const Foo&) {}
++Foo f;
++struct Bar {
++  template <class T> operator T&&();
++};
++template<> Bar::operator const Foo&&() {
++    return static_cast<Foo&&>(f);
++}
++int main() {
++  test(Bar{});
++}
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/g++.dg/cpp0x/temp-extend2.C
@@ -25194,6 +25761,22 @@ new file mode 100644
 +							// { dg-error "type-specifier invalid in lambda" "" { target *-*-* } .-1 }
 +auto b = [](auto x) mutable typedef {};			// { dg-error "'typedef' invalid in lambda" }
 +auto d = [](auto x) mutable friend {};			// { dg-error "'friend' invalid in lambda" }
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/g++.dg/cpp1y/lambda-generic-ref1.C
+@@ -0,0 +1,12 @@
++// PR c++/92852
++// { dg-do compile { target c++14 } }
++
++struct S { int operator<<(const int &); } glob;
++void foo()
++{
++  S& message_stream = glob;
++  auto format = [&message_stream](auto && x)
++		{ message_stream << x ; };
++  format(3);
++  format(4u);
++}
 --- a/src/gcc/testsuite/g++.dg/cpp1y/lambda-init16.C
 +++ b/src/gcc/testsuite/g++.dg/cpp1y/lambda-init16.C
 @@ -3,7 +3,7 @@
@@ -25271,6 +25854,44 @@ new file mode 100644
 +void ky () noexcept ([]{}); // IFNDR
 +// Optional error: void(*)() to bool conv in converted constant expression
 +// { dg-prune-output "converted constant expression" }
+--- a/src/gcc/testsuite/g++.dg/cpp1z/decomp48.C
++++ b/src/gcc/testsuite/g++.dg/cpp1z/decomp48.C
+@@ -18,7 +18,7 @@ f2 ()
+ {
+   S v {1, 2};
+   auto& [s, t] = v;	// { dg-warning "structured bindings only available with" "" { target c++14_down } }
+-  return s;		// { dg-warning "reference to local variable 'v' returned" "" { target *-*-* } .-1 }
++  return s;		// { dg-warning "reference to local variable 'v' returned" }
+ }
+ 
+ int &
+@@ -33,7 +33,7 @@ f4 ()
+ {
+   int a[3] = {1, 2, 3};
+   auto& [s, t, u] = a;	// { dg-warning "structured bindings only available with" "" { target c++14_down } }
+-  return s;		// { dg-warning "reference to local variable 'a' returned" "" { target *-*-* } .-1 }
++  return s;		// { dg-warning "reference to local variable 'a' returned" }
+ }
+ 
+ int &
+@@ -78,7 +78,7 @@ f10 ()
+ {
+   S v {1, 2};
+   auto& [s, t] = v;	// { dg-warning "structured bindings only available with" "" { target c++14_down } }
+-  return &s;		// { dg-warning "address of local variable 'v' returned" "" { target *-*-* } .-1 }
++  return &s;		// { dg-warning "address of local variable 'v' returned" }
+ }
+ 
+ int *
+@@ -93,7 +93,7 @@ f12 ()
+ {
+   int a[3] = {1, 2, 3};
+   auto& [s, t, u] = a;	// { dg-warning "structured bindings only available with" "" { target c++14_down } }
+-  return &s;		// { dg-warning "address of local variable 'a' returned" "" { target *-*-* } .-1 }
++  return &s;		// { dg-warning "address of local variable 'a' returned" }
+ }
+ 
+ int *
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/g++.dg/cpp1z/decomp50.C
@@ -25361,6 +25982,16 @@ new file mode 100644
 +  if (fn != bar || !ok)
 +    abort ();
 +}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/g++.dg/cpp1z/noexcept-type22.C
+@@ -0,0 +1,6 @@
++// PR c++/90731
++// { dg-do compile { target c++17 } }
++
++typedef void T() noexcept(true);
++T t;
++void t() noexcept(true);
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/g++.dg/cpp2a/attr-likely6.C
@@ -26135,6 +26766,26 @@ new file mode 100644
  void test_array ()
  {
    std::array a; // { dg-error "'array' is not a member of 'std'" }
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/g++.dg/lookup/pr91826.C
+@@ -0,0 +1,16 @@
++// PR 91826 bogus error with aliased namespace
++
++namespace N1 { class C1; }
++namespace A1 = N1;
++class A1::C1 {}; //Ok
++
++namespace N2
++{
++  namespace N { class C2; }
++  namespace A2 = N;
++  class A2::C2 {}; // { dg_bogus "does not enclose" }
++}
++
++namespace N3 { namespace N { class C3; } }
++namespace A3 = N3::N;
++class A3::C3 {}; //Ok
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/g++.dg/lto/pr91572_0.C
@@ -28998,6 +29649,38 @@ new file mode 100644
 +/* { dg-final { scan-assembler-not "str\tw..?, .*" } } */
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/gcc.target/aarch64/pr92424-2.c
+@@ -0,0 +1,12 @@
++/* { dg-do "compile" } */
++/* { dg-options "-O1" } */
++
++/* Test the placement of the .LPFE1 label.  */
++
++void
++__attribute__ ((target("branch-protection=bti"),
++		patchable_function_entry (1, 0)))
++f10_bti ()
++{
++}
++/* { dg-final { scan-assembler "f10_bti:\n\thint\t34 // bti c\n.*\.LPFE1:\n\tnop\n.*\tret\n" } } */
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.target/aarch64/pr92424-3.c
+@@ -0,0 +1,12 @@
++/* { dg-do "compile" } */
++/* { dg-options "-O1" } */
++
++/* Test the placement of the .LPFE1 label.  */
++
++void
++__attribute__ ((target("branch-protection=bti+pac-ret+leaf"),
++		patchable_function_entry (1, 0)))
++f10_pac ()
++{
++}
++/* { dg-final { scan-assembler "f10_pac:\n\thint\t34 // bti c\n.*\.LPFE1:\n\tnop\n.*\thint\t25 // paciasp\n.*\thint\t29 // autiasp\n.*\tret\n" } } */
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/gcc.target/arc/delay-slot-limm.c
 @@ -0,0 +1,52 @@
 +/* We have encountered an issue that a "mov_s.ne" instruction *
@@ -29533,10 +30216,11 @@ new file mode 100644
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/gcc.target/i386/pr91298-1.c
-@@ -0,0 +1,14 @@
+@@ -0,0 +1,15 @@
 +/* PR target/91298 */
 +/* { dg-do assemble } */
 +/* { dg-options "-O2 -g -fdollars-in-identifiers" } */
++/* { dg-xfail-if "No support for $ in identifiers" { *-*-solaris2.* && { ! gas } } } */
 +
 +int $a[18];
 +int *foo (void) { return &$a[0]; }
@@ -29551,10 +30235,11 @@ new file mode 100644
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/gcc.target/i386/pr91298-2.c
-@@ -0,0 +1,5 @@
+@@ -0,0 +1,6 @@
 +/* PR target/91298 */
 +/* { dg-do assemble { target fpic } } */
 +/* { dg-options "-O2 -g -fdollars-in-identifiers -fpic" } */
++/* { dg-xfail-if "No support for $ in identifiers" { *-*-solaris2.* && { ! gas } } } */
 +
 +#include "pr91298-1.c"
 new file mode 100644
@@ -30436,6 +31121,29 @@ new file mode 100644
 +  asm volatile ("%h0" :: "i" (&foo));	/* { dg-error "invalid use of '%h'" } */
 +  asm volatile ("%R0" :: "i" (&foo));	/* { dg-error "invalid use of '%R'" } */
 +}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.target/riscv/pr93304.c
+@@ -0,0 +1,19 @@
++/* Verify the regrename won't rename registers to register which never used
++   before.  */
++/* { dg-do compile } */
++/* { dg-options "-O -frename-registers" } */
++
++static unsigned _t = 0;
++
++void __attribute__ ((interrupt))
++foo (void)
++{
++  _t++;
++}
++
++/* Register rename will try to use registers from the lower register
++   regradless of the REG_ALLOC_ORDER.
++   In theory, t0-t6 should not used in such small program if regrename
++   not executed incorrectly, because a5-a0 has higher priority in
++   REG_ALLOC_ORDER.  */
++/* { dg-final { scan-assembler-not "t\[0-6\]" } } */
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/gcc.target/riscv/shift-shift-4.c
@@ -36772,7 +37480,25 @@ new file mode 100644
  #if defined(__x86_64__) && !defined(_LP64)
 --- a/src/libstdc++-v3/ChangeLog
 +++ b/src/libstdc++-v3/ChangeLog
-@@ -1,3 +1,435 @@
+@@ -1,3 +1,453 @@
++2020-01-24  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backport from mainline
++	2020-01-23  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/91947
++	* include/Makefile.am (${host_builddir}/largefile-config.h): Simplify
++	rule.
++	* include/Makefile.in: Regenerate.
++
++	Backport from mainline
++	2020-01-20  Jonathan Wakely  <jwakely@redhat.com>
++
++	* doc/xml/faq.xml: Fix grammar.
++	* doc/xml/manual/appendix_contributing.xml: Improve instructions.
++	* doc/xml/manual/spine.xml: Update copyright years.
++	* doc/html/*: Regenerate.
++
 +2020-01-19  Eric S. Raymond <esr@thyrsus.com>
 +	    Sandra Loosemore  <sandra@codesourcery.com>
 +
@@ -40545,6 +41271,50 @@ new file mode 100644
  stamp-html-single-docbook: $(xml_sources) ${docbook_outdir}/html
  	@echo "Generating html single file..."
  	$(XSLTPROC) $(XSLT_PARAM) $(XSLT_FLAGS) -o ${manual_html} \
+--- a/src/libstdc++-v3/doc/html/faq.html
++++ b/src/libstdc++-v3/doc/html/faq.html
+@@ -113,9 +113,8 @@
+      clauses 20 through 33 and annex D (prior to the 2017 standard
+      the library clauses started with 17).  For those who want to see
+      exactly how far the project has come, or just want the latest
+-     bleeding-edge code, the up-to-date source is available over
+-     anonymous SVN, and can be browsed over the
+-     <a class="link" href="https://gcc.gnu.org/svn.html" target="_top">web</a>.
++     bleeding-edge code, the up-to-date source can be cloned via
++     <a class="link" href="https://gcc.gnu.org/git.html" target="_top">Git</a>.
+     </p><p>
+     N.B. The library is called libstdc++ <span class="emphasis"><em>not</em></span> stdlibc++.
+     </p></td></tr><tr class="question"><td align="left" valign="top"><a id="faq.why"></a><a id="q-why"></a><p><strong>1.2.</strong></p></td><td align="left" valign="top"><p>
+@@ -260,24 +259,11 @@
+     mirrors. A full <a class="link" href="https://gcc.gnu.org/mirrors.html" target="_top">list of
+     download sites</a> is provided on the main GCC site.
+     </p><p>
+-    Current libstdc++ sources can always be checked out of the main
+-    GCC source repository using the appropriate version control
+-    tool. At this time, that tool
+-    is <span class="application">Subversion</span>.
+-    </p><p>
+-    <span class="application">Subversion</span>, or <acronym class="acronym">SVN</acronym>, is
+-    one of several revision control packages.  It was selected for GNU
+-    projects because it's free (speech), free (beer), and very high
+-    quality.  The <a class="link" href="http://subversion.tigris.org" target="_top"> Subversion
+-    home page</a> has a better description.
+-    </p><p>
+-    The <span class="quote">“<span class="quote">anonymous client checkout</span>”</span> feature of SVN is
+-    similar to anonymous FTP in that it allows anyone to retrieve
+-    the latest libstdc++ sources.
+-    </p><p>
+-    For more information
+-    see <a class="link" href="https://gcc.gnu.org/svn.html" target="_top"><acronym class="acronym">SVN</acronym>
+-    details</a>.
++    Current libstdc++ sources can always be found in the main GCC source
++    repository, available using the appropriate version control tool.
++    At this time, that tool is <span class="application">Git</span>.
++    For more details see the documentation on
++    <a class="link" href="https://gcc.gnu.org/git.html" target="_top">using the Git repository</a>.
+     </p></td></tr><tr class="question"><td align="left" valign="top"><a id="faq.how_to_test"></a><a id="q-how_to_test"></a><p><strong>3.3.</strong></p></td><td align="left" valign="top"><p>How do I know if it works?
+     </p></td></tr><tr class="answer"><td align="left" valign="top"><a id="a-how_to_test"></a></td><td align="left" valign="top"><p>
+     Libstdc++ comes with its own validation testsuite, which includes
 --- a/src/libstdc++-v3/doc/html/manual/abi.html
 +++ b/src/libstdc++-v3/doc/html/manual/abi.html
 @@ -110,7 +110,7 @@ compatible.
@@ -40556,6 +41326,28 @@ new file mode 100644
        Note 1: Error should be libstdc++.so.3.0.3.
      </p><p>
        Note 2: Not strictly required.
+--- a/src/libstdc++-v3/doc/html/manual/appendix_contributing.html
++++ b/src/libstdc++-v3/doc/html/manual/appendix_contributing.html
+@@ -90,14 +90,12 @@
+ 	  easily and simply show the existing error or test new
+ 	  functionality.
+ 	</p></li><li class="listitem"><p>
+-	  The patch itself. If you are accessing the SVN
+-	  repository use <span class="command"><strong>svn update; svn diff NEW</strong></span>;
+-	  else, use <span class="command"><strong>diff -cp OLD NEW</strong></span> ... If your
++	  The patch itself. If you are using the Git repository use
++	  <span class="command"><strong>git diff</strong></span> or <span class="command"><strong>git format-patch</strong></span>
++	  to produce a patch;
++	  otherwise, use <span class="command"><strong>diff -cp OLD NEW</strong></span>. If your
+ 	  version of diff does not support these options, then get the
+-	  latest version of GNU
+-	  diff. The <a class="link" href="http://gcc.gnu.org/wiki/SvnTricks" target="_top">SVN
+-	  Tricks</a> wiki page has information on customising the
+-	  output of <code class="code">svn diff</code>.
++	  latest version of GNU diff.
+ 	</p></li><li class="listitem"><p>
+ 	  When you have all these pieces, bundle them up in a
+ 	  mail message and send it to libstdc++@gcc.gnu.org. All
 --- a/src/libstdc++-v3/doc/html/manual/documentation_hacking.html
 +++ b/src/libstdc++-v3/doc/html/manual/documentation_hacking.html
 @@ -381,10 +381,15 @@
@@ -40575,6 +41367,15 @@ new file mode 100644
        </p><p>
  	If the Docbook stylesheets are installed in a custom location,
  	one can use the variable <code class="literal">XSL_STYLE_DIR</code> to
+--- a/src/libstdc++-v3/doc/html/manual/index.html
++++ b/src/libstdc++-v3/doc/html/manual/index.html
+@@ -1,5 +1,5 @@
+ <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>The GNU C++ Library Manual</title><meta name="generator" content="DocBook XSL Stylesheets Vsnapshot" /><meta name="keywords" content="ISO C++, runtime, library" /><link rel="home" href="../index.html" title="The GNU C++ Library" /><link rel="up" href="../index.html" title="The GNU C++ Library" /><link rel="prev" href="../index.html" title="The GNU C++ Library" /><link rel="next" href="intro.html" title="Part I.  Introduction" /></head><body><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">The GNU C++ Library Manual</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="../index.html">Prev</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> <a accesskey="n" href="intro.html">Next</a></td></tr></table><hr /></div><div class="book"><div class="titlepage"><div><div><h1 class="title"><a id="manual"></a>The GNU C++ Library Manual</h1></div><div><div class="authorgroup"><div class="author"><h3 class="author"><span class="firstname"></span> <span class="surname"></span></h3></div><div class="author"><h3 class="author"><span class="firstname">Paolo</span> <span class="surname">Carlini</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Phil</span> <span class="surname">Edwards</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Doug</span> <span class="surname">Gregor</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Benjamin</span> <span class="surname">Kosnik</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Dhruv</span> <span class="surname">Matani</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Jason</span> <span class="surname">Merrill</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Mark</span> <span class="surname">Mitchell</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Nathan</span> <span class="surname">Myers</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Felix</span> <span class="surname">Natter</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Stefan</span> <span class="surname">Olsson</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Silvius</span> <span class="surname">Rus</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Johannes</span> <span class="surname">Singler</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Ami</span> <span class="surname">Tavory</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Jonathan</span> <span class="surname">Wakely</span></h3></div></div></div><div><p class="copyright">Copyright © 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019 
++<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>The GNU C++ Library Manual</title><meta name="generator" content="DocBook XSL Stylesheets Vsnapshot" /><meta name="keywords" content="ISO C++, runtime, library" /><link rel="home" href="../index.html" title="The GNU C++ Library" /><link rel="up" href="../index.html" title="The GNU C++ Library" /><link rel="prev" href="../index.html" title="The GNU C++ Library" /><link rel="next" href="intro.html" title="Part I.  Introduction" /></head><body><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">The GNU C++ Library Manual</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="../index.html">Prev</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> <a accesskey="n" href="intro.html">Next</a></td></tr></table><hr /></div><div class="book"><div class="titlepage"><div><div><h1 class="title"><a id="manual"></a>The GNU C++ Library Manual</h1></div><div><div class="authorgroup"><div class="author"><h3 class="author"><span class="firstname"></span> <span class="surname"></span></h3></div><div class="author"><h3 class="author"><span class="firstname">Paolo</span> <span class="surname">Carlini</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Phil</span> <span class="surname">Edwards</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Doug</span> <span class="surname">Gregor</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Benjamin</span> <span class="surname">Kosnik</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Dhruv</span> <span class="surname">Matani</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Jason</span> <span class="surname">Merrill</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Mark</span> <span class="surname">Mitchell</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Nathan</span> <span class="surname">Myers</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Felix</span> <span class="surname">Natter</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Stefan</span> <span class="surname">Olsson</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Silvius</span> <span class="surname">Rus</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Johannes</span> <span class="surname">Singler</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Ami</span> <span class="surname">Tavory</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Jonathan</span> <span class="surname">Wakely</span></h3></div></div></div><div><p class="copyright">Copyright © 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020 
+       <a class="link" href="https://www.fsf.org" target="_top">FSF</a>
+     </p></div></div><hr /></div><div class="toc"><p><strong>Table of Contents</strong></p><dl class="toc"><dt><span class="part"><a href="intro.html">I. 
+   Introduction
 --- a/src/libstdc++-v3/doc/html/manual/memory.html
 +++ b/src/libstdc++-v3/doc/html/manual/memory.html
 @@ -314,13 +314,13 @@
@@ -40692,19 +41493,21 @@ new file mode 100644
 -     bleeding-edge code, the up-to-date source is available over
 -     anonymous SVN, and can be browsed over the
 -     <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://gcc.gnu.org/svn.html">web</link>.
-+     bleeding-edge code, the up-to-date source , and can be cloned via Git: see
-+     <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://gcc.gnu.org/git.html">web</link>.
++     bleeding-edge code, the up-to-date source can be cloned via
++     <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://gcc.gnu.org/git.html">Git</link>.
      </para> 
  
      <para>
-@@ -299,23 +298,11 @@
-     Current libstdc++ sources can always be checked out of the main
-     GCC source repository using the appropriate version control
-     tool. At this time, that tool
--    is <application>Subversion</application>.
-+    is <application>Git</application>.
+@@ -296,27 +295,11 @@
+     download sites</link> is provided on the main GCC site.
      </para>
      <para>
+-    Current libstdc++ sources can always be checked out of the main
+-    GCC source repository using the appropriate version control
+-    tool. At this time, that tool
+-    is <application>Subversion</application>.
+-    </para>
+-    <para>
 -    <application>Subversion</application>, or <acronym>SVN</acronym>, is
 -    one of several revision control packages.  It was selected for GNU
 -    projects because it's free (speech), free (beer), and very high
@@ -40717,12 +41520,17 @@ new file mode 100644
 -    the latest libstdc++ sources.
 -    </para> 
 -    <para>
-     For more information
+-    For more information
 -    see <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://gcc.gnu.org/svn.html"><acronym>SVN</acronym>
-+    see <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://gcc.gnu.org/git.html">
-     details</link>.
+-    details</link>.
++    Current libstdc++ sources can always be found in the main GCC source
++    repository, available using the appropriate version control tool.
++    At this time, that tool is <application>Git</application>.
++    For more details see the documentation on
++    <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://gcc.gnu.org/git.html">using the Git repository</link>.
      </para>
    </answer>
+ </qandaentry>
 --- a/src/libstdc++-v3/doc/xml/manual/abi.xml
 +++ b/src/libstdc++-v3/doc/xml/manual/abi.xml
 @@ -268,7 +268,9 @@ compatible.
@@ -40773,15 +41581,17 @@ new file mode 100644
        </title>
 --- a/src/libstdc++-v3/doc/xml/manual/appendix_contributing.xml
 +++ b/src/libstdc++-v3/doc/xml/manual/appendix_contributing.xml
-@@ -170,14 +170,11 @@
+@@ -170,14 +170,12 @@
  
        <listitem>
  	<para>
 -	  The patch itself. If you are accessing the SVN
 -	  repository use <command>svn update; svn diff NEW</command>;
-+	  The patch itself. If you are accessing the Git
-+	  repository use <command>git pull; git diff &gt;NEW</command>;
- 	  else, use <command>diff -cp OLD NEW</command> ... If your
+-	  else, use <command>diff -cp OLD NEW</command> ... If your
++	  The patch itself. If you are using the Git repository use
++	  <command>git diff</command> or <command>git format-patch</command>
++	  to produce a patch;
++	  otherwise, use <command>diff -cp OLD NEW</command>. If your
  	  version of diff does not support these options, then get the
 -	  latest version of GNU
 -	  diff. The <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://gcc.gnu.org/wiki/SvnTricks">SVN
@@ -40815,6 +41625,16 @@ new file mode 100644
        <para>
  	If the Docbook stylesheets are installed in a custom location,
  	one can use the variable <literal>XSL_STYLE_DIR</literal> to
+--- a/src/libstdc++-v3/doc/xml/manual/spine.xml
++++ b/src/libstdc++-v3/doc/xml/manual/spine.xml
+@@ -27,6 +27,7 @@
+     <year>2017</year>
+     <year>2018</year>
+     <year>2019</year>
++    <year>2020</year>
+     <holder>
+       <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://www.fsf.org">FSF</link>
+     </holder>
 --- a/src/libstdc++-v3/doc/xml/manual/status_cxx1998.xml
 +++ b/src/libstdc++-v3/doc/xml/manual/status_cxx1998.xml
 @@ -18,8 +18,7 @@ This status table is based on the table of contents of ISO/IEC 14882:2003.
@@ -40928,27 +41748,17 @@ new file mode 100644
  	${thread_host_headers} \
  	${pch_build}
  
-@@ -1283,10 +1284,29 @@ stamp-float128:
+@@ -1283,10 +1284,19 @@ stamp-float128:
  	echo 'undef _GLIBCXX_USE_FLOAT128' > stamp-float128
  endif
  
 +# This header is not installed, it's only used to build libstdc++ itself.
-+${host_builddir}/largefile-config.h: ${CONFIG_HEADER} \
-+				     ${glibcxx_srcdir}/include/bits/c++config
-+	@echo '#if defined _GLIBCXX_CXX_CONFIG_H || defined _FEATURES_H' > $@
-+	@echo '# error "This file must be included before any others"' >> $@
-+	@echo '#endif' >> $@
-+	@echo >> $@
-+	@echo '/* Enable large inode numbers on Mac OS X 10.5.  */' >> $@
-+	@echo '#ifndef _DARWIN_USE_64_BIT_INODE' >> $@
-+	@echo '# define _DARWIN_USE_64_BIT_INODE 1' >> $@
-+	@echo '#endif' >> $@
-+	@echo >> $@
-+	@echo '/* Number of bits in a file offset, on hosts where this is settable. */' >> $@
-+	@grep '_FILE_OFFSET_BITS' ${CONFIG_HEADER} >> $@
-+	@echo >> $@
-+	@echo '/* Define for large files, on AIX-style hosts. */' >> $@
-+	@grep '_LARGE_FILES' ${CONFIG_HEADER} >> $@
++${host_builddir}/largefile-config.h: ${CONFIG_HEADER}
++	@rm -f $@.tmp
++	@-grep 'define _DARWIN_USE_64_BIT_INODE' ${CONFIG_HEADER} >> $@.tmp
++	@-grep 'define _FILE_OFFSET_BITS' ${CONFIG_HEADER} >> $@.tmp
++	@-grep 'define _LARGE_FILES' ${CONFIG_HEADER} >> $@.tmp
++	@mv $@.tmp $@
 +
  # NB: The non-empty default ldbl_compat works around an AIX sed
  # oddity, see libstdc++/31957 for details.
@@ -40958,7 +41768,7 @@ new file mode 100644
  			      stamp-${host_alias} \
  			      ${toplevel_srcdir}/gcc/DATESTAMP \
  			      stamp-namespace-version \
-@@ -1324,6 +1344,9 @@ ${host_builddir}/c++config.h: ${CONFIG_HEADER} \
+@@ -1324,6 +1334,9 @@ ${host_builddir}/c++config.h: ${CONFIG_HEADER} \
  	    -e 's/PACKAGE/_GLIBCXX_PACKAGE/g' \
  	    -e 's/VERSION/_GLIBCXX_VERSION/g' \
  	    -e 's/WORDS_/_GLIBCXX_WORDS_/g' \
@@ -40978,27 +41788,17 @@ new file mode 100644
  	${thread_host_headers} \
  	${pch_build}
  
-@@ -1765,10 +1766,29 @@ stamp-host: ${host_headers} ${bits_host_headers} ${ext_host_headers} ${host_head
+@@ -1765,10 +1766,19 @@ stamp-host: ${host_headers} ${bits_host_headers} ${ext_host_headers} ${host_head
  @ENABLE_FLOAT128_FALSE@stamp-float128:
  @ENABLE_FLOAT128_FALSE@	echo 'undef _GLIBCXX_USE_FLOAT128' > stamp-float128
  
 +# This header is not installed, it's only used to build libstdc++ itself.
-+${host_builddir}/largefile-config.h: ${CONFIG_HEADER} \
-+				     ${glibcxx_srcdir}/include/bits/c++config
-+	@echo '#if defined _GLIBCXX_CXX_CONFIG_H || defined _FEATURES_H' > $@
-+	@echo '# error "This file must be included before any others"' >> $@
-+	@echo '#endif' >> $@
-+	@echo >> $@
-+	@echo '/* Enable large inode numbers on Mac OS X 10.5.  */' >> $@
-+	@echo '#ifndef _DARWIN_USE_64_BIT_INODE' >> $@
-+	@echo '# define _DARWIN_USE_64_BIT_INODE 1' >> $@
-+	@echo '#endif' >> $@
-+	@echo >> $@
-+	@echo '/* Number of bits in a file offset, on hosts where this is settable. */' >> $@
-+	@grep '_FILE_OFFSET_BITS' ${CONFIG_HEADER} >> $@
-+	@echo >> $@
-+	@echo '/* Define for large files, on AIX-style hosts. */' >> $@
-+	@grep '_LARGE_FILES' ${CONFIG_HEADER} >> $@
++${host_builddir}/largefile-config.h: ${CONFIG_HEADER}
++	@rm -f $@.tmp
++	@-grep 'define _DARWIN_USE_64_BIT_INODE' ${CONFIG_HEADER} >> $@.tmp
++	@-grep 'define _FILE_OFFSET_BITS' ${CONFIG_HEADER} >> $@.tmp
++	@-grep 'define _LARGE_FILES' ${CONFIG_HEADER} >> $@.tmp
++	@mv $@.tmp $@
 +
  # NB: The non-empty default ldbl_compat works around an AIX sed
  # oddity, see libstdc++/31957 for details.
@@ -41008,7 +41808,7 @@ new file mode 100644
  			      stamp-${host_alias} \
  			      ${toplevel_srcdir}/gcc/DATESTAMP \
  			      stamp-namespace-version \
-@@ -1806,6 +1826,9 @@ ${host_builddir}/c++config.h: ${CONFIG_HEADER} \
+@@ -1806,6 +1816,9 @@ ${host_builddir}/c++config.h: ${CONFIG_HEADER} \
  	    -e 's/PACKAGE/_GLIBCXX_PACKAGE/g' \
  	    -e 's/VERSION/_GLIBCXX_VERSION/g' \
  	    -e 's/WORDS_/_GLIBCXX_WORDS_/g' \
