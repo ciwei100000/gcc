@@ -1246,15 +1246,23 @@ ifeq ($(locale_data)-$(with_cxx),generate-yes)
 endif
 	touch $(build_locale_stamp)
 
+MAX_BUILD_TRIES = 1
+ifeq ($(distribution)-$(DEB_HOST_ARCH),Ubuntu-armhf)
+  MAX_BUILD_TRIES = 3
+endif
 
 $(build_stamp): $(configure_stamp) $(build_locale_stamp)
 	dh_testdir
-	rm -f bootstrap-protocol
+	rm -f bootstrap-protocol*
 	@echo TTTTT $$(date -R)
 ifeq ($(build_type),build-native)
 	: # build native compiler
-	( \
-	  set +e; \
+	set +e; \
+	set -o pipefail; \
+	try=0; \
+	while [ $$try -lt $(MAX_BUILD_TRIES) ]; do \
+	  try=$$(expr $$try + 1); \
+	  echo "=========== BUILD ($$try) =========="; \
 	  $(SET_PATH) \
 	  $(SET_SHELL) \
 	  $(SET_LOCPATH) \
@@ -1264,9 +1272,14 @@ ifeq ($(build_type),build-native)
 		  BOOT_CFLAGS                           BOOT_LDFLAGS \
 		  CFLAGS_FOR_BUILD  CXXFLAGS_FOR_BUILD  LDFLAGS_FOR_BUILD \
 		  CFLAGS_FOR_TARGET CXXFLAGS_FOR_TARGET LDFLAGS_FOR_TARGET) \
+		2>&1 | tee bootstrap-protocol$$try \
 		; \
-	  echo $$? > status; \
-	) 2>&1 | tee bootstrap-protocol
+	  status=$$?; \
+	  echo $$status > status; \
+	  if [ $$try -eq $(MAX_BUILD_TRIES) ]; then \
+	    break $$status; \
+	  fi; \
+	done
 else ifneq (,$(filter $(build_type),build-cross cross-build-native cross-build-cross))
 	: # build cross compiler for $(TARGET_ALIAS)
 	( \
