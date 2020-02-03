@@ -1,7 +1,7 @@
-# DP: updates from the 9 branch upto 20200117 (bb0763101b8).
+# DP: updates from the 9 branch upto 20200203 (884399665c6).
 
 LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
-        4c44b708f11eec6fc02456e8577708d01ca92327 bb0763101b88f5f916bb5b2aa13fed9e7b6a8d9e \
+        4c44b708f11eec6fc02456e8577708d01ca92327 884399665c6109e5ff6df58321c6b6b7ba6d4c68 \
 	| awk '/^diff .*\.texi/ {skip=1; next} /^diff / { skip=0 } skip==0' \
 	| grep -v -E '^(diff|index)'
 
@@ -861,7 +861,33 @@ new file mode 100644
 +8.3.1
 --- a/src/gcc/ChangeLog
 +++ b/src/gcc/ChangeLog
-@@ -1,3 +1,2597 @@
+@@ -1,3 +1,2623 @@
++2020-01-27  Wilco Dijkstra  <wdijkstr@arm.com>
++
++	PR target/92692
++	* config/aarch64/aarch64.c (aarch64_split_compare_and_swap)
++	Add assert to ensure prolog has been emitted.
++	(aarch64_split_atomic_op): Likewise.
++	* config/aarch64/atomics.md (aarch64_compare_and_swap<mode>)
++	Use epilogue_completed rather than reload_completed.
++	(aarch64_atomic_exchange<mode>): Likewise.
++	(aarch64_atomic_<atomic_optab><mode>): Likewise.
++	(atomic_nand<mode>): Likewise.
++	(aarch64_atomic_fetch_<atomic_optab><mode>): Likewise.
++	(atomic_fetch_nand<mode>): Likewise.
++	(aarch64_atomic_<atomic_optab>_fetch<mode>): Likewise.
++	(atomic_nand_fetch<mode>): Likewise.
++
++2020-01-19  Eric S. Raymond <esr@thyrsus.com>
++	    Sandra Loosemore  <sandra@codesourcery.com>
++
++	Backport from mainline:
++
++	2020-01-19  Eric S. Raymond <esr@thyrsus.com>
++
++	* doc/contribute.texi: Update for SVN -> Git transition.
++	* doc/install.texi: Likewise.
++
 +2020-01-15  Martin Liska  <mliska@suse.cz>
 +
 +	Backport from mainline
@@ -3459,7 +3485,7 @@ new file mode 100644
  2019-02-22  Release Manager
  
  	* GCC 8.3.0 released.
-@@ -568,7 +3162,7 @@
+@@ -568,7 +3188,7 @@
  
  	Backport from mainline
  	2018-11-20  Richard Biener  <rguenther@suse.de>
@@ -3472,7 +3498,7 @@ new file mode 100644
 +++ b/src/gcc/DATESTAMP
 @@ -1 +1 @@
 -20190222
-+20200117
++20200203
 --- a/src/gcc/Makefile.in
 +++ b/src/gcc/Makefile.in
 @@ -1114,6 +1114,7 @@ endif
@@ -4540,7 +4566,16 @@ new file mode 100644
    gcc_assert (TREE_CODE (x) == MODIFY_EXPR);
 --- a/src/gcc/c/ChangeLog
 +++ b/src/gcc/c/ChangeLog
-@@ -1,3 +1,87 @@
+@@ -1,3 +1,96 @@
++2020-01-22  Joseph Myers  <joseph@codesourcery.com>
++
++	Backport from mainline:
++	2020-01-22  Joseph Myers  <joseph@codesourcery.com>
++
++	PR c/93348
++	* c-typeck.c (build_c_cast): Call remove_c_maybe_const_expr on
++	argument with integer operands.
++
 +2020-01-15  Joseph Myers  <joseph@codesourcery.com>
 +
 +	Backport from mainline:
@@ -4901,7 +4936,7 @@ new file mode 100644
  extern tree c_process_expr_stmt (location_t, tree);
 --- a/src/gcc/c/c-typeck.c
 +++ b/src/gcc/c/c-typeck.c
-@@ -5538,6 +5538,8 @@ build_c_cast (location_t loc, tree type, tree expr)
+@@ -5538,10 +5538,14 @@ build_c_cast (location_t loc, tree type, tree expr)
  {
    tree value;
  
@@ -4910,7 +4945,13 @@ new file mode 100644
    if (TREE_CODE (expr) == EXCESS_PRECISION_EXPR)
      expr = TREE_OPERAND (expr, 0);
  
-@@ -5772,6 +5774,14 @@ build_c_cast (location_t loc, tree type, tree expr)
+   value = expr;
++  if (int_operands)
++    value = remove_c_maybe_const_expr (value);
+ 
+   if (type == error_mark_node || expr == error_mark_node)
+     return error_mark_node;
+@@ -5772,6 +5776,14 @@ build_c_cast (location_t loc, tree type, tree expr)
  	       || TREE_CODE (expr) == COMPLEX_CST)))
        value = build1 (NOP_EXPR, type, value);
  
@@ -4925,7 +4966,7 @@ new file mode 100644
    protected_set_expr_location (value, loc);
    return value;
  }
-@@ -10528,11 +10538,14 @@ c_finish_if_stmt (location_t if_locus, tree cond, tree then_block,
+@@ -10528,11 +10540,14 @@ c_finish_if_stmt (location_t if_locus, tree cond, tree then_block,
     the beginning of the loop.  COND is the loop condition.  COND_IS_FIRST
     is false for DO loops.  INCR is the FOR increment expression.  BODY is
     the statement controlled by the loop.  BLAB is the break label.  CLAB is
@@ -4943,7 +4984,7 @@ new file mode 100644
  {
    tree entry = NULL, exit = NULL, t;
  
-@@ -10574,12 +10587,8 @@ c_finish_loop (location_t start_locus, tree cond, tree incr, tree body,
+@@ -10574,12 +10589,8 @@ c_finish_loop (location_t start_locus, tree cond, tree incr, tree body,
  	    }
  
  	  t = build_and_jump (&blab);
@@ -4958,7 +4999,7 @@ new file mode 100644
  	}
        else
  	{
-@@ -10600,9 +10609,23 @@ c_finish_loop (location_t start_locus, tree cond, tree incr, tree body,
+@@ -10600,9 +10611,23 @@ c_finish_loop (location_t start_locus, tree cond, tree incr, tree body,
    if (clab)
      add_stmt (build1 (LABEL_EXPR, void_type_node, clab));
    if (incr)
@@ -5965,7 +6006,27 @@ new file mode 100644
  	(const (symbol_ref "((enum attr_tune) aarch64_tune)")))
 --- a/src/gcc/config/aarch64/aarch64.c
 +++ b/src/gcc/config/aarch64/aarch64.c
-@@ -15623,7 +15623,7 @@ aarch64_expand_vec_perm_const_1 (struct expand_vec_perm_d *d)
+@@ -14336,6 +14336,9 @@ aarch64_gen_atomic_cas (rtx rval, rtx mem,
+ void
+ aarch64_split_compare_and_swap (rtx operands[])
+ {
++  /* Split after prolog/epilog to avoid interactions with shrinkwrapping.  */
++  gcc_assert (epilogue_completed);
++
+   rtx rval, mem, oldval, newval, scratch;
+   machine_mode mode;
+   bool is_weak;
+@@ -14680,6 +14683,9 @@ void
+ aarch64_split_atomic_op (enum rtx_code code, rtx old_out, rtx new_out, rtx mem,
+ 			 rtx value, rtx model_rtx, rtx cond)
+ {
++  /* Split after prolog/epilog to avoid interactions with shrinkwrapping.  */
++  gcc_assert (epilogue_completed);
++
+   machine_mode mode = GET_MODE (mem);
+   machine_mode wmode = (mode == DImode ? DImode : SImode);
+   const enum memmodel model = memmodel_from_int (INTVAL (model_rtx));
+@@ -15623,7 +15629,7 @@ aarch64_expand_vec_perm_const_1 (struct expand_vec_perm_d *d)
  	return true;
        if (d->vec_flags == VEC_SVE_DATA)
  	return aarch64_evpc_sve_tbl (d);
@@ -6087,6 +6148,89 @@ new file mode 100644
  ;; For xorsign (x, y), we want to generate:
  ;;
  ;; LDR   d2, #1<<63
+--- a/src/gcc/config/aarch64/atomics.md
++++ b/src/gcc/config/aarch64/atomics.md
+@@ -53,7 +53,7 @@
+    (clobber (match_scratch:SI 7 "=&r"))]
+   ""
+   "#"
+-  "&& reload_completed"
++  "&& epilogue_completed"
+   [(const_int 0)]
+   {
+     aarch64_split_compare_and_swap (operands);
+@@ -77,7 +77,7 @@
+    (clobber (match_scratch:SI 7 "=&r"))]
+   ""
+   "#"
+-  "&& reload_completed"
++  "&& epilogue_completed"
+   [(const_int 0)]
+   {
+     aarch64_split_compare_and_swap (operands);
+@@ -169,7 +169,7 @@
+    (clobber (match_scratch:SI 4 "=&r"))]
+   ""
+   "#"
+-  "&& reload_completed"
++  "&& epilogue_completed"
+   [(const_int 0)]
+   {
+     aarch64_split_atomic_op (SET, operands[0], NULL, operands[1],
+@@ -230,7 +230,7 @@
+   (clobber (match_scratch:SI 4 "=&r"))]
+   ""
+   "#"
+-  "&& reload_completed"
++  "&& epilogue_completed"
+   [(const_int 0)]
+   {
+     aarch64_split_atomic_op (<CODE>, NULL, operands[3], operands[0],
+@@ -271,7 +271,7 @@
+    (clobber (match_scratch:SI 4 "=&r"))]
+   ""
+   "#"
+-  "&& reload_completed"
++  "&& epilogue_completed"
+   [(const_int 0)]
+   {
+      aarch64_split_atomic_op (NOT, NULL, operands[3], operands[0],
+@@ -317,7 +317,7 @@
+    (clobber (match_scratch:SI 5 "=&r"))]
+   ""
+   "#"
+-  "&& reload_completed"
++  "&& epilogue_completed"
+   [(const_int 0)]
+   {
+     aarch64_split_atomic_op (<CODE>, operands[0], operands[4], operands[1],
+@@ -361,7 +361,7 @@
+    (clobber (match_scratch:SI 5 "=&r"))]
+   ""
+   "#"
+-  "&& reload_completed"
++  "&& epilogue_completed"
+   [(const_int 0)]
+   {
+     aarch64_split_atomic_op (NOT, operands[0], operands[4], operands[1],
+@@ -408,7 +408,7 @@
+    (clobber (match_scratch:SI 4 "=&r"))]
+   ""
+   "#"
+-  "&& reload_completed"
++  "&& epilogue_completed"
+   [(const_int 0)]
+   {
+     aarch64_split_atomic_op (<CODE>, NULL, operands[0], operands[1],
+@@ -455,7 +455,7 @@
+    (clobber (match_scratch:SI 4 "=&r"))]
+   ""
+   "#"
+-  "&& reload_completed"
++  "&& epilogue_completed"
+   [(const_int 0)]
+   {
+     aarch64_split_atomic_op (NOT, NULL, operands[0], operands[1],
 --- a/src/gcc/config/aarch64/driver-aarch64.c
 +++ b/src/gcc/config/aarch64/driver-aarch64.c
 @@ -36,7 +36,8 @@ struct aarch64_arch_extension
@@ -15033,14 +15177,14 @@ deleted file mode 100644
  	all_lang_makefrags="$all_lang_makefrags \$(srcdir)/$gcc_subdir/Make-lang.in"
  	if test -f $srcdir/$gcc_subdir/lang.opt; then
  	    lang_opt_files="$lang_opt_files $srcdir/$gcc_subdir/lang.opt"
-@@ -29743,6 +29742,7 @@ fi
+@@ -29762,6 +29761,7 @@ fi
  
  
  
 +
  
  
- 
+ # Echo link setup.
 --- a/src/gcc/configure.ac
 +++ b/src/gcc/configure.ac
 @@ -2595,17 +2595,13 @@ if test $in_tree_ld != yes ; then
@@ -15166,7 +15310,17 @@ deleted file mode 100644
  	  return convert_to_integer_1 (type, newexpr, dofold);
 --- a/src/gcc/cp/ChangeLog
 +++ b/src/gcc/cp/ChangeLog
-@@ -1,3 +1,298 @@
+@@ -1,3 +1,308 @@
++2020-01-27  Nathan Sidwell  <nathan@acm.org>
++
++	PR c++/91826
++	* name-lookup.c (is_ancestor): Allow CHILD to be a namespace alias.
++
++2020-01-24  Jason Merrill  <jason@redhat.com>
++
++	PR c++/92852 - ICE with generic lambda and reference var.
++	* constexpr.c (maybe_constant_value): Likewise.
++
 +2019-12-11  Jason Merrill  <jason@redhat.com>
 +
 +	PR c++/92859 - ADL and bit-field.
@@ -15521,6 +15675,17 @@ deleted file mode 100644
  \$(srcdir)/cp/call.c \$(srcdir)/cp/class.c \$(srcdir)/cp/constexpr.c \
  \$(srcdir)/cp/cp-gimplify.c \
  \$(srcdir)/cp/cp-lang.c \$(srcdir)/cp/cp-objcp-common.c \
+--- a/src/gcc/cp/constexpr.c
++++ b/src/gcc/cp/constexpr.c
+@@ -5107,7 +5107,7 @@ maybe_constant_value (tree t, tree decl)
+   if (cv_cache == NULL)
+     cv_cache = hash_map<tree, tree>::create_ggc (101);
+   if (tree *cached = cv_cache->get (t))
+-    return *cached;
++    return unshare_expr_without_location (*cached);
+ 
+   r = cxx_eval_outermost_constant_expr (t, true, true, decl);
+   gcc_checking_assert (r == t
 --- a/src/gcc/cp/cp-gimplify.c
 +++ b/src/gcc/cp/cp-gimplify.c
 @@ -202,17 +202,26 @@ genericize_cp_loop (tree *stmt_p, location_t start_locus, tree cond, tree body,
@@ -15877,7 +16042,66 @@ deleted file mode 100644
        return;
      }
  
-@@ -5509,7 +5509,7 @@ get_std_name_hint (const char *name)
+@@ -4198,38 +4198,46 @@ is_nested_namespace (tree ancestor, tree descendant, bool inline_only)
+   return ancestor == descendant;
+ }
+ 
+-/* Returns true if ROOT (a namespace, class, or function) encloses
+-   CHILD.  CHILD may be either a class type or a namespace.  */
++/* Returns true if ROOT (a non-alias namespace, class, or function)
++   encloses CHILD.  CHILD may be either a class type or a namespace
++   (maybe alias).  */
+ 
+ bool
+ is_ancestor (tree root, tree child)
+ {
+-  gcc_assert ((TREE_CODE (root) == NAMESPACE_DECL
+-	       || TREE_CODE (root) == FUNCTION_DECL
+-	       || CLASS_TYPE_P (root)));
+-  gcc_assert ((TREE_CODE (child) == NAMESPACE_DECL
+-	       || CLASS_TYPE_P (child)));
++  gcc_checking_assert ((TREE_CODE (root) == NAMESPACE_DECL
++			&& !DECL_NAMESPACE_ALIAS (root))
++		       || TREE_CODE (root) == FUNCTION_DECL
++		       || CLASS_TYPE_P (root));
++  gcc_checking_assert (TREE_CODE (child) == NAMESPACE_DECL
++		       || CLASS_TYPE_P (child));
+ 
+-  /* The global namespace encloses everything.  */
++  /* The global namespace encloses everything.  Early-out for the
++     common case.  */
+   if (root == global_namespace)
+     return true;
+ 
+-  /* Search until we reach namespace scope.  */
++  /* Search CHILD until we reach namespace scope.  */
+   while (TREE_CODE (child) != NAMESPACE_DECL)
+     {
+       /* If we've reached the ROOT, it encloses CHILD.  */
+       if (root == child)
+ 	return true;
++
+       /* Go out one level.  */
+       if (TYPE_P (child))
+ 	child = TYPE_NAME (child);
+       child = CP_DECL_CONTEXT (child);
+     }
+ 
+-  if (TREE_CODE (root) == NAMESPACE_DECL)
+-    return is_nested_namespace (root, child);
++  if (TREE_CODE (root) != NAMESPACE_DECL)
++    /* Failed to meet the non-namespace we were looking for.  */
++    return false;
++
++  if (tree alias = DECL_NAMESPACE_ALIAS (child))
++    child = alias;
+ 
+-  return false;
++  return is_nested_namespace (root, child);
+ }
+ 
+ /* Enter the class or namespace scope indicated by T suitable for name
+@@ -5509,7 +5517,7 @@ get_std_name_hint (const char *name)
      {"bitset", "<bitset>", cxx11},
      /* <complex>.  */
      {"complex", "<complex>", cxx98},
@@ -15886,7 +16110,7 @@ deleted file mode 100644
      /* <condition_variable>. */
      {"condition_variable", "<condition_variable>", cxx11},
      {"condition_variable_any", "<condition_variable>", cxx11},
-@@ -5571,7 +5571,7 @@ get_std_name_hint (const char *name)
+@@ -5571,7 +5579,7 @@ get_std_name_hint (const char *name)
      {"multimap", "<map>", cxx98},
      /* <memory>.  */
      {"make_shared", "<memory>", cxx11},
@@ -20980,6 +21204,47 @@ deleted file mode 100644
  	  for (i = 0; i < nr; ++i)
  	    {
  	      int j = ltrans_priorities[i*2 + 1];
+--- a/src/gcc/lto/ChangeLog
++++ b/src/gcc/lto/ChangeLog
+@@ -1,3 +1,12 @@
++2020-01-20  Martin Liska  <mliska@suse.cz>
++
++	Backport from mainline
++	2020-01-16  Martin Liska  <mliska@suse.cz>
++
++	* lto-partition.c (lto_balanced_map): Remember
++	best_noreorder_pos and then restore to it
++	when we revert.
++
+ 2019-02-22  Release Manager
+ 
+ 	* GCC 8.3.0 released.
+--- a/src/gcc/lto/lto-partition.c
++++ b/src/gcc/lto/lto-partition.c
+@@ -507,6 +507,7 @@ void
+ lto_balanced_map (int n_lto_partitions, int max_partition_size)
+ {
+   int n_varpool_nodes = 0, varpool_pos = 0, best_varpool_pos = 0;
++  int best_noreorder_pos = 0;
+   auto_vec <cgraph_node *> order (symtab->cgraph_count);
+   auto_vec<cgraph_node *> noreorder;
+   auto_vec<varpool_node *> varpool_order;
+@@ -769,6 +770,7 @@ lto_balanced_map (int n_lto_partitions, int max_partition_size)
+ 	  best_i = i;
+ 	  best_n_nodes = lto_symtab_encoder_size (partition->encoder);
+ 	  best_varpool_pos = varpool_pos;
++	  best_noreorder_pos = noreorder_pos;
+ 	}
+       if (symtab->dump_file)
+ 	fprintf (symtab->dump_file, "Step %i: added %s/%i, size %i, "
+@@ -789,6 +791,7 @@ lto_balanced_map (int n_lto_partitions, int max_partition_size)
+ 			 i - best_i, best_i);
+ 	      undo_partition (partition, best_n_nodes);
+ 	      varpool_pos = best_varpool_pos;
++	      noreorder_pos = best_noreorder_pos;
+ 	    }
+ 	  gcc_assert (best_size == partition->insns);
+ 	  i = best_i;
 --- a/src/gcc/match.pd
 +++ b/src/gcc/match.pd
 @@ -2406,6 +2406,13 @@ DEFINE_INT_AND_FLOAT_ROUND_FN (RINT)
@@ -21651,7 +21916,22 @@ deleted file mode 100644
  }
 --- a/src/gcc/testsuite/ChangeLog
 +++ b/src/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2254 @@
+@@ -1,3 +1,2269 @@
++2020-01-23  Thomas Schwinge  <thomas@codesourcery.com>
++
++	Backport:
++	2019-04-16  Dominique d'Humieres  <dominiq@gcc.gnu.org>
++
++	* g++.dg/lto/pr89358_0.C: Replace dg-* with dg-lto-*.
++
++2020-01-22  Joseph Myers  <joseph@codesourcery.com>
++
++	Backport from mainline:
++	2020-01-22  Joseph Myers  <joseph@codesourcery.com>
++
++	PR c/93348
++	* gcc.c-torture/compile/pr93348-1.c: New test.
++
 +2020-01-15  Joseph Myers  <joseph@codesourcery.com>
 +
 +	Backport from mainline:
@@ -24473,6 +24753,22 @@ new file mode 100644
 +};
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/g++.dg/cpp1y/lambda-generic-ref1.C
+@@ -0,0 +1,12 @@
++// PR c++/92852
++// { dg-do compile { target c++14 } }
++
++struct S { int operator<<(const int &); } glob;
++void foo()
++{
++  S& message_stream = glob;
++  auto format = [&message_stream](auto && x)
++		{ message_stream << x ; };
++  format(3);
++  format(4u);
++}
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/g++.dg/cpp1y/lambda-init18.C
 @@ -0,0 +1,12 @@
 +// PR c++/89767
@@ -25389,10 +25685,30 @@ new file mode 100644
    std::array a; // { dg-error "'array' is not a member of 'std'" }
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/g++.dg/lookup/pr91826.C
+@@ -0,0 +1,16 @@
++// PR 91826 bogus error with aliased namespace
++
++namespace N1 { class C1; }
++namespace A1 = N1;
++class A1::C1 {}; //Ok
++
++namespace N2
++{
++  namespace N { class C2; }
++  namespace A2 = N;
++  class A2::C2 {}; // { dg_bogus "does not enclose" }
++}
++
++namespace N3 { namespace N { class C3; } }
++namespace A3 = N3::N;
++class A3::C3 {}; //Ok
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/g++.dg/lto/pr89358_0.C
 @@ -0,0 +1,11 @@
-+/* { dg-do link } */
-+/* { dg-options "-std=c++17"  } */
++/* { dg-lto-do link } */
++/* { dg-lto-options "-std=c++17"  } */
 +#include <map>
 +
 +extern void test();
@@ -26824,6 +27140,15 @@ new file mode 100644
 +    case 4:
 +      __builtin_sprintf (e, a);
 +    }
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.c-torture/compile/pr93348-1.c
+@@ -0,0 +1,5 @@
++int
++ya (void)
++{
++  return (long int) (1 / 0);
 +}
 new file mode 100644
 --- /dev/null
@@ -58202,7 +58527,26 @@ new file mode 100644
    extern inline __attribute__ ((__gnu_inline__))
 --- a/src/libstdc++-v3/ChangeLog
 +++ b/src/libstdc++-v3/ChangeLog
-@@ -1,3 +1,577 @@
+@@ -1,3 +1,596 @@
++2020-01-24  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backport from mainline
++	2020-01-20  Jonathan Wakely  <jwakely@redhat.com>
++
++	* doc/xml/faq.xml: Fix grammar.
++	* doc/xml/manual/appendix_contributing.xml: Improve instructions.
++	* doc/xml/manual/spine.xml: Update copyright years.
++	* doc/html/*: Regenerate.
++
++2020-01-19  Eric S. Raymond <esr@thyrsus.com>
++	    Sandra Loosemore  <sandra@codesourcery.com>
++
++	Partial backport from mainline:
++
++	2020-01-19  Eric S. Raymond <esr@thyrsus.com>
++	* doc/xml/faq.xml: Update for SVN -> Git transition.
++	* doc/xml/manual/appendix_contributing.xml: Likewise.
++
 +2020-01-13  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	* doc/xml/manual/status_cxx1998.xml: Replace incorrect statement
@@ -59160,7 +59504,49 @@ new file mode 100644
      </a></dt><dt>6.8. <a href="faq.html#faq.list_size_on">
        list::size() is O(n)!
      </a></dt><dt>6.9. <a href="faq.html#faq.easy_to_fix">
-@@ -593,7 +593,7 @@
+@@ -113,9 +113,8 @@
+      clauses 20 through 33 and annex D (prior to the 2017 standard
+      the library clauses started with 17).  For those who want to see
+      exactly how far the project has come, or just want the latest
+-     bleeding-edge code, the up-to-date source is available over
+-     anonymous SVN, and can be browsed over the
+-     <a class="link" href="https://gcc.gnu.org/svn.html" target="_top">web</a>.
++     bleeding-edge code, the up-to-date source can be cloned via
++     <a class="link" href="https://gcc.gnu.org/git.html" target="_top">Git</a>.
+     </p><p>
+     N.B. The library is called libstdc++ <span class="emphasis"><em>not</em></span> stdlibc++.
+     </p></td></tr><tr class="question"><td align="left" valign="top"><a id="faq.why"></a><a id="q-why"></a><p><strong>1.2.</strong></p></td><td align="left" valign="top"><p>
+@@ -260,24 +259,11 @@
+     mirrors. A full <a class="link" href="https://gcc.gnu.org/mirrors.html" target="_top">list of
+     download sites</a> is provided on the main GCC site.
+     </p><p>
+-    Current libstdc++ sources can always be checked out of the main
+-    GCC source repository using the appropriate version control
+-    tool. At this time, that tool
+-    is <span class="application">Subversion</span>.
+-    </p><p>
+-    <span class="application">Subversion</span>, or <acronym class="acronym">SVN</acronym>, is
+-    one of several revision control packages.  It was selected for GNU
+-    projects because it's free (speech), free (beer), and very high
+-    quality.  The <a class="link" href="http://subversion.tigris.org" target="_top"> Subversion
+-    home page</a> has a better description.
+-    </p><p>
+-    The <span class="quote">“<span class="quote">anonymous client checkout</span>”</span> feature of SVN is
+-    similar to anonymous FTP in that it allows anyone to retrieve
+-    the latest libstdc++ sources.
+-    </p><p>
+-    For more information
+-    see <a class="link" href="https://gcc.gnu.org/svn.html" target="_top"><acronym class="acronym">SVN</acronym>
+-    details</a>.
++    Current libstdc++ sources can always be found in the main GCC source
++    repository, available using the appropriate version control tool.
++    At this time, that tool is <span class="application">Git</span>.
++    For more details see the documentation on
++    <a class="link" href="https://gcc.gnu.org/git.html" target="_top">using the Git repository</a>.
+     </p></td></tr><tr class="question"><td align="left" valign="top"><a id="faq.how_to_test"></a><a id="q-how_to_test"></a><p><strong>3.3.</strong></p></td><td align="left" valign="top"><p>How do I know if it works?
+     </p></td></tr><tr class="answer"><td align="left" valign="top"><a id="a-how_to_test"></a></td><td align="left" valign="top"><p>
+     Libstdc++ comes with its own validation testsuite, which includes
+@@ -593,7 +579,7 @@
        Program crashes when using library code in a
        dynamically-loaded library
      </a></dt><dt>6.7. <a href="faq.html#faq.memory_leaks">
@@ -59169,7 +59555,7 @@ new file mode 100644
      </a></dt><dt>6.8. <a href="faq.html#faq.list_size_on">
        list::size() is O(n)!
      </a></dt><dt>6.9. <a href="faq.html#faq.easy_to_fix">
-@@ -708,15 +708,27 @@
+@@ -708,15 +694,27 @@
      Link the executable:<br />
      <span class="command"><strong>g++ -fPIC -rdynamic -o foo ... -L. -lfoo -ldl</strong></span><br />
      </p></div></td></tr><tr class="question"><td align="left" valign="top"><a id="faq.memory_leaks"></a><a id="q-memory_leaks"></a><p><strong>6.7.</strong></p></td><td align="left" valign="top"><p>
@@ -59232,6 +59618,28 @@ new file mode 100644
     <a class="link" href="mt_allocator.html" title="Chapter 20. The mt_allocator">the mt allocator chapter</a>
     for details.
     </p><p>Error handling in iostreams cleaned up, made consistent. </p></div><div class="section"><div class="titlepage"><div><div><h3 class="title"><a id="api.rel_330"></a><code class="constant">3.3</code></h3></div></div></div><p>
+--- a/src/libstdc++-v3/doc/html/manual/appendix_contributing.html
++++ b/src/libstdc++-v3/doc/html/manual/appendix_contributing.html
+@@ -90,14 +90,12 @@
+ 	  easily and simply show the existing error or test new
+ 	  functionality.
+ 	</p></li><li class="listitem"><p>
+-	  The patch itself. If you are accessing the SVN
+-	  repository use <span class="command"><strong>svn update; svn diff NEW</strong></span>;
+-	  else, use <span class="command"><strong>diff -cp OLD NEW</strong></span> ... If your
++	  The patch itself. If you are using the Git repository use
++	  <span class="command"><strong>git diff</strong></span> or <span class="command"><strong>git format-patch</strong></span>
++	  to produce a patch;
++	  otherwise, use <span class="command"><strong>diff -cp OLD NEW</strong></span>. If your
+ 	  version of diff does not support these options, then get the
+-	  latest version of GNU
+-	  diff. The <a class="link" href="http://gcc.gnu.org/wiki/SvnTricks" target="_top">SVN
+-	  Tricks</a> wiki page has information on customising the
+-	  output of <code class="code">svn diff</code>.
++	  latest version of GNU diff.
+ 	</p></li><li class="listitem"><p>
+ 	  When you have all these pieces, bundle them up in a
+ 	  mail message and send it to libstdc++@gcc.gnu.org. All
 --- a/src/libstdc++-v3/doc/html/manual/bugs.html
 +++ b/src/libstdc++-v3/doc/html/manual/bugs.html
 @@ -492,10 +492,20 @@
@@ -59364,7 +59772,11 @@ new file mode 100644
  	one can use the variable <code class="literal">XSL_STYLE_DIR</code> to
 --- a/src/libstdc++-v3/doc/html/manual/index.html
 +++ b/src/libstdc++-v3/doc/html/manual/index.html
-@@ -4,7 +4,7 @@
+@@ -1,10 +1,10 @@
+ <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>The GNU C++ Library Manual</title><meta name="generator" content="DocBook XSL Stylesheets Vsnapshot" /><meta name="keywords" content="ISO C++, runtime, library" /><link rel="home" href="../index.html" title="The GNU C++ Library" /><link rel="up" href="../index.html" title="The GNU C++ Library" /><link rel="prev" href="../index.html" title="The GNU C++ Library" /><link rel="next" href="intro.html" title="Part I.  Introduction" /></head><body><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">The GNU C++ Library Manual</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="../index.html">Prev</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> <a accesskey="n" href="intro.html">Next</a></td></tr></table><hr /></div><div class="book"><div class="titlepage"><div><div><h1 class="title"><a id="manual"></a>The GNU C++ Library Manual</h1></div><div><div class="authorgroup"><div class="author"><h3 class="author"><span class="firstname"></span> <span class="surname"></span></h3></div><div class="author"><h3 class="author"><span class="firstname">Paolo</span> <span class="surname">Carlini</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Phil</span> <span class="surname">Edwards</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Doug</span> <span class="surname">Gregor</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Benjamin</span> <span class="surname">Kosnik</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Dhruv</span> <span class="surname">Matani</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Jason</span> <span class="surname">Merrill</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Mark</span> <span class="surname">Mitchell</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Nathan</span> <span class="surname">Myers</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Felix</span> <span class="surname">Natter</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Stefan</span> <span class="surname">Olsson</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Silvius</span> <span class="surname">Rus</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Johannes</span> <span class="surname">Singler</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Ami</span> <span class="surname">Tavory</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Jonathan</span> <span class="surname">Wakely</span></h3></div></div></div><div><p class="copyright">Copyright © 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018 
++<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>The GNU C++ Library Manual</title><meta name="generator" content="DocBook XSL Stylesheets Vsnapshot" /><meta name="keywords" content="ISO C++, runtime, library" /><link rel="home" href="../index.html" title="The GNU C++ Library" /><link rel="up" href="../index.html" title="The GNU C++ Library" /><link rel="prev" href="../index.html" title="The GNU C++ Library" /><link rel="next" href="intro.html" title="Part I.  Introduction" /></head><body><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">The GNU C++ Library Manual</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="../index.html">Prev</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> <a accesskey="n" href="intro.html">Next</a></td></tr></table><hr /></div><div class="book"><div class="titlepage"><div><div><h1 class="title"><a id="manual"></a>The GNU C++ Library Manual</h1></div><div><div class="authorgroup"><div class="author"><h3 class="author"><span class="firstname"></span> <span class="surname"></span></h3></div><div class="author"><h3 class="author"><span class="firstname">Paolo</span> <span class="surname">Carlini</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Phil</span> <span class="surname">Edwards</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Doug</span> <span class="surname">Gregor</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Benjamin</span> <span class="surname">Kosnik</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Dhruv</span> <span class="surname">Matani</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Jason</span> <span class="surname">Merrill</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Mark</span> <span class="surname">Mitchell</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Nathan</span> <span class="surname">Myers</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Felix</span> <span class="surname">Natter</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Stefan</span> <span class="surname">Olsson</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Silvius</span> <span class="surname">Rus</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Johannes</span> <span class="surname">Singler</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Ami</span> <span class="surname">Tavory</span></h3></div><div class="author"><h3 class="author"><span class="firstname">Jonathan</span> <span class="surname">Wakely</span></h3></div></div></div><div><p class="copyright">Copyright © 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020 
+       <a class="link" href="https://www.fsf.org" target="_top">FSF</a>
      </p></div></div><hr /></div><div class="toc"><p><strong>Table of Contents</strong></p><dl class="toc"><dt><span class="part"><a href="intro.html">I. 
    Introduction
    
@@ -59560,7 +59972,52 @@ new file mode 100644
          destroy or modify vectors.
 --- a/src/libstdc++-v3/doc/xml/faq.xml
 +++ b/src/libstdc++-v3/doc/xml/faq.xml
-@@ -1001,21 +1001,31 @@
+@@ -34,9 +34,8 @@
+      clauses 20 through 33 and annex D (prior to the 2017 standard
+      the library clauses started with 17).  For those who want to see
+      exactly how far the project has come, or just want the latest
+-     bleeding-edge code, the up-to-date source is available over
+-     anonymous SVN, and can be browsed over the
+-     <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://gcc.gnu.org/svn.html">web</link>.
++     bleeding-edge code, the up-to-date source can be cloned via
++     <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://gcc.gnu.org/git.html">Git</link>.
+     </para> 
+ 
+     <para>
+@@ -296,27 +295,11 @@
+     download sites</link> is provided on the main GCC site.
+     </para>
+     <para>
+-    Current libstdc++ sources can always be checked out of the main
+-    GCC source repository using the appropriate version control
+-    tool. At this time, that tool
+-    is <application>Subversion</application>.
+-    </para>
+-    <para>
+-    <application>Subversion</application>, or <acronym>SVN</acronym>, is
+-    one of several revision control packages.  It was selected for GNU
+-    projects because it's free (speech), free (beer), and very high
+-    quality.  The <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://subversion.tigris.org"> Subversion
+-    home page</link> has a better description.
+-    </para>
+-    <para>
+-    The <quote>anonymous client checkout</quote> feature of SVN is
+-    similar to anonymous FTP in that it allows anyone to retrieve
+-    the latest libstdc++ sources.
+-    </para> 
+-    <para>
+-    For more information
+-    see <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://gcc.gnu.org/svn.html"><acronym>SVN</acronym>
+-    details</link>.
++    Current libstdc++ sources can always be found in the main GCC source
++    repository, available using the appropriate version control tool.
++    At this time, that tool is <application>Git</application>.
++    For more details see the documentation on
++    <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://gcc.gnu.org/git.html">using the Git repository</link>.
+     </para>
+   </answer>
+ </qandaentry>
+@@ -1001,21 +984,31 @@
  <qandaentry xml:id="faq.memory_leaks">
    <question xml:id="q-memory_leaks">
      <para>
@@ -59634,6 +60091,28 @@ new file mode 100644
        The Hoard Memory Allocator
  	</link>
        </title>
+--- a/src/libstdc++-v3/doc/xml/manual/appendix_contributing.xml
++++ b/src/libstdc++-v3/doc/xml/manual/appendix_contributing.xml
+@@ -170,14 +170,12 @@
+ 
+       <listitem>
+ 	<para>
+-	  The patch itself. If you are accessing the SVN
+-	  repository use <command>svn update; svn diff NEW</command>;
+-	  else, use <command>diff -cp OLD NEW</command> ... If your
++	  The patch itself. If you are using the Git repository use
++	  <command>git diff</command> or <command>git format-patch</command>
++	  to produce a patch;
++	  otherwise, use <command>diff -cp OLD NEW</command>. If your
+ 	  version of diff does not support these options, then get the
+-	  latest version of GNU
+-	  diff. The <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="http://gcc.gnu.org/wiki/SvnTricks">SVN
+-	  Tricks</link> wiki page has information on customising the
+-	  output of <code>svn diff</code>.
++	  latest version of GNU diff.
+ 	</para>
+       </listitem>
+ 
 --- a/src/libstdc++-v3/doc/xml/manual/debug.xml
 +++ b/src/libstdc++-v3/doc/xml/manual/debug.xml
 @@ -94,50 +94,35 @@
@@ -59854,6 +60333,17 @@ new file mode 100644
         </para>
         <para>
  This policy uses a non-reentrant add_ref_lock() with no locking. It is
+--- a/src/libstdc++-v3/doc/xml/manual/spine.xml
++++ b/src/libstdc++-v3/doc/xml/manual/spine.xml
+@@ -26,6 +26,8 @@
+     <year>2016</year>
+     <year>2017</year>
+     <year>2018</year>
++    <year>2019</year>
++    <year>2020</year>
+     <holder>
+       <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://www.fsf.org">FSF</link>
+     </holder>
 --- a/src/libstdc++-v3/doc/xml/manual/status_cxx1998.xml
 +++ b/src/libstdc++-v3/doc/xml/manual/status_cxx1998.xml
 @@ -18,8 +18,7 @@ This status table is based on the table of contents of ISO/IEC 14882:2003.
