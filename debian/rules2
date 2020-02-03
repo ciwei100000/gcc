@@ -1200,13 +1200,27 @@ endif
 	done
 
 	: # configure
-	cd $(builddir) \
-	  && $(SET_PATH) \
+	cd $(builddir); \
+	  set +e; \
+	  $(SET_PATH) \
 		$(call pass_vars, CC CXX $(flags_to_pass) \
 		  CFLAGS_FOR_BUILD  CXXFLAGS_FOR_BUILD  LDFLAGS_FOR_BUILD \
 		  CFLAGS_FOR_TARGET CXXFLAGS_FOR_TARGET LDFLAGS_FOR_TARGET) \
 		$(SET_SHELL) $(SET_TARGET_TOOLS) \
-		../src/configure $(subst ___, ,$(CONFARGS))
+		../src/configure $(subst ___, ,$(CONFARGS)); \
+	  echo $$? > ../status
+
+	s=`cat status`; rm -f status; \
+	if [ $$s -ne 0 ] && [ -z "$$NO_CONFIG_LOG_DUMP$$NO_CONFIG_LOG_DUMPS" ]; then \
+	  for log in $$(find $(builddir) -name config.log); do \
+	    case "$$log" in */build/build-*|*/stage1-*|*/prev-*) continue; esac; \
+	    echo LOGFILE START $$log; \
+	    cat $$log; \
+	    echo LOGFILE END $$log; \
+	  done; \
+	fi; \
+	test $$s -eq 0
+
 
 	: # multilib builds without b-d on gcc-multilib (used in FLAGS_FOR_TARGET)
 	if [ -d /usr/include/$(DEB_TARGET_MULTIARCH)/asm ]; then \

@@ -192,6 +192,12 @@ define __do_gcc_devels2
 		  rm -f $(4)/libgcc_s.so; \
 		  dh_link -p$(2) /$(libgcc_dir$(1))/libgcc_s.so.$(GCC_SONAME) \
 		    /$(3)/libgcc_s.so; \
+		  rm -f $(d)/$(3)/libgcc_s.so; \
+		  ( \
+		    echo '/* GNU ld script'; \
+		    echo '   Use a trivial linker script instead of a symlink.  */'; \
+		    echo 'GROUP ( libgcc_s.so.$(GCC_SONAME) )'; \
+		  ) > $(d)/$(3)/libgcc_s.so; \
 		else \
 		  mv $(4)/libgcc_s.so $(d)/$(3)/libgcc_s.so; \
 		  dh_link -p$(2) /$(libgcc_dir$(1))/libgcc_s.so.$(GCC_SONAME) \
