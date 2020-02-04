@@ -209,7 +209,7 @@ ifdef(`MULTIARCH', `Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
 ')`'dnl
 ifdef(`TARGET',`dnl
-Breaks: libgcc1`'LS (<< 1:10)
+Breaks: libgcc1`'LS (<< 1:10), ${libgcc:Breaks}
 Replaces: libgcc1`'LS (<< 1:10)
 ')`'dnl
 BUILT_USING`'dnl
