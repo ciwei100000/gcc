@@ -457,7 +457,7 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
 Section: ifdef(`TARGET',`devel',`libs')
 Priority: optional
 Depends: BASELDEP, ${dep:libcbiarch}, ${misc:Depends}
-ifdef(`TARGET',`Provides: lib64gcc-s1-TARGET-dcv1
+ifdef(`TARGET',`Provides: lib64gcc1`'LS (= ${gcc:EpochVersion}), lib64gcc-s1-TARGET-dcv1
 ',`')`'dnl
 Breaks: lib64gcc1`'LS (<< 1:10)
 Replaces: lib64gcc1`'LS (<< 1:10)
@@ -547,7 +547,7 @@ Depends: BASELDEP, ${dep:libcbiarch}, ${misc:Depends}
 Conflicts: ${confl:lib32}
 Breaks: lib32gcc1`'LS (<< 1:10)
 Replaces: lib32gcc1`'LS (<< 1:10)
-ifdef(`TARGET',`Provides: lib32gcc-s1-TARGET-dcv1
+ifdef(`TARGET',`Provides: lib32gcc1`'LS (= ${gcc:EpochVersion}), lib32gcc-s1-TARGET-dcv1
 ',`')`'dnl
 BUILT_USING`'dnl
 Description: GCC support library (32 bit Version)
@@ -836,7 +836,7 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
 Section: ifdef(`TARGET',`devel',`libs')
 Priority: optional
 Depends: BASELDEP, ${dep:libcbiarch}, ${misc:Depends}
-ifdef(`TARGET',`Provides: libn32gcc-s1-TARGET-dcv1
+ifdef(`TARGET',`Provides: libn32gcc1`'LS (= ${gcc:EpochVersion}), libn32gcc-s1-TARGET-dcv1
 ',`')`'dnl
 Breaks: libn32gcc1`'LS (<< 1:10)
 Replaces: libn32gcc1`'LS (<< 1:10)
@@ -923,7 +923,7 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
 Section: ifdef(`TARGET',`devel',`libs')
 Priority: optional
 Depends: BASELDEP, ${dep:libcbiarch}, ${misc:Depends}
-ifdef(`TARGET',`Provides: libx32gcc-s1-TARGET-dcv1
+ifdef(`TARGET',`Provides: libx32gcc1`'LS (= ${gcc:EpochVersion}), libx32gcc-s1-TARGET-dcv1
 ',`')`'dnl
 Breaks: libx32gcc1`'LS (<< 1:10)
 Replaces: libx32gcc1`'LS (<< 1:10)
