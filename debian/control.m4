@@ -650,7 +650,7 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
 Section: ifdef(`TARGET',`devel',`libs')
 Priority: optional
 Depends: BASELDEP, ${dep:libcbiarch}, ${misc:Depends}
-ifdef(`TARGET',`Provides: libhfgcc-s1-TARGET-dcv1
+ifdef(`TARGET',`Provides: libhfgcc1`'LS (= ${gcc:EpochVersion}), libhfgcc-s1-TARGET-dcv1
 ',`Conflicts: libgcc-s1-armhf [biarchhf_archs]
 ')`'dnl
 Breaks: libhfgcc1`'LS (<< 1:10)
@@ -743,7 +743,7 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
 Section: ifdef(`TARGET',`devel',`libs')
 Priority: optional
 Depends: BASELDEP, ${dep:libcbiarch}, ${misc:Depends}
-ifdef(`TARGET',`Provides: libsfgcc-s1-TARGET-dcv1
+ifdef(`TARGET',`Provides: libsfgcc1`'LS (= ${gcc:EpochVersion}), libsfgcc-s1-TARGET-dcv1
 ',`Conflicts: libgcc-s1-armel [biarchsf_archs]
 ')`'dnl
 Breaks: libsfgcc1`'LS (<< 1:10)
