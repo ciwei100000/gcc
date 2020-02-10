@@ -290,14 +290,8 @@ define __do_libgcc
 		$(libgcc_dir$(2))
 
 	$(if $(filter yes,$(with_shared_libgcc)),
-	  $(if $(2),
 		mv $(d)/$(usr_lib$(2))/libgcc_s.so.$(GCC_SONAME) \
 			$(d_l)/$(libgcc_dir$(2))/.
-	  ,
-		mkdir -p $(d_l)/$(usr_lib$(2))
-		mv $(d)/$(usr_lib$(2))/libgcc_s.so.$(GCC_SONAME) \
-			$(d_l)/$(usr_lib$(2))/.
-	  )
 	)
 
 	$(if $(filter yes, $(with_internal_libunwind)),
@@ -354,7 +348,7 @@ define __do_libgcc
 
 	  $(if $(2),,
 	    mkdir -p $(subst gcc-s,gcc,$(d_l))/$(libgcc_dir$(2))
-	    cp -p $(d_l)/$(usr_lib$(2))/libgcc_s.so.$(GCC_SONAME) \
+	    cp -p $(d_l)/$(libgcc_dir$(2))/libgcc_s.so.$(GCC_SONAME) \
 		$(subst gcc-s,gcc,$(d_l))/lib/.
 	    mkdir -p $(subst gcc-s,gcc,$(d_l))/DEBIAN
 	    cp -p $(d_l)/DEBIAN/{symbols,shlibs} \
