@@ -1,7 +1,7 @@
-# DP: updates from the 9 branch upto 20200203 (41ef25ed059).
+# DP: updates from the 9 branch upto 20200218 (2408b93a10c).
 
 LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
-	a0c06cc27d2146b7d86758ffa236516c6143d62c 41ef25ed059a187010c179c5ee304b2f5d66e141 \
+	a0c06cc27d2146b7d86758ffa236516c6143d62c 2408b93a10c9c6cb210bc2a93d39ce6d56144ca3 \
 	| awk '/^diff .*\.texi/ {skip=1; next} /^diff / { skip=0 } skip==0' \
 	| grep -v -E '^(diff|index)'
 
@@ -366,7 +366,302 @@ new file mode 100644
 +9.2.1
 --- a/src/gcc/ChangeLog
 +++ b/src/gcc/ChangeLog
-@@ -1,3 +1,1770 @@
+@@ -1,3 +1,2065 @@
++2020-02-18  Richard Sandiford  <richard.sandiford@arm.com>
++
++	Backport from mainline
++	2019-12-05  Richard Sandiford  <richard.sandiford@arm.com>
++
++	PR middle-end/92768
++	* tree-core.h (OEP_BITWISE): New flag.
++	* fold-const.c (operand_compare::operand_equal_p): Handle it.
++	* tree-vector-builder.h (tree_vector_builder::equal_p): Pass it.
++
++2020-02-18  Richard Sandiford  <richard.sandiford@arm.com>
++
++	Backport from mainline
++	2019-08-09  Richard Sandiford  <richard.sandiford@arm.com>
++
++	PR middle-end/90313
++	* tree-tailcall.c (find_tail_calls): Reject calls that might
++	read from an escaped RESULT_DECL.
++
++2020-02-18  Richard Sandiford  <richard.sandiford@arm.com>
++
++	Backport from mainline
++	2020-01-28  Richard Sandiford  <richard.sandiford@arm.com>
++
++	PR tree-optimization/93434
++	* tree-predcom.c (split_data_refs_to_components): Record which
++	components have had aliasing loads removed.  Prevent store-store
++	commoning for all such components.
++
++2020-02-18  Richard Sandiford  <richard.sandiford@arm.com>
++
++	Backport from mainline
++	2019-11-29  Richard Sandiford  <richard.sandiford@arm.com>
++
++	PR tree-optimization/92710
++	* tree-vect-stmts.c (vectorizable_simd_clone_call): Reject
++	vector mask arguments.
++
++2020-02-18  Richard Sandiford  <richard.sandiford@arm.com>
++
++	Backport from mainline
++	2019-11-11  Richard Sandiford  <richard.sandiford@arm.com>
++
++	PR tree-optimization/92420
++	* tree-vect-stmts.c (get_negative_load_store_type): Move further
++	up file.
++	(get_group_load_store_type): Use it for reversed SLP accesses.
++
++2020-02-18  Richard Sandiford  <richard.sandiford@arm.com>
++
++	Backport from mainline
++	2019-08-21  Prathamesh Kulkarni  <prathamesh.kulkarni@linaro.org>
++
++	PR target/90724
++	* config/aarch64/aarch64.c (aarch64_gen_compare_reg_maybe_ze): Force y
++	in reg if it fails aarch64_plus_operand predicate.
++
++2020-02-14 Hongtao Liu  <hongtao.liu@intel.com>
++
++	PR target/93724
++	* config/i386/avx512vbmi2intrin.h
++	(_mm512_shrdi_epi16, _mm512_mask_shrdi_epi16,
++	_mm512_maskz_shrdi_epi16, _mm512_shrdi_epi32,
++	_mm512_mask_shrdi_epi32, _mm512_maskz_shrdi_epi32,
++	_m512_shrdi_epi64, _m512_mask_shrdi_epi64,
++	_m512_maskz_shrdi_epi64, _mm512_shldi_epi16,
++	_mm512_mask_shldi_epi16, _mm512_maskz_shldi_epi16,
++	_mm512_shldi_epi32, _mm512_mask_shldi_epi32,
++	_mm512_maskz_shldi_epi32, _mm512_shldi_epi64,
++	_mm512_mask_shldi_epi64, _mm512_maskz_shldi_epi64): Fix typo
++	of lacking a closing parenthesis.
++	* config/i386/avx512vbmi2vlintrin.h
++	(_mm256_shrdi_epi16, _mm256_mask_shrdi_epi16,
++	_mm256_maskz_shrdi_epi16, _mm256_shrdi_epi32,
++	_mm256_mask_shrdi_epi32, _mm256_maskz_shrdi_epi32,
++	_m256_shrdi_epi64, _m256_mask_shrdi_epi64,
++	_m256_maskz_shrdi_epi64, _mm256_shldi_epi16,
++	_mm256_mask_shldi_epi16, _mm256_maskz_shldi_epi16,
++	_mm256_shldi_epi32, _mm256_mask_shldi_epi32,
++	_mm256_maskz_shldi_epi32, _mm256_shldi_epi64,
++	_mm256_mask_shldi_epi64, _mm256_maskz_shldi_epi64,
++	_mm_shrdi_epi16, _mm_mask_shrdi_epi16,
++	_mm_maskz_shrdi_epi16, _mm_shrdi_epi32,
++	_mm_mask_shrdi_epi32, _mm_maskz_shrdi_epi32,
++	_mm_shrdi_epi64, _mm_mask_shrdi_epi64,
++	_m_maskz_shrdi_epi64, _mm_shldi_epi16,
++	_mm_mask_shldi_epi16, _mm_maskz_shldi_epi16,
++	_mm_shldi_epi32, _mm_mask_shldi_epi32,
++	_mm_maskz_shldi_epi32, _mm_shldi_epi64,
++	_mm_mask_shldi_epi64, _mm_maskz_shldi_epi64): Ditto.
++
++2020-02-16  Uroš Bizjak  <ubizjak@gmail.com>
++
++	PR target/93743
++	* config/i386/i386.md (atan2xf3): Swap operands 1 and 2.
++	(atan2<mode>3): Update operand order in the call to gen_atan2xf3.
++
++2020-02-15  Jakub Jelinek  <jakub@redhat.com>
++
++	PR tree-optimization/93744
++	* match.pd (((m1 >/</>=/<= m2) * d -> (m1 >/</>=/<= m2) ? d : 0): For
++	GENERIC, make sure @2 in the first and @1 in the other patterns has no
++	side-effects.
++
++2020-02-14  Eric Botcazou  <ebotcazou@adacore.com>
++
++	PR target/93704
++	* config/sparc/sparc.c (eligible_for_call_delay): Test HAVE_GNU_LD in
++	conjunction with TARGET_GNU_TLS in early return.
++
++2020-02-14  Alexander Monakov  <amonakov@ispras.ru>
++
++	Backport from mainline
++	PR rtl-optimization/88879
++	* sel-sched.c (sel_target_adjust_priority): Remove assert.
++
++2020-02-14  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2020-02-05  Richard Biener  <rguenther@suse.de>
++
++	PR middle-end/90648
++	* genmatch.c (dt_node::gen_kids_1): Emit number of argument
++	checks before matching calls.
++
++2020-02-14  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2020-01-22  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/93381
++	* tree-ssa-structalias.c (find_func_aliases): Assume offsetting
++	throughout, handle all conversions the same.
++
++2020-02-14  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2020-01-28  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/93439
++	* tree-parloops.c (create_loop_fn): Move clique bookkeeping...
++	* tree-cfg.c (move_sese_region_to_fn): ... here.
++	(verify_types_in_gimple_reference): Verify used cliques are
++	tracked.
++
++2020-02-14  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2020-01-09  Richard Biener  <rguenther@suse.de>
++
++	PR middle-end/93054
++	* gimplify.c (gimplify_expr): Deal with NOP definitions.
++
++2020-02-14  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2020-01-20  Richard Biener  <rguenther@suse.de>
++
++	PR debug/92763
++	* dwarf2out.c (prune_unused_types): Unconditionally mark
++	called function DIEs.
++
++2020-02-14  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2019-11-29  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/92704
++	* tree-if-conv.c (combine_blocks): Deal with virtual PHIs
++	in loops performing only loads.
++
++2020-02-14  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2019-11-27  Richard Biener  <rguenther@suse.de>
++
++	PR middle-end/92674
++	* tree-inline.c (expand_call_inline): Delay purging EH/abnormal
++	edges and instead record blocks in bitmap.
++	(gimple_expand_calls_inline): Adjust.
++	(fold_marked_statements): Delay EH cleanup until all folding is
++	done.
++	(optimize_inline_calls): Do EH/abnormal cleanup for calls after
++	inlining finished.
++
++2020-02-13  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/93696
++	* config/i386/avx512bitalgintrin.h (_mm512_mask_popcnt_epi8,
++	_mm512_mask_popcnt_epi16, _mm256_mask_popcnt_epi8,
++	_mm256_mask_popcnt_epi16, _mm_mask_popcnt_epi8,
++	_mm_mask_popcnt_epi16): Rename __B argument to __A and __A to __W,
++	pass __A to the builtin followed by __W instead of __A followed by
++	__B.
++	* config/i386/avx512vpopcntdqintrin.h (_mm512_mask_popcnt_epi32,
++	_mm512_mask_popcnt_epi64): Likewise.
++	* config/i386/avx512vpopcntdqvlintrin.h (_mm_mask_popcnt_epi32,
++	_mm256_mask_popcnt_epi32, _mm_mask_popcnt_epi64,
++	_mm256_mask_popcnt_epi64): Likewise.
++
++	PR target/93673
++	* config/i386/sse.md (k<code><mode>): Drop mode from last operand and
++	use const_0_to_255_operand predicate instead of immediate_operand.
++	(avx512dq_fpclass<mode><mask_scalar_merge_name>,
++	avx512dq_vmfpclass<mode><mask_scalar_merge_name>,
++	vgf2p8affineinvqb_<mode><mask_name>,
++	vgf2p8affineqb_<mode><mask_name>): Drop mode from
++	const_0_to_255_operand predicated operands.
++
++	Backported from mainline
++	2020-02-12  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/93670
++	* config/i386/sse.md (VI48F_256_DQ): New mode iterator.
++	(avx512vl_vextractf128<mode>): Use it instead of VI48F_256.  Remove
++	TARGET_AVX512DQ from condition.
++	(vec_extract_lo_<mode><mask_name>): Use <mask_avx512dq_condition>
++	instead of <mask_mode512bit_condition> in condition.  If
++	TARGET_AVX512DQ is false, emit vextract*64x4 instead of
++	vextract*32x8.
++	(vec_extract_lo_<mode><mask_name>): Drop <mask_avx512dq_condition>
++	from condition.
++
++	2020-02-10  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/93637
++	* config/i386/sse.md (VI_256_AVX2): New mode iterator.
++	(vcond_mask_<mode><sseintvecmodelower>): Use it instead of VI_256.
++	Change condition from TARGET_AVX2 to TARGET_AVX.
++
++	2020-02-08  Uroš Bizjak  <ubizjak@gmail.com>
++		    Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/65782
++	* config/i386/i386.h (CALL_USED_REGISTERS): Make
++	xmm16-xmm31 call-used even in 64-bit ms-abi.
++
++	2020-02-06  Jakub Jelinek  <jakub@redhat.com>
++
++	PR libgomp/93515
++	* omp-low.c (use_pointer_for_field): For nested constructs, also
++	look for map clauses on target construct.
++	(scan_omp_1_stmt) <case GIMPLE_OMP_TARGET>: Bump temporarily
++	taskreg_nesting_level.
++
++	PR libgomp/93515
++	* gimplify.c (gimplify_scan_omp_clauses) <do_notice>: If adding
++	shared clause, call omp_notice_variable on outer context if any.
++
++	2020-02-05  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/93555
++	* omp-simd-clone.c (expand_simd_clones): If simd_clone_mangle or
++	simd_clone_create failed when i == 0, adjust clone->nargs by
++	clone->inbranch.
++
++	2020-01-30  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/93505
++	* combine.c (simplify_comparison) <case ROTATE>: Punt on out of range
++	rotate counts.
++
++	2020-01-28  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/93418
++	* config/i386/i386.c (ix86_fold_builtin) <do_shift>: If mask is not
++	-1 or is_vshift is true, use new_vector with number of elts npatterns
++	rather than new_unary_operation.
++
++	2020-01-23  Jakub Jelinek  <jakub@redhat.com>
++
++	PR rtl-optimization/93402
++	* postreload.c (reload_combine_recognize_pattern): Don't try to adjust
++	USE insns.
++
++2020-02-11  Tamar Christina  <tamar.christina@arm.com>
++
++	Backport from mainline
++	2020-01-31  Tamar Christina  <tamar.christina@arm.com>
++
++	PR rtl-optimization/91838
++	* simplify-rtx.c (simplify_binary_operation_1): Update LSHIFTRT case
++	to truncate if allowed or reject combination.
++
++2020-02-07  H.J. Lu  <hongjiu.lu@intel.com>
++
++	Backport from mainline
++	2020-02-07  H.J. Lu  <hongjiu.lu@intel.com>
++
++	PR target/85667
++	* config/i386/i386.c (function_arg_ms_64): Add a type argument.
++	Don't return aggregates with only SFmode and DFmode in SSE
++	register.
++	(ix86_function_arg): Pass type to function_arg_ms_64.
++
 +2020-01-30  John David Anglin  <danglin@gcc.gnu.org>
 +
 +	* config/pa/pa.c (pa_elf_select_rtx_section): Place function pointers
@@ -2137,7 +2432,7 @@ new file mode 100644
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -513,7 +2280,7 @@
+@@ -513,7 +2575,7 @@
  
  2019-07-11  Uroš Bizjak  <ubizjak@gmail.com>
  
@@ -2150,7 +2445,7 @@ new file mode 100644
 +++ b/src/gcc/DATESTAMP
 @@ -1 +1 @@
 -20190812
-+20200203
++20200218
 --- a/src/gcc/Makefile.in
 +++ b/src/gcc/Makefile.in
 @@ -1120,6 +1120,7 @@ endif
@@ -3135,7 +3430,13 @@ new file mode 100644
        /* Check the expected alignment against the field alignment.  */
 --- a/src/gcc/c/ChangeLog
 +++ b/src/gcc/c/ChangeLog
-@@ -1,3 +1,77 @@
+@@ -1,3 +1,83 @@
++2020-02-13  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c/93576
++	* c-decl.c (grokdeclarator): If this_size_varies, only push size into
++	*expr if it has side effects.
++
 +2020-01-22  Joseph Myers  <joseph@codesourcery.com>
 +
 +	Backport from mainline:
@@ -3264,7 +3565,27 @@ new file mode 100644
  /* Performs sanity checks on the TYPE and WIDTH of the bit-field NAME,
     replacing with appropriate values if they are invalid.  */
  
-@@ -9974,6 +9941,20 @@ identifier_global_value	(tree t)
+@@ -6401,11 +6368,14 @@ grokdeclarator (const struct c_declarator *declarator,
+ 		  }
+ 		if (this_size_varies)
+ 		  {
+-		    if (*expr)
+-		      *expr = build2 (COMPOUND_EXPR, TREE_TYPE (size),
+-				      *expr, size);
+-		    else
+-		      *expr = size;
++		    if (TREE_SIDE_EFFECTS (size))
++		      {
++			if (*expr)
++			  *expr = build2 (COMPOUND_EXPR, TREE_TYPE (size),
++					  *expr, size);
++			else
++			  *expr = size;
++		      }
+ 		    *expr_const_operands &= size_maybe_const;
+ 		  }
+ 	      }
+@@ -9974,6 +9944,20 @@ identifier_global_value	(tree t)
    return NULL_TREE;
  }
  
@@ -3710,6 +4031,18 @@ new file mode 100644
    if (error_found)
      {
        dump (stderr);
+--- a/src/gcc/combine.c
++++ b/src/gcc/combine.c
+@@ -12424,7 +12424,8 @@ simplify_comparison (enum rtx_code code, rtx *pop0, rtx *pop1)
+ 	     bit.  This will be converted into a ZERO_EXTRACT.  */
+ 	  if (const_op == 0 && sign_bit_comparison_p
+ 	      && CONST_INT_P (XEXP (op0, 1))
+-	      && mode_width <= HOST_BITS_PER_WIDE_INT)
++	      && mode_width <= HOST_BITS_PER_WIDE_INT
++	      && UINTVAL (XEXP (op0, 1)) < mode_width)
+ 	    {
+ 	      op0 = simplify_and_const_int (NULL_RTX, mode, XEXP (op0, 0),
+ 					    (HOST_WIDE_INT_1U
 --- a/src/gcc/common/config/s390/s390-common.c
 +++ b/src/gcc/common/config/s390/s390-common.c
 @@ -47,9 +47,9 @@ EXPORTED_CONST int processor_flags_table[] =
@@ -3777,7 +4110,17 @@ new file mode 100644
     Disabling "sve" just disables "sve".  */
 --- a/src/gcc/config/aarch64/aarch64.c
 +++ b/src/gcc/config/aarch64/aarch64.c
-@@ -15343,6 +15343,34 @@ aarch64_declare_function_name (FILE *stream, const char* name,
+@@ -1910,6 +1910,9 @@ aarch64_gen_compare_reg_maybe_ze (RTX_CODE code, rtx x, rtx y,
+ 	}
+     }
+ 
++  if (!aarch64_plus_operand (y, y_mode))
++    y = force_reg (y_mode, y);
++
+   return aarch64_gen_compare_reg (code, x, y);
+ }
+ 
+@@ -15343,6 +15346,34 @@ aarch64_declare_function_name (FILE *stream, const char* name,
    /* Don't forget the type directive for ELF.  */
    ASM_OUTPUT_TYPE_DIRECTIVE (stream, name, "function");
    ASM_OUTPUT_LABEL (stream, name);
@@ -3812,7 +4155,7 @@ new file mode 100644
  }
  
  /* Implement ASM_OUTPUT_DEF_FROM_DECLS.  Output .variant_pcs for aliases.  */
-@@ -15504,6 +15532,9 @@ aarch64_emit_post_barrier (enum memmodel model)
+@@ -15504,6 +15535,9 @@ aarch64_emit_post_barrier (enum memmodel model)
  void
  aarch64_split_compare_and_swap (rtx operands[])
  {
@@ -3822,7 +4165,7 @@ new file mode 100644
    rtx rval, mem, oldval, newval, scratch;
    machine_mode mode;
    bool is_weak;
-@@ -15620,6 +15651,9 @@ void
+@@ -15620,6 +15654,9 @@ void
  aarch64_split_atomic_op (enum rtx_code code, rtx old_out, rtx new_out, rtx mem,
  			 rtx value, rtx model_rtx, rtx cond)
  {
@@ -3832,7 +4175,7 @@ new file mode 100644
    machine_mode mode = GET_MODE (mem);
    machine_mode wmode = (mode == DImode ? DImode : SImode);
    const enum memmodel model = memmodel_from_int (INTVAL (model_rtx));
-@@ -17247,14 +17281,15 @@ aarch64_expand_subvti (rtx op0, rtx low_dest, rtx low_in1,
+@@ -17247,14 +17284,15 @@ aarch64_expand_subvti (rtx op0, rtx low_dest, rtx low_in1,
      }
    else
      {
@@ -3854,7 +4197,7 @@ new file mode 100644
  
        if (unsigned_p)
  	emit_insn (gen_usubdi3_carryinC (high_dest, high_in1, high_in2));
-@@ -18162,19 +18197,21 @@ aarch64_gen_adjusted_ldpstp (rtx *operands, bool load,
+@@ -18162,19 +18200,21 @@ aarch64_gen_adjusted_ldpstp (rtx *operands, bool load,
    /* Sort the operands.  */
    qsort (temp_operands, 4, 2 * sizeof (rtx *), aarch64_ldrstr_offset_compare);
  
@@ -3884,7 +4227,7 @@ new file mode 100644
        gcc_assert (code == UNKNOWN);
      }
  
-@@ -18944,6 +18981,9 @@ aarch64_run_selftests (void)
+@@ -18944,6 +18984,9 @@ aarch64_run_selftests (void)
  #undef TARGET_ASM_TRAMPOLINE_TEMPLATE
  #define TARGET_ASM_TRAMPOLINE_TEMPLATE aarch64_asm_trampoline_template
  
@@ -7419,6 +7762,543 @@ new file mode 100644
  }
  
  extern __inline __m256i
+--- a/src/gcc/config/i386/avx512bitalgintrin.h
++++ b/src/gcc/config/i386/avx512bitalgintrin.h
+@@ -61,10 +61,10 @@ _mm512_popcnt_epi16 (__m512i __A)
+ 
+ extern __inline __m512i
+ __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+-_mm512_mask_popcnt_epi8 (__m512i __A, __mmask64 __U, __m512i __B)
++_mm512_mask_popcnt_epi8 (__m512i __W, __mmask64 __U, __m512i __A)
+ {
+   return (__m512i) __builtin_ia32_vpopcountb_v64qi_mask ((__v64qi) __A,
+-							 (__v64qi) __B,
++							 (__v64qi) __W,
+ 							 (__mmask64) __U);
+ }
+ 
+@@ -79,10 +79,10 @@ _mm512_maskz_popcnt_epi8 (__mmask64 __U, __m512i __A)
+ }
+ extern __inline __m512i
+ __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+-_mm512_mask_popcnt_epi16 (__m512i __A, __mmask32 __U, __m512i __B)
++_mm512_mask_popcnt_epi16 (__m512i __W, __mmask32 __U, __m512i __A)
+ {
+   return (__m512i) __builtin_ia32_vpopcountw_v32hi_mask ((__v32hi) __A,
+-							(__v32hi) __B,
++							(__v32hi) __W,
+ 							(__mmask32) __U);
+ }
+ 
+@@ -127,10 +127,10 @@ _mm512_mask_bitshuffle_epi64_mask (__mmask64 __M, __m512i __A, __m512i __B)
+ 
+ extern __inline __m256i
+ __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+-_mm256_mask_popcnt_epi8 (__m256i __A, __mmask32 __U, __m256i __B)
++_mm256_mask_popcnt_epi8 (__m256i __W, __mmask32 __U, __m256i __A)
+ {
+   return (__m256i) __builtin_ia32_vpopcountb_v32qi_mask ((__v32qi) __A,
+-							 (__v32qi) __B,
++							 (__v32qi) __W,
+ 							 (__mmask32) __U);
+ }
+ 
+@@ -222,10 +222,10 @@ _mm_popcnt_epi16 (__m128i __A)
+ 
+ extern __inline __m256i
+ __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+-_mm256_mask_popcnt_epi16 (__m256i __A, __mmask16 __U, __m256i __B)
++_mm256_mask_popcnt_epi16 (__m256i __W, __mmask16 __U, __m256i __A)
+ {
+   return (__m256i) __builtin_ia32_vpopcountw_v16hi_mask ((__v16hi) __A,
+-							(__v16hi) __B,
++							(__v16hi) __W,
+ 							(__mmask16) __U);
+ }
+ 
+@@ -241,10 +241,10 @@ _mm256_maskz_popcnt_epi16 (__mmask16 __U, __m256i __A)
+ 
+ extern __inline __m128i
+ __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+-_mm_mask_popcnt_epi8 (__m128i __A, __mmask16 __U, __m128i __B)
++_mm_mask_popcnt_epi8 (__m128i __W, __mmask16 __U, __m128i __A)
+ {
+   return (__m128i) __builtin_ia32_vpopcountb_v16qi_mask ((__v16qi) __A,
+-							 (__v16qi) __B,
++							 (__v16qi) __W,
+ 							 (__mmask16) __U);
+ }
+ 
+@@ -259,10 +259,10 @@ _mm_maskz_popcnt_epi8 (__mmask16 __U, __m128i __A)
+ }
+ extern __inline __m128i
+ __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+-_mm_mask_popcnt_epi16 (__m128i __A, __mmask8 __U, __m128i __B)
++_mm_mask_popcnt_epi16 (__m128i __W, __mmask8 __U, __m128i __A)
+ {
+   return (__m128i) __builtin_ia32_vpopcountw_v8hi_mask ((__v8hi) __A,
+-							(__v8hi) __B,
++							(__v8hi) __W,
+ 							(__mmask8) __U);
+ }
+ 
+--- a/src/gcc/config/i386/avx512vbmi2intrin.h
++++ b/src/gcc/config/i386/avx512vbmi2intrin.h
+@@ -151,50 +151,68 @@ _mm512_maskz_shldi_epi64 (__mmask8 __A, __m512i __B, __m512i __C, int __D)
+ #else
+ #define _mm512_shrdi_epi16(A, B, C) \
+   ((__m512i) __builtin_ia32_vpshrd_v32hi ((__v32hi)(__m512i)(A), \
+-						(__v32hi)(__m512i)(B),(int)(C))
++					  (__v32hi)(__m512i)(B),(int)(C)))
+ #define _mm512_shrdi_epi32(A, B, C) \
+   ((__m512i) __builtin_ia32_vpshrd_v16si ((__v16si)(__m512i)(A), \
+-	(__v16si)(__m512i)(B),(int)(C))
++					  (__v16si)(__m512i)(B),(int)(C)))
+ #define _mm512_mask_shrdi_epi32(A, B, C, D, E) \
+   ((__m512i) __builtin_ia32_vpshrd_v16si_mask ((__v16si)(__m512i)(C), \
+-	(__v16si)(__m512i)(D), (int)(E), (__v16si)(__m512i)(A),(__mmask16)(B))
++					       (__v16si)(__m512i)(D), \
++					       (int)(E),		\
++					       (__v16si)(__m512i)(A),	\
++					       (__mmask16)(B)))
+ #define _mm512_maskz_shrdi_epi32(A, B, C, D) \
+-  ((__m512i) __builtin_ia32_vpshrd_v16si_mask ((__v16si)(__m512i)(B), \
+-	(__v16si)(__m512i)(C),(int)(D), \
+-	(__v16si)(__m512i)_mm512_setzero_si512 (), (__mmask16)(A))
++  ((__m512i) \
++   __builtin_ia32_vpshrd_v16si_mask ((__v16si)(__m512i)(B),		\
++				     (__v16si)(__m512i)(C),(int)(D),	\
++				     (__v16si)(__m512i)_mm512_setzero_si512 (), \
++				     (__mmask16)(A)))
+ #define _mm512_shrdi_epi64(A, B, C) \
+   ((__m512i) __builtin_ia32_vpshrd_v8di ((__v8di)(__m512i)(A), \
+-	(__v8di)(__m512i)(B),(int)(C))
++					 (__v8di)(__m512i)(B),(int)(C)))
+ #define _mm512_mask_shrdi_epi64(A, B, C, D, E) \
+   ((__m512i) __builtin_ia32_vpshrd_v8di_mask ((__v8di)(__m512i)(C), \
+-	(__v8di)(__m512i)(D), (int)(E), (__v8di)(__m512i)(A),(__mmask8)(B))
++					      (__v8di)(__m512i)(D), (int)(E), \
++					      (__v8di)(__m512i)(A), \
++					      (__mmask8)(B)))
+ #define _mm512_maskz_shrdi_epi64(A, B, C, D) \
+-  ((__m512i) __builtin_ia32_vpshrd_v8di_mask ((__v8di)(__m512i)(B), \
+-	(__v8di)(__m512i)(C),(int)(D), \
+-	(__v8di)(__m512i)_mm512_setzero_si512 (), (__mmask8)(A))
++  ((__m512i) \
++   __builtin_ia32_vpshrd_v8di_mask ((__v8di)(__m512i)(B),		\
++				    (__v8di)(__m512i)(C),(int)(D),	\
++				    (__v8di)(__m512i)_mm512_setzero_si512 (), \
++				    (__mmask8)(A)))
+ #define _mm512_shldi_epi16(A, B, C) \
+   ((__m512i) __builtin_ia32_vpshld_v32hi ((__v32hi)(__m512i)(A), \
+-						(__v32hi)(__m512i)(B),(int)(C))
++					  (__v32hi)(__m512i)(B),(int)(C)))
+ #define _mm512_shldi_epi32(A, B, C) \
+-  ((__m512i) __builtin_ia32_vpshld_v16si ((__v16si)(__m512i)(A), 	\
+-				(__v16si)(__m512i)(B),(int)(C))
++  ((__m512i) __builtin_ia32_vpshld_v16si ((__v16si)(__m512i)(A),	\
++					  (__v16si)(__m512i)(B),(int)(C)))
+ #define _mm512_mask_shldi_epi32(A, B, C, D, E) \
+   ((__m512i) __builtin_ia32_vpshld_v16si_mask ((__v16si)(__m512i)(C), \
+-	(__v16si)(__m512i)(D), (int)(E), (__v16si)(__m512i)(A),(__mmask16)(B))
++					       (__v16si)(__m512i)(D), \
++					       (int)(E),		\
++					       (__v16si)(__m512i)(A), \
++					       (__mmask16)(B)))
+ #define _mm512_maskz_shldi_epi32(A, B, C, D) \
+-  ((__m512i) __builtin_ia32_vpshld_v16si_mask ((__v16si)(__m512i)(B), \
+-	(__v16si)(__m512i)(C),(int)(D), \
+-	(__v16si)(__m512i)_mm512_setzero_si512 (), (__mmask16)(A))
++  ((__m512i) \
++   __builtin_ia32_vpshld_v16si_mask ((__v16si)(__m512i)(B),		\
++				     (__v16si)(__m512i)(C),(int)(D),	\
++				     (__v16si)(__m512i)_mm512_setzero_si512 (), \
++				     (__mmask16)(A)))
+ #define _mm512_shldi_epi64(A, B, C) \
+   ((__m512i) __builtin_ia32_vpshld_v8di ((__v8di)(__m512i)(A), \
+-	(__v8di)(__m512i)(B),(int)(C))
++					 (__v8di)(__m512i)(B), (int)(C)))
+ #define _mm512_mask_shldi_epi64(A, B, C, D, E) \
+   ((__m512i) __builtin_ia32_vpshld_v8di_mask ((__v8di)(__m512i)(C), \
+-	(__v8di)(__m512i)(D), (int)(E), (__v8di)(__m512i)(A),(__mmask8)(B))
++					      (__v8di)(__m512i)(D), (int)(E), \
++					      (__v8di)(__m512i)(A), \
++					      (__mmask8)(B)))
+ #define _mm512_maskz_shldi_epi64(A, B, C, D) \
+-  ((__m512i) __builtin_ia32_vpshld_v8di_mask ((__v8di)(__m512i)(B), \
+-	(__v8di)(__m512i)(C),(int)(D), \
+-	(__v8di)(__m512i)_mm512_setzero_si512 (), (__mmask8)(A))
++  ((__m512i) \
++   __builtin_ia32_vpshld_v8di_mask ((__v8di)(__m512i)(B),		\
++				    (__v8di)(__m512i)(C),(int)(D),	\
++				    (__v8di)(__m512i)_mm512_setzero_si512 (), \
++				    (__mmask8)(A)))
+ #endif
+ 
+ extern __inline __m512i
+@@ -474,18 +492,28 @@ _mm512_maskz_shldi_epi16 (__mmask32 __A, __m512i __B, __m512i __C, int __D)
+ #else
+ #define _mm512_mask_shrdi_epi16(A, B, C, D, E) \
+   ((__m512i) __builtin_ia32_vpshrd_v32hi_mask ((__v32hi)(__m512i)(C), \
+-	(__v32hi)(__m512i)(D), (int)(E), (__v32hi)(__m512i)(A),(__mmask32)(B))
++					       (__v32hi)(__m512i)(D), \
++					       (int)(E),		\
++					       (__v32hi)(__m512i)(A),	\
++					       (__mmask32)(B)))
+ #define _mm512_maskz_shrdi_epi16(A, B, C, D) \
+-  ((__m512i) __builtin_ia32_vpshrd_v32hi_mask ((__v32hi)(__m512i)(B), \
+-	(__v32hi)(__m512i)(C),(int)(D), \
+-	(__v32hi)(__m512i)_mm512_setzero_si512 (), (__mmask32)(A))
++  ((__m512i) \
++   __builtin_ia32_vpshrd_v32hi_mask ((__v32hi)(__m512i)(B),		\
++				     (__v32hi)(__m512i)(C),(int)(D),	\
++				     (__v32hi)(__m512i)_mm512_setzero_si512 (), \
++				     (__mmask32)(A)))
+ #define _mm512_mask_shldi_epi16(A, B, C, D, E) \
+   ((__m512i) __builtin_ia32_vpshld_v32hi_mask ((__v32hi)(__m512i)(C), \
+-	(__v32hi)(__m512i)(D), (int)(E), (__v32hi)(__m512i)(A),(__mmask32)(B))
++					       (__v32hi)(__m512i)(D), \
++					       (int)(E), \
++					       (__v32hi)(__m512i)(A),	\
++					       (__mmask32)(B)))
+ #define _mm512_maskz_shldi_epi16(A, B, C, D) \
+-  ((__m512i) __builtin_ia32_vpshld_v32hi_mask ((__v32hi)(__m512i)(B),   \
+-	(__v32hi)(__m512i)(C),(int)(D), 				\
+-	(__v32hi)(__m512i)_mm512_setzero_si512 (), (__mmask32)(A))
++  ((__m512i) \
++   __builtin_ia32_vpshld_v32hi_mask ((__v32hi)(__m512i)(B),		\
++				     (__v32hi)(__m512i)(C),(int)(D),	\
++				     (__v32hi)(__m512i)_mm512_setzero_si512 (), \
++				     (__mmask32)(A)))
+ #endif
+ 
+ extern __inline __m512i
+--- a/src/gcc/config/i386/avx512vbmi2vlintrin.h
++++ b/src/gcc/config/i386/avx512vbmi2vlintrin.h
+@@ -498,124 +498,175 @@ _mm_shldi_epi64 (__m128i __A, __m128i __B, int __C)
+ #else
+ #define _mm256_shrdi_epi16(A, B, C) \
+   ((__m256i) __builtin_ia32_vpshrd_v16hi ((__v16hi)(__m256i)(A), \
+-	(__v16hi)(__m256i)(B),(int)(C))
++					  (__v16hi)(__m256i)(B),(int)(C)))
+ #define _mm256_mask_shrdi_epi16(A, B, C, D, E) \
+   ((__m256i) __builtin_ia32_vpshrd_v16hi_mask ((__v16hi)(__m256i)(C), \
+-	(__v16hi)(__m256i)(D), (int)(E), (__v16hi)(__m256i)(A),(__mmask16)(B))
++					       (__v16hi)(__m256i)(D), \
++					       (int)(E),		\
++					       (__v16hi)(__m256i)(A), \
++					       (__mmask16)(B)))
+ #define _mm256_maskz_shrdi_epi16(A, B, C, D) \
+-  ((__m256i) __builtin_ia32_vpshrd_v16hi_mask ((__v16hi)(__m256i)(B), \
+-	(__v16hi)(__m256i)(C),(int)(D), \
+-	(__v16hi)(__m256i)_mm256_setzero_si256 (), (__mmask16)(A))
++  ((__m256i) \
++   __builtin_ia32_vpshrd_v16hi_mask ((__v16hi)(__m256i)(B),		\
++				     (__v16hi)(__m256i)(C),(int)(D),	\
++				     (__v16hi)(__m256i)_mm256_setzero_si256 (), \
++				     (__mmask16)(A)))
+ #define _mm256_shrdi_epi32(A, B, C) \
+   ((__m256i) __builtin_ia32_vpshrd_v8si ((__v8si)(__m256i)(A), \
+-	(__v8si)(__m256i)(B),(int)(C))
++					 (__v8si)(__m256i)(B),(int)(C)))
+ #define _mm256_mask_shrdi_epi32(A, B, C, D, E) \
+   ((__m256i) __builtin_ia32_vpshrd_v8si_mask ((__v8si)(__m256i)(C), \
+-	(__v8si)(__m256i)(D), (int)(E), (__v8si)(__m256i)(A),(__mmask8)(B))
++					      (__v8si)(__m256i)(D), \
++					      (int)(E), \
++					      (__v8si)(__m256i)(A), \
++					      (__mmask8)(B)))
+ #define _mm256_maskz_shrdi_epi32(A, B, C, D) \
+-  ((__m256i) __builtin_ia32_vpshrd_v8si_mask ((__v8si)(__m256i)(B), \
+-	(__v8si)(__m256i)(C),(int)(D), \
+-	(__v8si)(__m256i)_mm256_setzero_si256 (), (__mmask8)(A))
++  ((__m256i) \
++   __builtin_ia32_vpshrd_v8si_mask ((__v8si)(__m256i)(B),		\
++				    (__v8si)(__m256i)(C),(int)(D),	\
++				    (__v8si)(__m256i)_mm256_setzero_si256 (), \
++				    (__mmask8)(A)))
+ #define _mm256_shrdi_epi64(A, B, C) \
+   ((__m256i) __builtin_ia32_vpshrd_v4di ((__v4di)(__m256i)(A), \
+-	(__v4di)(__m256i)(B),(int)(C))
++					 (__v4di)(__m256i)(B),(int)(C)))
+ #define _mm256_mask_shrdi_epi64(A, B, C, D, E) \
+   ((__m256i) __builtin_ia32_vpshrd_v4di_mask ((__v4di)(__m256i)(C), \
+-	(__v4di)(__m256i)(D), (int)(E), (__v4di)(__m256i)(A),(__mmask8)(B))
++					      (__v4di)(__m256i)(D), (int)(E), \
++					      (__v4di)(__m256i)(A), \
++					      (__mmask8)(B)))
+ #define _mm256_maskz_shrdi_epi64(A, B, C, D) \
+-  ((__m256i) __builtin_ia32_vpshrd_v4di_mask ((__v4di)(__m256i)(B), \
+-	(__v4di)(__m256i)(C),(int)(D), \
+-	(__v4di)(__m256i)_mm256_setzero_si256 (), (__mmask8)(A))
++  ((__m256i) \
++   __builtin_ia32_vpshrd_v4di_mask ((__v4di)(__m256i)(B),		\
++				    (__v4di)(__m256i)(C),(int)(D),	\
++				    (__v4di)(__m256i)_mm256_setzero_si256 (), \
++				    (__mmask8)(A)))
+ #define _mm_shrdi_epi16(A, B, C) \
+   ((__m128i) __builtin_ia32_vpshrd_v8hi ((__v8hi)(__m128i)(A), \
+-	(__v8hi)(__m128i)(B),(int)(C))
++					 (__v8hi)(__m128i)(B),(int)(C)))
+ #define _mm_mask_shrdi_epi16(A, B, C, D, E) \
+   ((__m128i) __builtin_ia32_vpshrd_v8hi_mask ((__v8hi)(__m128i)(C), \
+-	(__v8hi)(__m128i)(D), (int)(E), (__v8hi)(__m128i)(A),(__mmask8)(B))
++					      (__v8hi)(__m128i)(D), (int)(E), \
++					      (__v8hi)(__m128i)(A), \
++					      (__mmask8)(B)))
+ #define _mm_maskz_shrdi_epi16(A, B, C, D) \
+-  ((__m128i) __builtin_ia32_vpshrd_v8hi_mask ((__v8hi)(__m128i)(B), \
+-	(__v8hi)(__m128i)(C),(int)(D), \
+-	(__v8hi)(__m128i)_mm_setzero_si128 (), (__mmask8)(A))
++  ((__m128i) \
++   __builtin_ia32_vpshrd_v8hi_mask ((__v8hi)(__m128i)(B),		\
++				    (__v8hi)(__m128i)(C),(int)(D),	\
++				    (__v8hi)(__m128i)_mm_setzero_si128 (), \
++				    (__mmask8)(A)))
+ #define _mm_shrdi_epi32(A, B, C) \
+   ((__m128i) __builtin_ia32_vpshrd_v4si ((__v4si)(__m128i)(A), \
+-	(__v4si)(__m128i)(B),(int)(C))
++					 (__v4si)(__m128i)(B),(int)(C)))
+ #define _mm_mask_shrdi_epi32(A, B, C, D, E) \
+-  ((__m128i) __builtin_ia32_vpshrd_v4si_mask ((__v4si)(__m128i)(C), \
+-	(__v4si)(__m128i)(D), (int)(E), (__v4si)(__m128i)(A),(__mmask8)(B))
++  ((__m128i) __builtin_ia32_vpshrd_v4si_mask ((__v4si)(__m128i)(C),	\
++					      (__v4si)(__m128i)(D), (int)(E), \
++					      (__v4si)(__m128i)(A), \
++					      (__mmask8)(B)))
+ #define _mm_maskz_shrdi_epi32(A, B, C, D) \
+-  ((__m128i) __builtin_ia32_vpshrd_v4si_mask ((__v4si)(__m128i)(B), \
+-	(__v4si)(__m128i)(C),(int)(D), \
+-	(__v4si)(__m128i)_mm_setzero_si128 (), (__mmask8)(A))
++  ((__m128i) \
++   __builtin_ia32_vpshrd_v4si_mask ((__v4si)(__m128i)(B),		\
++				    (__v4si)(__m128i)(C),(int)(D),	\
++				    (__v4si)(__m128i)_mm_setzero_si128 (), \
++				    (__mmask8)(A)))
+ #define _mm_shrdi_epi64(A, B, C) \
+   ((__m128i) __builtin_ia32_vpshrd_v2di ((__v2di)(__m128i)(A), \
+-	(__v2di)(__m128i)(B),(int)(C))
++					 (__v2di)(__m128i)(B),(int)(C)))
+ #define _mm_mask_shrdi_epi64(A, B, C, D, E) \
+   ((__m128i) __builtin_ia32_vpshrd_v2di_mask ((__v2di)(__m128i)(C), \
+-	(__v2di)(__m128i)(D), (int)(E), (__v2di)(__m128i)(A),(__mmask8)(B))
++					      (__v2di)(__m128i)(D), (int)(E), \
++					      (__v2di)(__m128i)(A), \
++					      (__mmask8)(B)))
+ #define _mm_maskz_shrdi_epi64(A, B, C, D) \
+-  ((__m128i) __builtin_ia32_vpshrd_v2di_mask ((__v2di)(__m128i)(B), \
+-	(__v2di)(__m128i)(C),(int)(D), \
+-	(__v2di)(__m128i)_mm_setzero_si128 (), (__mmask8)(A))
++  ((__m128i) \
++   __builtin_ia32_vpshrd_v2di_mask ((__v2di)(__m128i)(B),		\
++				    (__v2di)(__m128i)(C),(int)(D),	\
++				    (__v2di)(__m128i)_mm_setzero_si128 (), \
++				    (__mmask8)(A)))
+ #define _mm256_shldi_epi16(A, B, C) \
+   ((__m256i) __builtin_ia32_vpshld_v16hi ((__v16hi)(__m256i)(A), \
+-						(__v16hi)(__m256i)(B),(int)(C))
++					  (__v16hi)(__m256i)(B),(int)(C)))
+ #define _mm256_mask_shldi_epi16(A, B, C, D, E) \
+   ((__m256i) __builtin_ia32_vpshld_v16hi_mask ((__v16hi)(__m256i)(C), \
+-	(__v16hi)(__m256i)(D), (int)(E), (__v16hi)(__m256i)(A),(__mmask16)(B))
++					       (__v16hi)(__m256i)(D), \
++					       (int)(E),		\
++					       (__v16hi)(__m256i)(A), \
++					       (__mmask16)(B)))
+ #define _mm256_maskz_shldi_epi16(A, B, C, D) \
+-  ((__m256i) __builtin_ia32_vpshld_v16hi_mask ((__v16hi)(__m256i)(B), \
+-	(__v16hi)(__m256i)(C),(int)(D), \
+-	(__v16hi)(__m256i)_mm256_setzero_si256 (), (__mmask16)(A))
++  ((__m256i) \
++   __builtin_ia32_vpshld_v16hi_mask ((__v16hi)(__m256i)(B),		\
++				     (__v16hi)(__m256i)(C),(int)(D),	\
++				     (__v16hi)(__m256i)_mm256_setzero_si256 (), \
++				     (__mmask16)(A)))
+ #define _mm256_shldi_epi32(A, B, C) \
+   ((__m256i) __builtin_ia32_vpshld_v8si ((__v8si)(__m256i)(A), \
+-	(__v8si)(__m256i)(B),(int)(C))
++					 (__v8si)(__m256i)(B),(int)(C)))
+ #define _mm256_mask_shldi_epi32(A, B, C, D, E) \
+   ((__m256i) __builtin_ia32_vpshld_v8si_mask ((__v8si)(__m256i)(C), \
+-	(__v8si)(__m256i)(D), (int)(E), (__v8si)(__m256i)(A),(__mmask8)(B))
++					      (__v8si)(__m256i)(D), (int)(E), \
++					      (__v8si)(__m256i)(A), \
++					      (__mmask8)(B)))
+ #define _mm256_maskz_shldi_epi32(A, B, C, D) \
+-  ((__m256i) __builtin_ia32_vpshld_v8si_mask ((__v8si)(__m256i)(B), \
+-	(__v8si)(__m256i)(C),(int)(D), \
+-	(__v8si)(__m256i)_mm256_setzero_si256 (), (__mmask8)(A))
++  ((__m256i) \
++   __builtin_ia32_vpshld_v8si_mask ((__v8si)(__m256i)(B),		\
++				    (__v8si)(__m256i)(C),(int)(D),	\
++				    (__v8si)(__m256i)_mm256_setzero_si256 (), \
++				    (__mmask8)(A)))
+ #define _mm256_shldi_epi64(A, B, C) \
+   ((__m256i) __builtin_ia32_vpshld_v4di ((__v4di)(__m256i)(A), \
+-	(__v4di)(__m256i)(B),(int)(C))
++					 (__v4di)(__m256i)(B),(int)(C)))
+ #define _mm256_mask_shldi_epi64(A, B, C, D, E) \
+   ((__m256i) __builtin_ia32_vpshld_v4di_mask ((__v4di)(__m256i)(C), \
+-	(__v4di)(__m256i)(D), (int)(E), (__v4di)(__m256i)(A),(__mmask8)(B))
++					      (__v4di)(__m256i)(D), (int)(E), \
++					      (__v4di)(__m256i)(A), \
++					      (__mmask8)(B)))
+ #define _mm256_maskz_shldi_epi64(A, B, C, D) \
+-  ((__m256i) __builtin_ia32_vpshld_v4di_mask ((__v4di)(__m256i)(B), \
+-	(__v4di)(__m256i)(C),(int)(D), \
+-	(__v4di)(__m256i)_mm256_setzero_si256 (), (__mmask8)(A))
++  ((__m256i) \
++   __builtin_ia32_vpshld_v4di_mask ((__v4di)(__m256i)(B),		\
++				    (__v4di)(__m256i)(C),(int)(D),	\
++				    (__v4di)(__m256i)_mm256_setzero_si256 (), \
++				    (__mmask8)(A)))
+ #define _mm_shldi_epi16(A, B, C) \
+   ((__m128i) __builtin_ia32_vpshld_v8hi ((__v8hi)(__m128i)(A), \
+-	(__v8hi)(__m128i)(B),(int)(C))
++					 (__v8hi)(__m128i)(B),(int)(C)))
+ #define _mm_mask_shldi_epi16(A, B, C, D, E) \
+   ((__m128i) __builtin_ia32_vpshld_v8hi_mask ((__v8hi)(__m128i)(C), \
+-	(__v8hi)(__m128i)(D), (int)(E), (__v8hi)(__m128i)(A),(__mmask8)(B))
++					      (__v8hi)(__m128i)(D), (int)(E), \
++					      (__v8hi)(__m128i)(A), \
++					      (__mmask8)(B)))
+ #define _mm_maskz_shldi_epi16(A, B, C, D) \
+-  ((__m128i) __builtin_ia32_vpshld_v8hi_mask ((__v8hi)(__m128i)(B), \
+-	(__v8hi)(__m128i)(C),(int)(D), \
+-	(__v8hi)(__m128i)_mm_setzero_si128 (), (__mmask8)(A))
++  ((__m128i) \
++   __builtin_ia32_vpshld_v8hi_mask ((__v8hi)(__m128i)(B),		\
++				    (__v8hi)(__m128i)(C),(int)(D),	\
++				    (__v8hi)(__m128i)_mm_setzero_si128 (), \
++				    (__mmask8)(A)))
+ #define _mm_shldi_epi32(A, B, C) \
+   ((__m128i) __builtin_ia32_vpshld_v4si ((__v4si)(__m128i)(A), \
+-	(__v4si)(__m128i)(B),(int)(C))
++					 (__v4si)(__m128i)(B),(int)(C)))
+ #define _mm_mask_shldi_epi32(A, B, C, D, E) \
+   ((__m128i) __builtin_ia32_vpshld_v4si_mask ((__v4si)(__m128i)(C), \
+-	(__v4si)(__m128i)(D), (int)(E), (__v4si)(__m128i)(A),(__mmask8)(B))
++					      (__v4si)(__m128i)(D), (int)(E), \
++					      (__v4si)(__m128i)(A), \
++					      (__mmask8)(B)))
+ #define _mm_maskz_shldi_epi32(A, B, C, D) \
+-  ((__m128i) __builtin_ia32_vpshld_v4si_mask ((__v4si)(__m128i)(B), \
+-	(__v4si)(__m128i)(C),(int)(D), \
+-	(__v4si)(__m128i)_mm_setzero_si128 (), (__mmask8)(A))
++  ((__m128i) \
++   __builtin_ia32_vpshld_v4si_mask ((__v4si)(__m128i)(B),		\
++				    (__v4si)(__m128i)(C),(int)(D),	\
++				    (__v4si)(__m128i)_mm_setzero_si128 (), \
++				    (__mmask8)(A)))
+ #define _mm_shldi_epi64(A, B, C) \
+   ((__m128i) __builtin_ia32_vpshld_v2di ((__v2di)(__m128i)(A), \
+-	(__v2di)(__m128i)(B),(int)(C))
++					 (__v2di)(__m128i)(B),(int)(C)))
+ #define _mm_mask_shldi_epi64(A, B, C, D, E) \
+   ((__m128i) __builtin_ia32_vpshld_v2di_mask ((__v2di)(__m128i)(C), \
+-	(__v2di)(__m128i)(D), (int)(E), (__v2di)(__m128i)(A),(__mmask8)(B))
++					      (__v2di)(__m128i)(D), (int)(E), \
++					      (__v2di)(__m128i)(A), \
++					      (__mmask8)(B)))
+ #define _mm_maskz_shldi_epi64(A, B, C, D) \
+-  ((__m128i) __builtin_ia32_vpshld_v2di_mask ((__v2di)(__m128i)(B), \
+-	(__v2di)(__m128i)(C),(int)(D), \
+-	(__v2di)(__m128i)_mm_setzero_si128 (), (__mmask8)(A))
++  ((__m128i) \
++   __builtin_ia32_vpshld_v2di_mask ((__v2di)(__m128i)(B),		\
++				    (__v2di)(__m128i)(C),(int)(D),	\
++				    (__v2di)(__m128i)_mm_setzero_si128 (), \
++				    (__mmask8)(A)))
+ #endif
+ 
+ extern __inline __m256i
+--- a/src/gcc/config/i386/avx512vpopcntdqintrin.h
++++ b/src/gcc/config/i386/avx512vpopcntdqintrin.h
+@@ -43,10 +43,10 @@ _mm512_popcnt_epi32 (__m512i __A)
+ 
+ extern __inline __m512i
+ __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+-_mm512_mask_popcnt_epi32 (__m512i __A, __mmask16 __U, __m512i __B)
++_mm512_mask_popcnt_epi32 (__m512i __W, __mmask16 __U, __m512i __A)
+ {
+   return (__m512i) __builtin_ia32_vpopcountd_v16si_mask ((__v16si) __A,
+-							 (__v16si) __B,
++							 (__v16si) __W,
+ 							 (__mmask16) __U);
+ }
+ 
+@@ -69,10 +69,10 @@ _mm512_popcnt_epi64 (__m512i __A)
+ 
+ extern __inline __m512i
+ __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+-_mm512_mask_popcnt_epi64 (__m512i __A, __mmask8 __U, __m512i __B)
++_mm512_mask_popcnt_epi64 (__m512i __W, __mmask8 __U, __m512i __A)
+ {
+   return (__m512i) __builtin_ia32_vpopcountq_v8di_mask ((__v8di) __A,
+-							(__v8di) __B,
++							(__v8di) __W,
+ 							(__mmask8) __U);
+ }
+ 
+--- a/src/gcc/config/i386/avx512vpopcntdqvlintrin.h
++++ b/src/gcc/config/i386/avx512vpopcntdqvlintrin.h
+@@ -43,10 +43,10 @@ _mm_popcnt_epi32 (__m128i __A)
+ 
+ extern __inline __m128i
+ __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+-_mm_mask_popcnt_epi32 (__m128i __A, __mmask16 __U, __m128i __B)
++_mm_mask_popcnt_epi32 (__m128i __W, __mmask16 __U, __m128i __A)
+ {
+   return (__m128i) __builtin_ia32_vpopcountd_v4si_mask ((__v4si) __A,
+-							 (__v4si) __B,
++							 (__v4si) __W,
+ 							 (__mmask16) __U);
+ }
+ 
+@@ -69,10 +69,10 @@ _mm256_popcnt_epi32 (__m256i __A)
+ 
+ extern __inline __m256i
+ __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+-_mm256_mask_popcnt_epi32 (__m256i __A, __mmask16 __U, __m256i __B)
++_mm256_mask_popcnt_epi32 (__m256i __W, __mmask16 __U, __m256i __A)
+ {
+   return (__m256i) __builtin_ia32_vpopcountd_v8si_mask ((__v8si) __A,
+-							 (__v8si) __B,
++							 (__v8si) __W,
+ 							 (__mmask16) __U);
+ }
+ 
+@@ -95,10 +95,10 @@ _mm_popcnt_epi64 (__m128i __A)
+ 
+ extern __inline __m128i
+ __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+-_mm_mask_popcnt_epi64 (__m128i __A, __mmask8 __U, __m128i __B)
++_mm_mask_popcnt_epi64 (__m128i __W, __mmask8 __U, __m128i __A)
+ {
+   return (__m128i) __builtin_ia32_vpopcountq_v2di_mask ((__v2di) __A,
+-							(__v2di) __B,
++							(__v2di) __W,
+ 							(__mmask8) __U);
+ }
+ 
+@@ -121,10 +121,10 @@ _mm256_popcnt_epi64 (__m256i __A)
+ 
+ extern __inline __m256i
+ __attribute__((__gnu_inline__, __always_inline__, __artificial__))
+-_mm256_mask_popcnt_epi64 (__m256i __A, __mmask8 __U, __m256i __B)
++_mm256_mask_popcnt_epi64 (__m256i __W, __mmask8 __U, __m256i __A)
+ {
+   return (__m256i) __builtin_ia32_vpopcountq_v4di_mask ((__v4di) __A,
+-							(__v4di) __B,
++							(__v4di) __W,
+ 							(__mmask8) __U);
+ }
+ 
+@@ -144,4 +144,3 @@ _mm256_maskz_popcnt_epi64 (__mmask8 __U, __m256i __A)
+ #endif /* __DISABLE_AVX512VPOPCNTDQVL__ */
+ 
+ #endif /* _AVX512VPOPCNTDQVLINTRIN_H_INCLUDED */
+-
 --- a/src/gcc/config/i386/avxintrin.h
 +++ b/src/gcc/config/i386/avxintrin.h
 @@ -47,6 +47,7 @@ typedef unsigned int __v8su __attribute__ ((__vector_size__ (32)));
@@ -7550,7 +8430,37 @@ new file mode 100644
        else if (!orig_arch_specified)
  	opts->x_ix86_arch_string = NULL;
  
-@@ -9823,6 +9831,7 @@ ix86_gimplify_va_arg (tree valist, tree type, gimple_seq *pre_p,
+@@ -8657,7 +8665,7 @@ function_arg_64 (const CUMULATIVE_ARGS *cum, machine_mode mode,
+ 
+ static rtx
+ function_arg_ms_64 (const CUMULATIVE_ARGS *cum, machine_mode mode,
+-		    machine_mode orig_mode, bool named,
++		    machine_mode orig_mode, bool named, const_tree type,
+ 		    HOST_WIDE_INT bytes)
+ {
+   unsigned int regno;
+@@ -8677,7 +8685,10 @@ function_arg_ms_64 (const CUMULATIVE_ARGS *cum, machine_mode mode,
+   if (TARGET_SSE && (mode == SFmode || mode == DFmode))
+     {
+       if (named)
+-	regno = cum->regno + FIRST_SSE_REG;
++	{
++	  if (type == NULL_TREE || !AGGREGATE_TYPE_P (type))
++	    regno = cum->regno + FIRST_SSE_REG;
++	}
+       else
+ 	{
+ 	  rtx t1, t2;
+@@ -8765,7 +8776,7 @@ ix86_function_arg (cumulative_args_t cum_v, machine_mode omode,
+       enum calling_abi call_abi = cum ? cum->call_abi : ix86_abi;
+ 
+       if (call_abi == MS_ABI)
+-	arg = function_arg_ms_64 (cum, mode, omode, named, bytes);
++	arg = function_arg_ms_64 (cum, mode, omode, named, type, bytes);
+       else
+ 	arg = function_arg_64 (cum, mode, omode, type, named);
+     }
+@@ -9823,6 +9834,7 @@ ix86_gimplify_va_arg (tree valist, tree type, gimple_seq *pre_p,
    tree ptrtype;
    machine_mode nat_mode;
    unsigned int arg_boundary;
@@ -7558,7 +8468,7 @@ new file mode 100644
  
    /* Only 64bit target needs something special.  */
    if (is_va_list_char_pointer (TREE_TYPE (valist)))
-@@ -9880,6 +9889,7 @@ ix86_gimplify_va_arg (tree valist, tree type, gimple_seq *pre_p,
+@@ -9880,6 +9892,7 @@ ix86_gimplify_va_arg (tree valist, tree type, gimple_seq *pre_p,
    /* Pull the value out of the saved registers.  */
  
    addr = create_tmp_var (ptr_type_node, "addr");
@@ -7566,7 +8476,7 @@ new file mode 100644
  
    if (container)
      {
-@@ -10050,6 +10060,9 @@ ix86_gimplify_va_arg (tree valist, tree type, gimple_seq *pre_p,
+@@ -10050,6 +10063,9 @@ ix86_gimplify_va_arg (tree valist, tree type, gimple_seq *pre_p,
  	  t = build2 (PLUS_EXPR, TREE_TYPE (gpr), gpr,
  		      build_int_cst (TREE_TYPE (gpr), needed_intregs * 8));
  	  gimplify_assign (gpr, t, pre_p);
@@ -7576,7 +8486,7 @@ new file mode 100644
  	}
  
        if (needed_sseregs)
-@@ -10094,6 +10107,7 @@ ix86_gimplify_va_arg (tree valist, tree type, gimple_seq *pre_p,
+@@ -10094,6 +10110,7 @@ ix86_gimplify_va_arg (tree valist, tree type, gimple_seq *pre_p,
    if (container)
      gimple_seq_add_stmt (pre_p, gimple_build_label (lab_over));
  
@@ -7584,7 +8494,7 @@ new file mode 100644
    ptrtype = build_pointer_type_for_mode (type, ptr_mode, true);
    addr = fold_convert (ptrtype, addr);
  
-@@ -16960,7 +16974,7 @@ output_pic_addr_const (FILE *file, rtx x, int code)
+@@ -16960,7 +16977,7 @@ output_pic_addr_const (FILE *file, rtx x, int code)
        break;
  
      case SYMBOL_REF:
@@ -7593,7 +8503,23 @@ new file mode 100644
  	output_addr_const (file, x);
        else
  	{
-@@ -44377,11 +44391,15 @@ ix86_md_asm_adjust (vec<rtx> &outputs, vec<rtx> &/*inputs*/,
+@@ -33401,8 +33418,13 @@ ix86_fold_builtin (tree fndecl, int n_args,
+ 		    countt = build_int_cst (integer_type_node, count);
+ 		}
+ 	      tree_vector_builder builder;
+-	      builder.new_unary_operation (TREE_TYPE (args[0]), args[0],
+-					   false);
++	      if (mask != HOST_WIDE_INT_M1U || is_vshift)
++		builder.new_vector (TREE_TYPE (args[0]),
++				    TYPE_VECTOR_SUBPARTS (TREE_TYPE (args[0])),
++				    1);
++	      else
++		builder.new_unary_operation (TREE_TYPE (args[0]), args[0],
++					     false);
+ 	      unsigned int cnt = builder.encoded_nelts ();
+ 	      for (unsigned int i = 0; i < cnt; ++i)
+ 		{
+@@ -44377,11 +44399,15 @@ ix86_md_asm_adjust (vec<rtx> &outputs, vec<rtx> &/*inputs*/,
  	    {
  	      x = force_reg (dest_mode, const0_rtx);
  
@@ -7623,6 +8549,18 @@ new file mode 100644
  #define MACHOPIC_ATT_STUB 0
  /* (b) Macros defined in config/darwin.h  */
  #define MACHO_DYNAMIC_NO_PIC_P 0
+@@ -1082,9 +1082,9 @@ extern const char *host_detect_local_cpu (int argc, const char **argv);
+ /*xmm8,xmm9,xmm10,xmm11,xmm12,xmm13,xmm14,xmm15*/		\
+      6,   6,    6,    6,    6,    6,    6,    6,		\
+ /*xmm16,xmm17,xmm18,xmm19,xmm20,xmm21,xmm22,xmm23*/		\
+-     6,    6,     6,    6,    6,    6,    6,    6,		\
++     1,    1,     1,    1,    1,    1,    1,    1,		\
+ /*xmm24,xmm25,xmm26,xmm27,xmm28,xmm29,xmm30,xmm31*/		\
+-     6,    6,     6,    6,    6,    6,    6,    6,		\
++     1,    1,     1,    1,    1,    1,    1,    1,		\
+  /* k0,  k1,  k2,  k3,  k4,  k5,  k6,  k7*/			\
+      1,   1,   1,   1,   1,   1,   1,   1 }
+ 
 @@ -2205,6 +2205,31 @@ extern int const svr4_dbx_register_map[FIRST_PSEUDO_REGISTER];
  #define ASM_OUTPUT_FUNCTION_LABEL(FILE, NAME, DECL) \
    ix86_asm_output_function_label ((FILE), (NAME), (DECL))
@@ -7675,6 +8613,29 @@ new file mode 100644
  	      (const_string "sse2")
  	   ]
  	   (const_string "*")))
+@@ -15422,10 +15422,10 @@
+ 
+ (define_insn "atan2xf3"
+   [(set (match_operand:XF 0 "register_operand" "=f")
+-        (unspec:XF [(match_operand:XF 1 "register_operand" "0")
+-	            (match_operand:XF 2 "register_operand" "f")]
++        (unspec:XF [(match_operand:XF 2 "register_operand" "0")
++	            (match_operand:XF 1 "register_operand" "f")]
+ 	           UNSPEC_FPATAN))
+-   (clobber (match_scratch:XF 3 "=2"))]
++   (clobber (match_scratch:XF 3 "=1"))]
+   "TARGET_USE_FANCY_MATH_387
+    && flag_unsafe_math_optimizations"
+   "fpatan"
+@@ -15449,7 +15449,7 @@
+   emit_insn (gen_extend<mode>xf2 (op2, operands[2]));
+   emit_insn (gen_extend<mode>xf2 (op1, operands[1]));
+ 
+-  emit_insn (gen_atan2xf3 (op0, op2, op1));
++  emit_insn (gen_atan2xf3 (op0, op1, op2));
+   emit_insn (gen_truncxf<mode>2 (operands[0], op0));
+   DONE;
+ })
 --- a/src/gcc/config/i386/intelmic-mkoffload.c
 +++ b/src/gcc/config/i386/intelmic-mkoffload.c
 @@ -453,8 +453,6 @@ prepare_target_image (const char *target_compiler, int argc, char **argv)
@@ -7698,6 +8659,15 @@ new file mode 100644
    compile_for_target (&argv_obstack);
 --- a/src/gcc/config/i386/sse.md
 +++ b/src/gcc/config/i386/sse.md
+@@ -1610,7 +1610,7 @@
+   [(set (match_operand:SWI1248_AVX512BWDQ 0 "register_operand" "=k")
+ 	(any_lshift:SWI1248_AVX512BWDQ
+ 	  (match_operand:SWI1248_AVX512BWDQ 1 "register_operand" "k")
+-	  (match_operand:QI 2 "immediate_operand" "n")))
++	  (match_operand 2 "const_0_to_255_operand" "n")))
+    (unspec [(const_int 0)] UNSPEC_MASKOP)]
+   "TARGET_AVX512F"
+   "k<mshift><mskmodesuffix>\t{%2, %1, %0|%0, %1, %2}"
 @@ -2625,7 +2625,7 @@
  ;; Modes handled by reduc_sm{in,ax}* patterns.
  (define_mode_iterator REDUC_SSE_SMINMAX_MODE
@@ -7707,7 +8677,32 @@ new file mode 100644
     (V16QI "TARGET_SSE")])
  
  (define_expand "reduc_<code>_scal_<mode>"
-@@ -3914,12 +3914,12 @@
+@@ -3180,13 +3180,19 @@
+ 	  (match_operand:<avx512fmaskmode> 3 "register_operand")))]
+   "TARGET_AVX512BW")
+ 
++;; As vcondv4div4df and vcondv8siv8sf are enabled already with TARGET_AVX,
++;; and their condition can be folded late into a constant, we need to
++;; support vcond_mask_v4div4di and vcond_mask_v8siv8si for TARGET_AVX.
++(define_mode_iterator VI_256_AVX2 [(V32QI "TARGET_AVX2") (V16HI "TARGET_AVX2")
++				   V8SI V4DI])
++
+ (define_expand "vcond_mask_<mode><sseintvecmodelower>"
+-  [(set (match_operand:VI_256 0 "register_operand")
+-	(vec_merge:VI_256
+-	  (match_operand:VI_256 1 "nonimmediate_operand")
+-	  (match_operand:VI_256 2 "nonimm_or_0_operand")
++  [(set (match_operand:VI_256_AVX2 0 "register_operand")
++	(vec_merge:VI_256_AVX2
++	  (match_operand:VI_256_AVX2 1 "nonimmediate_operand")
++	  (match_operand:VI_256_AVX2 2 "nonimm_or_0_operand")
+ 	  (match_operand:<sseintvecmode> 3 "register_operand")))]
+-  "TARGET_AVX2"
++  "TARGET_AVX"
+ {
+   ix86_expand_sse_movcc (operands[0], operands[3],
+ 			 operands[1], operands[2]);
+@@ -3914,12 +3920,12 @@
     (set_attr "mode" "<MODE>")])
  
  (define_insn "*<sd_mask_codefor>fma_fmadd_<mode><sd_maskz_name>_bcst_1"
@@ -7724,7 +8719,7 @@ new file mode 100644
    "TARGET_AVX512F && <sd_mask_mode512bit_condition>"
    "vfmadd213<ssemodesuffix>\t{%3<avx512bcst>, %2, %0<sd_mask_op4>|%0<sd_mask_op4>, %2, %3<avx512bcst>}"
    [(set_attr "type" "ssemuladd")
-@@ -4031,13 +4031,13 @@
+@@ -4031,13 +4037,13 @@
     (set_attr "mode" "<MODE>")])
  
  (define_insn "*<sd_mask_codefor>fma_fmsub_<mode><sd_maskz_name>_bcst_1"
@@ -7742,7 +8737,7 @@ new file mode 100644
    "TARGET_AVX512F && <sd_mask_mode512bit_condition>"
    "vfmsub213<ssemodesuffix>\t{%3<avx512bcst>, %2, %0<sd_mask_op4>|%0<sd_mask_op4>, %2, %3<avx512bcst>}"
    [(set_attr "type" "ssemuladd")
-@@ -4153,13 +4153,13 @@
+@@ -4153,13 +4159,13 @@
     (set_attr "mode" "<MODE>")])
  
  (define_insn "*<sd_mask_codefor>fma_fnmadd_<mode><sd_maskz_name>_bcst_1"
@@ -7760,7 +8755,7 @@ new file mode 100644
    "TARGET_AVX512F && <sd_mask_mode512bit_condition>"
    "vfnmadd213<ssemodesuffix>\t{%3<avx512bcst>, %2, %0<sd_mask_op4>|%0<sd_mask_op4>, %2, %3<avx512bcst>}"
    [(set_attr "type" "ssemuladd")
-@@ -4277,14 +4277,14 @@
+@@ -4277,14 +4283,14 @@
     (set_attr "mode" "<MODE>")])
  
  (define_insn "*<sd_mask_codefor>fma_fnmsub_<mode><sd_maskz_name>_bcst_1"
@@ -7779,7 +8774,57 @@ new file mode 100644
    "TARGET_AVX512F && <sd_mask_mode512bit_condition>"
    "vfnmsub213<ssemodesuffix>\t{%3<avx512bcst>, %2, %0<sd_mask_op4>|%0<sd_mask_op4>, %2, %3<avx512bcst>}"
    [(set_attr "type" "ssemuladd")
-@@ -16241,7 +16241,7 @@
+@@ -8214,13 +8220,16 @@
+    (set_attr "prefix" "evex")
+    (set_attr "mode" "<sseinsnmode>")])
+ 
++(define_mode_iterator VI48F_256_DQ
++  [V8SI V8SF (V4DI "TARGET_AVX512DQ") (V4DF "TARGET_AVX512DQ")])
++
+ (define_expand "avx512vl_vextractf128<mode>"
+   [(match_operand:<ssehalfvecmode> 0 "nonimmediate_operand")
+-   (match_operand:VI48F_256 1 "register_operand")
++   (match_operand:VI48F_256_DQ 1 "register_operand")
+    (match_operand:SI 2 "const_0_to_1_operand")
+    (match_operand:<ssehalfvecmode> 3 "nonimm_or_0_operand")
+    (match_operand:QI 4 "register_operand")]
+-  "TARGET_AVX512DQ && TARGET_AVX512VL"
++  "TARGET_AVX512VL"
+ {
+   rtx (*insn)(rtx, rtx, rtx, rtx);
+   rtx dest = operands[0];
+@@ -8288,14 +8297,19 @@
+                      (const_int 4) (const_int 5)
+                      (const_int 6) (const_int 7)])))]
+   "TARGET_AVX512F
+-   && <mask_mode512bit_condition>
++   && <mask_avx512dq_condition>
+    && (<mask_applied> || !(MEM_P (operands[0]) && MEM_P (operands[1])))"
+ {
+   if (<mask_applied>
+       || (!TARGET_AVX512VL
+ 	  && !REG_P (operands[0])
+ 	  && EXT_REX_SSE_REG_P (operands[1])))
+-    return "vextract<shuffletype>32x8\t{$0x0, %1, %0<mask_operand2>|%0<mask_operand2>, %1, 0x0}";
++    {
++      if (TARGET_AVX512DQ)
++	return "vextract<shuffletype>32x8\t{$0x0, %1, %0<mask_operand2>|%0<mask_operand2>, %1, 0x0}";
++      else
++	return "vextract<shuffletype>64x4\t{$0x0, %1, %0|%0, %1, 0x0}";
++    }
+   else
+     return "#";
+ }
+@@ -8405,7 +8419,7 @@
+ 	  (parallel [(const_int 0) (const_int 1)
+ 		     (const_int 2) (const_int 3)])))]
+   "TARGET_AVX
+-   && <mask_avx512vl_condition> && <mask_avx512dq_condition>
++   && <mask_avx512vl_condition>
+    && (<mask_applied> || !(MEM_P (operands[0]) && MEM_P (operands[1])))"
+ {
+   if (<mask_applied>)
+@@ -16241,7 +16255,7 @@
      }
  })
  
@@ -7788,6 +8833,42 @@ new file mode 100644
    [(set (match_operand:MMXMODEI 0 "register_operand" "=y")
  	(abs:MMXMODEI
  	  (match_operand:MMXMODEI 1 "nonimmediate_operand" "ym")))]
+@@ -21116,7 +21130,7 @@
+   [(set (match_operand:<avx512fmaskmode> 0 "register_operand" "=k")
+           (unspec:<avx512fmaskmode>
+             [(match_operand:VF_AVX512VL 1 "register_operand" "v")
+-             (match_operand:QI 2 "const_0_to_255_operand" "n")]
++             (match_operand 2 "const_0_to_255_operand" "n")]
+              UNSPEC_FPCLASS))]
+    "TARGET_AVX512DQ"
+    "vfpclass<ssemodesuffix>\t{%2, %1, %0<mask_scalar_merge_operand3>|%0<mask_scalar_merge_operand3>, %1, %2}";
+@@ -21130,7 +21144,7 @@
+ 	(and:<avx512fmaskmode>
+ 	  (unspec:<avx512fmaskmode>
+ 	    [(match_operand:VF_128 1 "register_operand" "v")
+-             (match_operand:QI 2 "const_0_to_255_operand" "n")]
++             (match_operand 2 "const_0_to_255_operand" "n")]
+ 	    UNSPEC_FPCLASS)
+ 	  (const_int 1)))]
+    "TARGET_AVX512DQ"
+@@ -21735,7 +21749,7 @@
+ 	(unspec:VI1_AVX512F
+ 	  [(match_operand:VI1_AVX512F 1 "register_operand" "%0,x,v")
+ 	   (match_operand:VI1_AVX512F 2 "nonimmediate_operand" "xBm,xm,vm")
+-	   (match_operand:QI 3 "const_0_to_255_operand" "n,n,n")]
++	   (match_operand 3 "const_0_to_255_operand" "n,n,n")]
+ 	  UNSPEC_GF2P8AFFINEINV))]
+   "TARGET_GFNI"
+   "@
+@@ -21753,7 +21767,7 @@
+ 	(unspec:VI1_AVX512F
+ 	  [(match_operand:VI1_AVX512F 1 "register_operand" "%0,x,v")
+ 	   (match_operand:VI1_AVX512F 2 "nonimmediate_operand" "xBm,xm,vm")
+-	   (match_operand:QI 3 "const_0_to_255_operand" "n,n,n")]
++	   (match_operand 3 "const_0_to_255_operand" "n,n,n")]
+ 	  UNSPEC_GF2P8AFFINE))]
+   "TARGET_GFNI"
+   "@
 --- a/src/gcc/config/mips/mips.c
 +++ b/src/gcc/config/mips/mips.c
 @@ -4849,7 +4849,7 @@ mips_split_move (rtx dest, rtx src, enum mips_split_type split_type, rtx insn_)
@@ -11185,7 +12266,21 @@ new file mode 100644
  extern const char *output_return (rtx_insn *);
 --- a/src/gcc/config/sparc/sparc.c
 +++ b/src/gcc/config/sparc/sparc.c
-@@ -4243,9 +4243,11 @@ sparc_cannot_force_const_mem (machine_mode mode, rtx x)
+@@ -3972,11 +3972,8 @@ eligible_for_call_delay (rtx_insn *trial)
+   if (get_attr_in_branch_delay (trial) == IN_BRANCH_DELAY_FALSE)
+     return 0;
+ 
+-  /* Binutils allows
+-       call __tls_get_addr, %tgd_call (foo)
+-        add %l7, %o0, %o0, %tgd_add (foo)
+-     while Sun as/ld does not.  */
+-  if (TARGET_GNU_TLS || !TARGET_TLS)
++  /* The only problematic cases are TLS sequences with Sun as/ld.  */
++  if ((TARGET_GNU_TLS && HAVE_GNU_LD) || !TARGET_TLS)
+     return 1;
+ 
+   pat = PATTERN (trial);
+@@ -4243,9 +4240,11 @@ sparc_cannot_force_const_mem (machine_mode mode, rtx x)
  }
  
  /* Global Offset Table support.  */
@@ -11199,7 +12294,7 @@ new file mode 100644
  
  /* Return the SYMBOL_REF for the Global Offset Table.  */
  
-@@ -4258,27 +4260,6 @@ sparc_got (void)
+@@ -4258,27 +4257,6 @@ sparc_got (void)
    return got_symbol_rtx;
  }
  
@@ -11227,7 +12322,7 @@ new file mode 100644
  /* Wrapper around the load_pcrel_sym{si,di} patterns.  */
  
  static rtx
-@@ -4298,30 +4279,78 @@ gen_load_pcrel_sym (rtx op0, rtx op1, rtx op2)
+@@ -4298,30 +4276,78 @@ gen_load_pcrel_sym (rtx op0, rtx op1, rtx op2)
    return insn;
  }
  
@@ -11312,7 +12407,7 @@ new file mode 100644
  }
  
  /* Ensure that we are not using patterns that are not OK with PIC.  */
-@@ -4457,7 +4486,7 @@ sparc_pic_register_p (rtx x)
+@@ -4457,7 +4483,7 @@ sparc_pic_register_p (rtx x)
      return true;
  
    if (!HARD_REGISTER_P (pic_offset_table_rtx)
@@ -11321,7 +12416,7 @@ new file mode 100644
        && ORIGINAL_REGNO (x) == REGNO (pic_offset_table_rtx))
      return true;
  
-@@ -5486,7 +5515,7 @@ save_local_or_in_reg_p (unsigned int regno, int leaf_function)
+@@ -5486,7 +5512,7 @@ save_local_or_in_reg_p (unsigned int regno, int leaf_function)
      return true;
  
    /* GOT register (%l7) if needed.  */
@@ -11330,7 +12425,7 @@ new file mode 100644
      return true;
  
    /* If the function accesses prior frames, the frame pointer and the return
-@@ -12529,10 +12558,9 @@ static void
+@@ -12529,10 +12555,9 @@ static void
  sparc_file_end (void)
  {
    /* If we need to emit the special GOT helper function, do so now.  */
@@ -11342,7 +12437,7 @@ new file mode 100644
  #ifdef DWARF2_UNWIND_INFO
        bool do_cfi;
  #endif
-@@ -12569,17 +12597,22 @@ sparc_file_end (void)
+@@ -12569,17 +12594,22 @@ sparc_file_end (void)
  #ifdef DWARF2_UNWIND_INFO
        do_cfi = dwarf2out_do_cfi_asm ();
        if (do_cfi)
@@ -11371,7 +12466,7 @@ new file mode 100644
  #endif
      }
  
-@@ -13085,7 +13118,10 @@ sparc_init_pic_reg (void)
+@@ -13085,7 +13115,10 @@ sparc_init_pic_reg (void)
    edge entry_edge;
    rtx_insn *seq;
  
@@ -11509,7 +12604,27 @@ new file mode 100644
  AC_SUBST(all_selected_languages)
 --- a/src/gcc/cp/ChangeLog
 +++ b/src/gcc/cp/ChangeLog
-@@ -1,3 +1,434 @@
+@@ -1,3 +1,454 @@
++2020-02-14  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/61414
++	* class.c (enum_min_precision): Change prec type from int to int &.
++
++2020-02-13  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from mainline
++	2020-02-05  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/93557
++	* semantics.c (cp_build_vec_convert): Call decay_conversion on arg
++	prior to passing it to c_build_vec_convert.
++
++	2020-01-29  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/91118
++	* cp-gimplify.c (cxx_omp_predetermined_sharing): Return
++	OMP_CLAUSE_DEFAULT_SHARED for typeinfo decls.
++
 +2020-01-28  Jason Merrill  <jason@redhat.com>
 +
 +	PR c++/90546
@@ -11944,7 +13059,7 @@ new file mode 100644
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -16,7 +447,7 @@
+@@ -16,7 +467,7 @@
  
  	Backported from mainline
  	2019-08-02  Marek Polacek  <polacek@redhat.com>
@@ -12338,7 +13453,7 @@ new file mode 100644
 +    enum_to_min_precision = hash_map<tree, int>::create_ggc (37);
 +
 +  bool existed;
-+  int prec = enum_to_min_precision->get_or_insert (type, &existed);
++  int &prec = enum_to_min_precision->get_or_insert (type, &existed);
 +  if (existed)
 +    return prec;
 +
@@ -12518,6 +13633,17 @@ new file mode 100644
      }
  
    /* this may not be specified in data-sharing clauses, still we need
+@@ -2083,6 +2107,10 @@ cxx_omp_predetermined_sharing (tree decl)
+ 	   && DECL_OMP_PRIVATIZED_MEMBER (decl)))
+     return OMP_CLAUSE_DEFAULT_SHARED;
+ 
++  /* Similarly for typeinfo symbols.  */
++  if (VAR_P (decl) && DECL_ARTIFICIAL (decl) && DECL_TINFO_P (decl))
++    return OMP_CLAUSE_DEFAULT_SHARED;
++
+   return OMP_CLAUSE_DEFAULT_UNSPECIFIED;
+ }
+ 
 --- a/src/gcc/cp/cp-objcp-common.c
 +++ b/src/gcc/cp/cp-objcp-common.c
 @@ -352,6 +352,18 @@ identifier_global_value (tree name)
@@ -13552,6 +14678,16 @@ new file mode 100644
    switch (TREE_CODE (cond))
      {
      case GT_EXPR:
+@@ -10026,7 +10036,8 @@ cp_build_vec_convert (tree arg, location_t loc, tree type,
+ 
+   tree ret = NULL_TREE;
+   if (!type_dependent_expression_p (arg) && !dependent_type_p (type))
+-    ret = c_build_vec_convert (cp_expr_loc_or_loc (arg, input_location), arg,
++    ret = c_build_vec_convert (cp_expr_loc_or_loc (arg, input_location),
++			       decay_conversion (arg, complain),
+ 			       loc, type, (complain & tf_error) != 0);
+ 
+   if (!processing_template_decl)
 --- a/src/gcc/cp/tree.c
 +++ b/src/gcc/cp/tree.c
 @@ -3123,6 +3123,11 @@ replace_placeholders_r (tree* t, int* walk_subtrees, void* data_)
@@ -13819,6 +14955,29 @@ new file mode 100644
    dwarf_file_data **slot
      = file_table->find_slot_with_hash (file_name, htab_hash_string (file_name),
  				       INSERT);
+@@ -29582,9 +29580,9 @@ prune_unused_types (void)
+   for (i = 0; base_types.iterate (i, &base_type); i++)
+     prune_unused_types_mark (base_type, 1);
+ 
+-  /* For -fvar-tracking-assignments, also set the mark on nodes that could be
+-     referenced by DW_TAG_call_site DW_AT_call_origin (i.e. direct call
+-     callees).  */
++  /* Also set the mark on nodes that could be referenced by
++     DW_TAG_call_site DW_AT_call_origin (i.e. direct call callees) or
++     by DW_TAG_inlined_subroutine origins.  */
+   cgraph_node *cnode;
+   FOR_EACH_FUNCTION (cnode)
+     if (cnode->referred_to_p (false))
+@@ -29593,8 +29591,7 @@ prune_unused_types (void)
+ 	if (die == NULL || die->die_mark)
+ 	  continue;
+ 	for (cgraph_edge *e = cnode->callers; e; e = e->next_caller)
+-	  if (e->caller != cnode
+-	      && opt_for_fn (e->caller->decl, flag_var_tracking_assignments))
++	  if (e->caller != cnode)
+ 	    {
+ 	      prune_unused_types_mark (die, 1);
+ 	      break;
 --- a/src/gcc/expmed.c
 +++ b/src/gcc/expmed.c
 @@ -838,6 +838,27 @@ store_bit_field_1 (rtx str_rtx, poly_uint64 bitsize, poly_uint64 bitnum,
@@ -13851,7 +15010,52 @@ new file mode 100644
      }
 --- a/src/gcc/fold-const.c
 +++ b/src/gcc/fold-const.c
-@@ -4935,10 +4935,9 @@ range_check_type (tree etype)
+@@ -2932,6 +2932,11 @@ combine_comparisons (location_t loc,
+    If OEP_LEXICOGRAPHIC is set, then also handle expressions with side-effects
+    such as MODIFY_EXPR, RETURN_EXPR, as well as STATEMENT_LISTs.
+ 
++   If OEP_BITWISE is set, then require the values to be bitwise identical
++   rather than simply numerically equal.  Do not take advantage of things
++   like math-related flags or undefined behavior; only return true for
++   values that are provably bitwise identical in all circumstances.
++
+    Unless OEP_MATCH_SIDE_EFFECTS is set, the function returns false on
+    any operand with side effect.  This is unnecesarily conservative in the
+    case we know that arg0 and arg1 are in disjoint code paths (such as in
+@@ -2978,6 +2983,11 @@ operand_equal_p (const_tree arg0, const_tree arg1, unsigned int flags)
+   if (!TREE_TYPE (arg0) || !TREE_TYPE (arg1))
+     return 0;
+ 
++  /* Bitwise identity makes no sense if the values have different layouts.  */
++  if ((flags & OEP_BITWISE)
++      && !tree_nop_conversion_p (TREE_TYPE (arg0), TREE_TYPE (arg1)))
++    return 0;
++
+   /* We cannot consider pointers to different address space equal.  */
+   if (POINTER_TYPE_P (TREE_TYPE (arg0))
+       && POINTER_TYPE_P (TREE_TYPE (arg1))
+@@ -3110,8 +3120,7 @@ operand_equal_p (const_tree arg0, const_tree arg1, unsigned int flags)
+ 	if (real_identical (&TREE_REAL_CST (arg0), &TREE_REAL_CST (arg1)))
+ 	  return 1;
+ 
+-
+-	if (!HONOR_SIGNED_ZEROS (arg0))
++	if (!(flags & OEP_BITWISE) && !HONOR_SIGNED_ZEROS (arg0))
+ 	  {
+ 	    /* If we do not distinguish between signed and unsigned zero,
+ 	       consider them equal.  */
+@@ -3163,7 +3172,9 @@ operand_equal_p (const_tree arg0, const_tree arg1, unsigned int flags)
+ 	break;
+       }
+ 
+-  if (flags & OEP_ONLY_CONST)
++  /* Don't handle more cases for OEP_BITWISE, since we can't guarantee that
++     two instances of undefined behavior will give identical results.  */
++  if (flags & (OEP_ONLY_CONST | OEP_BITWISE))
+     return 0;
+ 
+ /* Define macros to test an operand from arg0 and arg1 for equality and a
+@@ -4935,10 +4946,9 @@ range_check_type (tree etype)
    /* First make sure that arithmetics in this type is valid, then make sure
       that it wraps around.  */
    if (TREE_CODE (etype) == ENUMERAL_TYPE || TREE_CODE (etype) == BOOLEAN_TYPE)
@@ -13864,7 +15068,7 @@ new file mode 100644
      {
        tree utype, minv, maxv;
  
-@@ -4956,6 +4955,8 @@ range_check_type (tree etype)
+@@ -4956,6 +4966,8 @@ range_check_type (tree etype)
        else
  	return NULL_TREE;
      }
@@ -13873,7 +15077,7 @@ new file mode 100644
    return etype;
  }
  
-@@ -5046,9 +5047,6 @@ build_range_check (location_t loc, tree type, tree exp, int in_p,
+@@ -5046,9 +5058,6 @@ build_range_check (location_t loc, tree type, tree exp, int in_p,
    if (etype == NULL_TREE)
      return NULL_TREE;
  
@@ -13885,7 +15089,28 @@ new file mode 100644
    exp = fold_convert_loc (loc, etype, exp);
 --- a/src/gcc/fortran/ChangeLog
 +++ b/src/gcc/fortran/ChangeLog
-@@ -1,3 +1,562 @@
+@@ -1,3 +1,583 @@
++2020-02-18  Mark Eggleston  <markeggleston@gcc.gnu.org>
++
++	Backported from mainline
++	2020-02-18  Steven G. Kargl  <kargl@gcc.gnu.org>
++	            Mark Eggleston  <markeggleston@gcc.gnu.org>
++
++	PR fortran/93580
++	* primary.c (gfc_match_varspec): If the symbol following %
++	is re or im and the primary expression type is not BT_COMPLEX
++	issue an error. If the symbol is len and the primary
++	expression type is not BT_CHARACTER is an error.
++
++2020-02-13  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from mainline
++	2020-01-29  Jakub Jelinek  <jakub@redhat.com>
++
++	PR fortran/93463
++	* openmp.c (oacc_code_to_statement): Handle
++	EXEC_OACC_{ROUTINE,UPDATE,WAIT,CACHE,{ENTER,EXIT}_DATA,DECLARE}.
++
 +2020-02-03  Tobias Burnus  <tobias@codesourcery.com>
 +
 +	Backported from mainline
@@ -16023,6 +17248,27 @@ new file mode 100644
      default:
        gcc_unreachable ();
      }
+@@ -5783,6 +5858,20 @@ oacc_code_to_statement (gfc_code *code)
+       return ST_OACC_LOOP;
+     case EXEC_OACC_ATOMIC:
+       return ST_OACC_ATOMIC;
++    case EXEC_OACC_ROUTINE:
++      return ST_OACC_ROUTINE;
++    case EXEC_OACC_UPDATE:
++      return ST_OACC_UPDATE;
++    case EXEC_OACC_WAIT:
++      return ST_OACC_WAIT;
++    case EXEC_OACC_CACHE:
++      return ST_OACC_CACHE;
++    case EXEC_OACC_ENTER_DATA:
++      return ST_OACC_ENTER_DATA;
++    case EXEC_OACC_EXIT_DATA:
++      return ST_OACC_EXIT_DATA;
++    case EXEC_OACC_DECLARE:
++      return ST_OACC_DECLARE;
+     default:
+       gcc_unreachable ();
+     }
 --- a/src/gcc/fortran/parse.c
 +++ b/src/gcc/fortran/parse.c
 @@ -1079,12 +1079,20 @@ decode_gcc_attribute (void)
@@ -16108,7 +17354,7 @@ new file mode 100644
    locus old_loc;
    char sep;
  
-@@ -2194,11 +2195,15 @@ gfc_match_varspec (gfc_expr *primary, int equiv_flag, bool sub_flag,
+@@ -2194,11 +2195,35 @@ gfc_match_varspec (gfc_expr *primary, int equiv_flag, bool sub_flag,
        if (m != MATCH_YES)
  	return MATCH_ERROR;
  
@@ -16119,12 +17365,32 @@ new file mode 100644
  	  if (inquiry)
  	    sym = NULL;
 +
-+	  if (sep == '%' && primary->ts.type != BT_UNKNOWN)
-+	    intrinsic = true;
++	  if (sep == '%')
++	    {
++	      if (tmp)
++		{
++		  if ((tmp->u.i == INQUIRY_RE || tmp->u.i == INQUIRY_IM)
++		      && primary->ts.type != BT_COMPLEX)
++		    {
++			gfc_error ("The RE or IM part_ref at %C must be "
++				   "applied to a COMPLEX expression");
++			return MATCH_ERROR;
++		    }
++		  else if (tmp->u.i == INQUIRY_LEN
++			   && primary->ts.type != BT_CHARACTER)
++		    {
++			gfc_error ("The LEN part_ref at %C must be applied "
++				   "to a CHARACTER expression");
++			return MATCH_ERROR;
++		    }
++		}
++	      if (primary->ts.type != BT_UNKNOWN)
++		intrinsic = true;
++	    }
  	}
        else
  	inquiry = false;
-@@ -2258,12 +2263,16 @@ gfc_match_varspec (gfc_expr *primary, int equiv_flag, bool sub_flag,
+@@ -2258,12 +2283,16 @@ gfc_match_varspec (gfc_expr *primary, int equiv_flag, bool sub_flag,
  	  break;
  	}
  
@@ -16143,7 +17409,7 @@ new file mode 100644
  	return MATCH_ERROR;
  
        /* Extend the reference chain determined by gfc_find_component or
-@@ -2284,6 +2293,8 @@ gfc_match_varspec (gfc_expr *primary, int equiv_flag, bool sub_flag,
+@@ -2284,6 +2313,8 @@ gfc_match_varspec (gfc_expr *primary, int equiv_flag, bool sub_flag,
  
        if (tmp && tmp->type == REF_INQUIRY)
  	{
@@ -16152,7 +17418,7 @@ new file mode 100644
  	  gfc_simplify_expr (primary, 0);
  
  	  if (primary->expr_type == EXPR_CONSTANT)
-@@ -2559,12 +2570,10 @@ gfc_variable_attr (gfc_expr *expr, gfc_typespec *ts)
+@@ -2559,12 +2590,10 @@ gfc_variable_attr (gfc_expr *expr, gfc_typespec *ts)
  	    break;
  
  	  case AR_UNKNOWN:
@@ -17215,6 +18481,44 @@ new file mode 100644
  #include "stor-layout.h"
  #include "tree-dfa.h"
  #include "builtins.h"
+--- a/src/gcc/genmatch.c
++++ b/src/gcc/genmatch.c
+@@ -3035,10 +3035,15 @@ dt_node::gen_kids_1 (FILE *f, int indent, bool gimple,
+ 	    {
+ 	      expr *e = as_a <expr *>(fns[i]->op);
+ 	      fprintf_indent (f, indent, "case %s:\n", e->operation->id);
+-	      fprintf_indent (f, indent, "  {\n");
+-	      fns[i]->gen (f, indent + 4, true);
+-	      fprintf_indent (f, indent, "    break;\n");
+-	      fprintf_indent (f, indent, "  }\n");
++	      /* We need to be defensive against bogus prototypes allowing
++		 calls with not enough arguments.  */
++	      fprintf_indent (f, indent,
++			      "  if (gimple_call_num_args (def) == %d)\n"
++			      "    {\n", e->ops.length ());
++	      fns[i]->gen (f, indent + 6, true);
++	      fprintf_indent (f, indent,
++			      "    }\n"
++			      "  break;\n");
+ 	    }
+ 
+ 	  fprintf_indent (f, indent, "default:;\n");
+@@ -3099,10 +3104,11 @@ dt_node::gen_kids_1 (FILE *f, int indent, bool gimple,
+ 	  gcc_assert (e->operation->kind == id_base::FN);
+ 
+ 	  fprintf_indent (f, indent, "case %s:\n", e->operation->id);
+-	  fprintf_indent (f, indent, "  {\n");
+-	  generic_fns[j]->gen (f, indent + 4, false);
+-	  fprintf_indent (f, indent, "    break;\n");
+-	  fprintf_indent (f, indent, "  }\n");
++	  fprintf_indent (f, indent, "  if (call_expr_nargs (%s) == %d)\n"
++				     "    {\n", kid_opname, e->ops.length ());
++	  generic_fns[j]->gen (f, indent + 6, false);
++	  fprintf_indent (f, indent, "    }\n"
++				     "  break;\n");
+ 	}
+       fprintf_indent (f, indent, "default:;\n");
+ 
 --- a/src/gcc/ggc-none.c
 +++ b/src/gcc/ggc-none.c
 @@ -72,3 +72,8 @@ void
@@ -17566,6 +18870,33 @@ new file mode 100644
  			    tree d1 = OMP_CLAUSE_DECL (*sc);
  			    tree d2 = OMP_CLAUSE_DECL (c);
  			    while (TREE_CODE (d1) == ARRAY_REF)
+@@ -9079,9 +9081,13 @@ gimplify_scan_omp_clauses (tree *list_p, gimple_seq *pre_p,
+ 				  == POINTER_TYPE))))
+ 		    omp_firstprivatize_variable (outer_ctx, decl);
+ 		  else
+-		    omp_add_variable (outer_ctx, decl,
+-				      GOVD_SEEN | GOVD_SHARED);
+-		  omp_notice_variable (outer_ctx, decl, true);
++		    {
++		      omp_add_variable (outer_ctx, decl,
++					GOVD_SEEN | GOVD_SHARED);
++		      if (outer_ctx->outer_context)
++			omp_notice_variable (outer_ctx->outer_context, decl,
++					     true);
++		    }
+ 		}
+ 	    }
+ 	  if (outer_ctx)
+@@ -13519,7 +13525,8 @@ gimplify_expr (tree *expr_p, gimple_seq *pre_p, gimple_seq *post_p,
+ 	{
+ 	  /* Avoid the extra copy if possible.  */
+ 	  *expr_p = create_tmp_reg (TREE_TYPE (name));
+-	  gimple_set_lhs (SSA_NAME_DEF_STMT (name), *expr_p);
++	  if (!gimple_nop_p (SSA_NAME_DEF_STMT (name)))
++	    gimple_set_lhs (SSA_NAME_DEF_STMT (name), *expr_p);
+ 	  release_ssa_name (name);
+ 	}
+     }
 --- a/src/gcc/go/gofrontend/escape.cc
 +++ b/src/gcc/go/gofrontend/escape.cc
 @@ -1879,7 +1879,8 @@ Escape_analysis_assign::expression(Expression** pexpr)
@@ -18278,7 +19609,17 @@ new file mode 100644
    temp_filename = (char *) xmalloc (blen + sizeof ("2147483648.o"));
 --- a/src/gcc/match.pd
 +++ b/src/gcc/match.pd
-@@ -1519,8 +1519,6 @@ DEFINE_INT_AND_FLOAT_ROUND_FN (RINT)
+@@ -1419,7 +1419,8 @@ DEFINE_INT_AND_FLOAT_ROUND_FN (RINT)
+ (for cmp (gt lt ge le)
+ (simplify
+  (mult (convert (cmp @0 @1)) @2)
+-  (cond (cmp @0 @1) @2 { build_zero_cst (type); })))
++  (if (GIMPLE || !TREE_SIDE_EFFECTS (@2))
++   (cond (cmp @0 @1) @2 { build_zero_cst (type); }))))
+ 
+ /* For integral types with undefined overflow and C != 0 fold
+    x * C EQ/NE y * C into x EQ/NE y.  */
+@@ -1519,8 +1520,6 @@ DEFINE_INT_AND_FLOAT_ROUND_FN (RINT)
  	tree etype = range_check_type (TREE_TYPE (@0));
  	if (etype)
  	  {
@@ -18287,7 +19628,7 @@ new file mode 100644
  	    hi = fold_convert (etype, hi);
  	    lo = fold_convert (etype, lo);
  	    hi = const_binop (MINUS_EXPR, etype, hi, lo);
-@@ -3381,8 +3379,7 @@ DEFINE_INT_AND_FLOAT_ROUND_FN (RINT)
+@@ -3381,8 +3380,7 @@ DEFINE_INT_AND_FLOAT_ROUND_FN (RINT)
       (cmp { tem; } @1)))))
  
   /* Fold comparisons against built-in math functions.  */
@@ -18297,7 +19638,7 @@ new file mode 100644
    (for sq (SQRT)
     (simplify
      (cmp (sq @0) REAL_CST@1)
-@@ -3417,56 +3414,108 @@ DEFINE_INT_AND_FLOAT_ROUND_FN (RINT)
+@@ -3417,56 +3415,108 @@ DEFINE_INT_AND_FLOAT_ROUND_FN (RINT)
  	  if x is negative or NaN.  Due to -funsafe-math-optimizations,
  	  the results for other x follow from natural arithmetic.  */
         (cmp @0 @1)))
@@ -18511,7 +19852,44 @@ new file mode 100644
    if (has_conflicts)
 --- a/src/gcc/omp-low.c
 +++ b/src/gcc/omp-low.c
-@@ -3041,6 +3041,16 @@ check_omp_nesting_restrictions (gimple *stmt, omp_context *ctx)
+@@ -444,18 +444,30 @@ use_pointer_for_field (tree decl, omp_context *shared_ctx)
+ 	  omp_context *up;
+ 
+ 	  for (up = shared_ctx->outer; up; up = up->outer)
+-	    if (is_taskreg_ctx (up) && maybe_lookup_decl (decl, up))
++	    if ((is_taskreg_ctx (up)
++		 || (gimple_code (up->stmt) == GIMPLE_OMP_TARGET
++		     && is_gimple_omp_offloaded (up->stmt)))
++		&& maybe_lookup_decl (decl, up))
+ 	      break;
+ 
+ 	  if (up)
+ 	    {
+ 	      tree c;
+ 
+-	      for (c = gimple_omp_taskreg_clauses (up->stmt);
+-		   c; c = OMP_CLAUSE_CHAIN (c))
+-		if (OMP_CLAUSE_CODE (c) == OMP_CLAUSE_SHARED
+-		    && OMP_CLAUSE_DECL (c) == decl)
+-		  break;
++	      if (gimple_code (up->stmt) == GIMPLE_OMP_TARGET)
++		{
++		  for (c = gimple_omp_target_clauses (up->stmt);
++		       c; c = OMP_CLAUSE_CHAIN (c))
++		    if (OMP_CLAUSE_CODE (c) == OMP_CLAUSE_MAP
++			&& OMP_CLAUSE_DECL (c) == decl)
++		      break;
++		}
++	      else
++		for (c = gimple_omp_taskreg_clauses (up->stmt);
++		     c; c = OMP_CLAUSE_CHAIN (c))
++		  if (OMP_CLAUSE_CODE (c) == OMP_CLAUSE_SHARED
++		      && OMP_CLAUSE_DECL (c) == decl)
++		    break;
+ 
+ 	      if (c)
+ 		goto maybe_mark_addressable_and_ret;
+@@ -3041,6 +3053,16 @@ check_omp_nesting_restrictions (gimple *stmt, omp_context *ctx)
        }
        break;
      case GIMPLE_OMP_TEAMS:
@@ -18528,6 +19906,22 @@ new file mode 100644
        if (ctx == NULL)
  	break;
        else if (gimple_code (ctx->stmt) != GIMPLE_OMP_TARGET
+@@ -3338,7 +3360,14 @@ scan_omp_1_stmt (gimple_stmt_iterator *gsi, bool *handled_ops_p,
+       break;
+ 
+     case GIMPLE_OMP_TARGET:
+-      scan_omp_target (as_a <gomp_target *> (stmt), ctx);
++      if (is_gimple_omp_offloaded (stmt))
++	{
++	  taskreg_nesting_level++;
++	  scan_omp_target (as_a <gomp_target *> (stmt), ctx);
++	  taskreg_nesting_level--;
++	}
++      else
++	scan_omp_target (as_a <gomp_target *> (stmt), ctx);
+       break;
+ 
+     case GIMPLE_OMP_TEAMS:
 --- a/src/gcc/omp-simd-clone.c
 +++ b/src/gcc/omp-simd-clone.c
 @@ -498,7 +498,6 @@ simd_clone_adjust_return_type (struct cgraph_node *node)
@@ -18559,7 +19953,32 @@ new file mode 100644
    targetm.simd_clone.adjust (node);
  
    tree retval = simd_clone_adjust_return_type (node);
-@@ -1737,6 +1733,8 @@ expand_simd_clones (struct cgraph_node *node)
+@@ -1707,14 +1703,22 @@ expand_simd_clones (struct cgraph_node *node)
+ 	     already.  */
+ 	  tree id = simd_clone_mangle (node, clone);
+ 	  if (id == NULL_TREE)
+-	    continue;
++	    {
++	      if (i == 0)
++		clone->nargs += clone->inbranch;
++	      continue;
++	    }
+ 
+ 	  /* Only when we are sure we want to create the clone actually
+ 	     clone the function (or definitions) or create another
+ 	     extern FUNCTION_DECL (for prototypes without definitions).  */
+ 	  struct cgraph_node *n = simd_clone_create (node);
+ 	  if (n == NULL)
+-	    continue;
++	    {
++	      if (i == 0)
++		clone->nargs += clone->inbranch;
++	      continue;
++	    }
+ 
+ 	  n->simdclone = clone;
+ 	  clone->origin = node;
+@@ -1737,6 +1741,8 @@ expand_simd_clones (struct cgraph_node *node)
  	    simd_clone_adjust (n);
  	  else
  	    {
@@ -22920,6 +24339,19 @@ new file mode 100644
  
  #: c/c-parser.c:7438
  #, fuzzy, gcc-internal-format
+--- a/src/gcc/postreload.c
++++ b/src/gcc/postreload.c
+@@ -1081,6 +1081,10 @@ reload_combine_recognize_pattern (rtx_insn *insn)
+       struct reg_use *use = reg_state[regno].reg_use + i;
+       if (GET_MODE (*use->usep) != mode)
+ 	return false;
++      /* Don't try to adjust (use (REGX)).  */
++      if (GET_CODE (PATTERN (use->insn)) == USE
++	  && &XEXP (PATTERN (use->insn), 0) == use->usep)
++	return false;
+     }
+ 
+   /* Look for (set (REGX) (CONST_INT))
 --- a/src/gcc/predict.c
 +++ b/src/gcc/predict.c
 @@ -3937,12 +3937,14 @@ compute_function_frequency (void)
@@ -22953,6 +24385,44 @@ new file mode 100644
  	      && xmode_width > inner_width)
  	    nonzero
  	      |= (GET_MODE_MASK (GET_MODE (x)) & ~GET_MODE_MASK (inner_mode));
+--- a/src/gcc/sel-sched.c
++++ b/src/gcc/sel-sched.c
+@@ -3331,8 +3331,6 @@ sel_target_adjust_priority (expr_t expr)
+   else
+     new_priority = priority;
+ 
+-  gcc_assert (new_priority >= 0);
+-
+   /* If the priority has changed, adjust EXPR_PRIORITY_ADJ accordingly.  */
+   EXPR_PRIORITY_ADJ (expr) = new_priority - EXPR_PRIORITY (expr);
+ 
+--- a/src/gcc/simplify-rtx.c
++++ b/src/gcc/simplify-rtx.c
+@@ -3519,9 +3519,21 @@ simplify_binary_operation_1 (enum rtx_code code, machine_mode mode,
+ 	{
+ 	  rtx tmp = gen_int_shift_amount
+ 	    (inner_mode, INTVAL (XEXP (SUBREG_REG (op0), 1)) + INTVAL (op1));
+-	  tmp = simplify_gen_binary (code, inner_mode,
+-				     XEXP (SUBREG_REG (op0), 0),
+-				     tmp);
++
++	 /* Combine would usually zero out the value when combining two
++	    local shifts and the range becomes larger or equal to the mode.
++	    However since we fold away one of the shifts here combine won't
++	    see it so we should immediately zero the result if it's out of
++	    range.  */
++	 if (code == LSHIFTRT
++	     && INTVAL (tmp) >= GET_MODE_BITSIZE (inner_mode))
++	  tmp = const0_rtx;
++	 else
++	   tmp = simplify_gen_binary (code,
++				      inner_mode,
++				      XEXP (SUBREG_REG (op0), 0),
++				      tmp);
++
+ 	  return lowpart_subreg (int_mode, tmp, inner_mode);
+ 	}
+ 
 --- a/src/gcc/symbol-summary.h
 +++ b/src/gcc/symbol-summary.h
 @@ -461,6 +461,8 @@ fast_function_summary<T *, V>::release ()
@@ -23000,7 +24470,219 @@ new file mode 100644
       down the refernces to libraries bit more because linker will otherwise
 --- a/src/gcc/testsuite/ChangeLog
 +++ b/src/gcc/testsuite/ChangeLog
-@@ -1,3 +1,1362 @@
+@@ -1,3 +1,1574 @@
++2020-02-18  Richard Sandiford  <richard.sandiford@arm.com>
++
++	PR middle-end/92768
++	* gcc.dg/pr92768.c: New test.
++
++2020-02-18  Richard Sandiford  <richard.sandiford@arm.com>
++
++	PR middle-end/90313
++	* g++.dg/torture/pr90313.cc: New test.
++
++2020-02-18  Mark Eggleston <markeggleston@gcc.gnu.org>
++
++	Back-ported from mainline
++	2020-02-18 Mark Eggleston <markeggleston@gcc.gnu.org>
++
++	PR fortran/93580
++	* gfortran.dg/dg/pr93580.f90: New test.
++
++2020-02-18  Richard Sandiford  <richard.sandiford@arm.com>
++
++	PR tree-optimization/93434
++	* gcc.c-torture/execute/pr93434.c: New test.
++
++2020-02-18  Richard Sandiford  <richard.sandiford@arm.com>
++
++	PR tree-optimization/92710
++	* gcc.dg/vect/pr92710.c: New test.
++
++2020-02-18  Richard Sandiford  <richard.sandiford@arm.com>
++
++	PR tree-optimization/92420
++	* gcc.dg/vect/pr92420.c: New test.
++
++2020-02-14 Hongtao Liu  <hongtao.liu@intel.com>
++
++	* gcc.target/i386/avx512vbmi2-vpshld-1.c: New test.
++	* gcc.target/i386/avx512vbmi2-vpshrd-1.c: Ditto.
++	* gcc.target/i386/sse-12.c: Add -mavx512vbmi2.
++	* gcc.target/i386/sse-13.c: Ditto.
++	* gcc.target/i386/sse-14.c: Add -mavx512vbmi2 and tests.
++	* gcc.target/i386/sse-22.c: Ditto.
++
++2020-02-16  Uroš Bizjak  <ubizjak@gmail.com>
++
++	PR target/93743
++	* gcc.target/i386/pr93743.c : New test.
++
++2020-02-15  Jakub Jelinek  <jakub@redhat.com>
++
++	PR tree-optimization/93744
++	* gcc.c-torture/execute/pr93744-1.c: New test.
++	* gcc.c-torture/execute/pr93744-2.c: New test.
++	* gcc.c-torture/execute/pr93744-3.c: New test.
++
++2020-02-14  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/61414
++	* g++.dg/cpp0x/enum39.C: New test.
++
++2020-02-14  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2020-02-05  Richard Biener  <rguenther@suse.de>
++
++	PR middle-end/90648
++	* gcc.dg/pr90648.c: New testcase.
++
++2020-02-14  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2020-01-22  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/93381
++	* gcc.dg/torture/pr93381.c: New testcase.
++
++2020-02-14  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2020-01-28  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/93439
++	* gfortran.dg/graphite/pr93439.f90: New testcase.
++
++2020-02-14  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2020-01-09  Richard Biener  <rguenther@suse.de>
++
++	PR middle-end/93054
++	* gcc.dg/pr93054.c: New testcase.
++
++2020-02-14  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2020-01-20  Richard Biener  <rguenther@suse.de>
++
++	PR debug/92763
++	* g++.dg/debug/pr92763.C: New testcase.
++
++2020-02-14  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2019-11-29  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/92704
++	* gcc.dg/torture/pr92704.c: New testcase.
++
++2020-02-13  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c/93576
++	* gcc.dg/pr93576.c: New test.
++
++	PR target/93696
++	* gcc.target/i386/pr93696-1.c: New test.
++	* gcc.target/i386/pr93696-2.c: New test.
++	* gcc.target/i386/avx512bitalg-vpopcntw-1.c (TEST): Fix argument order
++	of _mm*_mask_popcnt_*.
++	* gcc.target/i386/avx512vpopcntdq-vpopcntq-1.c (TEST): Likewise.
++	* gcc.target/i386/avx512vpopcntdq-vpopcntd-1.c (TEST): Likewise.
++	* gcc.target/i386/avx512bitalg-vpopcntb-1.c (TEST): Likewise.
++	* gcc.target/i386/avx512bitalg-vpopcntb.c (foo): Likewise.
++	* gcc.target/i386/avx512bitalg-vpopcntbvl.c (foo): Likewise.
++	* gcc.target/i386/avx512vpopcntdq-vpopcntd.c (foo): Likewise.
++	* gcc.target/i386/avx512bitalg-vpopcntwvl.c (foo): Likewise.
++	* gcc.target/i386/avx512bitalg-vpopcntw.c (foo): Likewise.
++	* gcc.target/i386/avx512vpopcntdq-vpopcntq.c (foo): Likewise.
++
++	PR target/93673
++	* gcc.target/i386/avx512f-pr93673.c: New test.
++	* gcc.target/i386/avx512dq-pr93673.c: New test.
++	* gcc.target/i386/avx512bw-pr93673.c: New test.
++
++	Backported from mainline
++	2020-02-12  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/93670
++	* gcc.target/i386/avx512vl-pr93670.c: New test.
++
++	2020-02-10  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/93637
++	* gcc.target/i386/avx-pr93637.c: New test.
++
++	2020-02-08  Uroš Bizjak  <ubizjak@gmail.com>
++		    Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/65782
++	* gcc.target/i386/pr65782.c: New test.
++
++	2020-02-05  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/93557
++	* c-c++-common/Wunused-var-17.c: New test.
++
++	PR middle-end/93555
++	* c-c++-common/gomp/pr93555-1.c: New test.
++	* c-c++-common/gomp/pr93555-2.c: New test.
++	* gfortran.dg/gomp/pr93555.f90: New test.
++
++	2020-01-30  Jakub Jelinek  <jakub@redhat.com>
++
++	PR middle-end/93505
++	* gcc.c-torture/compile/pr93505.c: New test.
++
++	2020-01-29  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/91118
++	* g++.dg/gomp/pr91118-1.C: New test.
++	* g++.dg/gomp/pr91118-2.C: New test.
++
++	PR fortran/93463
++	* gfortran.dg/goacc/pr93463.f90: New test.
++
++	2020-01-28  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/93418
++	* gcc.target/i386/avx2-pr93418.c: New test.
++
++	2020-01-23  Jakub Jelinek  <jakub@redhat.com>
++
++	PR rtl-optimization/93402
++	* gcc.c-torture/execute/pr93402.c: New test.
++
++2020-02-11  Tamar Christina  <tamar.christina@arm.com>
++
++	Backport from mainline
++	2020-01-31  Tamar Christina  <tamar.christina@arm.com>
++		    Jakub Jelinek  <jakub@redhat.com>
++
++	PR rtl-optimization/91838
++	* g++.dg/opt/pr91838.C: New test.
++
++2020-02-10  H.J. Lu  <hongjiu.lu@intel.com>
++
++	Backport from mainline
++	2020-02-10  H.J. Lu  <hongjiu.lu@intel.com>
++
++	PR libgcc/85334
++	* g++.target/i386/pr85334-1.C: New test.
++	* g++.target/i386/pr85334-2.C: Likewise.
++
++2020-02-07  H.J. Lu  <hongjiu.lu@intel.com>
++
++	Backport from mainline
++	2020-02-07  H.J. Lu  <hongjiu.lu@intel.com>
++
++	PR target/85667
++	* gcc.target/i386/pr85667-10.c: New test.
++	* gcc.target/i386/pr85667-7.c: Likewise.
++	* gcc.target/i386/pr85667-8.c: Likewise.
++	* gcc.target/i386/pr85667-9.c: Likewise.
++
 +2020-02-03  Tobias Burnus  <tobias@codesourcery.com>
 +
 +	Backported from mainline
@@ -24363,7 +26045,7 @@ new file mode 100644
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -427,7 +1786,7 @@
+@@ -427,7 +1998,7 @@
  	Backport from mainline.
  	2019-05-15  Iain Sandoe  <iain@sandoe.co.uk>
  
@@ -24372,7 +26054,7 @@ new file mode 100644
  	(check_effective_target_powerpc_p8vector_ok): No support for Darwin.
  	(check_effective_target_powerpc_p9vector_ok): Likewise.
  	(check_effective_target_powerpc_float128_sw_ok): Likewise.
-@@ -720,7 +2079,7 @@
+@@ -720,7 +2291,7 @@
  
  	Backport from mainline
  	PR fortran/91077
@@ -24381,7 +26063,7 @@ new file mode 100644
  
  2019-07-05  Szabolcs Nagy  <szabolcs.nagy@arm.com>
  
-@@ -803,7 +2162,7 @@
+@@ -803,7 +2374,7 @@
  	Backport fom mainline
  	2019-06-21  Jeff Law  <law@redhat.com>
  
@@ -24390,7 +26072,7 @@ new file mode 100644
  	* gcc.c-torture/execute/pr90949.c: New test.
  
  2019-06-26  Martin Jambor  <mjambor@suse.cz>
-@@ -969,7 +2328,7 @@
+@@ -969,7 +2540,7 @@
         * gcc.target/i386/pr82699-6.c: Likewise
         * gcc.target/i386/returninst1.c: Likewise
         * gcc.target/i386/returninst2.c: Likewise
@@ -24399,7 +26081,7 @@ new file mode 100644
  
  2019-05-30  Iain Sandoe  <iain@sandoe.co.uk>
  
-@@ -1131,7 +2490,7 @@
+@@ -1131,7 +2702,7 @@
  
  	Backport from trunk
  	PR fortran/90498
@@ -24408,7 +26090,7 @@ new file mode 100644
  
  2019-05-17  Jakub Jelinek  <jakub@redhat.com>
  
-@@ -3801,21 +5160,21 @@
+@@ -3801,21 +5372,21 @@
  2019-02-23  Paul Thomas  <pault@gcc.gnu.org>
  
  	PR fortran/88117
@@ -24437,7 +26119,7 @@ new file mode 100644
  
  2019-02-22  David Malcolm  <dmalcolm@redhat.com>
  
-@@ -4444,7 +5803,7 @@
+@@ -4444,7 +6015,7 @@
  2019-02-09  Paul Thomas  <pault@gcc.gnu.org>
  
  	PR fortran/89200
@@ -24446,7 +26128,7 @@ new file mode 100644
  
  2019-02-09  Jakub Jelinek  <jakub@redhat.com>
  
-@@ -4704,17 +6063,17 @@
+@@ -4704,17 +6275,17 @@
  2019-02-02  Paul Thomas  <pault@gcc.gnu.org>
  
  	PR fortran/88393
@@ -24467,6 +26149,29 @@ new file mode 100644
  
  2019-02-02  Jakub Jelinek  <jakub@redhat.com>
  
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/c-c++-common/Wunused-var-17.c
+@@ -0,0 +1,19 @@
++/* PR c++/93557 */
++/* { dg-do compile } */
++/* { dg-options "-O2 -Wunused-but-set-variable" } */
++
++typedef int VI __attribute__((vector_size (sizeof (int) * 4)));
++typedef float VF __attribute__((vector_size (sizeof (float) * 4)));
++
++void
++foo (VI *p, VF *q)
++{
++  VI a = (VI) { 1, 2, 3, 4 };			/* { dg-bogus "set but not used" } */
++  q[0] = __builtin_convertvector (a, VF);
++  VI b = p[1];					/* { dg-bogus "set but not used" } */
++  q[1] = __builtin_convertvector (b, VF);
++  VF c = (VF) { 5.0f, 6.0f, 7.0f, 8.0f };	/* { dg-bogus "set but not used" } */
++  p[2] = __builtin_convertvector (c, VI);
++  VF d = q[3];					/* { dg-bogus "set but not used" } */
++  p[3] = __builtin_convertvector (d, VI);
++}
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/c-c++-common/array-1.c
@@ -25081,6 +26786,48 @@ new file mode 100644
 +}
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/c-c++-common/gomp/pr93555-1.c
+@@ -0,0 +1,18 @@
++/* PR middle-end/93555 */
++/* { dg-do compile } */
++
++#pragma omp declare simd
++#pragma omp declare simd inbranch
++int
++foo (int x)
++{
++  return x;
++}
++
++#pragma omp declare simd inbranch
++#pragma omp declare simd
++int
++bar (int x)
++{
++  return x;
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/c-c++-common/gomp/pr93555-2.c
+@@ -0,0 +1,16 @@
++/* PR middle-end/93555 */
++/* { dg-do compile } */
++
++#pragma omp declare simd
++#pragma omp declare simd inbranch
++void
++foo (void)
++{
++}
++
++#pragma omp declare simd inbranch
++#pragma omp declare simd
++void
++bar (void)
++{
++}
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/c-c++-common/pr90677-2.c
 @@ -0,0 +1,8 @@
 +/* PR c/90677 */
@@ -25337,6 +27084,25 @@ new file mode 100644
 +  G j : 3;	// { dg-bogus "'S::j' is too small to hold all values of 'enum G'" }
 +  H k : 3;	// { dg-warning "'S::k' is too small to hold all values of 'enum H'" }
 +  H l : 4;	// { dg-bogus "'S::l' is too small to hold all values of 'enum H'" }
++};
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/g++.dg/cpp0x/enum39.C
+@@ -0,0 +1,15 @@
++// PR c++/61414
++// { dg-do compile { target c++11 } }
++
++enum class E { E0 = -4, E1 = 3 };
++enum F : unsigned { F0 = 0, F1 = 15 };
++
++struct S
++{
++  E a : 2;	// { dg-warning "'S::a' is too small to hold all values of 'enum class E'" }
++  E b : 2;	// { dg-warning "'S::b' is too small to hold all values of 'enum class E'" }
++  E c : 3;	// { dg-bogus "'S::c' is too small to hold all values of 'enum class E'" }
++  F d : 3;	// { dg-warning "'S::d' is too small to hold all values of 'enum F'" }
++  F e : 3;	// { dg-warning "'S::e' is too small to hold all values of 'enum F'" }
++  F f : 4;	// { dg-bogus "'S::f' is too small to hold all values of 'enum F'" }
 +};
 new file mode 100644
 --- /dev/null
@@ -26465,6 +28231,30 @@ new file mode 100644
 +void KeepBufferRefs(A, A) { A a, b(Bind(KeepBufferRefs, a, b)); }
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/g++.dg/debug/pr92763.C
+@@ -0,0 +1,20 @@
++// { dg-do compile }
++// { dg-require-effective-target fopenmp }
++// { dg-additional-options "-fno-var-tracking-assignments -fopenmp" }
++
++struct A
++{
++  typedef int T;
++  #pragma omp declare reduction (y : T : [&omp_out, &omp_in]() { omp_out += omp_in; return 0; }()) initializer (omp_priv = [omp_orig]() { return omp_orig; }())
++  static void foo ();
++};
++
++void
++A::foo ()
++{
++  int r = 0, s = 0;
++  #pragma omp parallel for reduction (y : r, s)
++  for (int i = 0; i < 1; i++)
++    {
++    }
++}
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/g++.dg/diagnostic/pr90767-1.C
 @@ -0,0 +1,15 @@
 +// PR c++/90767
@@ -26645,6 +28435,40 @@ new file mode 100644
  /* { dg-final { scan-tree-dump-times "pragma omp simd reduction\\(u\\) reduction\\(t\\) reduction\\(\\+:s\\) aligned\\(a:32\\)" 1 "original" } } */
  /* { dg-final { scan-tree-dump-times "pragma omp simd safelen\\(64\\)" 1 "original" } } */
  /* { dg-final { scan-tree-dump-not "omp parallel" "original" } } */
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/g++.dg/gomp/pr91118-1.C
+@@ -0,0 +1,12 @@
++// PR c++/91118
++// { dg-do compile }
++// { dg-additional-options "-fsanitize=undefined" }
++
++#include <iostream>
++
++void
++foo ()
++{
++#pragma omp parallel default(none) shared(std::cerr)
++  std::cerr << "hello" << std::endl;
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/g++.dg/gomp/pr91118-2.C
+@@ -0,0 +1,14 @@
++// PR c++/91118
++// { dg-do compile }
++
++#include <typeinfo>
++
++struct S { virtual ~S (); };
++void bar (const std::type_info &, const std::type_info &);
++
++void
++foo (S *p)
++{
++  #pragma omp parallel default (none) firstprivate (p)
++    bar (typeid (*p), typeid (S));
++}
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/g++.dg/gomp/pr92504.C
@@ -26920,6 +28744,21 @@ new file mode 100644
 +}
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/g++.dg/opt/pr91838.C
+@@ -0,0 +1,11 @@
++/* { dg-do compile { target c++11 } } */
++/* { dg-additional-options "-O2 -Wno-psabi -w" } */
++/* { dg-additional-options "-masm=att" { target i?86-*-* x86_64-*-* } } */
++
++using T = unsigned char; // or ushort
++using V [[gnu::vector_size(8)]] = T;
++V f(V x) {
++  return x >> 8 * sizeof(T);
++}
++
++/* { dg-final { scan-assembler {pxor\s+%xmm0,\s+%xmm0} { target { { i?86-*-* x86_64-*-* } && lp64 } } } } */
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/g++.dg/opt/pr92007.C
 @@ -0,0 +1,32 @@
 +// PR rtl-optimization/92007
@@ -27030,6 +28869,43 @@ new file mode 100644
 +  double e = b;
 +  for (; b;)
 +    d = e;
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/g++.dg/torture/pr90313.cc
+@@ -0,0 +1,33 @@
++// { dg-do run }
++
++#include <stddef.h>
++
++namespace std {
++  template<typename T, size_t N> struct array {
++    T elems[N];
++    const T &operator[](size_t i) const { return elems[i]; }
++  };
++}
++
++using Coordinates = std::array<double, 3>;
++
++Coordinates map(const Coordinates &c, size_t level)
++{
++  Coordinates result{ c[1], c[2], c[0] };
++
++  if (level != 0)
++    result = map (result, level - 1);
++
++  return result;
++}
++
++int main()
++{
++  Coordinates vecOfCoordinates = { 1.0, 2.0, 3.0 };
++
++  auto result = map(vecOfCoordinates, 1);
++  if (result[0] != 3 || result[1] != 1 || result[2] != 2)
++    __builtin_abort ();
++
++  return 0;
 +}
 new file mode 100644
 --- /dev/null
@@ -27343,6 +29219,117 @@ new file mode 100644
 +void foo (S *s) { s->foo (); s->bar (); }
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/g++.target/i386/pr85334-1.C
+@@ -0,0 +1,55 @@
++// { dg-do run }
++// { dg-require-effective-target cet }
++// { dg-additional-options "-fexceptions -fnon-call-exceptions -fcf-protection" }
++
++// Delta between numbers of call stacks of pr85334-1.C and pr85334-2.C is 1.
++
++#include <signal.h>
++#include <stdlib.h>
++
++void sighandler (int signo, siginfo_t * si, void * uc)
++{
++  throw (5);
++}
++
++char *
++__attribute ((noinline, noclone))
++dosegv ()
++{    
++  * ((volatile int *)0) = 12;
++  return 0;
++}
++
++int
++__attribute ((noinline, noclone))
++func2 ()
++{
++  try {
++    dosegv ();
++  }
++  catch (int x) {
++    return (x != 5);
++  }
++  return 1;
++}
++
++int
++__attribute ((noinline, noclone))
++func1 ()
++{
++  return func2 ();
++}
++
++int main ()
++{
++  struct sigaction sa;
++  int status;
++
++  sa.sa_sigaction = sighandler;
++  sa.sa_flags = SA_SIGINFO;
++    
++  status = sigaction (SIGSEGV, & sa, NULL);
++  status = sigaction (SIGBUS, & sa, NULL);
++
++  return func1 ();
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/g++.target/i386/pr85334-2.C
+@@ -0,0 +1,48 @@
++// { dg-do run }
++// { dg-require-effective-target cet }
++// { dg-additional-options "-fexceptions -fnon-call-exceptions -fcf-protection" }
++
++// Delta between numbers of call stacks of pr85334-1.C and pr85334-2.C is 1.
++
++#include <signal.h>
++#include <stdlib.h>
++
++void sighandler (int signo, siginfo_t * si, void * uc)
++{
++  throw (5);
++}
++
++char *
++__attribute ((noinline, noclone))
++dosegv ()
++{    
++  * ((volatile int *)0) = 12;
++  return 0;
++}
++
++int
++__attribute ((noinline, noclone))
++func1 ()
++{
++  try {
++    dosegv ();
++  }
++  catch (int x) {
++    return (x != 5);
++  }
++  return 1;
++}
++
++int main ()
++{
++  struct sigaction sa;
++  int status;
++
++  sa.sa_sigaction = sighandler;
++  sa.sa_flags = SA_SIGINFO;
++    
++  status = sigaction (SIGSEGV, & sa, NULL);
++  status = sigaction (SIGBUS, & sa, NULL);
++
++  return func1 ();
++}
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/gcc.c-torture/compile/20191108-1.c
 @@ -0,0 +1,14 @@
 +/* PR target/92095 */
@@ -27576,6 +29563,25 @@ new file mode 100644
 +ya (void)
 +{
 +  return (long int) (1 / 0);
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.c-torture/compile/pr93505.c
+@@ -0,0 +1,15 @@
++/* PR middle-end/93505 */
++
++unsigned a;
++
++unsigned
++foo (unsigned x)
++{
++  unsigned int y = 32 - __builtin_bswap64 (-a);
++  /* This would be UB (x << 32) at runtime.  Ensure we don't
++     invoke UB in the compiler because of that (visible with
++     bootstrap-ubsan).  */
++  x = x << y | x >> (-y & 31);
++  x >>= 31;
++  return x;
 +}
 new file mode 100644
 --- /dev/null
@@ -28527,6 +30533,139 @@ new file mode 100644
 +  f14 (9, 0, 0.0, 0, 0.0, 0, 0.0, 0, 0.0, 0, 0.0, 0, 0.0, 0, 0.0, 0, 0.0, 0, 0.0, u.h); v.h = h; C (v);
 +  return 0;
 +}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.c-torture/execute/pr93402.c
+@@ -0,0 +1,21 @@
++/* PR rtl-optimization/93402 */
++
++struct S { unsigned int a; unsigned long long b; };
++
++__attribute__((noipa)) struct S
++foo (unsigned long long x)
++{
++  struct S ret;
++  ret.a = 0;
++  ret.b = x * 11111111111ULL + 111111111111ULL;
++  return ret;
++}
++
++int
++main ()
++{
++  struct S a = foo (1);
++  if (a.a != 0 || a.b != 122222222222ULL)
++    __builtin_abort ();
++  return 0;
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.c-torture/execute/pr93434.c
+@@ -0,0 +1,36 @@
++typedef struct creal_T {
++  double re;
++  double im;
++} creal_T;
++
++#define N 16
++int main() {
++  int k;
++  int i;
++  int j;
++  creal_T t2[N];
++  double inval;
++
++  inval = 1.0;
++  for (j = 0; j < N; ++j) {
++    t2[j].re = 0;
++    t2[j].im = 0;
++  }
++
++  for (j = 0; j < N/4; j++) {
++    i = j * 4;
++    t2[i].re = inval;
++    t2[i].im = inval;
++    k = i + 3;
++    t2[k].re = inval;
++    t2[k].im = inval;
++    t2[i] = t2[k];
++    t2[k].re = inval;
++  }
++
++  for (i = 0; i < 2; ++i)
++    if (t2[i].re != !i || t2[i].im != !i)
++      __builtin_abort ();
++
++  return 0;
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.c-torture/execute/pr93744-1.c
+@@ -0,0 +1,14 @@
++/* PR tree-optimization/93744 */
++
++typedef int I;
++
++int
++main ()
++{
++  int a = 0;
++  I b = 0;
++  (a > 0) * (b |= 2);
++  if (b != 2)
++    __builtin_abort ();
++  return 0;
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.c-torture/execute/pr93744-2.c
+@@ -0,0 +1,21 @@
++/* PR tree-optimization/93744 */
++
++int w;
++
++int
++foo (int x, int y, int z)
++{
++  int r = z - ((z - w++) & -(x < y));
++  return r;
++}
++
++int
++main ()
++{
++  w = 4;
++  if (foo (5, 7, 12) != 4 || w != 5)
++    __builtin_abort ();
++  if (foo (7, 5, 12) != 12 || w != 6)
++    __builtin_abort ();
++  return 0;
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.c-torture/execute/pr93744-3.c
+@@ -0,0 +1,21 @@
++/* PR tree-optimization/93744 */
++
++int w;
++
++int
++foo (int x, int y, int z)
++{
++  int r = z + ((w++ - z) & -(x < y));
++  return r;
++}
++
++int
++main ()
++{
++  w = 4;
++  if (foo (5, 7, 12) != 4 || w != 5)
++    __builtin_abort ();
++  if (foo (7, 5, 12) != 12 || w != 6)
++    __builtin_abort ();
++  return 0;
++}
 --- a/src/gcc/testsuite/gcc.dg/Wnonnull.c
 +++ b/src/gcc/testsuite/gcc.dg/Wnonnull.c
 @@ -2,7 +2,10 @@
@@ -29014,6 +31153,18 @@ new file mode 100644
 +}
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/gcc.dg/pr90648.c
+@@ -0,0 +1,8 @@
++/* { dg-do compile } */
++/* { dg-options "-O" } */
++
++extern double copysign ();
++double foo (double x)
++{
++  return x * copysign (); /* { dg-warning "too few arguments" } */
++}
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/gcc.dg/pr90898.c
 @@ -0,0 +1,16 @@
 +/* PR c/90898 */
@@ -29339,6 +31490,45 @@ new file mode 100644
 +#include "../gcc.c-torture/execute/pr61682.c"
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/gcc.dg/pr92768.c
+@@ -0,0 +1,7 @@
++/* PR tree-optimization/92768 */
++/* { dg-options "-O2 -fno-signed-zeros -fdump-tree-optimized -w -Wno-psabi" } */
++
++typedef float v4sf __attribute__((vector_size(16)));
++v4sf f () { return (v4sf) { 0.0, -0.0, 0.0, -0.0 }; }
++
++/* { dg-final { scan-tree-dump {{ 0\.0, -0\.0, 0\.0, -0\.0 }} "optimized" } } */
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.dg/pr93054.c
+@@ -0,0 +1,10 @@
++/* { dg-do compile } */
++
++__attribute__ ((returns_twice)) int
++bp (int);
++
++__attribute__ ((noreturn)) int
++cb (void)
++{
++  return bp (cb ()); /* { dg-warning "declared .noreturn." } */
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.dg/pr93576.c
+@@ -0,0 +1,10 @@
++/* PR c/93576 */
++/* { dg-do compile } */
++/* { dg-options "" } */
++
++void
++foo (void)
++{
++  int b[] = { 0 };
++  (char (*)[(1, 7, 2)]) 0;
++}
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/gcc.dg/torture/pr90278.c
 @@ -0,0 +1,13 @@
 +/* { dg-do compile } */
@@ -29430,6 +31620,63 @@ new file mode 100644
 +	*d++ = a[b] & 1 << e ? '1' : '0';
 +  }
 +  f();
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.dg/torture/pr92704.c
+@@ -0,0 +1,24 @@
++/* { dg-do compile } */
++/* { dg-additional-options "-fexceptions -fnon-call-exceptions -fno-tree-dce -ftree-loop-if-convert" } */
++int zr, yx;
++
++void __attribute__ ((simd))
++oj (int rd, int q7)
++{
++  int wo = (__UINTPTR_TYPE__)&rd;
++
++  while (q7 < 1)
++    {
++      int kv;
++      short int v3;
++
++      for (v3 = 0; v3 < 82; v3 += 3)
++        {
++        }
++
++      kv = zr ? 0 : v3;
++      yx = kv < rd;
++      zr = zr && yx;
++      ++q7;
++    }
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.dg/torture/pr93381.c
+@@ -0,0 +1,25 @@
++/* { dg-do run } */
++
++static struct S { int *p1; int *p2; } s;
++typedef __UINTPTR_TYPE__ uintptr_t;
++int foo()
++{
++  int i = 1, j = 2;
++  struct S s;
++  int **p;
++  s.p1 = &i;
++  s.p2 = &j;
++  p = &s.p1;
++  uintptr_t pi = (uintptr_t)p;
++  pi = pi + sizeof (int *);
++  p = (int **)pi;
++  **p = 3;
++  return j;
++}
++
++int main()
++{
++  if (foo () != 3)
++    __builtin_abort ();
++  return 0;
 +}
 --- a/src/gcc/testsuite/gcc.dg/tree-ssa/gen-vect-11.c
 +++ b/src/gcc/testsuite/gcc.dg/tree-ssa/gen-vect-11.c
@@ -29646,6 +31893,74 @@ new file mode 100644
 +  x = 1;
 +  while (x != 0)
 +    x += ++y || (*p = x);
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.dg/vect/pr92420.c
+@@ -0,0 +1,48 @@
++/* { dg-additional-options "-mavx2" { target avx_runtime } } */
++
++#include "tree-vect.h"
++
++#define N 16
++struct C { int r, i; };
++struct C a[N], b[N], c[N], d[N], e[N];
++
++__attribute__((noipa)) static void
++foo (struct C *__restrict x, struct C *__restrict y, struct C *__restrict z, int w)
++{
++  int i;
++  for (int i = 0; i < w; i++)
++    {
++      z[i].r = x[i].r * y[-1 - i].r - x[i].i * y[-1 - i].i;
++      z[i].i = x[i].i * y[-1 - i].r + x[i].r * y[-1 - i].i;
++    }
++}
++
++__attribute__((noipa)) static void
++bar (struct C *__restrict x, struct C *__restrict y, struct C *__restrict z, int w)
++{
++  int i;
++  for (int i = 0; i < w; i++)
++    {
++      z[i].r = x[i].r * y[i].r - x[i].i * y[i].i;
++      z[i].i = x[i].i * y[i].r + x[i].r * y[i].i;
++    }
++}
++
++int
++main ()
++{
++  check_vect ();
++  int i;
++  for (i = 0; i < N; ++i)
++    {
++      a[i].r = N - i; a[i].i = i - N;
++      b[i].r = i - N; b[i].i = i + N;
++      c[i].r = -1 - i; c[i].i = 2 * N - 1 - i;
++    }
++  foo (a, b + N, d, N);
++  bar (a, c, e, N);
++  for (i = 0; i < N; ++i)
++    if (d[i].r != e[i].r || d[i].i != e[i].i)
++      __builtin_abort ();
++  return 0;
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.dg/vect/pr92710.c
+@@ -0,0 +1,12 @@
++/* { dg-do compile } */
++/* { dg-additional-options "-fopenmp-simd" } */
++
++#pragma omp declare simd
++_Bool foo (_Bool) __attribute__((const));
++
++void
++f (_Bool *restrict x, char *restrict y, char *restrict z)
++{
++  for (int i = 0; i < 128; ++i)
++    x[i] = foo (y[i] == z[i]);
 +}
 new file mode 100644
 --- /dev/null
@@ -29951,6 +32266,289 @@ new file mode 100644
 +}
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/gcc.target/i386/avx-pr93637.c
+@@ -0,0 +1,17 @@
++/* PR target/93637 */
++/* { dg-do compile } */
++/* { dg-options "-mavx -mno-avx2 -O3 --param sccvn-max-alias-queries-per-access=3" } */
++
++double
++foo (void)
++{
++  int i;
++  double r = 7.0;
++  double a[] = { 0.0, 0.0, -0.0, 0.0, 0.0, -0.0, 1.0, 0.0, 0.0, -0.0, 1.0, 0.0, 1.0, 1.0 };
++
++  for (i = 0; i < sizeof (a) / sizeof (a[0]); ++i)
++    if (a[i] == 0.0)
++      r = a[i];
++
++  return r;
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.target/i386/avx2-pr93418.c
+@@ -0,0 +1,20 @@
++/* PR target/93418 */
++/* { dg-do compile } */
++/* { dg-options "-O2 -mavx2 -fdump-tree-optimized" } */
++/* { dg-final { scan-tree-dump-not "link_error" "optimized" } } */
++
++#include <x86intrin.h>
++
++void link_error (void);
++
++void
++foo (void)
++{
++  __m128i a = _mm_set1_epi32 (0xffffffffU);
++  __m128i b = _mm_setr_epi32 (16, 31, -34, 3);
++  __m128i c = _mm_sllv_epi32 (a, b);
++  __v4su d = (__v4su) c;
++  if (d[0] != 0xffff0000U || d[1] != 0x80000000U
++      || d[2] != 0 || d[3] != 0xfffffff8U)
++    link_error ();
++}
+--- a/src/gcc/testsuite/gcc.target/i386/avx512bitalg-vpopcntb-1.c
++++ b/src/gcc/testsuite/gcc.target/i386/avx512bitalg-vpopcntb-1.c
+@@ -41,7 +41,7 @@ TEST (void)
+   }
+ 
+   res1.x = INTRINSIC (_popcnt_epi8)       (src.x);
+-  res2.x = INTRINSIC (_mask_popcnt_epi8)  (src.x, mask, src0.x);
++  res2.x = INTRINSIC (_mask_popcnt_epi8)  (src0.x, mask, src.x);
+   res3.x = INTRINSIC (_maskz_popcnt_epi8) (mask, src.x);
+ 
+   if (UNION_CHECK (AVX512F_LEN, i_b) (res1, res_ref))
+--- a/src/gcc/testsuite/gcc.target/i386/avx512bitalg-vpopcntb.c
++++ b/src/gcc/testsuite/gcc.target/i386/avx512bitalg-vpopcntb.c
+@@ -13,7 +13,7 @@ int foo ()
+   __mmask16 msk;
+   __m512i c = _mm512_popcnt_epi8 (z);
+   asm volatile ("" : "+v" (c));
+-  c = _mm512_mask_popcnt_epi8 (z, msk, z1);
++  c = _mm512_mask_popcnt_epi8 (z1, msk, z);
+   asm volatile ("" : "+v" (c));
+   c = _mm512_maskz_popcnt_epi8 (msk, z);
+   asm volatile ("" : "+v" (c));
+--- a/src/gcc/testsuite/gcc.target/i386/avx512bitalg-vpopcntbvl.c
++++ b/src/gcc/testsuite/gcc.target/i386/avx512bitalg-vpopcntbvl.c
+@@ -18,13 +18,13 @@ int foo ()
+   __mmask16 msk16;
+   __m256i c256 = _mm256_popcnt_epi8 (y);
+   asm volatile ("" : "+v" (c256));
+-  c256 = _mm256_mask_popcnt_epi8 (y, msk32, y_1);
++  c256 = _mm256_mask_popcnt_epi8 (y_1, msk32, y);
+   asm volatile ("" : "+v" (c256));
+   c256 = _mm256_maskz_popcnt_epi8 (msk32, y);
+   asm volatile ("" : "+v" (c256));
+   __m128i c128 = _mm_popcnt_epi8 (x);
+   asm volatile ("" : "+v" (c128));
+-  c128 = _mm_mask_popcnt_epi8 (x, msk16, x_1);
++  c128 = _mm_mask_popcnt_epi8 (x_1, msk16, x);
+   asm volatile ("" : "+v" (c128));
+   c128 = _mm_maskz_popcnt_epi8 (msk16, x);
+   asm volatile ("" : "+v" (c128));
+--- a/src/gcc/testsuite/gcc.target/i386/avx512bitalg-vpopcntw-1.c
++++ b/src/gcc/testsuite/gcc.target/i386/avx512bitalg-vpopcntw-1.c
+@@ -41,7 +41,7 @@ TEST (void)
+   }
+ 
+   res1.x = INTRINSIC (_popcnt_epi16)       (src.x);
+-  res2.x = INTRINSIC (_mask_popcnt_epi16)  (src.x, mask, src0.x);
++  res2.x = INTRINSIC (_mask_popcnt_epi16)  (src0.x, mask, src.x);
+   res3.x = INTRINSIC (_maskz_popcnt_epi16) (mask, src.x);
+ 
+   if (UNION_CHECK (AVX512F_LEN, i_w) (res1, res_ref))
+--- a/src/gcc/testsuite/gcc.target/i386/avx512bitalg-vpopcntw.c
++++ b/src/gcc/testsuite/gcc.target/i386/avx512bitalg-vpopcntw.c
+@@ -13,7 +13,7 @@ int foo ()
+   __mmask16 msk;
+   __m512i c = _mm512_popcnt_epi16 (z);
+   asm volatile ("" : "+v" (c));
+-  c = _mm512_mask_popcnt_epi16 (z, msk, z1);
++  c = _mm512_mask_popcnt_epi16 (z1, msk, z);
+   asm volatile ("" : "+v" (c));
+   c = _mm512_maskz_popcnt_epi16 (msk, z);
+   asm volatile ("" : "+v" (c));
+--- a/src/gcc/testsuite/gcc.target/i386/avx512bitalg-vpopcntwvl.c
++++ b/src/gcc/testsuite/gcc.target/i386/avx512bitalg-vpopcntwvl.c
+@@ -18,13 +18,13 @@ int foo ()
+   __mmask8 msk8;
+   __m256i c256 = _mm256_popcnt_epi16 (y);
+   asm volatile ("" : "+v" (c256));
+-  c256 = _mm256_mask_popcnt_epi16 (y, msk16, y_1);
++  c256 = _mm256_mask_popcnt_epi16 (y_1, msk16, y);
+   asm volatile ("" : "+v" (c256));
+   c256 = _mm256_maskz_popcnt_epi16 (msk16, y);
+   asm volatile ("" : "+v" (c256));
+   __m128i c128 = _mm_popcnt_epi16 (x);
+   asm volatile ("" : "+v" (c128));
+-  c128 = _mm_mask_popcnt_epi16 (x, msk8, x_1);
++  c128 = _mm_mask_popcnt_epi16 (x_1, msk8, x);
+   asm volatile ("" : "+v" (c128));
+   c128 = _mm_maskz_popcnt_epi16 (msk8, x);
+   asm volatile ("" : "+v" (c128));
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.target/i386/avx512bw-pr93673.c
+@@ -0,0 +1,30 @@
++/* PR target/93673 */
++/* { dg-do compile } */
++/* { dg-options "-O2 -mavx512bw" } */
++
++#include <x86intrin.h>
++
++void
++foo (__mmask32 *c, __mmask64 *d)
++{
++  c[0] = _kshiftli_mask32 (c[0], 0);
++  c[1] = _kshiftri_mask32 (c[1], 0);
++  c[2] = _kshiftli_mask32 (c[2], 1);
++  c[3] = _kshiftri_mask32 (c[3], 1);
++  c[4] = _kshiftli_mask32 (c[4], 31);
++  c[5] = _kshiftri_mask32 (c[5], 31);
++  c[6] = _kshiftli_mask32 (c[6], 0x7f);
++  c[7] = _kshiftri_mask32 (c[7], 0x7f);
++  c[8] = _kshiftli_mask32 (c[8], 0xff);
++  c[9] = _kshiftri_mask32 (c[9], 0xff);
++  d[0] = _kshiftli_mask64 (d[0], 0);
++  d[1] = _kshiftri_mask64 (d[1], 0);
++  d[2] = _kshiftli_mask64 (d[2], 1);
++  d[3] = _kshiftri_mask64 (d[3], 1);
++  d[4] = _kshiftli_mask64 (d[4], 63);
++  d[5] = _kshiftri_mask64 (d[5], 63);
++  d[6] = _kshiftli_mask64 (d[6], 0x7f);
++  d[7] = _kshiftri_mask64 (d[7], 0x7f);
++  d[8] = _kshiftli_mask64 (d[8], 0xff);
++  d[9] = _kshiftri_mask64 (d[9], 0xff);
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.target/i386/avx512dq-pr93673.c
+@@ -0,0 +1,20 @@
++/* PR target/93673 */
++/* { dg-do compile } */
++/* { dg-options "-O2 -mavx512dq" } */
++
++#include <x86intrin.h>
++
++void
++foo (__mmask8 *a)
++{
++  a[0] = _kshiftli_mask8 (a[0], 0);
++  a[1] = _kshiftri_mask8 (a[1], 0);
++  a[2] = _kshiftli_mask8 (a[2], 1);
++  a[3] = _kshiftri_mask8 (a[3], 1);
++  a[4] = _kshiftli_mask8 (a[4], 7);
++  a[5] = _kshiftri_mask8 (a[5], 7);
++  a[6] = _kshiftli_mask8 (a[6], 0x7f);
++  a[7] = _kshiftri_mask8 (a[7], 0x7f);
++  a[8] = _kshiftli_mask8 (a[8], 0xff);
++  a[9] = _kshiftri_mask8 (a[9], 0xff);
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.target/i386/avx512f-pr93673.c
+@@ -0,0 +1,20 @@
++/* PR target/93673 */
++/* { dg-do compile } */
++/* { dg-options "-O2 -mavx512f" } */
++
++#include <x86intrin.h>
++
++void
++foo (__mmask16 *b)
++{
++  b[0] = _kshiftli_mask16 (b[0], 0);
++  b[1] = _kshiftri_mask16 (b[1], 0);
++  b[2] = _kshiftli_mask16 (b[2], 1);
++  b[3] = _kshiftri_mask16 (b[3], 1);
++  b[4] = _kshiftli_mask16 (b[4], 15);
++  b[5] = _kshiftri_mask16 (b[5], 15);
++  b[6] = _kshiftli_mask16 (b[6], 0x7f);
++  b[7] = _kshiftri_mask16 (b[7], 0x7f);
++  b[8] = _kshiftli_mask16 (b[8], 0xff);
++  b[9] = _kshiftri_mask16 (b[9], 0xff);
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.target/i386/avx512vbmi2-vpshld-1.c
+@@ -0,0 +1,34 @@
++/* { dg-do compile } */
++/* { dg-options "-mavx512vbmi2 -mavx512bw -O2" } */
++/* { dg-final { scan-assembler-times "vpshldw\[ \\t\]+\[^\{\n\]*\\\$3\[^\n\r]*%zmm\[0-9\]+\[^\n\r]*%zmm\[0-9\]+\[^\n\r]*%zmm\[0-9\]+(?:\n|\[ \\t\]+#)" 1 } } */
++/* { dg-final { scan-assembler-times "vpshldw\[ \\t\]+\[^\{\n\]*\\\$3\[^\n\r]*%zmm\[0-9\]+\[^\\n\\r]*%zmm\[0-9\]+\[^\\n\\r\]*%zmm\[0-9\]+\{%k\[1-7\]\}(?:\n|\[ \\t\]+#)" 1 } } */
++/* { dg-final { scan-assembler-times "vpshldw\[ \\t\]+\[^\{\n\]*\\\$3\[^\n\r]*%zmm\[0-9\]+\[^\\n\\r]*%zmm\[0-9\]+\[^\\n\\r\]*%zmm\[0-9\]+\{%k\[1-7\]\}\{z\}(?:\n|\[ \\t\]+#)" 1 } } */
++/* { dg-final { scan-assembler-times "vpshldd\[ \\t\]+\[^\{\n\]*\\\$3\[^\n\r]*%zmm\[0-9\]+\[^\n\r]*%zmm\[0-9\]+\[^\n\r]*%zmm\[0-9\]+(?:\n|\[ \\t\]+#)" 1 } } */
++/* { dg-final { scan-assembler-times "vpshldd\[ \\t\]+\[^\{\n\]*\\\$3\[^\n\r]*%zmm\[0-9\]+\[^\\n\\r]*%zmm\[0-9\]+\[^\\n\\r\]*%zmm\[0-9\]+\{%k\[1-7\]\}(?:\n|\[ \\t\]+#)" 1 } } */
++/* { dg-final { scan-assembler-times "vpshldd\[ \\t\]+\[^\{\n\]*\\\$3\[^\n\r]*%zmm\[0-9\]+\[^\\n\\r]*%zmm\[0-9\]+\[^\\n\\r\]*%zmm\[0-9\]+\{%k\[1-7\]\}\{z\}(?:\n|\[ \\t\]+#)" 1 } } */
++/* { dg-final { scan-assembler-times "vpshldq\[ \\t\]+\[^\{\n\]*\\\$3\[^\n\r]*%zmm\[0-9\]+\[^\n\r]*%zmm\[0-9\]+\[^\n\r]*%zmm\[0-9\]+(?:\n|\[ \\t\]+#)" 1 } } */
++/* { dg-final { scan-assembler-times "vpshldq\[ \\t\]+\[^\{\n\]*\\\$3\[^\n\r]*%zmm\[0-9\]+\[^\\n\\r]*%zmm\[0-9\]+\[^\\n\\r\]*%zmm\[0-9\]+\{%k\[1-7\]\}(?:\n|\[ \\t\]+#)" 1 } } */
++/* { dg-final { scan-assembler-times "vpshldq\[ \\t\]+\[^\{\n\]*\\\$3\[^\n\r]*%zmm\[0-9\]+\[^\\n\\r]*%zmm\[0-9\]+\[^\\n\\r\]*%zmm\[0-9\]+\{%k\[1-7\]\}\{z\}(?:\n|\[ \\t\]+#)" 1 } } */
++
++#include <immintrin.h>
++
++volatile __m512i x,y;
++volatile __mmask32 m32;
++volatile __mmask16 m16;
++volatile __mmask8 m8;
++
++void extern
++avx512f_test (void)
++{
++  x = _mm512_shldi_epi16 (x, y, 3);
++  x = _mm512_maskz_shldi_epi16 (m32, x, y, 3);
++  x = _mm512_mask_shldi_epi16 (x, m32, y, x, 3);
++
++  x = _mm512_shldi_epi32 (x, y, 3);
++  x = _mm512_maskz_shldi_epi32 (m16, x, y, 3);
++  x = _mm512_mask_shldi_epi32 (x, m16, y, x, 3);
++
++  x = _mm512_shldi_epi64 (x, y, 3);
++  x = _mm512_maskz_shldi_epi64 (m8, x, y, 3);
++  x = _mm512_mask_shldi_epi64 (x, m8, y, x, 3);
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.target/i386/avx512vbmi2-vpshrd-1.c
+@@ -0,0 +1,34 @@
++/* { dg-do compile } */
++/* { dg-options "-mavx512vbmi2 -mavx512bw -O2" } */
++/* { dg-final { scan-assembler-times "vpshrdw\[ \\t\]+\[^\{\n\]*\\\$3\[^\n\r]*%zmm\[0-9\]+\[^\n\r]*%zmm\[0-9\]+\[^\n\r]*%zmm\[0-9\]+(?:\n|\[ \\t\]+#)" 1 } } */
++/* { dg-final { scan-assembler-times "vpshrdw\[ \\t\]+\[^\{\n\]*\\\$3\[^\n\r]*%zmm\[0-9\]+\[^\\n\\r]*%zmm\[0-9\]+\[^\\n\\r\]*%zmm\[0-9\]+\{%k\[1-7\]\}(?:\n|\[ \\t\]+#)" 1 } } */
++/* { dg-final { scan-assembler-times "vpshrdw\[ \\t\]+\[^\{\n\]*\\\$3\[^\n\r]*%zmm\[0-9\]+\[^\\n\\r]*%zmm\[0-9\]+\[^\\n\\r\]*%zmm\[0-9\]+\{%k\[1-7\]\}\{z\}(?:\n|\[ \\t\]+#)" 1 } } */
++/* { dg-final { scan-assembler-times "vpshrdd\[ \\t\]+\[^\{\n\]*\\\$3\[^\n\r]*%zmm\[0-9\]+\[^\n\r]*%zmm\[0-9\]+\[^\n\r]*%zmm\[0-9\]+(?:\n|\[ \\t\]+#)" 1 } } */
++/* { dg-final { scan-assembler-times "vpshrdd\[ \\t\]+\[^\{\n\]*\\\$3\[^\n\r]*%zmm\[0-9\]+\[^\\n\\r]*%zmm\[0-9\]+\[^\\n\\r\]*%zmm\[0-9\]+\{%k\[1-7\]\}(?:\n|\[ \\t\]+#)" 1 } } */
++/* { dg-final { scan-assembler-times "vpshrdd\[ \\t\]+\[^\{\n\]*\\\$3\[^\n\r]*%zmm\[0-9\]+\[^\\n\\r]*%zmm\[0-9\]+\[^\\n\\r\]*%zmm\[0-9\]+\{%k\[1-7\]\}\{z\}(?:\n|\[ \\t\]+#)" 1 } } */
++/* { dg-final { scan-assembler-times "vpshrdq\[ \\t\]+\[^\{\n\]*\\\$3\[^\n\r]*%zmm\[0-9\]+\[^\n\r]*%zmm\[0-9\]+\[^\n\r]*%zmm\[0-9\]+(?:\n|\[ \\t\]+#)" 1 } } */
++/* { dg-final { scan-assembler-times "vpshrdq\[ \\t\]+\[^\{\n\]*\\\$3\[^\n\r]*%zmm\[0-9\]+\[^\\n\\r]*%zmm\[0-9\]+\[^\\n\\r\]*%zmm\[0-9\]+\{%k\[1-7\]\}(?:\n|\[ \\t\]+#)" 1 } } */
++/* { dg-final { scan-assembler-times "vpshrdq\[ \\t\]+\[^\{\n\]*\\\$3\[^\n\r]*%zmm\[0-9\]+\[^\\n\\r]*%zmm\[0-9\]+\[^\\n\\r\]*%zmm\[0-9\]+\{%k\[1-7\]\}\{z\}(?:\n|\[ \\t\]+#)" 1 } } */
++
++#include <immintrin.h>
++
++volatile __m512i x,y;
++volatile __mmask32 m32;
++volatile __mmask16 m16;
++volatile __mmask8 m8;
++
++void extern
++avx512f_test (void)
++{
++  x = _mm512_shrdi_epi16 (x, y, 3);
++  x = _mm512_maskz_shrdi_epi16 (m32, x, y, 3);
++  x = _mm512_mask_shrdi_epi16 (x, m32, y, x, 3);
++
++  x = _mm512_shrdi_epi32 (x, y, 3);
++  x = _mm512_maskz_shrdi_epi32 (m16, x, y, 3);
++  x = _mm512_mask_shrdi_epi32 (x, m16, y, x, 3);
++
++  x = _mm512_shrdi_epi64 (x, y, 3);
++  x = _mm512_maskz_shrdi_epi64 (m8, x, y, 3);
++  x = _mm512_mask_shrdi_epi64 (x, m8, y, x, 3);
++}
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/gcc.target/i386/avx512vl-pr93009.c
 @@ -0,0 +1,38 @@
 +/* PR target/93009 */
@@ -29991,6 +32589,159 @@ new file mode 100644
 +  if (x[0] != 8.0 || x[1] != 13.0 || y[0] != 53.0 || y[1] != 68.0)
 +    abort ();
 +}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.target/i386/avx512vl-pr93670.c
+@@ -0,0 +1,77 @@
++/* PR target/93670 */
++/* { dg-do compile } */
++/* { dg-options "-O2 -mavx512vl -mno-avx512dq" } */
++
++#include <x86intrin.h>
++
++__m128i
++f1 (__m256i x)
++{
++  return _mm256_extracti32x4_epi32 (x, 0);
++}
++
++__m128i
++f2 (__m256i x, __m128i w, __mmask8 m)
++{
++  return _mm256_mask_extracti32x4_epi32 (w, m, x, 0);
++}
++
++__m128i
++f3 (__m256i x, __mmask8 m)
++{
++  return _mm256_maskz_extracti32x4_epi32 (m, x, 0);
++}
++
++__m128
++f4 (__m256 x)
++{
++  return _mm256_extractf32x4_ps (x, 0);
++}
++
++__m128
++f5 (__m256 x, __m128 w, __mmask8 m)
++{
++  return _mm256_mask_extractf32x4_ps (w, m, x, 0);
++}
++
++__m128
++f6 (__m256 x, __mmask8 m)
++{
++  return _mm256_maskz_extractf32x4_ps (m, x, 0);
++}
++
++__m128i
++f7 (__m256i x)
++{
++  return _mm256_extracti32x4_epi32 (x, 1);
++}
++
++__m128i
++f8 (__m256i x, __m128i w, __mmask8 m)
++{
++  return _mm256_mask_extracti32x4_epi32 (w, m, x, 1);
++}
++
++__m128i
++f9 (__m256i x, __mmask8 m)
++{
++  return _mm256_maskz_extracti32x4_epi32 (m, x, 1);
++}
++
++__m128
++f10 (__m256 x)
++{
++  return _mm256_extractf32x4_ps (x, 1);
++}
++
++__m128
++f11 (__m256 x, __m128 w, __mmask8 m)
++{
++  return _mm256_mask_extractf32x4_ps (w, m, x, 1);
++}
++
++__m128
++f12 (__m256 x, __mmask8 m)
++{
++  return _mm256_maskz_extractf32x4_ps (m, x, 1);
++}
+--- a/src/gcc/testsuite/gcc.target/i386/avx512vpopcntdq-vpopcntd-1.c
++++ b/src/gcc/testsuite/gcc.target/i386/avx512vpopcntdq-vpopcntd-1.c
+@@ -40,7 +40,7 @@ TEST (void)
+   }
+ 
+   res1.x = INTRINSIC (_popcnt_epi32)       (src.x);
+-  res2.x = INTRINSIC (_mask_popcnt_epi32)  (src.x, mask, src0.x);
++  res2.x = INTRINSIC (_mask_popcnt_epi32)  (src0.x, mask, src.x);
+   res3.x = INTRINSIC (_maskz_popcnt_epi32) (mask, src.x);
+ 
+   if (UNION_CHECK (AVX512F_LEN, i_d) (res1, res_ref))
+--- a/src/gcc/testsuite/gcc.target/i386/avx512vpopcntdq-vpopcntd.c
++++ b/src/gcc/testsuite/gcc.target/i386/avx512vpopcntdq-vpopcntd.c
+@@ -22,19 +22,19 @@ int foo ()
+   __mmask8 msk8;
+   __m128i a = _mm_popcnt_epi32 (x);
+   asm volatile ("" : "+v" (a));
+-  a = _mm_mask_popcnt_epi32 (x, msk8, x_1);
++  a = _mm_mask_popcnt_epi32 (x_1, msk8, x);
+   asm volatile ("" : "+v" (a));
+   a = _mm_maskz_popcnt_epi32 (msk8, x);
+   asm volatile ("" : "+v" (a));
+   __m256i b = _mm256_popcnt_epi32 (y);
+   asm volatile ("" : "+v" (b));
+-  b = _mm256_mask_popcnt_epi32 (y, msk8, y_1);
++  b = _mm256_mask_popcnt_epi32 (y_1, msk8, y);
+   asm volatile ("" : "+v" (b));
+   b = _mm256_maskz_popcnt_epi32 (msk8, y);
+   asm volatile ("" : "+v" (b));
+   __m512i c = _mm512_popcnt_epi32 (z);
+   asm volatile ("" : "+v" (c));
+-  c = _mm512_mask_popcnt_epi32 (z, msk, z_1);
++  c = _mm512_mask_popcnt_epi32 (z_1, msk, z);
+   asm volatile ("" : "+v" (c));
+   c = _mm512_maskz_popcnt_epi32 (msk, z);
+   asm volatile ("" : "+v" (c));
+--- a/src/gcc/testsuite/gcc.target/i386/avx512vpopcntdq-vpopcntq-1.c
++++ b/src/gcc/testsuite/gcc.target/i386/avx512vpopcntdq-vpopcntq-1.c
+@@ -40,7 +40,7 @@ TEST (void)
+   }
+ 
+   res1.x = INTRINSIC (_popcnt_epi64)       (src.x);
+-  res2.x = INTRINSIC (_mask_popcnt_epi64)  (src.x, mask, src0.x);
++  res2.x = INTRINSIC (_mask_popcnt_epi64)  (src0.x, mask, src.x);
+   res3.x = INTRINSIC (_maskz_popcnt_epi64) (mask, src.x);
+ 
+   if (UNION_CHECK (AVX512F_LEN, i_q) (res1, res_ref))
+--- a/src/gcc/testsuite/gcc.target/i386/avx512vpopcntdq-vpopcntq.c
++++ b/src/gcc/testsuite/gcc.target/i386/avx512vpopcntdq-vpopcntq.c
+@@ -21,19 +21,19 @@ int foo ()
+   __mmask8 msk; 
+   __m128i a = _mm_popcnt_epi64 (x);
+   asm volatile ("" : "+v" (a));
+-  a = _mm_mask_popcnt_epi64 (x, msk, x_1);
++  a = _mm_mask_popcnt_epi64 (x_1, msk, x);
+   asm volatile ("" : "+v" (a));
+   a = _mm_maskz_popcnt_epi64 (msk, x);
+   asm volatile ("" : "+v" (a));
+   __m256i b = _mm256_popcnt_epi64 (y);
+   asm volatile ("" : "+v" (b));
+-  b = _mm256_mask_popcnt_epi64 (y, msk, y_1);
++  b = _mm256_mask_popcnt_epi64 (y_1, msk, y);
+   asm volatile ("" : "+v" (b));
+   b = _mm256_maskz_popcnt_epi64 (msk, y);
+   asm volatile ("" : "+v" (b));
+   __m512i c = _mm512_popcnt_epi64 (z);
+   asm volatile ("" : "+v" (c));
+-  c = _mm512_mask_popcnt_epi64 (z, msk, z_1);
++  c = _mm512_mask_popcnt_epi64 (z_1, msk, z);
+   asm volatile ("" : "+v" (c));
+   c = _mm512_maskz_popcnt_epi64 (msk, z); 
+   asm volatile ("" : "+v" (c));
 --- a/src/gcc/testsuite/gcc.target/i386/indirect-thunk-1.c
 +++ b/src/gcc/testsuite/gcc.target/i386/indirect-thunk-1.c
 @@ -14,7 +14,7 @@ male_indirect_jump (long offset)
@@ -30231,6 +32982,156 @@ new file mode 100644
 +/* { dg-final { scan-assembler {movl[ \t][Ll]_xxx\$non_lazy_ptr-L1\$pb\(%eax\),[ \t]%eax} { target { ia32 && *-*-darwin* } } } } */
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/gcc.target/i386/pr65782.c
+@@ -0,0 +1,16 @@
++/* PR target/65782 */
++/* { dg-do assemble { target { avx512vl && { ! ia32 } } } } */
++/* { dg-options "-O2 -mavx512vl" } */
++
++void
++foo (void)
++{
++  register double x __asm ("xmm14");
++  register double y __asm ("xmm18");
++  asm ("" : "=x" (x));
++  asm ("" : "=v" (y));
++  x += y;
++  y += x;
++  asm ("" : : "x" (x));
++  asm ("" : : "v" (y));
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.target/i386/pr85667-10.c
+@@ -0,0 +1,21 @@
++/* { dg-do compile { target lp64 } } */
++/* { dg-options "-O2 -masm=att" } */
++/* { dg-final { scan-assembler-times "movq\[ \t\]*%rcx, .*" 1 } } */
++/* { dg-final { scan-assembler-times "movq\[ \t\]*%rdx, .*" 1 } } */
++/* { dg-final { scan-assembler-times "movq\[ \t\]*%r8, .*" 1 } } */
++/* { dg-final { scan-assembler-times "movq\[ \t\]*%r9, .*" 1 } } */
++/* { dg-final { scan-assembler-times "addsd\[ \t]*40\\\(%rsp\\\), .*" 1 } } */
++/* { dg-final { scan-assembler-times "movq\[^\n\r\]*, %rax" 1 } } */
++
++typedef struct
++{
++  double x;
++} Double;
++
++Double  __attribute__((ms_abi))
++fn1 (Double x1, Double x2, Double x3, Double x4, Double x5)
++{
++  Double v;
++  v.x = x1.x + x2.x + x3.x + x4.x + x5.x;
++  return v;
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.target/i386/pr85667-7.c
+@@ -0,0 +1,36 @@
++/* { dg-do run { target lp64 } } */
++/* { dg-options "-O2" } */
++
++void abort (void);
++
++typedef struct
++{
++  float x;
++} Float;
++
++Float  __attribute__((ms_abi, noinline, noclone))
++fn1 (Float x1, Float x2, Float x3, Float x4, Float x5)
++{
++  Float v;
++  v.x = x1.x + x2.x + x3.x + x4.x + x5.x;
++  return v;
++}
++int main ()
++{
++  Float a, a1, a2, a3, a4, a5;
++  float x1 = 1.1;
++  float x2 = 3.1;
++  float x3 = 4.2;
++  float x4 = 14.2;
++  float x5 = -7.2;
++  float x = x1 + x2 + x3 + x4 + x5;
++  a1.x = x1;
++  a2.x = x2;
++  a3.x = x3;
++  a4.x = x4;
++  a5.x = x5;
++  a = fn1 (a1, a2, a3, a4, a5);
++  if (a.x == x);
++    return 0; 
++  abort ();   
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.target/i386/pr85667-8.c
+@@ -0,0 +1,21 @@
++/* { dg-do compile { target lp64 } } */
++/* { dg-options "-O2 -masm=att" } */
++/* { dg-final { scan-assembler-times "movd\[ \t\]*%ecx, .*" 1 } } */
++/* { dg-final { scan-assembler-times "movd\[ \t\]*%edx, .*" 1 } } */
++/* { dg-final { scan-assembler-times "movd\[ \t\]*%r8d, .*" 1 } } */
++/* { dg-final { scan-assembler-times "movd\[ \t\]*%r9d, .*" 1 } } */
++/* { dg-final { scan-assembler-times "addss\[ \t]*40\\\(%rsp\\\), .*" 1 } } */
++/* { dg-final { scan-assembler-times "movd\[^\n\r\]*, %eax" 1 } } */
++
++typedef struct
++{
++  float x;
++} Float;
++
++Float  __attribute__((ms_abi))
++fn1 (Float x1, Float x2, Float x3, Float x4, Float x5)
++{
++  Float v;
++  v.x = x1.x + x2.x + x3.x + x4.x + x5.x;
++  return v;
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.target/i386/pr85667-9.c
+@@ -0,0 +1,36 @@
++/* { dg-do run { target lp64 } } */
++/* { dg-options "-O2" } */
++
++void abort (void);
++
++typedef struct
++{
++  double x;
++} Double;
++
++Double  __attribute__((ms_abi, noinline, noclone))
++fn1 (Double x1, Double x2, Double x3, Double x4, Double x5)
++{
++  Double v;
++  v.x = x1.x + x2.x + x3.x + x4.x + x5.x;
++  return v;
++}
++int main ()
++{
++  Double a, a1, a2, a3, a4, a5;
++  double x1 = 1.1;
++  double x2 = 3.1;
++  double x3 = 4.2;
++  double x4 = 14.2;
++  double x5 = -7.2;
++  double x = x1 + x2 + x3 + x4 + x5;
++  a1.x = x1;
++  a2.x = x2;
++  a3.x = x3;
++  a4.x = x4;
++  a5.x = x5;
++  a = fn1 (a1, a2, a3, a4, a5);
++  if (a.x == x);
++    return 0; 
++  abort ();   
++}
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/gcc.target/i386/pr87853.c
 @@ -0,0 +1,20 @@
 +/* PR target/87853 */
@@ -30451,6 +33352,206 @@ new file mode 100644
 +/* { dg-options "-O3 -funroll-loops -fno-tree-dominator-opts -fno-tree-vrp -w" } */
 +
 +#include "pr56348.c"
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.target/i386/pr93696-1.c
+@@ -0,0 +1,79 @@
++/* PR target/93696 */
++/* { dg-do compile } */
++/* { dg-options "-O2 -mavx512bitalg -mavx512vpopcntdq -mavx512vl -mavx512bw -masm=att" } */
++/* { dg-final { scan-assembler-times "vpopcnt\[bwdq]\t%\[xyz]mm1, %\[xyz]mm0\{%k\[0-7]\}\[^\{]" 12 } } */
++/* { dg-final { scan-assembler-not "vmovdq\[au]\[0-9]" } } */
++
++#include <x86intrin.h>
++
++__m128i
++f1 (__m128i x, __mmask8 m, __m128i y)
++{
++  return _mm_mask_popcnt_epi64 (x, m, y);
++}
++
++__m128i
++f2 (__m128i x, __mmask8 m, __m128i y)
++{
++  return _mm_mask_popcnt_epi32 (x, m, y);
++}
++
++__m128i
++f3 (__m128i x, __mmask8 m, __m128i y)
++{
++  return _mm_mask_popcnt_epi16 (x, m, y);
++}
++
++__m128i
++f4 (__m128i x, __mmask16 m, __m128i y)
++{
++  return _mm_mask_popcnt_epi8 (x, m, y);
++}
++
++__m256i
++f5 (__m256i x, __mmask8 m, __m256i y)
++{
++  return _mm256_mask_popcnt_epi64 (x, m, y);
++}
++
++__m256i
++f6 (__m256i x, __mmask8 m, __m256i y)
++{
++  return _mm256_mask_popcnt_epi32 (x, m, y);
++}
++
++__m256i
++f7 (__m256i x, __mmask16 m, __m256i y)
++{
++  return _mm256_mask_popcnt_epi16 (x, m, y);
++}
++
++__m256i
++f8 (__m256i x, __mmask32 m, __m256i y)
++{
++  return _mm256_mask_popcnt_epi8 (x, m, y);
++}
++
++__m512i
++f9 (__m512i x, __mmask8 m, __m512i y)
++{
++  return _mm512_mask_popcnt_epi64 (x, m, y);
++}
++
++__m512i
++f10 (__m512i x, __mmask16 m, __m512i y)
++{
++  return _mm512_mask_popcnt_epi32 (x, m, y);
++}
++
++__m512i
++f11 (__m512i x, __mmask32 m, __m512i y)
++{
++  return _mm512_mask_popcnt_epi16 (x, m, y);
++}
++
++__m512i
++f12 (__m512i x, __mmask64 m, __m512i y)
++{
++  return _mm512_mask_popcnt_epi8 (x, m, y);
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.target/i386/pr93696-2.c
+@@ -0,0 +1,79 @@
++/* PR target/93696 */
++/* { dg-do compile } */
++/* { dg-options "-O2 -mavx512bitalg -mavx512vpopcntdq -mavx512vl -mavx512bw -masm=att" } */
++/* { dg-final { scan-assembler-times "vpopcnt\[bwdq]\t%\[xyz]mm1, %\[xyz]mm0\{%k\[0-7]\}\{z\}" 12 } } */
++/* { dg-final { scan-assembler-not "vmovdq\[au]\[0-9]" } } */
++
++#include <x86intrin.h>
++
++__m128i
++f1 (__m128i x, __mmask8 m, __m128i y)
++{
++  return _mm_maskz_popcnt_epi64 (m, y);
++}
++
++__m128i
++f2 (__m128i x, __mmask8 m, __m128i y)
++{
++  return _mm_maskz_popcnt_epi32 (m, y);
++}
++
++__m128i
++f3 (__m128i x, __mmask8 m, __m128i y)
++{
++  return _mm_maskz_popcnt_epi16 (m, y);
++}
++
++__m128i
++f4 (__m128i x, __mmask16 m, __m128i y)
++{
++  return _mm_maskz_popcnt_epi8 (m, y);
++}
++
++__m256i
++f5 (__m256i x, __mmask8 m, __m256i y)
++{
++  return _mm256_maskz_popcnt_epi64 (m, y);
++}
++
++__m256i
++f6 (__m256i x, __mmask8 m, __m256i y)
++{
++  return _mm256_maskz_popcnt_epi32 (m, y);
++}
++
++__m256i
++f7 (__m256i x, __mmask16 m, __m256i y)
++{
++  return _mm256_maskz_popcnt_epi16 (m, y);
++}
++
++__m256i
++f8 (__m256i x, __mmask32 m, __m256i y)
++{
++  return _mm256_maskz_popcnt_epi8 (m, y);
++}
++
++__m512i
++f9 (__m512i x, __mmask8 m, __m512i y)
++{
++  return _mm512_maskz_popcnt_epi64 (m, y);
++}
++
++__m512i
++f10 (__m512i x, __mmask16 m, __m512i y)
++{
++  return _mm512_maskz_popcnt_epi32 (m, y);
++}
++
++__m512i
++f11 (__m512i x, __mmask32 m, __m512i y)
++{
++  return _mm512_maskz_popcnt_epi16 (m, y);
++}
++
++__m512i
++f12 (__m512i x, __mmask64 m, __m512i y)
++{
++  return _mm512_maskz_popcnt_epi8 (m, y);
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.target/i386/pr93743.c
+@@ -0,0 +1,30 @@
++/* { dg-do run } */
++/* { dg-options "-O2 -ffast-math -mfpmath=387" } */
++
++void
++__attribute__((noinline))
++test (long double x, long double y)
++{
++  long double ldbl_n = __builtin_atan2l (x, y);
++  long double ldbl_s = __builtin_atan2l (y, x);  // arguments swapped
++
++  if (ldbl_n < 1.L ||  1.L < ldbl_s)
++    __builtin_abort ();
++
++  double dbl_n = __builtin_atan2  (x, y);
++  double dbl_s = __builtin_atan2  (y, x);  // arguments swapped
++
++  if (dbl_n < 1. ||  1. < dbl_s)
++    __builtin_abort ();
++}
++
++int
++main ()
++{
++  long double x = 0.922766L;
++  long double y = 0.080466L;
++
++  test (x, y);
++
++  return 0;
++}
 --- a/src/gcc/testsuite/gcc.target/i386/ret-thunk-14.c
 +++ b/src/gcc/testsuite/gcc.target/i386/ret-thunk-14.c
 @@ -19,6 +19,6 @@ foo (void)
@@ -30482,6 +33583,205 @@ new file mode 100644
  /* { dg-final { scan-assembler-times {\tpause} 2 } } */
  /* { dg-final { scan-assembler-times {\tlfence} 2 } } */
  /* { dg-final { scan-assembler "call\[ \t\]*_?__x86_indirect_thunk_(r|e)ax" } } */
+--- a/src/gcc/testsuite/gcc.target/i386/sse-12.c
++++ b/src/gcc/testsuite/gcc.target/i386/sse-12.c
+@@ -3,7 +3,7 @@
+    popcntintrin.h gfniintrin.h and mm_malloc.h are usable
+    with -O -std=c89 -pedantic-errors.  */
+ /* { dg-do compile } */
+-/* { dg-options "-O -std=c89 -pedantic-errors -march=k8 -msse4a -m3dnow -mavx -mavx2 -mfma4 -mxop -maes -mpclmul -mpopcnt -mabm -mlzcnt -mbmi -mbmi2 -mtbm -mlwp -mfsgsbase -mrdrnd -mf16c -mfma -mrtm -mrdseed -mprfchw -madx -mfxsr -mxsaveopt -mavx512f -mavx512er -mavx512cd -mavx512pf -msha -mprefetchwt1 -mxsavec -mxsaves -mclflushopt -mavx512bw -mavx512dq -mavx512vl -mavx512vbmi -mavx512ifma -mavx5124fmaps -mavx5124vnniw -mavx512vpopcntdq -mclwb -mmwaitx -mclzero -mpku -msgx -mrdpid -mgfni -mavx512bitalg -mpconfig -mwbnoinvd" } */
++/* { dg-options "-O -std=c89 -pedantic-errors -march=k8 -msse4a -m3dnow -mavx -mavx2 -mfma4 -mxop -maes -mpclmul -mpopcnt -mabm -mlzcnt -mbmi -mbmi2 -mtbm -mlwp -mfsgsbase -mrdrnd -mf16c -mfma -mrtm -mrdseed -mprfchw -madx -mfxsr -mxsaveopt -mavx512f -mavx512er -mavx512cd -mavx512pf -msha -mprefetchwt1 -mxsavec -mxsaves -mclflushopt -mavx512bw -mavx512dq -mavx512vl -mavx512vbmi -mavx512vbmi2 -mavx512ifma -mavx5124fmaps -mavx5124vnniw -mavx512vpopcntdq -mclwb -mmwaitx -mclzero -mpku -msgx -mrdpid -mgfni -mavx512bitalg -mpconfig -mwbnoinvd" } */
+ 
+ #include <x86intrin.h>
+ 
+--- a/src/gcc/testsuite/gcc.target/i386/sse-13.c
++++ b/src/gcc/testsuite/gcc.target/i386/sse-13.c
+@@ -1,5 +1,5 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O2 -Werror-implicit-function-declaration -march=k8 -msse4a -m3dnow -mavx -mavx2 -mfma4 -mxop -maes -mpclmul -mpopcnt -mabm -mlzcnt -mbmi -mbmi2 -mtbm -mlwp -mfsgsbase -mrdrnd -mf16c -mfma -mrtm -mrdseed -mprfchw -madx -mfxsr -mxsaveopt -mavx512f -mavx512er -mavx512cd -mavx512pf -msha -mprefetchwt1 -mxsavec -mxsaves -mclflushopt -mavx512vl -mavx512dq -mavx512bw -mavx512vbmi -mavx512ifma -mavx5124fmaps -mavx5124vnniw -mavx512vpopcntdq -mclwb -mmwaitx -mclzero -mpku -msgx -mrdpid -mgfni -mavx512bitalg -mpconfig -mwbnoinvd" } */
++/* { dg-options "-O2 -Werror-implicit-function-declaration -march=k8 -msse4a -m3dnow -mavx -mavx2 -mfma4 -mxop -maes -mpclmul -mpopcnt -mabm -mlzcnt -mbmi -mbmi2 -mtbm -mlwp -mfsgsbase -mrdrnd -mf16c -mfma -mrtm -mrdseed -mprfchw -madx -mfxsr -mxsaveopt -mavx512f -mavx512er -mavx512cd -mavx512pf -msha -mprefetchwt1 -mxsavec -mxsaves -mclflushopt -mavx512vl -mavx512dq -mavx512bw -mavx512vbmi -mavx512vbmi2 -mavx512ifma -mavx5124fmaps -mavx5124vnniw -mavx512vpopcntdq -mclwb -mmwaitx -mclzero -mpku -msgx -mrdpid -mgfni -mavx512bitalg -mpconfig -mwbnoinvd" } */
+ /* { dg-add-options bind_pic_locally } */
+ 
+ #include <mm_malloc.h>
+--- a/src/gcc/testsuite/gcc.target/i386/sse-14.c
++++ b/src/gcc/testsuite/gcc.target/i386/sse-14.c
+@@ -1,5 +1,5 @@
+ /* { dg-do compile } */
+-/* { dg-options "-O0 -Werror-implicit-function-declaration -march=k8 -msse4a -m3dnow -mavx -mavx2 -mfma4 -mxop -maes -mpclmul -mpopcnt -mabm -mlzcnt -mbmi -mbmi2 -mtbm -mlwp -mfsgsbase -mrdrnd -mf16c -mfma -mrtm -mrdseed -mprfchw -madx -mfxsr -mxsaveopt -mavx512f -mavx512er -mavx512cd -mavx512pf -msha -mprefetchwt1 -mxsavec -mxsaves -mclflushopt -mavx512dq -mavx512bw -mavx512vl -mavx512ifma -mavx512vbmi -mavx5124fmaps -mavx5124vnniw -mavx512vpopcntdq -mclwb -mmwaitx -mclzero -mpku -msgx -mrdpid -mgfni -mpconfig -mwbnoinvd" } */
++/* { dg-options "-O0 -Werror-implicit-function-declaration -march=k8 -msse4a -m3dnow -mavx -mavx2 -mfma4 -mxop -maes -mpclmul -mpopcnt -mabm -mlzcnt -mbmi -mbmi2 -mtbm -mlwp -mfsgsbase -mrdrnd -mf16c -mfma -mrtm -mrdseed -mprfchw -madx -mfxsr -mxsaveopt -mavx512f -mavx512er -mavx512cd -mavx512pf -msha -mprefetchwt1 -mxsavec -mxsaves -mclflushopt -mavx512dq -mavx512bw -mavx512vl -mavx512ifma -mavx512vbmi -mavx512vbmi2 -mavx5124fmaps -mavx5124vnniw -mavx512vpopcntdq -mclwb -mmwaitx -mclzero -mpku -msgx -mrdpid -mgfni -mpconfig -mwbnoinvd" } */
+ /* { dg-add-options bind_pic_locally } */
+ 
+ #include <mm_malloc.h>
+@@ -315,6 +315,24 @@ test_2 (_mm_sqrt_round_sd, __m128d, __m128d, __m128d, 9)
+ test_2 (_mm_sqrt_round_ss, __m128, __m128, __m128, 9)
+ test_2 (_mm_sub_round_sd, __m128d, __m128d, __m128d, 9)
+ test_2 (_mm_sub_round_ss, __m128, __m128, __m128, 9)
++test_2 (_mm512_shrdi_epi16, __m512i, __m512i, __m512i, 1)
++test_2 (_mm512_shrdi_epi32, __m512i, __m512i, __m512i, 1)
++test_2 (_mm512_shrdi_epi64, __m512i, __m512i, __m512i, 1)
++test_2 (_mm256_shrdi_epi16, __m256i, __m256i, __m256i, 1)
++test_2 (_mm256_shrdi_epi32, __m256i, __m256i, __m256i, 1)
++test_2 (_mm256_shrdi_epi64, __m256i, __m256i, __m256i, 1)
++test_2 (_mm_shrdi_epi16, __m128i, __m128i, __m128i, 1)
++test_2 (_mm_shrdi_epi32, __m128i, __m128i, __m128i, 1)
++test_2 (_mm_shrdi_epi64, __m128i, __m128i, __m128i, 1)
++test_2 (_mm512_shldi_epi16, __m512i, __m512i, __m512i, 1)
++test_2 (_mm512_shldi_epi32, __m512i, __m512i, __m512i, 1)
++test_2 (_mm512_shldi_epi64, __m512i, __m512i, __m512i, 1)
++test_2 (_mm256_shldi_epi16, __m256i, __m256i, __m256i, 1)
++test_2 (_mm256_shldi_epi32, __m256i, __m256i, __m256i, 1)
++test_2 (_mm256_shldi_epi64, __m256i, __m256i, __m256i, 1)
++test_2 (_mm_shldi_epi16, __m128i, __m128i, __m128i, 1)
++test_2 (_mm_shldi_epi32, __m128i, __m128i, __m128i, 1)
++test_2 (_mm_shldi_epi64, __m128i, __m128i, __m128i, 1)
+ test_2x (_mm512_cmp_round_pd_mask, __mmask8, __m512d, __m512d, 1, 8)
+ test_2x (_mm512_cmp_round_ps_mask, __mmask16, __m512, __m512, 1, 8)
+ test_2x (_mm512_maskz_roundscale_round_pd, __m512d, __mmask8, __m512d, 1, 8)
+@@ -434,6 +452,24 @@ test_3 (_mm_fnmsub_round_sd, __m128d, __m128d, __m128d, __m128d, 9)
+ test_3 (_mm_fnmsub_round_ss, __m128, __m128, __m128, __m128, 9)
+ test_3 (_mm_mask_cmp_sd_mask, __mmask8, __mmask8, __m128d, __m128d, 1)
+ test_3 (_mm_mask_cmp_ss_mask, __mmask8, __mmask8, __m128, __m128, 1)
++test_3 (_mm512_maskz_shrdi_epi16, __m512i, __mmask32, __m512i, __m512i, 1)
++test_3 (_mm512_maskz_shrdi_epi32, __m512i, __mmask16, __m512i, __m512i, 1)
++test_3 (_mm512_maskz_shrdi_epi64, __m512i, __mmask8,  __m512i,__m512i, 1)
++test_3 (_mm256_maskz_shrdi_epi16, __m256i, __mmask16, __m256i, __m256i, 1)
++test_3 (_mm256_maskz_shrdi_epi32, __m256i, __mmask8,  __m256i,__m256i, 1)
++test_3 (_mm256_maskz_shrdi_epi64, __m256i, __mmask8,  __m256i,__m256i, 1)
++test_3 (_mm_maskz_shrdi_epi16, __m128i, __mmask8,  __m128i, __m128i, 1)
++test_3 (_mm_maskz_shrdi_epi32, __m128i, __mmask8,  __m128i, __m128i, 1)
++test_3 (_mm_maskz_shrdi_epi64, __m128i, __mmask8,  __m128i, __m128i, 1)
++test_3 (_mm512_maskz_shldi_epi16, __m512i, __mmask32, __m512i, __m512i, 1)
++test_3 (_mm512_maskz_shldi_epi32, __m512i, __mmask16, __m512i, __m512i, 1)
++test_3 (_mm512_maskz_shldi_epi64, __m512i, __mmask8, __m512i, __m512i, 1)
++test_3 (_mm256_maskz_shldi_epi16, __m256i, __mmask16, __m256i, __m256i, 1)
++test_3 (_mm256_maskz_shldi_epi32, __m256i, __mmask8, __m256i, __m256i, 1)
++test_3 (_mm256_maskz_shldi_epi64, __m256i, __mmask8, __m256i, __m256i, 1)
++test_3 (_mm_maskz_shldi_epi16, __m128i, __mmask8, __m128i, __m128i, 1)
++test_3 (_mm_maskz_shldi_epi32, __m128i, __mmask8, __m128i, __m128i, 1)
++test_3 (_mm_maskz_shldi_epi64, __m128i, __mmask8, __m128i, __m128i, 1)
+ test_3v (_mm512_i32scatter_epi32, void *, __m512i, __m512i, 1)
+ test_3v (_mm512_i32scatter_epi64, void *, __m256i, __m512i, 1)
+ test_3v (_mm512_i32scatter_pd, void *, __m256i, __m512d, 1)
+@@ -558,6 +594,24 @@ test_4 (_mm_mask3_fnmsub_round_sd, __m128d, __m128d, __m128d, __m128d, __mmask8,
+ test_4 (_mm_mask3_fnmsub_round_ss, __m128, __m128, __m128, __m128, __mmask8, 9)
+ test_4 (_mm_maskz_fnmsub_round_sd, __m128d, __mmask8, __m128d, __m128d, __m128d, 9)
+ test_4 (_mm_maskz_fnmsub_round_ss, __m128, __mmask8, __m128, __m128, __m128, 9)
++test_4 (_mm512_mask_shrdi_epi16, __m512i, __m512i, __mmask32, __m512i, __m512i, 1)
++test_4 (_mm512_mask_shrdi_epi32, __m512i, __m512i, __mmask16, __m512i, __m512i, 1)
++test_4 (_mm512_mask_shrdi_epi64, __m512i, __m512i, __mmask8, __m512i, __m512i, 1)
++test_4 (_mm256_mask_shrdi_epi16, __m256i, __m256i, __mmask16, __m256i, __m256i, 1)
++test_4 (_mm256_mask_shrdi_epi32, __m256i, __m256i, __mmask8, __m256i, __m256i, 1)
++test_4 (_mm256_mask_shrdi_epi64, __m256i, __m256i, __mmask8, __m256i, __m256i, 1)
++test_4 (_mm_mask_shrdi_epi16, __m128i, __m128i, __mmask8, __m128i, __m128i, 1)
++test_4 (_mm_mask_shrdi_epi32, __m128i, __m128i, __mmask8, __m128i, __m128i, 1)
++test_4 (_mm_mask_shrdi_epi64, __m128i, __m128i, __mmask8, __m128i, __m128i, 1)
++test_4 (_mm512_mask_shldi_epi16, __m512i, __m512i, __mmask32, __m512i, __m512i, 1)
++test_4 (_mm512_mask_shldi_epi32, __m512i, __m512i, __mmask16, __m512i, __m512i, 1)
++test_4 (_mm512_mask_shldi_epi64, __m512i, __m512i, __mmask8, __m512i, __m512i, 1)
++test_4 (_mm256_mask_shldi_epi16, __m256i, __m256i, __mmask16, __m256i, __m256i, 1)
++test_4 (_mm256_mask_shldi_epi32, __m256i, __m256i, __mmask8, __m256i, __m256i, 1)
++test_4 (_mm256_mask_shldi_epi64, __m256i, __m256i, __mmask8, __m256i, __m256i, 1)
++test_4 (_mm_mask_shldi_epi16, __m128i, __m128i, __mmask8, __m128i, __m128i, 1)
++test_4 (_mm_mask_shldi_epi32, __m128i, __m128i, __mmask8, __m128i, __m128i, 1)
++test_4 (_mm_mask_shldi_epi64, __m128i, __m128i, __mmask8, __m128i, __m128i, 1)
+ test_4v (_mm512_mask_i32scatter_epi32, void *, __mmask16, __m512i, __m512i, 1)
+ test_4v (_mm512_mask_i32scatter_epi64, void *, __mmask8, __m256i, __m512i, 1)
+ test_4v (_mm512_mask_i32scatter_pd, void *, __mmask8, __m256i, __m512d, 1)
+--- a/src/gcc/testsuite/gcc.target/i386/sse-22.c
++++ b/src/gcc/testsuite/gcc.target/i386/sse-22.c
+@@ -101,7 +101,7 @@
+ 
+ 
+ #ifndef DIFFERENT_PRAGMAS
+-#pragma GCC target ("sse4a,3dnow,avx,avx2,fma4,xop,aes,pclmul,popcnt,abm,lzcnt,bmi,bmi2,tbm,lwp,fsgsbase,rdrnd,f16c,rtm,rdseed,prfchw,adx,fxsr,xsaveopt,avx512f,avx512er,avx512cd,avx512pf,sha,prefetchwt1,avx512vl,avx512bw,avx512dq,avx512vbmi,avx512ifma,avx5124fmaps,avx5124vnniw,avx512vpopcntdq,gfni,avx512bitalg")
++#pragma GCC target ("sse4a,3dnow,avx,avx2,fma4,xop,aes,pclmul,popcnt,abm,lzcnt,bmi,bmi2,tbm,lwp,fsgsbase,rdrnd,f16c,rtm,rdseed,prfchw,adx,fxsr,xsaveopt,avx512f,avx512er,avx512cd,avx512pf,sha,prefetchwt1,avx512vl,avx512bw,avx512dq,avx512vbmi,avx512vbmi2,avx512ifma,avx5124fmaps,avx5124vnniw,avx512vpopcntdq,gfni,avx512bitalg")
+ #endif
+ 
+ /* Following intrinsics require immediate arguments.  They
+@@ -218,7 +218,7 @@ test_4 (_mm_cmpestrz, int, __m128i, int, __m128i, int, 1)
+ 
+ /* immintrin.h (AVX/AVX2/RDRND/FSGSBASE/F16C/RTM/AVX512F/SHA) */
+ #ifdef DIFFERENT_PRAGMAS
+-#pragma GCC target ("avx,avx2,rdrnd,fsgsbase,f16c,rtm,avx512f,avx512er,avx512cd,avx512pf,sha,avx512vl,avx512bw,avx512dq,avx512ifma,avx512vbmi,avx5124fmaps,avx5124vnniw,avx512vpopcntdq,gfni,avx512bitalg")
++#pragma GCC target ("avx,avx2,rdrnd,fsgsbase,f16c,rtm,avx512f,avx512er,avx512cd,avx512pf,sha,avx512vl,avx512bw,avx512dq,avx512ifma,avx512vbmi,avx512vbmi2,avx5124fmaps,avx5124vnniw,avx512vpopcntdq,gfni,avx512bitalg")
+ #endif
+ #include <immintrin.h>
+ test_1 (_cvtss_sh, unsigned short, float, 1)
+@@ -437,6 +437,24 @@ test_2 (_mm512_sub_round_pd, __m512d, __m512d, __m512d, 9)
+ test_2 (_mm512_sub_round_ps, __m512, __m512, __m512, 9)
+ test_2 (_mm_cmp_sd_mask, __mmask8, __m128d, __m128d, 1)
+ test_2 (_mm_cmp_ss_mask, __mmask8, __m128, __m128, 1)
++test_2 (_mm512_shrdi_epi16, __m512i, __m512i, __m512i, 1)
++test_2 (_mm512_shrdi_epi32, __m512i, __m512i, __m512i, 1)
++test_2 (_mm512_shrdi_epi64, __m512i, __m512i, __m512i, 1)
++test_2 (_mm256_shrdi_epi16, __m256i, __m256i, __m256i, 1)
++test_2 (_mm256_shrdi_epi32, __m256i, __m256i, __m256i, 1)
++test_2 (_mm256_shrdi_epi64, __m256i, __m256i, __m256i, 1)
++test_2 (_mm_shrdi_epi16, __m128i, __m128i, __m128i, 1)
++test_2 (_mm_shrdi_epi32, __m128i, __m128i, __m128i, 1)
++test_2 (_mm_shrdi_epi64, __m128i, __m128i, __m128i, 1)
++test_2 (_mm512_shldi_epi16, __m512i, __m512i, __m512i, 1)
++test_2 (_mm512_shldi_epi32, __m512i, __m512i, __m512i, 1)
++test_2 (_mm512_shldi_epi64, __m512i, __m512i, __m512i, 1)
++test_2 (_mm256_shldi_epi16, __m256i, __m256i, __m256i, 1)
++test_2 (_mm256_shldi_epi32, __m256i, __m256i, __m256i, 1)
++test_2 (_mm256_shldi_epi64, __m256i, __m256i, __m256i, 1)
++test_2 (_mm_shldi_epi16, __m128i, __m128i, __m128i, 1)
++test_2 (_mm_shldi_epi32, __m128i, __m128i, __m128i, 1)
++test_2 (_mm_shldi_epi64, __m128i, __m128i, __m128i, 1)
+ #ifdef __x86_64__
+ test_2 (_mm_cvt_roundi64_sd, __m128d, __m128d, long long, 9)
+ test_2 (_mm_cvt_roundi64_ss, __m128, __m128, long long, 9)
+@@ -543,6 +561,24 @@ test_3 (_mm512_ternarylogic_epi32, __m512i, __m512i, __m512i, __m512i, 1)
+ test_3 (_mm512_ternarylogic_epi64, __m512i, __m512i, __m512i, __m512i, 1)
+ test_3 (_mm_mask_cmp_sd_mask, __mmask8, __mmask8, __m128d, __m128d, 1)
+ test_3 (_mm_mask_cmp_ss_mask, __mmask8, __mmask8, __m128, __m128, 1)
++test_3 (_mm512_maskz_shrdi_epi16, __m512i, __mmask32, __m512i, __m512i, 1)
++test_3 (_mm512_maskz_shrdi_epi32, __m512i, __mmask16, __m512i, __m512i, 1)
++test_3 (_mm512_maskz_shrdi_epi64, __m512i, __mmask8, __m512i, __m512i, 1)
++test_3 (_mm256_maskz_shrdi_epi16, __m256i, __mmask16, __m256i, __m256i, 1)
++test_3 (_mm256_maskz_shrdi_epi32, __m256i, __mmask8, __m256i, __m256i, 1)
++test_3 (_mm256_maskz_shrdi_epi64, __m256i, __mmask8, __m256i, __m256i, 1)
++test_3 (_mm_maskz_shrdi_epi16, __m128i, __mmask8, __m128i, __m128i, 1)
++test_3 (_mm_maskz_shrdi_epi32, __m128i, __mmask8, __m128i, __m128i, 1)
++test_3 (_mm_maskz_shrdi_epi64, __m128i, __mmask8, __m128i, __m128i, 1)
++test_3 (_mm512_maskz_shldi_epi16, __m512i, __mmask32, __m512i, __m512i, 1)
++test_3 (_mm512_maskz_shldi_epi32, __m512i, __mmask16, __m512i, __m512i, 1)
++test_3 (_mm512_maskz_shldi_epi64, __m512i, __mmask8, __m512i, __m512i, 1)
++test_3 (_mm256_maskz_shldi_epi16, __m256i, __mmask16, __m256i, __m256i, 1)
++test_3 (_mm256_maskz_shldi_epi32, __m256i, __mmask8, __m256i, __m256i, 1)
++test_3 (_mm256_maskz_shldi_epi64, __m256i, __mmask8, __m256i, __m256i, 1)
++test_3 (_mm_maskz_shldi_epi16, __m128i, __mmask8, __m128i, __m128i, 1)
++test_3 (_mm_maskz_shldi_epi32, __m128i, __mmask8, __m128i, __m128i, 1)
++test_3 (_mm_maskz_shldi_epi64, __m128i, __mmask8, __m128i, __m128i, 1)
+ test_3v (_mm512_i32scatter_epi32, void *, __m512i, __m512i, 1)
+ test_3v (_mm512_i32scatter_epi64, void *, __m256i, __m512i, 1)
+ test_3v (_mm512_i32scatter_pd, void *, __m256i, __m512d, 1)
+@@ -657,6 +693,24 @@ test_4 (_mm_mask3_fnmsub_round_sd, __m128d, __m128d, __m128d, __m128d, __mmask8,
+ test_4 (_mm_mask3_fnmsub_round_ss, __m128, __m128, __m128, __m128, __mmask8, 9)
+ test_4 (_mm_maskz_fnmsub_round_sd, __m128d, __mmask8, __m128d, __m128d, __m128d, 9)
+ test_4 (_mm_maskz_fnmsub_round_ss, __m128, __mmask8, __m128, __m128, __m128, 9)
++test_4 (_mm512_mask_shrdi_epi16, __m512i, __m512i, __mmask32, __m512i, __m512i, 1)
++test_4 (_mm512_mask_shrdi_epi32, __m512i, __m512i, __mmask16, __m512i, __m512i, 1)
++test_4 (_mm512_mask_shrdi_epi64, __m512i, __m512i, __mmask8, __m512i, __m512i, 1)
++test_4 (_mm256_mask_shrdi_epi16, __m256i, __m256i, __mmask16, __m256i, __m256i, 1)
++test_4 (_mm256_mask_shrdi_epi32, __m256i, __m256i, __mmask8, __m256i, __m256i, 1)
++test_4 (_mm256_mask_shrdi_epi64, __m256i, __m256i, __mmask8, __m256i, __m256i, 1)
++test_4 (_mm_mask_shrdi_epi16, __m128i, __m128i, __mmask8, __m128i, __m128i, 1)
++test_4 (_mm_mask_shrdi_epi32, __m128i, __m128i, __mmask8, __m128i, __m128i, 1)
++test_4 (_mm_mask_shrdi_epi64, __m128i, __m128i, __mmask8, __m128i, __m128i, 1)
++test_4 (_mm512_mask_shldi_epi16, __m512i, __m512i, __mmask32, __m512i, __m512i, 1)
++test_4 (_mm512_mask_shldi_epi32, __m512i, __m512i, __mmask16, __m512i, __m512i, 1)
++test_4 (_mm512_mask_shldi_epi64, __m512i, __m512i, __mmask8, __m512i, __m512i, 1)
++test_4 (_mm256_mask_shldi_epi16, __m256i, __m256i, __mmask16, __m256i, __m256i, 1)
++test_4 (_mm256_mask_shldi_epi32, __m256i, __m256i, __mmask8, __m256i, __m256i, 1)
++test_4 (_mm256_mask_shldi_epi64, __m256i, __m256i, __mmask8, __m256i, __m256i, 1)
++test_4 (_mm_mask_shldi_epi16, __m128i, __m128i, __mmask8, __m128i, __m128i, 1)
++test_4 (_mm_mask_shldi_epi32, __m128i, __m128i, __mmask8, __m128i, __m128i, 1)
++test_4 (_mm_mask_shldi_epi64, __m128i, __m128i, __mmask8, __m128i, __m128i, 1)
+ test_4v (_mm512_mask_i32scatter_epi32, void *, __mmask16, __m512i, __m512i, 1)
+ test_4v (_mm512_mask_i32scatter_epi64, void *, __mmask8, __m256i, __m512i, 1)
+ test_4v (_mm512_mask_i32scatter_pd, void *, __mmask8, __m256i, __m512d, 1)
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/gcc.target/mips/cfgcleanup-jalr1.c
@@ -32565,6 +35865,25 @@ new file mode 100644
 +end
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/goacc/pr93463.f90
+@@ -0,0 +1,15 @@
++! PR fortran/93463
++! { dg-do compile { target fopenmp } }
++! { dg-additional-options "-fopenmp" }
++
++program pr93463
++   integer :: i, x, y, z
++   !$omp parallel do
++   do i = 1, 4
++      !$acc enter data create(x)	! { dg-error "ACC ENTER DATA directive cannot be specified within" }
++      !$acc exit data copyout(x)	! { dg-error "ACC EXIT DATA directive cannot be specified within" }
++      !$acc cache(y)			! { dg-error "ACC CACHE directive cannot be specified within" }
++      !$acc wait(1)			! { dg-error "ACC WAIT directive cannot be specified within" }
++      !$acc update self(z)		! { dg-error "ACC UPDATE directive cannot be specified within" }
++   end do
++end
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/gfortran.dg/gomp/pr87752.f90
 @@ -0,0 +1,12 @@
 +! PR fortran/87752
@@ -32600,6 +35919,21 @@ new file mode 100644
 +end
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/gomp/pr93555.f90
+@@ -0,0 +1,11 @@
++! PR middle-end/93555
++! { dg-do compile }
++
++subroutine foo
++  !$omp declare simd(foo)
++  !$omp declare simd(foo) inbranch
++end
++subroutine bar
++  !$omp declare simd(bar) inbranch
++  !$omp declare simd(bar)
++end
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/gfortran.dg/gomp/target-parallel1.f90
 @@ -0,0 +1,4 @@
 +!$omp target parallel
@@ -32618,6 +35952,31 @@ new file mode 100644
 +  do i = 1, 64
 +  end do
 +end
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/graphite/pr93439.f90
+@@ -0,0 +1,21 @@
++! { dg-additional-options "-O2 -floop-parallelize-all -floop-unroll-and-jam -ftree-parallelize-loops=2" }
++
++module ai
++  integer, parameter :: dp = 8
++contains
++  subroutine qu(ja, nq, en, p5)
++    real(kind = dp) :: nq(ja), en(ja), p5(ja)
++    call tl(ja, nq, en, p5)
++  end subroutine qu
++
++  subroutine tl(ja, nq, en, p5)
++    real(kind = dp) :: nq(9), en(9 * ja), p5(3 * ja)
++    do mc = 1, ja
++       do mb = 1, 9
++          do ma = 1, 3
++             p5((mc - 1) * 3 + ma) = p5((mc - 1) * 3 + ma) - 1
++          end do
++       end do
++    end do
++  end subroutine tl
++end module ai
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/gfortran.dg/inquire_pre.f90
@@ -33988,6 +37347,23 @@ new file mode 100644
 +
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/pr93580.f90
+@@ -0,0 +1,13 @@
++! { dg-do compile }
++! PR fortran/93580
++
++program p
++   integer, parameter :: n = 4
++   complex(n%re) :: x    ! { dg-error "The RE or IM part_ref at" }
++   complex(n%im) :: y    ! { dg-error "The RE or IM part_ref at" }
++   complex(n%len) :: z   ! { dg-error "The LEN part_ref at" }
++   character(n%im) :: a  ! { dg-error "The RE or IM part_ref at" }
++   character(n%re) :: b  ! { dg-error "The RE or IM part_ref at" }
++   character(n%len) :: c ! { dg-error "The LEN part_ref at" }
++end
++
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/gfortran.dg/spread_size_limit_2.f90
 @@ -0,0 +1,11 @@
 +! PR fortran/91944
@@ -34267,7 +37643,45 @@ new file mode 100644
 +/* { dg-final { scan-assembler-not {\$non_lazy_ptr} } } */
 --- a/src/gcc/tree-cfg.c
 +++ b/src/gcc/tree-cfg.c
-@@ -9151,7 +9151,7 @@ generate_range_test (basic_block bb, tree index, tree low, tree high,
+@@ -3215,6 +3215,13 @@ verify_types_in_gimple_reference (tree expr, bool require_lvalue)
+ 	  debug_generic_stmt (expr);
+ 	  return true;
+ 	}
++      if (MR_DEPENDENCE_CLIQUE (expr) != 0
++	  && MR_DEPENDENCE_CLIQUE (expr) > cfun->last_clique)
++	{
++	  error ("invalid clique in MEM_REF");
++	  debug_generic_stmt (expr);
++	  return true;
++	}
+     }
+   else if (TREE_CODE (expr) == TARGET_MEM_REF)
+     {
+@@ -3234,6 +3241,13 @@ verify_types_in_gimple_reference (tree expr, bool require_lvalue)
+ 	  debug_generic_stmt (expr);
+ 	  return true;
+ 	}
++      if (MR_DEPENDENCE_CLIQUE (expr) != 0
++	  && MR_DEPENDENCE_CLIQUE (expr) > cfun->last_clique)
++	{
++	  error ("invalid clique in TARGET_MEM_REF");
++	  debug_generic_stmt (expr);
++	  return true;
++	}
+     }
+   else if (TREE_CODE (expr) == INDIRECT_REF)
+     {
+@@ -7677,6 +7691,9 @@ move_sese_region_to_fn (struct function *dest_cfun, basic_block entry_bb,
+       after = bb;
+     }
+ 
++  /* Adjust the maximum clique used.  */
++  dest_cfun->last_clique = saved_cfun->last_clique;
++
+   loop->aux = NULL;
+   loop0->aux = NULL;
+   /* Loop sizes are no longer correct, fix them up.  */
+@@ -9151,7 +9168,7 @@ generate_range_test (basic_block bb, tree index, tree low, tree high,
  		     tree *lhs, tree *rhs)
  {
    tree type = TREE_TYPE (index);
@@ -34287,6 +37701,18 @@ new file mode 100644
        generate_range_test (bb, index, low, high, &lhs, &rhs);
        cond = gimple_build_cond (LE_EXPR, lhs, rhs, NULL_TREE, NULL_TREE);
      }
+--- a/src/gcc/tree-core.h
++++ b/src/gcc/tree-core.h
+@@ -851,7 +851,8 @@ enum operand_equal_flag {
+   /* Internal within inchash::add_expr:  */
+   OEP_HASH_CHECK = 32,
+   /* Makes operand_equal_p handle more expressions:  */
+-  OEP_LEXICOGRAPHIC = 64
++  OEP_LEXICOGRAPHIC = 64,
++  OEP_BITWISE = 128
+ };
+ 
+ /* Enum and arrays used for tree allocation stats.
 --- a/src/gcc/tree-dfa.c
 +++ b/src/gcc/tree-dfa.c
 @@ -61,23 +61,23 @@ static void collect_dfa_stats (struct dfa_stats_d *);
@@ -34329,6 +37755,158 @@ new file mode 100644
  extern void renumber_gimple_stmt_uids_in_blocks (basic_block *, int);
  extern void dump_variable (FILE *, tree);
  extern void debug_variable (tree);
+--- a/src/gcc/tree-if-conv.c
++++ b/src/gcc/tree-if-conv.c
+@@ -2626,6 +2626,11 @@ combine_blocks (struct loop *loop)
+       vphi = get_virtual_phi (bb);
+       if (vphi)
+ 	{
++	  /* When there's just loads inside the loop a stray virtual
++	     PHI merging the uses can appear, update last_vdef from
++	     it.  */
++	  if (!last_vdef)
++	    last_vdef = gimple_phi_arg_def (vphi, 0);
+ 	  imm_use_iterator iter;
+ 	  use_operand_p use_p;
+ 	  gimple *use_stmt;
+@@ -2657,6 +2662,10 @@ combine_blocks (struct loop *loop)
+ 	      if (gimple_vdef (stmt))
+ 		last_vdef = gimple_vdef (stmt);
+ 	    }
++	  else
++	    /* If this is the first load we arrive at update last_vdef
++	       so we handle stray PHIs correctly.  */
++	    last_vdef = gimple_vuse (stmt);
+ 	  if (predicated[i])
+ 	    {
+ 	      ssa_op_iter i;
+--- a/src/gcc/tree-inline.c
++++ b/src/gcc/tree-inline.c
+@@ -4499,7 +4499,8 @@ reset_debug_bindings (copy_body_data *id, gimple_stmt_iterator gsi)
+ /* If STMT is a GIMPLE_CALL, replace it with its inline expansion.  */
+ 
+ static bool
+-expand_call_inline (basic_block bb, gimple *stmt, copy_body_data *id)
++expand_call_inline (basic_block bb, gimple *stmt, copy_body_data *id,
++		    bitmap to_purge)
+ {
+   tree use_retvar;
+   tree fn;
+@@ -4644,7 +4645,7 @@ expand_call_inline (basic_block bb, gimple *stmt, copy_body_data *id)
+       gimple_call_set_fndecl (stmt, edge->callee->decl);
+       update_stmt (stmt);
+       id->src_node->remove ();
+-      expand_call_inline (bb, stmt, id);
++      expand_call_inline (bb, stmt, id, to_purge);
+       maybe_remove_unused_call_args (cfun, stmt);
+       return true;
+     }
+@@ -5002,10 +5003,7 @@ expand_call_inline (basic_block bb, gimple *stmt, copy_body_data *id)
+     }
+ 
+   if (purge_dead_abnormal_edges)
+-    {
+-      gimple_purge_dead_eh_edges (return_block);
+-      gimple_purge_dead_abnormal_call_edges (return_block);
+-    }
++    bitmap_set_bit (to_purge, return_block->index);
+ 
+   /* If the value of the new expression is ignored, that's OK.  We
+      don't warn about this for CALL_EXPRs, so we shouldn't warn about
+@@ -5043,7 +5041,8 @@ expand_call_inline (basic_block bb, gimple *stmt, copy_body_data *id)
+    in a MODIFY_EXPR.  */
+ 
+ static bool
+-gimple_expand_calls_inline (basic_block bb, copy_body_data *id)
++gimple_expand_calls_inline (basic_block bb, copy_body_data *id,
++			    bitmap to_purge)
+ {
+   gimple_stmt_iterator gsi;
+   bool inlined = false;
+@@ -5055,7 +5054,7 @@ gimple_expand_calls_inline (basic_block bb, copy_body_data *id)
+ 
+       if (is_gimple_call (stmt)
+ 	  && !gimple_call_internal_p (stmt))
+-	inlined |= expand_call_inline (bb, stmt, id);
++	inlined |= expand_call_inline (bb, stmt, id, to_purge);
+     }
+ 
+   return inlined;
+@@ -5068,6 +5067,7 @@ gimple_expand_calls_inline (basic_block bb, copy_body_data *id)
+ static void
+ fold_marked_statements (int first, hash_set<gimple *> *statements)
+ {
++  auto_bitmap to_purge;
+   for (; first < last_basic_block_for_fn (cfun); first++)
+     if (BASIC_BLOCK_FOR_FN (cfun, first))
+       {
+@@ -5079,7 +5079,8 @@ fold_marked_statements (int first, hash_set<gimple *> *statements)
+ 	  if (statements->contains (gsi_stmt (gsi)))
+ 	    {
+ 	      gimple *old_stmt = gsi_stmt (gsi);
+-	      tree old_decl = is_gimple_call (old_stmt) ? gimple_call_fndecl (old_stmt) : 0;
++	      tree old_decl
++		= is_gimple_call (old_stmt) ? gimple_call_fndecl (old_stmt) : 0;
+ 
+ 	      if (old_decl && fndecl_built_in_p (old_decl))
+ 		{
+@@ -5123,8 +5124,7 @@ fold_marked_statements (int first, hash_set<gimple *> *statements)
+ 				 is mood anyway.  */
+ 			      if (maybe_clean_or_replace_eh_stmt (old_stmt,
+ 								  new_stmt))
+-				gimple_purge_dead_eh_edges (
+-				  BASIC_BLOCK_FOR_FN (cfun, first));
++				bitmap_set_bit (to_purge, first);
+ 			      break;
+ 			    }
+ 			  gsi_next (&i2);
+@@ -5144,11 +5144,11 @@ fold_marked_statements (int first, hash_set<gimple *> *statements)
+ 						       new_stmt);
+ 
+ 		  if (maybe_clean_or_replace_eh_stmt (old_stmt, new_stmt))
+-		    gimple_purge_dead_eh_edges (BASIC_BLOCK_FOR_FN (cfun,
+-								    first));
++		    bitmap_set_bit (to_purge, first);
+ 		}
+ 	    }
+       }
++  gimple_purge_all_dead_eh_edges (to_purge);
+ }
+ 
+ /* Expand calls to inline functions in the body of FN.  */
+@@ -5194,8 +5194,9 @@ optimize_inline_calls (tree fn)
+      will split id->current_basic_block, and the new blocks will
+      follow it; we'll trudge through them, processing their CALL_EXPRs
+      along the way.  */
++  auto_bitmap to_purge;
+   FOR_EACH_BB_FN (bb, cfun)
+-    inlined_p |= gimple_expand_calls_inline (bb, &id);
++    inlined_p |= gimple_expand_calls_inline (bb, &id, to_purge);
+ 
+   pop_gimplify_context (NULL);
+ 
+@@ -5215,6 +5216,21 @@ optimize_inline_calls (tree fn)
+   fold_marked_statements (last, id.statements_to_fold);
+   delete id.statements_to_fold;
+ 
++  /* Finally purge EH and abnormal edges from the call stmts we inlined.
++     We need to do this after fold_marked_statements since that may walk
++     the SSA use-def chain.  */
++  unsigned i;
++  bitmap_iterator bi;
++  EXECUTE_IF_SET_IN_BITMAP (to_purge, 0, i, bi)
++    {
++      basic_block bb = BASIC_BLOCK_FOR_FN (cfun, i);
++      if (bb)
++	{
++	  gimple_purge_dead_eh_edges (bb);
++	  gimple_purge_dead_abnormal_call_edges (bb);
++	}
++    }
++
+   gcc_assert (!id.debug_stmts.exists ());
+ 
+   /* If we didn't inline into the function there is nothing to do.  */
 --- a/src/gcc/tree-object-size.c
 +++ b/src/gcc/tree-object-size.c
 @@ -890,6 +890,9 @@ cond_expr_object_size (struct object_size_info *osi, tree var, gimple *stmt)
@@ -34341,6 +37919,16 @@ new file mode 100644
    if (TREE_CODE (else_) == SSA_NAME)
      reexamine |= merge_object_sizes (osi, var, else_, 0);
    else
+--- a/src/gcc/tree-parloops.c
++++ b/src/gcc/tree-parloops.c
+@@ -1498,7 +1498,6 @@ create_loop_fn (location_t loc)
+   DECL_ARGUMENTS (decl) = t;
+ 
+   allocate_struct_function (decl, false);
+-  DECL_STRUCT_FUNCTION (decl)->last_clique = act_cfun->last_clique;
+ 
+   /* The call to allocate_struct_function clobbers CFUN, so we need to restore
+      it.  */
 --- a/src/gcc/tree-pass.h
 +++ b/src/gcc/tree-pass.h
 @@ -562,6 +562,7 @@ extern rtl_opt_pass *make_pass_stack_ptr_mod (gcc::context *ctxt);
@@ -34359,6 +37947,64 @@ new file mode 100644
  extern rtl_opt_pass *make_pass_postreload_cse (gcc::context *ctxt);
  extern rtl_opt_pass *make_pass_gcse2 (gcc::context *ctxt);
  extern rtl_opt_pass *make_pass_split_after_reload (gcc::context *ctxt);
+--- a/src/gcc/tree-predcom.c
++++ b/src/gcc/tree-predcom.c
+@@ -767,6 +767,7 @@ split_data_refs_to_components (struct loop *loop,
+   /* Don't do store elimination if loop has multiple exit edges.  */
+   bool eliminate_store_p = single_exit (loop) != NULL;
+   basic_block last_always_executed = last_always_executed_block (loop);
++  auto_bitmap no_store_store_comps;
+ 
+   FOR_EACH_VEC_ELT (datarefs, i, dr)
+     {
+@@ -838,9 +839,13 @@ split_data_refs_to_components (struct loop *loop,
+       else if (DR_IS_READ (dra) && ib != bad)
+ 	{
+ 	  if (ia == bad)
+-	    continue;
++	    {
++	      bitmap_set_bit (no_store_store_comps, ib);
++	      continue;
++	    }
+ 	  else if (!determine_offset (dra, drb, &dummy_off))
+ 	    {
++	      bitmap_set_bit (no_store_store_comps, ib);
+ 	      merge_comps (comp_father, comp_size, bad, ia);
+ 	      continue;
+ 	    }
+@@ -848,9 +853,13 @@ split_data_refs_to_components (struct loop *loop,
+       else if (DR_IS_READ (drb) && ia != bad)
+ 	{
+ 	  if (ib == bad)
+-	    continue;
++	    {
++	      bitmap_set_bit (no_store_store_comps, ia);
++	      continue;
++	    }
+ 	  else if (!determine_offset (dra, drb, &dummy_off))
+ 	    {
++	      bitmap_set_bit (no_store_store_comps, ia);
+ 	      merge_comps (comp_father, comp_size, bad, ib);
+ 	      continue;
+ 	    }
+@@ -908,6 +917,17 @@ split_data_refs_to_components (struct loop *loop,
+       comp->refs.quick_push (dataref);
+     }
+ 
++  if (eliminate_store_p)
++    {
++      bitmap_iterator bi;
++      EXECUTE_IF_SET_IN_BITMAP (no_store_store_comps, 0, ia, bi)
++	{
++	  ca = component_of (comp_father, ia);
++	  if (ca != bad)
++	    comps[ca]->eliminate_store_p = false;
++	}
++    }
++
+   for (i = 0; i < n; i++)
+     {
+       comp = comps[i];
 --- a/src/gcc/tree-ssa-alias.c
 +++ b/src/gcc/tree-ssa-alias.c
 @@ -2599,8 +2599,8 @@ stmt_kills_ref_p (gimple *stmt, tree ref)
@@ -34879,6 +38525,42 @@ new file mode 100644
  
  	  return true;
  	}
+--- a/src/gcc/tree-ssa-structalias.c
++++ b/src/gcc/tree-ssa-structalias.c
+@@ -4928,10 +4928,10 @@ find_func_aliases (struct function *fn, gimple *origt)
+ 	      get_constraint_for_ptr_offset (gimple_assign_rhs1 (t),
+ 					     NULL_TREE, &rhsc);
+ 	    }
+-	  else if ((CONVERT_EXPR_CODE_P (code)
+-		    && !(POINTER_TYPE_P (gimple_expr_type (t))
+-			 && !POINTER_TYPE_P (TREE_TYPE (rhsop))))
++	  else if (CONVERT_EXPR_CODE_P (code)
+ 		   || gimple_assign_single_p (t))
++	    /* See through conversions, single RHS are handled by
++	       get_constraint_for_rhs.  */
+ 	    get_constraint_for_rhs (rhsop, &rhsc);
+ 	  else if (code == COND_EXPR)
+ 	    {
+@@ -4950,14 +4950,16 @@ find_func_aliases (struct function *fn, gimple *origt)
+ 	    ;
+ 	  else
+ 	    {
+-	      /* All other operations are merges.  */
++	      /* All other operations are possibly offsetting merges.  */
+ 	      auto_vec<ce_s, 4> tmp;
+ 	      struct constraint_expr *rhsp;
+ 	      unsigned i, j;
+-	      get_constraint_for_rhs (gimple_assign_rhs1 (t), &rhsc);
++	      get_constraint_for_ptr_offset (gimple_assign_rhs1 (t),
++					     NULL_TREE, &rhsc);
+ 	      for (i = 2; i < gimple_num_ops (t); ++i)
+ 		{
+-		  get_constraint_for_rhs (gimple_op (t, i), &tmp);
++		  get_constraint_for_ptr_offset (gimple_op (t, i),
++						 NULL_TREE, &tmp);
+ 		  FOR_EACH_VEC_ELT (tmp, j, rhsp)
+ 		    rhsc.safe_push (*rhsp);
+ 		  tmp.truncate (0);
 --- a/src/gcc/tree-switch-conversion.c
 +++ b/src/gcc/tree-switch-conversion.c
 @@ -605,7 +605,9 @@ switch_conversion::build_one_array (int num, tree arr_index_type,
@@ -34939,6 +38621,44 @@ new file mode 100644
      return false;
  
    /* Find the default case target label.  */
+--- a/src/gcc/tree-tailcall.c
++++ b/src/gcc/tree-tailcall.c
+@@ -479,6 +479,35 @@ find_tail_calls (basic_block bb, struct tailcall **ret)
+       && !stmt_can_throw_external (cfun, stmt))
+     return;
+ 
++  /* If the function returns a value, then at present, the tail call
++     must return the same type of value.  There is conceptually a copy
++     between the object returned by the tail call candidate and the
++     object returned by CFUN itself.
++
++     This means that if we have:
++
++	 lhs = f (&<retval>);    // f reads from <retval>
++				 // (lhs is usually also <retval>)
++
++     there is a copy between the temporary object returned by f and lhs,
++     meaning that any use of <retval> in f occurs before the assignment
++     to lhs begins.  Thus the <retval> that is live on entry to the call
++     to f is really an independent local variable V that happens to be
++     stored in the RESULT_DECL rather than a local VAR_DECL.
++
++     Turning this into a tail call would remove the copy and make the
++     lifetimes of the return value and V overlap.  The same applies to
++     tail recursion, since if f can read from <retval>, we have to assume
++     that CFUN might already have written to <retval> before the call.
++
++     The problem doesn't apply when <retval> is passed by value, but that
++     isn't a case we handle anyway.  */
++  tree result_decl = DECL_RESULT (cfun->decl);
++  if (result_decl
++      && may_be_aliased (result_decl)
++      && ref_maybe_used_by_stmt_p (call, result_decl))
++    return;
++
+   /* We found the call, check whether it is suitable.  */
+   tail_recursion = false;
+   func = gimple_call_fndecl (call);
 --- a/src/gcc/tree-vect-loop.c
 +++ b/src/gcc/tree-vect-loop.c
 @@ -6445,10 +6445,13 @@ vectorizable_reduction (stmt_vec_info stmt_info, gimple_stmt_iterator *gsi,
@@ -35123,7 +38843,138 @@ new file mode 100644
    if (SLP_TREE_CHILDREN (node).is_empty ())
 --- a/src/gcc/tree-vect-stmts.c
 +++ b/src/gcc/tree-vect-stmts.c
-@@ -3279,7 +3279,7 @@ vectorizable_call (stmt_vec_info stmt_info, gimple_stmt_iterator *gsi,
+@@ -2166,6 +2166,56 @@ perm_mask_for_reverse (tree vectype)
+   return vect_gen_perm_mask_checked (vectype, indices);
+ }
+ 
++/* A subroutine of get_load_store_type, with a subset of the same
++   arguments.  Handle the case where STMT_INFO is a load or store that
++   accesses consecutive elements with a negative step.  */
++
++static vect_memory_access_type
++get_negative_load_store_type (stmt_vec_info stmt_info, tree vectype,
++			      vec_load_store_type vls_type,
++			      unsigned int ncopies)
++{
++  dr_vec_info *dr_info = STMT_VINFO_DR_INFO (stmt_info);
++  dr_alignment_support alignment_support_scheme;
++
++  if (ncopies > 1)
++    {
++      if (dump_enabled_p ())
++	dump_printf_loc (MSG_MISSED_OPTIMIZATION, vect_location,
++			 "multiple types with negative step.\n");
++      return VMAT_ELEMENTWISE;
++    }
++
++  alignment_support_scheme = vect_supportable_dr_alignment (dr_info, false);
++  if (alignment_support_scheme != dr_aligned
++      && alignment_support_scheme != dr_unaligned_supported)
++    {
++      if (dump_enabled_p ())
++	dump_printf_loc (MSG_MISSED_OPTIMIZATION, vect_location,
++			 "negative step but alignment required.\n");
++      return VMAT_ELEMENTWISE;
++    }
++
++  if (vls_type == VLS_STORE_INVARIANT)
++    {
++      if (dump_enabled_p ())
++	dump_printf_loc (MSG_NOTE, vect_location,
++			 "negative step with invariant source;"
++			 " no permute needed.\n");
++      return VMAT_CONTIGUOUS_DOWN;
++    }
++
++  if (!perm_mask_for_reverse (vectype))
++    {
++      if (dump_enabled_p ())
++	dump_printf_loc (MSG_MISSED_OPTIMIZATION, vect_location,
++			 "negative step and reversing not supported.\n");
++      return VMAT_ELEMENTWISE;
++    }
++
++  return VMAT_CONTIGUOUS_REVERSE;
++}
++
+ /* STMT_INFO is either a masked or unconditional store.  Return the value
+    being stored.  */
+ 
+@@ -2268,7 +2318,15 @@ get_group_load_store_type (stmt_vec_info stmt_info, tree vectype, bool slp,
+ 				 "Peeling for outer loop is not supported\n");
+ 	      return false;
+ 	    }
+-	  *memory_access_type = VMAT_CONTIGUOUS;
++	  int cmp = compare_step_with_zero (stmt_info);
++	  if (cmp < 0)
++	    *memory_access_type = get_negative_load_store_type
++	      (stmt_info, vectype, vls_type, 1);
++	  else
++	    {
++	      gcc_assert (!loop_vinfo || cmp > 0);
++	      *memory_access_type = VMAT_CONTIGUOUS;
++	    }
+ 	}
+     }
+   else
+@@ -2370,56 +2428,6 @@ get_group_load_store_type (stmt_vec_info stmt_info, tree vectype, bool slp,
+   return true;
+ }
+ 
+-/* A subroutine of get_load_store_type, with a subset of the same
+-   arguments.  Handle the case where STMT_INFO is a load or store that
+-   accesses consecutive elements with a negative step.  */
+-
+-static vect_memory_access_type
+-get_negative_load_store_type (stmt_vec_info stmt_info, tree vectype,
+-			      vec_load_store_type vls_type,
+-			      unsigned int ncopies)
+-{
+-  dr_vec_info *dr_info = STMT_VINFO_DR_INFO (stmt_info);
+-  dr_alignment_support alignment_support_scheme;
+-
+-  if (ncopies > 1)
+-    {
+-      if (dump_enabled_p ())
+-	dump_printf_loc (MSG_MISSED_OPTIMIZATION, vect_location,
+-			 "multiple types with negative step.\n");
+-      return VMAT_ELEMENTWISE;
+-    }
+-
+-  alignment_support_scheme = vect_supportable_dr_alignment (dr_info, false);
+-  if (alignment_support_scheme != dr_aligned
+-      && alignment_support_scheme != dr_unaligned_supported)
+-    {
+-      if (dump_enabled_p ())
+-	dump_printf_loc (MSG_MISSED_OPTIMIZATION, vect_location,
+-			 "negative step but alignment required.\n");
+-      return VMAT_ELEMENTWISE;
+-    }
+-
+-  if (vls_type == VLS_STORE_INVARIANT)
+-    {
+-      if (dump_enabled_p ())
+-	dump_printf_loc (MSG_NOTE, vect_location,
+-			 "negative step with invariant source;"
+-			 " no permute needed.\n");
+-      return VMAT_CONTIGUOUS_DOWN;
+-    }
+-
+-  if (!perm_mask_for_reverse (vectype))
+-    {
+-      if (dump_enabled_p ())
+-	dump_printf_loc (MSG_MISSED_OPTIMIZATION, vect_location,
+-			 "negative step and reversing not supported.\n");
+-      return VMAT_ELEMENTWISE;
+-    }
+-
+-  return VMAT_CONTIGUOUS_REVERSE;
+-}
+-
+ /* Analyze load or store statement STMT_INFO of type VLS_TYPE.  Return true
+    if there is a memory access type that the vectorized form can use,
+    storing it in *MEMORY_ACCESS_TYPE if so.  If we decide to use gathers
+@@ -3279,7 +3287,7 @@ vectorizable_call (stmt_vec_info stmt_info, gimple_stmt_iterator *gsi,
        if (!vectype_in)
  	vectype_in = vectypes[i];
        else if (vectypes[i]
@@ -35132,7 +38983,25 @@ new file mode 100644
  	{
  	  if (dump_enabled_p ())
  	    dump_printf_loc (MSG_MISSED_OPTIMIZATION, vect_location,
-@@ -8272,18 +8272,27 @@ vectorizable_load (stmt_vec_info stmt_info, gimple_stmt_iterator *gsi,
+@@ -3907,7 +3915,16 @@ vectorizable_simd_clone_call (stmt_vec_info stmt_info,
+ 	  || thisarginfo.dt == vect_external_def)
+ 	gcc_assert (thisarginfo.vectype == NULL_TREE);
+       else
+-	gcc_assert (thisarginfo.vectype != NULL_TREE);
++	{
++	  gcc_assert (thisarginfo.vectype != NULL_TREE);
++	  if (VECTOR_BOOLEAN_TYPE_P (thisarginfo.vectype))
++	    {
++	      if (dump_enabled_p ())
++		dump_printf_loc (MSG_MISSED_OPTIMIZATION, vect_location,
++				 "vector mask arguments are not supported\n");
++	      return false;
++	    }
++	}
+ 
+       /* For linear arguments, the analyze phase should have saved
+ 	 the base and step in STMT_VINFO_SIMD_CLONE_INFO.  */
+@@ -8272,18 +8289,27 @@ vectorizable_load (stmt_vec_info stmt_info, gimple_stmt_iterator *gsi,
        compute_in_loop = true;
      }
  
@@ -35163,7 +39032,7 @@ new file mode 100644
  	}
      }
    else
-@@ -8339,8 +8348,7 @@ vectorizable_load (stmt_vec_info stmt_info, gimple_stmt_iterator *gsi,
+@@ -8339,8 +8365,7 @@ vectorizable_load (stmt_vec_info stmt_info, gimple_stmt_iterator *gsi,
  	      dataref_ptr = unshare_expr (DR_BASE_ADDRESS (first_dr_info->dr));
  	      dataref_offset = build_int_cst (ref_type, 0);
  	    }
@@ -35173,7 +39042,7 @@ new file mode 100644
  	    {
  	      dataref_ptr
  		= vect_create_data_ref_ptr (first_stmt_info_for_drptr,
-@@ -8357,6 +8365,14 @@ vectorizable_load (stmt_vec_info stmt_info, gimple_stmt_iterator *gsi,
+@@ -8357,6 +8382,14 @@ vectorizable_load (stmt_vec_info stmt_info, gimple_stmt_iterator *gsi,
  					    DR_INIT (ptrdr)));
  	      dataref_ptr = bump_vector_ptr (dataref_ptr, ptr_incr, gsi,
  					     stmt_info, diff);
@@ -35188,6 +39057,17 @@ new file mode 100644
  	    }
  	  else if (STMT_VINFO_GATHER_SCATTER_P (stmt_info))
  	    vect_get_gather_scatter_ops (loop, stmt_info, &gs_info,
+--- a/src/gcc/tree-vector-builder.h
++++ b/src/gcc/tree-vector-builder.h
+@@ -82,7 +82,7 @@ tree_vector_builder::new_vector (tree type, unsigned int npatterns,
+ inline bool
+ tree_vector_builder::equal_p (const_tree elt1, const_tree elt2) const
+ {
+-  return operand_equal_p (elt1, elt2, 0);
++  return operand_equal_p (elt1, elt2, OEP_BITWISE);
+ }
+ 
+ /* Return true if a stepped representation is OK.  We don't allow
 --- a/src/gcc/tree-vectorizer.c
 +++ b/src/gcc/tree-vectorizer.c
 @@ -941,7 +941,7 @@ try_vectorize_loop_1 (hash_table<simduid_to_vf> *&simduid_to_vf_htab,
@@ -35690,7 +39570,16 @@ new file mode 100644
      amount = recip_scale[18];
 --- a/src/libgcc/ChangeLog
 +++ b/src/libgcc/ChangeLog
-@@ -1,3 +1,64 @@
+@@ -1,3 +1,73 @@
++2020-02-10  H.J. Lu  <hongjiu.lu@intel.com>
++
++	Backport from mainline
++	2020-02-10  H.J. Lu  <hongjiu.lu@intel.com>
++
++	PR libgcc/85334
++	* config/i386/shadow-stack-unwind.h (_Unwind_Frames_Increment):
++	New.
++
 +2019-11-17  John David Anglin  <danglin@gcc.gnu.org>
 +
 +	* config/pa/linux-atomic.c (__kernel_cmpxchg): Change argument 1 to
@@ -35773,6 +39662,55 @@ new file mode 100644
  	;;
  powerpc*-*-freebsd*)
  	tmake_file="${tmake_file} rs6000/t-ppccomm rs6000/t-savresfgpr rs6000/t-crtstuff rs6000/t-freebsd t-softfp-sfdf t-softfp-excl t-softfp"
+--- a/src/libgcc/config/i386/shadow-stack-unwind.h
++++ b/src/libgcc/config/i386/shadow-stack-unwind.h
+@@ -49,3 +49,46 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+ 	}					\
+     }						\
+     while (0)
++
++/* Linux CET kernel places a restore token on shadow stack for signal
++   handler to enhance security.  The restore token is 8 byte and aligned
++   to 8 bytes.  It is usually transparent to user programs since kernel
++   will pop the restore token when signal handler returns.  But when an
++   exception is thrown from a signal handler, now we need to pop the
++   restore token from shadow stack.  For x86-64, we just need to treat
++   the signal frame as normal frame.  For i386, we need to search for
++   the restore token to check if the original shadow stack is 8 byte
++   aligned.  If the original shadow stack is 8 byte aligned, we just
++   need to pop 2 slots, one restore token, from shadow stack.  Otherwise,
++   we need to pop 3 slots, one restore token + 4 byte padding, from
++   shadow stack.  */
++#ifndef __x86_64__
++#undef _Unwind_Frames_Increment
++#define _Unwind_Frames_Increment(context, frames)	\
++  if (_Unwind_IsSignalFrame (context))			\
++    do							\
++      {							\
++	_Unwind_Word ssp, prev_ssp, token;		\
++	ssp = _get_ssp ();				\
++	if (ssp != 0)					\
++	  {						\
++	    /* Align shadow stack pointer to the next	\
++	       8 byte aligned boundary.  */		\
++	    ssp = (ssp + 4) & ~7;			\
++	    do						\
++	      {						\
++		/* Look for a restore token.  */	\
++		token = (*(_Unwind_Word *) (ssp - 8));	\
++		prev_ssp = token & ~7;			\
++		if (prev_ssp == ssp)			\
++		  break;				\
++		ssp += 8;				\
++	      }						\
++	    while (1);					\
++	    frames += (token & 0x4) ? 3 : 2;		\
++	  }						\
++      }							\
++    while (0);						\
++  else							\
++    frames++;
++#endif
 --- a/src/libgcc/config/pa/fptr.c
 +++ b/src/libgcc/config/pa/fptr.c
 @@ -53,7 +53,7 @@ typedef int (*fixup_t) (struct link_map *, unsigned int);
@@ -37072,7 +41010,15 @@ new file mode 100644
  if ! echo "$statfs" | grep f_flags; then
 --- a/src/libgomp/ChangeLog
 +++ b/src/libgomp/ChangeLog
-@@ -1,3 +1,53 @@
+@@ -1,3 +1,61 @@
++2020-02-13  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from mainline
++	2020-02-06  Jakub Jelinek  <jakub@redhat.com>
++
++	PR libgomp/93515
++	* testsuite/libgomp.c-c++-common/pr93515.c: New test.
++
 +2020-01-22  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from mainline
@@ -37324,6 +41270,46 @@ new file mode 100644
 +{
 +  A::foo ();
 +  B<short>::foo ();
++}
+new file mode 100644
+--- /dev/null
++++ b/src/libgomp/testsuite/libgomp.c-c++-common/pr93515.c
+@@ -0,0 +1,36 @@
++/* PR libgomp/93515 */
++
++#include <omp.h>
++#include <stdlib.h>
++
++int
++main ()
++{
++  int i;
++  int a = 42;
++#pragma omp target teams distribute parallel for defaultmap(tofrom: scalar)
++  for (i = 0; i < 64; ++i)
++    if (omp_get_team_num () == 0)
++      if (omp_get_thread_num () == 0)
++	a = 142;
++  if (a != 142)
++    __builtin_abort ();
++  a = 42;
++#pragma omp target parallel for defaultmap(tofrom: scalar)
++  for (i = 0; i < 64; ++i)
++    if (omp_get_thread_num () == 0)
++      a = 143;
++  if (a != 143)
++    __builtin_abort ();
++  a = 42;
++#pragma omp target firstprivate(a)
++  {
++    #pragma omp parallel for
++    for (i = 0; i < 64; ++i)
++      if (omp_get_thread_num () == 0)
++	a = 144;
++    if (a != 144)
++      abort ();
++  }
++  return 0;
 +}
 new file mode 100644
 --- /dev/null
