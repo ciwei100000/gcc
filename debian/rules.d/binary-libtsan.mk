@@ -32,7 +32,7 @@ define __do_tsan
 		$(usr_lib$(2))/libtsan_preinit.o
 
 	debian/dh_doclink -p$(p_l) $(p_lbase)
-	debian/dh_doclink -p$(p_d) $(p_lbase)
+	$(if $(with_dbg),debian/dh_doclink -p$(p_d) $(p_lbase))
 
 	if [ -f debian/$(p_l).overrides ]; then \
 		mkdir -p debian/$(p_l)/usr/share/lintian/overrides; \
