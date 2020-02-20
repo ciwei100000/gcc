@@ -164,7 +164,7 @@ define __do_libgm2
 		$(usr_lib$(2))/libm2min.so.*
 
 	debian/dh_doclink -p$(p_l) $(p_lbase)
-	debian/dh_doclink -p$(p_d) $(p_lbase)
+	$(if $(with_dbg),debian/dh_doclink -p$(p_d) $(p_lbase))
 
 	$(call do_strip_lib_dbg, $(p_l), $(p_d), $(v_dbg),,)
 	: ln -sf libgm2.symbols debian/$(p_l).symbols

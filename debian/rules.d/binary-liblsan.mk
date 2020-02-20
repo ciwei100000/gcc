@@ -28,7 +28,7 @@ define __do_lsan
 	$(dh_compat2) dh_movefiles -p$(p_l) $(usr_lib$(2))/liblsan.so.*
 
 	debian/dh_doclink -p$(p_l) $(p_lbase)
-	debian/dh_doclink -p$(p_d) $(p_lbase)
+	$(if $(with_dbg),debian/dh_doclink -p$(p_d) $(p_lbase))
 
 	if [ -f debian/$(p_l).overrides ]; then \
 		mkdir -p debian/$(p_l)/usr/share/lintian/overrides; \
