@@ -1,7 +1,7 @@
-# DP: updates from the 9 branch upto 20200218 (2408b93a10c).
+# DP: updates from the 9 branch upto 20200220 (2ee6afc2b45).
 
 LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
-	a0c06cc27d2146b7d86758ffa236516c6143d62c 2408b93a10c9c6cb210bc2a93d39ce6d56144ca3 \
+	a0c06cc27d2146b7d86758ffa236516c6143d62c 2ee6afc2b4583e4f41b4902d148e74a6b767f50b \
 	| awk '/^diff .*\.texi/ {skip=1; next} /^diff / { skip=0 } skip==0' \
 	| grep -v -E '^(diff|index)'
 
@@ -2445,7 +2445,7 @@ new file mode 100644
 +++ b/src/gcc/DATESTAMP
 @@ -1 +1 @@
 -20190812
-+20200218
++20200220
 --- a/src/gcc/Makefile.in
 +++ b/src/gcc/Makefile.in
 @@ -1120,6 +1120,7 @@ endif
@@ -15089,7 +15089,17 @@ new file mode 100644
    exp = fold_convert_loc (loc, etype, exp);
 --- a/src/gcc/fortran/ChangeLog
 +++ b/src/gcc/fortran/ChangeLog
-@@ -1,3 +1,583 @@
+@@ -1,3 +1,593 @@
++2020-02-19  Mark Eggleston  <markeggleston@gcc.gnu.org>
++
++	Backported from mainline
++	2020-02-18  Mark Eggleston  <markeggleston@gcc.gnu.org>
++
++	PR fortran/93714
++	* expr.c (gfc_check_pointer_assign): Move check for
++	matching character length to after checking the lvalue
++	attributes for target or pointer.
++
 +2020-02-18  Mark Eggleston  <markeggleston@gcc.gnu.org>
 +
 +	Backported from mainline
@@ -16573,6 +16583,34 @@ new file mode 100644
      }
  
    return MATCH_YES;
+@@ -4176,13 +4196,6 @@ gfc_check_pointer_assign (gfc_expr *lvalue, gfc_expr *rvalue,
+   if (rvalue->expr_type == EXPR_NULL)
+     return true;
+ 
+-  if (lvalue->ts.type == BT_CHARACTER)
+-    {
+-      bool t = gfc_check_same_strlen (lvalue, rvalue, "pointer assignment");
+-      if (!t)
+-	return false;
+-    }
+-
+   if (rvalue->expr_type == EXPR_VARIABLE && is_subref_array (rvalue))
+     lvalue->symtree->n.sym->attr.subref_array_pointer = 1;
+ 
+@@ -4238,6 +4251,13 @@ gfc_check_pointer_assign (gfc_expr *lvalue, gfc_expr *rvalue,
+ 	}
+     }
+ 
++  if (lvalue->ts.type == BT_CHARACTER)
++    {
++      bool t = gfc_check_same_strlen (lvalue, rvalue, "pointer assignment");
++      if (!t)
++	return false;
++    }
++
+   if (is_pure && gfc_impure_variable (rvalue->symtree->n.sym))
+     {
+       gfc_error ("Bad target in pointer assignment in PURE "
 --- a/src/gcc/fortran/frontend-passes.c
 +++ b/src/gcc/fortran/frontend-passes.c
 @@ -94,6 +94,10 @@ static int forall_level;
@@ -24470,7 +24508,27 @@ new file mode 100644
       down the refernces to libraries bit more because linker will otherwise
 --- a/src/gcc/testsuite/ChangeLog
 +++ b/src/gcc/testsuite/ChangeLog
-@@ -1,3 +1,1574 @@
+@@ -1,3 +1,1594 @@
++2020-02-19  Mark Eggleston <markeggleston@gcc.gnu.org>
++
++	* typebound_call_22.d03 : Remove xfail clause.
++
++2020-02-19  Mark Eggleston <markeggleston@gcc.gnu.org>
++
++	Backported from mainline
++	2020-02-18  Mark Eggleston  <markeggleston@gcc.gnu.org>
++
++	PR fortran/93714
++	* gfortran.dg/char_pointer_assign_6.f90: Look for no target
++	message instead of length mismatch.
++	* gfortran.dg/pr93714_1.f90
++	* gfortran.dg/pr93714_2.f90
++
++2020-02-18  Hongtao Liu  <hongtao.liu@intel.com>
++
++	* g++.dg/other/i386-2.C: Add -mavx512vbmi2.
++	* g++.dg/other/i386-3.C: Ditto.
++
 +2020-02-18  Richard Sandiford  <richard.sandiford@arm.com>
 +
 +	PR middle-end/92768
@@ -26045,7 +26103,7 @@ new file mode 100644
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -427,7 +1998,7 @@
+@@ -427,7 +2018,7 @@
  	Backport from mainline.
  	2019-05-15  Iain Sandoe  <iain@sandoe.co.uk>
  
@@ -26054,7 +26112,7 @@ new file mode 100644
  	(check_effective_target_powerpc_p8vector_ok): No support for Darwin.
  	(check_effective_target_powerpc_p9vector_ok): Likewise.
  	(check_effective_target_powerpc_float128_sw_ok): Likewise.
-@@ -720,7 +2291,7 @@
+@@ -720,7 +2311,7 @@
  
  	Backport from mainline
  	PR fortran/91077
@@ -26063,7 +26121,7 @@ new file mode 100644
  
  2019-07-05  Szabolcs Nagy  <szabolcs.nagy@arm.com>
  
-@@ -803,7 +2374,7 @@
+@@ -803,7 +2394,7 @@
  	Backport fom mainline
  	2019-06-21  Jeff Law  <law@redhat.com>
  
@@ -26072,7 +26130,7 @@ new file mode 100644
  	* gcc.c-torture/execute/pr90949.c: New test.
  
  2019-06-26  Martin Jambor  <mjambor@suse.cz>
-@@ -969,7 +2540,7 @@
+@@ -969,7 +2560,7 @@
         * gcc.target/i386/pr82699-6.c: Likewise
         * gcc.target/i386/returninst1.c: Likewise
         * gcc.target/i386/returninst2.c: Likewise
@@ -26081,7 +26139,7 @@ new file mode 100644
  
  2019-05-30  Iain Sandoe  <iain@sandoe.co.uk>
  
-@@ -1131,7 +2702,7 @@
+@@ -1131,7 +2722,7 @@
  
  	Backport from trunk
  	PR fortran/90498
@@ -26090,7 +26148,7 @@ new file mode 100644
  
  2019-05-17  Jakub Jelinek  <jakub@redhat.com>
  
-@@ -3801,21 +5372,21 @@
+@@ -3801,21 +5392,21 @@
  2019-02-23  Paul Thomas  <pault@gcc.gnu.org>
  
  	PR fortran/88117
@@ -26119,7 +26177,7 @@ new file mode 100644
  
  2019-02-22  David Malcolm  <dmalcolm@redhat.com>
  
-@@ -4444,7 +6015,7 @@
+@@ -4444,7 +6035,7 @@
  2019-02-09  Paul Thomas  <pault@gcc.gnu.org>
  
  	PR fortran/89200
@@ -26128,7 +26186,7 @@ new file mode 100644
  
  2019-02-09  Jakub Jelinek  <jakub@redhat.com>
  
-@@ -4704,17 +6275,17 @@
+@@ -4704,17 +6295,17 @@
  2019-02-02  Paul Thomas  <pault@gcc.gnu.org>
  
  	PR fortran/88393
@@ -28803,6 +28861,24 @@ new file mode 100644
 +
 +inline auto foo () { return nullptr; }
 +int bar () { return foo () ? 1 : 0; }
+--- a/src/gcc/testsuite/g++.dg/other/i386-2.C
++++ b/src/gcc/testsuite/g++.dg/other/i386-2.C
+@@ -1,5 +1,5 @@
+ /* { dg-do compile { target i?86-*-* x86_64-*-* } } */
+-/* { dg-options "-O -pedantic-errors -march=k8 -msse4a -m3dnow -mavx -mavx2 -mfma4 -mxop -maes -mpclmul -mpopcnt -mabm -mlzcnt -mbmi -mbmi2 -mtbm -mlwp -mfsgsbase -mrdrnd -mf16c -mfma -mrtm -mrdseed -mprfchw -madx -mfxsr -mxsaveopt -mavx512f -mavx512er -mavx512cd -mavx512pf -msha -mprefetchwt1 -mxsavec -mxsaves -mclflushopt  -mavx512dq -mavx512bw -mavx512vl -mavx512ifma -mavx512vbmi -mavx5124fmaps -mavx5124vnniw -mavx512vpopcntdq -mclwb -mmwaitx -mclzero -mpku -msgx -mrdpid -mgfni -mavx512bitalg -mpconfig -mwbnoinvd" } */
++/* { dg-options "-O -pedantic-errors -march=k8 -msse4a -m3dnow -mavx -mavx2 -mfma4 -mxop -maes -mpclmul -mpopcnt -mabm -mlzcnt -mbmi -mbmi2 -mtbm -mlwp -mfsgsbase -mrdrnd -mf16c -mfma -mrtm -mrdseed -mprfchw -madx -mfxsr -mxsaveopt -mavx512f -mavx512er -mavx512cd -mavx512pf -msha -mprefetchwt1 -mxsavec -mxsaves -mclflushopt  -mavx512dq -mavx512bw -mavx512vl -mavx512ifma -mavx512vbmi -mavx512vbmi2 -mavx5124fmaps -mavx5124vnniw -mavx512vpopcntdq -mclwb -mmwaitx -mclzero -mpku -msgx -mrdpid -mgfni -mavx512bitalg -mpconfig -mwbnoinvd" } */
+ 
+ /* Test that {,x,e,p,t,s,w,a,b,i}mmintrin.h, mm3dnow.h, fma4intrin.h,
+    xopintrin.h, abmintrin.h, bmiintrin.h, tbmintrin.h, lwpintrin.h,
+--- a/src/gcc/testsuite/g++.dg/other/i386-3.C
++++ b/src/gcc/testsuite/g++.dg/other/i386-3.C
+@@ -1,5 +1,5 @@
+ /* { dg-do compile { target i?86-*-* x86_64-*-* } } */
+-/* { dg-options "-O -fkeep-inline-functions -march=k8 -msse4a -m3dnow -mavx -mavx2 -mfma4 -mxop -maes -mpclmul -mpopcnt -mabm -mlzcnt -mbmi -mbmi2 -mtbm -mlwp -mfsgsbase -mrdrnd -mf16c -mfma -mrtm -mrdseed -mprfchw -madx -mfxsr -mxsaveopt -mavx512f -mavx512er -mavx512cd -mavx512pf -msha -mprefetchwt1 -mxsavec -mxsaves -mclflushopt -mavx512dq -mavx512bw -mavx512vl -mavx512ifma -mavx512vbmi -mavx5124fmaps -mavx5124vnniw -mavx512vpopcntdq -mclwb -mmwaitx -mclzero -mpku -msgx -mrdpid -mgfni -mavx512bitalg -mpconfig -mwbnoinvd" } */
++/* { dg-options "-O -fkeep-inline-functions -march=k8 -msse4a -m3dnow -mavx -mavx2 -mfma4 -mxop -maes -mpclmul -mpopcnt -mabm -mlzcnt -mbmi -mbmi2 -mtbm -mlwp -mfsgsbase -mrdrnd -mf16c -mfma -mrtm -mrdseed -mprfchw -madx -mfxsr -mxsaveopt -mavx512f -mavx512er -mavx512cd -mavx512pf -msha -mprefetchwt1 -mxsavec -mxsaves -mclflushopt -mavx512dq -mavx512bw -mavx512vl -mavx512ifma -mavx512vbmi -mavx512vbmi2 -mavx5124fmaps -mavx5124vnniw -mavx512vpopcntdq -mclwb -mmwaitx -mclzero -mpku -msgx -mrdpid -mgfni -mavx512bitalg -mpconfig -mwbnoinvd" } */
+ 
+ /* Test that {,x,e,p,t,s,w,a,b,i}mmintrin.h, mm3dnow.h, fma4intrin.h,
+    xopintrin.h, abmintrin.h, bmiintrin.h, tbmintrin.h, lwpintrin.h,
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/g++.dg/other/pr92201.C
@@ -35256,6 +35332,17 @@ new file mode 100644
 +  for(i=0; i<ub[0]-lb[0]+1; i++) auxp[i]=i;
 +  return;
 +}
+--- a/src/gcc/testsuite/gfortran.dg/char_pointer_assign_6.f90
++++ b/src/gcc/testsuite/gfortran.dg/char_pointer_assign_6.f90
+@@ -6,6 +6,6 @@ program main
+   character (len=4) :: c
+   s1 = 'abcd'
+   p1 => s1(2:3) ! { dg-error "Unequal character lengths \\(20/2\\)" }
+-  p1 => c(1:) ! { dg-error "Unequal character lengths \\(20/4\\)" }
+-  p1 => c(:4) ! { dg-error "Unequal character lengths \\(20/4\\)" }
++  p1 => c(1:) ! { dg-error "Pointer assignment target" }
++  p1 => c(:4) ! { dg-error "Pointer assignment target" }
+ end
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/gfortran.dg/char_result_19.f90
@@ -37364,6 +37451,36 @@ new file mode 100644
 +
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/pr93714_1.f90
+@@ -0,0 +1,11 @@
++! { dg-do compile }
++! PR 93714
++! Original test case from G. Steinmetz
++
++program test
++   character((1.)) :: a
++   character, pointer :: b => a
++end program
++
++! { dg-error "must be of INTEGER type" " " { target *-*-* } 6 }
++! { dg-error "does not have the TARGET attribute" " " { target *-*-* } 7 }
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/pr93714_2.f90
+@@ -0,0 +1,11 @@
++! { dg-do compile }
++! PR 93714
++! Original test case from G. Steinmetz
++
++program test
++   character((9.)) :: a
++   character(:), pointer :: b => a
++end program
++
++! { dg-error "must be of INTEGER type" " " { target *-*-* } 6 }
++! { dg-error "does not have the TARGET attribute" " " { target *-*-* } 7 }
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/gfortran.dg/spread_size_limit_2.f90
 @@ -0,0 +1,11 @@
 +! PR fortran/91944
@@ -37404,14 +37521,6 @@ new file mode 100644
 +     if (buf1 /= buf2) stop 'wrong'
 +  end subroutine readfile
 +end program
---- a/src/gcc/testsuite/gfortran.dg/typebound_call_22.f03
-+++ b/src/gcc/testsuite/gfortran.dg/typebound_call_22.f03
-@@ -26,4 +26,4 @@ program test
-   call x%bar ()
- end program
- 
--! { dg-final { scan-tree-dump-times "base \\(\\);" 1 "optimized" } }
-+! { dg-final { scan-tree-dump-times "base \\(\\);" 1 "optimized" { xfail *-*-* } } }
 --- a/src/gcc/testsuite/gfortran.dg/unlimited_polymorphic_28.f90
 +++ b/src/gcc/testsuite/gfortran.dg/unlimited_polymorphic_28.f90
 @@ -21,7 +21,7 @@ implicit none
