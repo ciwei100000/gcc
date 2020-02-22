@@ -70,7 +70,7 @@ ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTONS)))
 	  $(d_gcn)/$(gcc_lexec_dir)/accel/$(gcn_target_name)/{collect2,lto1,lto-wrapper,mkoffload}
 endif
 	dh_strip -p$(p_gcn) \
-	  $(if $(unstripped_exe),-X/lto1)
+	  $(if $(unstripped_exe),-X/lto1) -X/lib{c,g,m,gcc,gcov,gfortran,caf_single,ssp,ssp_nonshared}.a
 	dh_shlibdeps -p$(p_gcn)
 	echo $(p_gcn) >> debian/arch_binaries
 
