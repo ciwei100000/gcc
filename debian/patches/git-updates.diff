@@ -1,7 +1,7 @@
-# DP: updates from the 9 branch upto 20200220 (2ee6afc2b45).
+# DP: updates from the 9 branch upto 20200224 (ba740092516).
 
 LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
-	a0c06cc27d2146b7d86758ffa236516c6143d62c 2ee6afc2b4583e4f41b4902d148e74a6b767f50b \
+	a0c06cc27d2146b7d86758ffa236516c6143d62c ba740092516cd759ac69e89d7f502a51d8bec19a \
 	| awk '/^diff .*\.texi/ {skip=1; next} /^diff / { skip=0 } skip==0' \
 	| grep -v -E '^(diff|index)'
 
@@ -366,7 +366,82 @@ new file mode 100644
 +9.2.1
 --- a/src/gcc/ChangeLog
 +++ b/src/gcc/ChangeLog
-@@ -1,3 +1,2065 @@
+@@ -1,3 +1,2140 @@
++2020-02-24  Bernd Edlinger  <bernd.edlinger@hotmail.de>
++
++	* collect2.c (tool_cleanup): Avoid calling not signal-safe
++	functions.
++	(maybe_run_lto_and_relink): Avoid possible signal handler
++	access to unintialzed memory (lto_o_files).
++
++2020-02-23  Peter Bergner <bergner@linux.ibm.com>
++
++	Backport from master
++	2020-02-20  Peter Bergner  <bergner@linux.ibm.com>
++
++	PR target/93658
++	* config/rs6000/rs6000.c (rs6000_legitimate_address_p): Handle VSX
++	vector modes.
++
++2020-02-23  Peter Bergner <bergner@linux.ibm.com>
++
++	Backport from master
++	2020-02-05  Michael Meissner  <meissner@linux.ibm.com>
++
++	PR target/93568
++	* config/rs6000/rs6000.c (get_vector_offset): Fix Q constraint assert
++	to use "mem".
++
++	Backport from master
++	2020-02-03  Michael Meissner  <meissner@linux.ibm.com>
++
++	* config/rs6000/rs6000.c (get_vector_offset): New helper function
++	to calculate the offset in memory from the start of a vector of a
++	particular element.  Add code to keep the element number in
++	bounds if the element number is variable.
++	(rs6000_adjust_vec_address): Move calculation of offset of the
++	vector element to get_vector_offset.
++	(rs6000_split_vec_extract_var): Do not do the initial AND of
++	element here, move the code to get_vector_offset.
++
++2020-02-23  Peter Bergner <bergner@linux.ibm.com>
++
++	Backport from master
++	2020-01-06  Michael Meissner  <meissner@linux.ibm.com>
++
++	* config/rs6000/vsx.md (vsx_extract_<mode>_var, VSX_D iterator):
++	Use 'Q' for doing vector extract from memory.
++	(vsx_extract_v4sf_var): Use 'Q' for doing vector extract from
++	memory.
++	(vsx_extract_<mode>_var, VSX_EXTRACT_I iterator): Use 'Q' for
++	doing vector extract from memory.
++	(vsx_extract_<mode>_<VS_scalar>mode_var): Use 'Q' for doing vector
++	extract from memory.
++
++2020-02-21  John David Anglin  <danglin@gcc.gnu.org>
++
++	* gcc/config/pa/pa.c (pa_function_value): Fix check for word and
++	double-word size when handling aggregate return values.
++	* gcc/config/pa/som.h (ASM_DECLARE_FUNCTION_NAME): Fix to indicate
++	that homogeneous SFmode and DFmode aggregates are passed and returned
++	in general registers.
++
++2020-02-20  Uroš Bizjak  <ubizjak@gmail.com>
++
++	PR target/93828
++	* config/i386/mmx.md (*vec_extractv2sf_1): Match source operand
++	to destination operand for shufps alternative.
++	(*vec_extractv2si_1): Ditto.
++
++2020-02-20  H.J. Lu  <hongjiu.lu@intel.com>
++
++	Backport from master
++	2020-02-13  H.J. Lu  <hongjiu.lu@intel.com>
++
++	PR target/93656
++	* config/i386/i386.c (ix86_trampoline_init): Skip ENDBR32 at
++	the target function entry.
++
 +2020-02-18  Richard Sandiford  <richard.sandiford@arm.com>
 +
 +	Backport from mainline
@@ -2432,7 +2507,7 @@ new file mode 100644
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -513,7 +2575,7 @@
+@@ -513,7 +2650,7 @@
  
  2019-07-11  Uroš Bizjak  <ubizjak@gmail.com>
  
@@ -2445,7 +2520,7 @@ new file mode 100644
 +++ b/src/gcc/DATESTAMP
 @@ -1 +1 @@
 -20190812
-+20200220
++20200224
 --- a/src/gcc/Makefile.in
 +++ b/src/gcc/Makefile.in
 @@ -1120,6 +1120,7 @@ endif
@@ -4031,6 +4106,31 @@ new file mode 100644
    if (error_found)
      {
        dump (stderr);
+--- a/src/gcc/collect2.c
++++ b/src/gcc/collect2.c
+@@ -384,6 +384,10 @@ static void scan_prog_file (const char *, scanpass, scanfilter);
+ void
+ tool_cleanup (bool from_signal)
+ {
++  /* maybe_unlink may call notice, which is not signal safe.  */
++  if (from_signal)
++    verbose = false;
++
+   if (c_file != 0 && c_file[0])
+     maybe_unlink (c_file);
+ 
+@@ -743,7 +747,10 @@ maybe_run_lto_and_relink (char **lto_ld_argv, char **object_lst,
+ 	      ++num_files;
+ 	  }
+ 
+-	lto_o_files = XNEWVEC (char *, num_files + 1);
++	/* signal handler may access uninitialized memory
++	   and delete whatever it points to, if lto_o_files
++	   is not allocated with calloc.  */
++	lto_o_files = XCNEWVEC (char *, num_files + 1);
+ 	lto_o_files[num_files] = NULL;
+ 	start = XOBFINISH (&temporary_obstack, char *);
+ 	for (i = 0; i < num_files; ++i)
 --- a/src/gcc/combine.c
 +++ b/src/gcc/combine.c
 @@ -12424,7 +12424,8 @@ simplify_comparison (enum rtx_code code, rtx *pop0, rtx *pop1)
@@ -8503,7 +8603,23 @@ new file mode 100644
  	output_addr_const (file, x);
        else
  	{
-@@ -33401,8 +33418,13 @@ ix86_fold_builtin (tree fndecl, int n_args,
+@@ -30272,9 +30289,14 @@ ix86_trampoline_init (rtx m_tramp, tree fndecl, rtx chain_value)
+ 	 the stack, we need to skip the first insn which pushes the
+ 	 (call-saved) register static chain; this push is 1 byte.  */
+       offset += 5;
++      int skip = MEM_P (chain) ? 1 : 0;
++      /* Skip ENDBR32 at the entry of the target function.  */
++      if (need_endbr
++	  && !cgraph_node::get (fndecl)->only_called_directly_p ())
++	skip += 4;
+       disp = expand_binop (SImode, sub_optab, fnaddr,
+ 			   plus_constant (Pmode, XEXP (m_tramp, 0),
+-					  offset - (MEM_P (chain) ? 1 : 0)),
++					  offset - skip),
+ 			   NULL_RTX, 1, OPTAB_DIRECT);
+       emit_move_insn (mem, disp);
+     }
+@@ -33401,8 +33423,13 @@ ix86_fold_builtin (tree fndecl, int n_args,
  		    countt = build_int_cst (integer_type_node, count);
  		}
  	      tree_vector_builder builder;
@@ -8519,7 +8635,7 @@ new file mode 100644
  	      unsigned int cnt = builder.encoded_nelts ();
  	      for (unsigned int i = 0; i < cnt; ++i)
  		{
-@@ -44377,11 +44399,15 @@ ix86_md_asm_adjust (vec<rtx> &outputs, vec<rtx> &/*inputs*/,
+@@ -44377,11 +44404,15 @@ ix86_md_asm_adjust (vec<rtx> &outputs, vec<rtx> &/*inputs*/,
  	    {
  	      x = force_reg (dest_mode, const0_rtx);
  
@@ -8657,6 +8773,40 @@ new file mode 100644
    obstack_ptr_grow (&argv_obstack, "-o");
    obstack_ptr_grow (&argv_obstack, target_so_filename);
    compile_for_target (&argv_obstack);
+--- a/src/gcc/config/i386/mmx.md
++++ b/src/gcc/config/i386/mmx.md
+@@ -626,13 +626,13 @@
+ (define_insn "*vec_extractv2sf_1"
+   [(set (match_operand:SF 0 "nonimmediate_operand"     "=y,x,x,y,x,f,r")
+ 	(vec_select:SF
+-	  (match_operand:V2SF 1 "nonimmediate_operand" " 0,x,x,o,o,o,o")
++	  (match_operand:V2SF 1 "nonimmediate_operand" " 0,x,0,o,o,o,o")
+ 	  (parallel [(const_int 1)])))]
+   "TARGET_MMX && !(MEM_P (operands[0]) && MEM_P (operands[1]))"
+   "@
+    punpckhdq\t%0, %0
+    %vmovshdup\t{%1, %0|%0, %1}
+-   shufps\t{$0xe5, %1, %0|%0, %1, 0xe5}
++   shufps\t{$0xe5, %0, %0|%0, %0, 0xe5}
+    #
+    #
+    #
+@@ -1320,13 +1320,13 @@
+ (define_insn "*vec_extractv2si_1"
+   [(set (match_operand:SI 0 "nonimmediate_operand"     "=y,x,x,y,x,r")
+ 	(vec_select:SI
+-	  (match_operand:V2SI 1 "nonimmediate_operand" " 0,x,x,o,o,o")
++	  (match_operand:V2SI 1 "nonimmediate_operand" " 0,x,0,o,o,o")
+ 	  (parallel [(const_int 1)])))]
+   "TARGET_MMX && !(MEM_P (operands[0]) && MEM_P (operands[1]))"
+   "@
+    punpckhdq\t%0, %0
+    %vpshufd\t{$0xe5, %1, %0|%0, %1, 0xe5}
+-   shufps\t{$0xe5, %1, %0|%0, %1, 0xe5}
++   shufps\t{$0xe5, %0, %0|%0, %0, 0xe5}
+    #
+    #
+    #"
 --- a/src/gcc/config/i386/sse.md
 +++ b/src/gcc/config/i386/sse.md
 @@ -1610,7 +1610,7 @@
@@ -9170,6 +9320,15 @@ new file mode 100644
    /* We need a long PIC call to $$dyncall.  */
    xoperands[0] = gen_rtx_SYMBOL_REF (Pmode, "$$dyncall");
    xoperands[1] = gen_rtx_REG (Pmode, 2);
+@@ -9366,7 +9343,7 @@ pa_function_value (const_tree valtype,
+       HOST_WIDE_INT valsize = int_size_in_bytes (valtype);
+ 
+       /* Handle aggregates that fit exactly in a word or double word.  */
+-      if ((valsize & (UNITS_PER_WORD - 1)) == 0)
++      if (valsize == UNITS_PER_WORD || valsize == 2 * UNITS_PER_WORD)
+ 	return gen_rtx_REG (TYPE_MODE (valtype), 28);
+ 
+       if (TARGET_64BIT)
 @@ -9871,6 +9848,26 @@ pa_select_section (tree exp, int reloc,
      return data_section;
  }
@@ -9684,6 +9843,49 @@ new file mode 100644
  
  (define_predicate "cmpib_comparison_operator"
    (match_code "eq,ne,lt,le,leu,gt,gtu,ge"))
+--- a/src/gcc/config/pa/som.h
++++ b/src/gcc/config/pa/som.h
+@@ -98,8 +98,8 @@ do {								\
+ 
+ 
+ #define ASM_DECLARE_FUNCTION_NAME(FILE, NAME, DECL) \
+-    do { tree fntype = TREE_TYPE (TREE_TYPE (DECL));			\
+-	 tree tree_type = TREE_TYPE (DECL);				\
++    do { tree tree_type = TREE_TYPE (DECL);				\
++	 tree fntype = TREE_TYPE (tree_type);				\
+ 	 tree parm;							\
+ 	 int i;								\
+ 	 if (TREE_PUBLIC (DECL) || TARGET_GAS)				\
+@@ -121,9 +121,11 @@ do {								\
+ 	       {							\
+ 		 tree type = DECL_ARG_TYPE (parm);			\
+ 		 machine_mode mode = TYPE_MODE (type);			\
+-		 if (mode == SFmode && ! TARGET_SOFT_FLOAT)		\
++		 if (!AGGREGATE_TYPE_P (type)				\
++		     && mode == SFmode && ! TARGET_SOFT_FLOAT)		\
+ 		   fprintf (FILE, ",ARGW%d=FR", i++);			\
+-		 else if (mode == DFmode && ! TARGET_SOFT_FLOAT)	\
++		 else if (!AGGREGATE_TYPE_P (type)			\
++			  && mode == DFmode && ! TARGET_SOFT_FLOAT)	\
+ 		   {							\
+ 		     if (i <= 2)					\
+ 		       {						\
+@@ -158,9 +160,13 @@ do {								\
+ 		 for (; i < 4; i++)					\
+ 		   fprintf (FILE, ",ARGW%d=GR", i);			\
+ 	       }							\
+-	     if (TYPE_MODE (fntype) == DFmode && ! TARGET_SOFT_FLOAT)	\
++	     if (!AGGREGATE_TYPE_P (fntype)				\
++		 && TYPE_MODE (fntype) == DFmode			\
++		 && ! TARGET_SOFT_FLOAT)				\
+ 	       fputs (DFMODE_RETURN_STRING, FILE);			\
+-	     else if (TYPE_MODE (fntype) == SFmode && ! TARGET_SOFT_FLOAT) \
++	     else if (!AGGREGATE_TYPE_P (fntype)			\
++		      && TYPE_MODE (fntype) == SFmode			\
++		      && ! TARGET_SOFT_FLOAT)				\
+ 	       fputs (SFMODE_RETURN_STRING, FILE);			\
+ 	     else if (fntype != void_type_node)				\
+ 	       fputs (",RTNVAL=GR", FILE);				\
 --- a/src/gcc/config/riscv/riscv-protos.h
 +++ b/src/gcc/config/riscv/riscv-protos.h
 @@ -44,10 +44,10 @@ extern int riscv_const_insns (rtx);
@@ -10593,7 +10795,115 @@ new file mode 100644
  
 --- a/src/gcc/config/rs6000/rs6000.c
 +++ b/src/gcc/config/rs6000/rs6000.c
-@@ -7671,6 +7671,104 @@ address_offset (rtx op)
+@@ -7017,10 +7017,53 @@ rs6000_expand_vector_extract (rtx target, rtx vec, rtx elt)
+     }
+ }
+ 
++/* Return the offset within a memory object (MEM) of a vector type to a given
++   element within the vector (ELEMENT) with an element size (SCALAR_SIZE).  If
++   the element is constant, we return a constant integer.
++
++   Otherwise, we use a base register temporary to calculate the offset after
++   masking it to fit within the bounds of the vector and scaling it.  The
++   masking is required by the 64-bit ELF version 2 ABI for the vec_extract
++   built-in function.  */
++
++static rtx
++get_vector_offset (rtx mem, rtx element, rtx base_tmp, unsigned scalar_size)
++{
++  if (CONST_INT_P (element))
++    return GEN_INT (INTVAL (element) * scalar_size);
++
++  /* All insns should use the 'Q' constraint (address is a single register) if
++     the element number is not a constant.  */
++  gcc_assert (satisfies_constraint_Q (mem));
++
++  /* Mask the element to make sure the element number is between 0 and the
++     maximum number of elements - 1 so that we don't generate an address
++     outside the vector.  */
++  rtx num_ele_m1 = GEN_INT (GET_MODE_NUNITS (GET_MODE (mem)) - 1);
++  rtx and_op = gen_rtx_AND (Pmode, element, num_ele_m1);
++  emit_insn (gen_rtx_SET (base_tmp, and_op));
++
++  /* Shift the element to get the byte offset from the element number.  */
++  int shift = exact_log2 (scalar_size);
++  gcc_assert (shift >= 0);
++
++  if (shift > 0)
++    {
++      rtx shift_op = gen_rtx_ASHIFT (Pmode, base_tmp, GEN_INT (shift));
++      emit_insn (gen_rtx_SET (base_tmp, shift_op));
++    }
++
++  return base_tmp;
++}
++
+ /* Adjust a memory address (MEM) of a vector type to point to a scalar field
+    within the vector (ELEMENT) with a mode (SCALAR_MODE).  Use a base register
+    temporary (BASE_TMP) to fixup the address.  Return the new memory address
+-   that is valid for reads or writes to a given register (SCALAR_REG).  */
++   that is valid for reads or writes to a given register (SCALAR_REG).
++
++   This function is expected to be called after reload is completed when we are
++   splitting insns.  The temporary BASE_TMP might be set multiple times with
++   this code.  */
+ 
+ rtx
+ rs6000_adjust_vec_address (rtx scalar_reg,
+@@ -7031,7 +7074,6 @@ rs6000_adjust_vec_address (rtx scalar_reg,
+ {
+   unsigned scalar_size = GET_MODE_SIZE (scalar_mode);
+   rtx addr = XEXP (mem, 0);
+-  rtx element_offset;
+   rtx new_addr;
+   bool valid_addr_p;
+ 
+@@ -7040,26 +7082,7 @@ rs6000_adjust_vec_address (rtx scalar_reg,
+ 
+   /* Calculate what we need to add to the address to get the element
+      address.  */
+-  if (CONST_INT_P (element))
+-    element_offset = GEN_INT (INTVAL (element) * scalar_size);
+-  else
+-    {
+-      int byte_shift = exact_log2 (scalar_size);
+-      gcc_assert (byte_shift >= 0);
+-
+-      if (byte_shift == 0)
+-	element_offset = element;
+-
+-      else
+-	{
+-	  if (TARGET_POWERPC64)
+-	    emit_insn (gen_ashldi3 (base_tmp, element, GEN_INT (byte_shift)));
+-	  else
+-	    emit_insn (gen_ashlsi3 (base_tmp, element, GEN_INT (byte_shift)));
+-
+-	  element_offset = base_tmp;
+-	}
+-    }
++  rtx element_offset = get_vector_offset (mem, element, base_tmp, scalar_size);
+ 
+   /* Create the new address pointing to the element within the vector.  If we
+      are adding 0, we don't have to change the address.  */
+@@ -7194,13 +7217,9 @@ rs6000_split_vec_extract_var (rtx dest, rtx src, rtx element, rtx tmp_gpr,
+      systems.  */
+   if (MEM_P (src))
+     {
+-      int num_elements = GET_MODE_NUNITS (mode);
+-      rtx num_ele_m1 = GEN_INT (num_elements - 1);
+-
+-      emit_insn (gen_anddi3 (element, element, num_ele_m1));
+-      gcc_assert (REG_P (tmp_gpr));
+-      emit_move_insn (dest, rs6000_adjust_vec_address (dest, src, element,
+-						       tmp_gpr, scalar_mode));
++      emit_move_insn (dest,
++		      rs6000_adjust_vec_address (dest, src, element, tmp_gpr,
++						 scalar_mode));
+       return;
+     }
+ 
+@@ -7671,6 +7690,104 @@ address_offset (rtx op)
    return NULL_RTX;
  }
  
@@ -10698,7 +11008,7 @@ new file mode 100644
  /* Return true if the MEM operand is a memory operand suitable for use
     with a (full width, possibly multiple) gpr load/store.  On
     powerpc64 this means the offset must be divisible by 4.
-@@ -7705,7 +7803,13 @@ mem_operand_gpr (rtx op, machine_mode mode)
+@@ -7705,7 +7822,13 @@ mem_operand_gpr (rtx op, machine_mode mode)
        && legitimate_indirect_address_p (XEXP (addr, 0), false))
      return true;
  
@@ -10713,7 +11023,16 @@ new file mode 100644
    if (!rs6000_offsettable_memref_p (op, mode, false))
      return false;
  
-@@ -21330,7 +21434,7 @@ print_operand (FILE *file, rtx x, int code)
+@@ -9235,7 +9358,7 @@ rs6000_legitimate_address_p (machine_mode mode, rtx x, bool reg_ok_strict)
+   bool quad_offset_p = mode_supports_dq_form (mode);
+ 
+   /* If this is an unaligned stvx/ldvx type address, discard the outer AND.  */
+-  if (VECTOR_MEM_ALTIVEC_P (mode)
++  if (VECTOR_MEM_ALTIVEC_OR_VSX_P (mode)
+       && GET_CODE (x) == AND
+       && CONST_INT_P (XEXP (x, 1))
+       && INTVAL (XEXP (x, 1)) == -16)
+@@ -21330,7 +21453,7 @@ print_operand (FILE *file, rtx x, int code)
  	{
  	  const char *name = XSTR (x, 0);
  #if TARGET_MACHO
@@ -10722,7 +11041,7 @@ new file mode 100644
  	      && MACHOPIC_INDIRECT
  	      && machopic_classify_symbol (x) == MACHOPIC_UNDEFINED_FUNCTION)
  	    name = machopic_indirection_name (x, /*stub_p=*/true);
-@@ -23151,6 +23255,11 @@ rs6000_emit_cmove (rtx dest, rtx op, rtx true_cond, rtx false_cond)
+@@ -23151,6 +23274,11 @@ rs6000_emit_cmove (rtx dest, rtx op, rtx true_cond, rtx false_cond)
  
    /* At this point we know we can use fsel.  */
  
@@ -10734,7 +11053,7 @@ new file mode 100644
    /* Reduce the comparison to a comparison against zero.  */
    if (! is_against_zero)
      {
-@@ -25729,10 +25838,14 @@ rs6000_emit_allocate_stack (HOST_WIDE_INT size, rtx copy_reg, int copy_off)
+@@ -25729,10 +25857,14 @@ rs6000_emit_allocate_stack (HOST_WIDE_INT size, rtx copy_reg, int copy_off)
  						    stack_limit_rtx,
  						    GEN_INT (size)));
  
@@ -10753,7 +11072,7 @@ new file mode 100644
  	}
        else
  	warning (0, "stack limit expression is not supported");
-@@ -37762,25 +37875,31 @@ rs6000_can_inline_p (tree caller, tree callee)
+@@ -37762,25 +37894,31 @@ rs6000_can_inline_p (tree caller, tree callee)
    tree caller_tree = DECL_FUNCTION_SPECIFIC_TARGET (caller);
    tree callee_tree = DECL_FUNCTION_SPECIFIC_TARGET (callee);
  
@@ -10797,7 +11116,7 @@ new file mode 100644
  	ret = true;
      }
  
-@@ -38273,7 +38392,8 @@ rs6000_call_darwin_1 (rtx value, rtx func_desc, rtx tlsarg,
+@@ -38273,7 +38411,8 @@ rs6000_call_darwin_1 (rtx value, rtx func_desc, rtx tlsarg,
    if ((cookie_val & CALL_LONG) != 0
        && GET_CODE (func_desc) == SYMBOL_REF)
      {
@@ -11204,6 +11523,44 @@ new file mode 100644
  (define_expand "vector_eq<mode>"
    [(set (match_operand:VEC_C 0 "vlogical_operand")
  	(eq:VEC_C (match_operand:VEC_C 1 "vlogical_operand")
+--- a/src/gcc/config/rs6000/vsx.md
++++ b/src/gcc/config/rs6000/vsx.md
+@@ -3295,7 +3295,7 @@
+ ;; Variable V2DI/V2DF extract
+ (define_insn_and_split "vsx_extract_<mode>_var"
+   [(set (match_operand:<VS_scalar> 0 "gpc_reg_operand" "=v,<VSa>,r")
+-	(unspec:<VS_scalar> [(match_operand:VSX_D 1 "input_operand" "v,m,m")
++	(unspec:<VS_scalar> [(match_operand:VSX_D 1 "input_operand" "v,Q,Q")
+ 			     (match_operand:DI 2 "gpc_reg_operand" "r,r,r")]
+ 			    UNSPEC_VSX_EXTRACT))
+    (clobber (match_scratch:DI 3 "=r,&b,&b"))
+@@ -3364,7 +3364,7 @@
+ ;; Variable V4SF extract
+ (define_insn_and_split "vsx_extract_v4sf_var"
+   [(set (match_operand:SF 0 "gpc_reg_operand" "=ww,ww,?r")
+-	(unspec:SF [(match_operand:V4SF 1 "input_operand" "v,m,m")
++	(unspec:SF [(match_operand:V4SF 1 "input_operand" "v,Q,Q")
+ 		    (match_operand:DI 2 "gpc_reg_operand" "r,r,r")]
+ 		   UNSPEC_VSX_EXTRACT))
+    (clobber (match_scratch:DI 3 "=r,&b,&b"))
+@@ -3724,7 +3724,7 @@
+ (define_insn_and_split "vsx_extract_<mode>_var"
+   [(set (match_operand:<VS_scalar> 0 "gpc_reg_operand" "=r,r,r")
+ 	(unspec:<VS_scalar>
+-	 [(match_operand:VSX_EXTRACT_I 1 "input_operand" "wK,v,m")
++	 [(match_operand:VSX_EXTRACT_I 1 "input_operand" "wK,v,Q")
+ 	  (match_operand:DI 2 "gpc_reg_operand" "r,r,r")]
+ 	 UNSPEC_VSX_EXTRACT))
+    (clobber (match_scratch:DI 3 "=r,r,&b"))
+@@ -3743,7 +3743,7 @@
+   [(set (match_operand:<VS_scalar> 0 "gpc_reg_operand" "=r,r,r")
+ 	(zero_extend:<VS_scalar>
+ 	 (unspec:<VSX_EXTRACT_I:VS_scalar>
+-	  [(match_operand:VSX_EXTRACT_I 1 "input_operand" "wK,v,m")
++	  [(match_operand:VSX_EXTRACT_I 1 "input_operand" "wK,v,Q")
+ 	   (match_operand:DI 2 "gpc_reg_operand" "r,r,r")]
+ 	  UNSPEC_VSX_EXTRACT)))
+    (clobber (match_scratch:DI 3 "=r,r,&b"))
 --- a/src/gcc/config/s390/8561.md
 +++ b/src/gcc/config/s390/8561.md
 @@ -1,4 +1,4 @@
@@ -17739,6 +18096,36 @@ new file mode 100644
  
    if (!mask->rank || !is_constant_array_expr (mask)
        || !is_constant_array_expr (tsource) || !is_constant_array_expr (fsource))
+@@ -5533,7 +5539,7 @@ simplify_findloc_nodim (gfc_expr *result, gfc_expr *value, gfc_expr *array,
+   bool continue_loop;
+   bool ma;
+ 
+-  for (i = 0; i<array->rank; i++)
++  for (i = 0; i < array->rank; i++)
+     res[i] = -1;
+ 
+   /* Shortcut for constant .FALSE. MASK.  */
+@@ -5576,7 +5582,7 @@ simplify_findloc_nodim (gfc_expr *result, gfc_expr *value, gfc_expr *array,
+ 
+ 	  if (ma && gfc_compare_expr (a, value, INTRINSIC_EQ) == 0)
+ 	    {
+-	      for (i = 0; i<array->rank; i++)
++	      for (i = 0; i < array->rank; i++)
+ 		res[i] = count[i];
+ 	      if (!back_val)
+ 		goto finish;
+@@ -5601,9 +5607,9 @@ simplify_findloc_nodim (gfc_expr *result, gfc_expr *value, gfc_expr *array,
+ 	} while (count[n] == extent[n]);
+     }
+ 
+- finish:
++finish:
+   result_ctor = gfc_constructor_first (result->value.constructor);
+-  for (i = 0; i<array->rank; i++)
++  for (i = 0; i < array->rank; i++)
+     {
+       gfc_expr *r_expr;
+       r_expr = result_ctor->expr;
 @@ -6684,6 +6690,9 @@ gfc_simplify_reshape (gfc_expr *source, gfc_expr *shape_exp,
    mpz_init (index);
    rank = 0;
@@ -17805,7 +18192,25 @@ new file mode 100644
  	  x[order[i]] = 1;
  	}
      }
-@@ -7630,7 +7672,7 @@ gfc_simplify_spread (gfc_expr *source, gfc_expr *dim_expr, gfc_expr *ncopies_exp
+@@ -7213,6 +7255,8 @@ gfc_simplify_shape (gfc_expr *source, gfc_expr *kind)
+     return NULL;
+ 
+   result = gfc_get_array_expr (BT_INTEGER, k, &source->where);
++  result->shape = gfc_get_shape (1);
++  mpz_init (result->shape[0]);
+ 
+   if (source->rank == 0)
+     return result;
+@@ -7269,6 +7313,8 @@ gfc_simplify_shape (gfc_expr *source, gfc_expr *kind)
+   if (t)
+     gfc_clear_shape (shape, source->rank);
+ 
++  mpz_set_si (result->shape[0], source->rank);
++
+   return result;
+ }
+ 
+@@ -7630,7 +7676,7 @@ gfc_simplify_spread (gfc_expr *source, gfc_expr *dim_expr, gfc_expr *ncopies_exp
    nelem = mpz_get_si (size) * ncopies;
    if (nelem > flag_max_array_constructor)
      {
@@ -17814,7 +18219,7 @@ new file mode 100644
  	{
  	  gfc_error ("The number of elements (%d) in the array constructor "
  		     "at %L requires an increase of the allowed %d upper "
-@@ -8494,6 +8536,12 @@ gfc_convert_constant (gfc_expr *e, bt type, int kind)
+@@ -8494,6 +8540,12 @@ gfc_convert_constant (gfc_expr *e, bt type, int kind)
  	    {
  	      if (c->expr->expr_type == EXPR_ARRAY)
  		tmp = gfc_convert_constant (c->expr, type, kind);
@@ -24508,7 +24913,32 @@ new file mode 100644
       down the refernces to libraries bit more because linker will otherwise
 --- a/src/gcc/testsuite/ChangeLog
 +++ b/src/gcc/testsuite/ChangeLog
-@@ -1,3 +1,1594 @@
+@@ -1,3 +1,1619 @@
++2020-02-24  Mark Eggleston  <mark.eggleston@codethink.com>
++
++	Backported from master
++	2020-02-24  Mark Eggleston  <markeggleston@gcc.gnu.org>
++
++	PR fortran/93835
++	* gfortran.dg/pr77351.f90 : Check for one error instead of two.
++	* gfortran.dg/pr93835.f08 : New test.
++
++2020-02-23  Peter Bergner  <bergner@linux.ibm.com>
++
++	Backport from master
++	2020-02-20  Peter Bergner  <bergner@linux.ibm.com>
++
++	PR target/93658
++	* gcc.target/powerpc/pr93658.c: New test.
++
++2020-02-20  H.J. Lu  <hongjiu.lu@intel.com>
++
++	Backport from master
++	2020-02-13  H.J. Lu  <hongjiu.lu@intel.com>
++
++	PR target/93656
++	* gcc.target/i386/pr93656.c: New test.
++
 +2020-02-19  Mark Eggleston <markeggleston@gcc.gnu.org>
 +
 +	* typebound_call_22.d03 : Remove xfail clause.
@@ -26103,7 +26533,7 @@ new file mode 100644
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -427,7 +2018,7 @@
+@@ -427,7 +2043,7 @@
  	Backport from mainline.
  	2019-05-15  Iain Sandoe  <iain@sandoe.co.uk>
  
@@ -26112,7 +26542,7 @@ new file mode 100644
  	(check_effective_target_powerpc_p8vector_ok): No support for Darwin.
  	(check_effective_target_powerpc_p9vector_ok): Likewise.
  	(check_effective_target_powerpc_float128_sw_ok): Likewise.
-@@ -720,7 +2311,7 @@
+@@ -720,7 +2336,7 @@
  
  	Backport from mainline
  	PR fortran/91077
@@ -26121,7 +26551,7 @@ new file mode 100644
  
  2019-07-05  Szabolcs Nagy  <szabolcs.nagy@arm.com>
  
-@@ -803,7 +2394,7 @@
+@@ -803,7 +2419,7 @@
  	Backport fom mainline
  	2019-06-21  Jeff Law  <law@redhat.com>
  
@@ -26130,7 +26560,7 @@ new file mode 100644
  	* gcc.c-torture/execute/pr90949.c: New test.
  
  2019-06-26  Martin Jambor  <mjambor@suse.cz>
-@@ -969,7 +2560,7 @@
+@@ -969,7 +2585,7 @@
         * gcc.target/i386/pr82699-6.c: Likewise
         * gcc.target/i386/returninst1.c: Likewise
         * gcc.target/i386/returninst2.c: Likewise
@@ -26139,7 +26569,7 @@ new file mode 100644
  
  2019-05-30  Iain Sandoe  <iain@sandoe.co.uk>
  
-@@ -1131,7 +2722,7 @@
+@@ -1131,7 +2747,7 @@
  
  	Backport from trunk
  	PR fortran/90498
@@ -26148,7 +26578,7 @@ new file mode 100644
  
  2019-05-17  Jakub Jelinek  <jakub@redhat.com>
  
-@@ -3801,21 +5392,21 @@
+@@ -3801,21 +5417,21 @@
  2019-02-23  Paul Thomas  <pault@gcc.gnu.org>
  
  	PR fortran/88117
@@ -26177,7 +26607,7 @@ new file mode 100644
  
  2019-02-22  David Malcolm  <dmalcolm@redhat.com>
  
-@@ -4444,7 +6035,7 @@
+@@ -4444,7 +6060,7 @@
  2019-02-09  Paul Thomas  <pault@gcc.gnu.org>
  
  	PR fortran/89200
@@ -26186,7 +26616,7 @@ new file mode 100644
  
  2019-02-09  Jakub Jelinek  <jakub@redhat.com>
  
-@@ -4704,17 +6295,17 @@
+@@ -4704,17 +6320,17 @@
  2019-02-02  Paul Thomas  <pault@gcc.gnu.org>
  
  	PR fortran/88393
@@ -33430,6 +33860,14 @@ new file mode 100644
 +#include "pr56348.c"
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/gcc.target/i386/pr93656.c
+@@ -0,0 +1,4 @@
++/* { dg-do run { target { ia32 && cet } } } */
++/* { dg-options "-O2 -fcf-protection" } */
++
++#include "pr67770.c"
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/gcc.target/i386/pr93696-1.c
 @@ -0,0 +1,79 @@
 +/* PR target/93696 */
@@ -34505,6 +34943,30 @@ new file mode 100644
 +      if (a == 0.0)
 +	bar ();
 +    }
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.target/powerpc/pr93658.c
+@@ -0,0 +1,20 @@
++/* { dg-do compile } */
++/* { dg-options "-O3 -fstack-protector-strong -mcpu=power8" } */
++/* { dg-require-effective-target powerpc_vsx_ok } */
++
++/* PR93658: Failure compiling this test is an infinite loop in LRA's
++   process_address(), so set a short timeout limit.  */
++/* { dg-timeout 5 } */
++
++void bar();
++char b;
++void
++foo (void)
++{
++  char a;
++  int d = b;
++  char *e = &a;
++  while (d)
++    *e++ = --d;
++  bar ();
 +}
 new file mode 100644
 --- /dev/null
@@ -36353,6 +36815,19 @@ new file mode 100644
     RETURN
  END SUBROUTINE Compiler_Options
  
+--- a/src/gcc/testsuite/gfortran.dg/pr77351.f90
++++ b/src/gcc/testsuite/gfortran.dg/pr77351.f90
+@@ -1,6 +1,8 @@
+ ! { dg-do compile }
++!
++! PR93835 resulted in different but valid error message
+ program p
+    integer :: z(4) = [1, 2, 3, 4]
+-   print *, any(shape(z) /= [4,1])  ! { dg-error "shape for elemental binary" }
++   print *, any(shape(z) /= [4,1])  ! { dg-error "Shapes for operands at .1. and .2. are not conformable" }
+ end
+-! { dg-excess-errors "operands are incommensurate" }
++
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/gfortran.dg/pr78719_1.f90
@@ -37479,6 +37954,18 @@ new file mode 100644
 +
 +! { dg-error "must be of INTEGER type" " " { target *-*-* } 6 }
 +! { dg-error "does not have the TARGET attribute" " " { target *-*-* } 7 }
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/pr93835.f08
+@@ -0,0 +1,8 @@
++! {dg-do run }
++!
++! PR fortran/93835 - the following code resulted in an ICE
++!
++program p
++  if (any(findloc(shape(1), 1) .ne. 0)) stop 1
++end
++
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/gfortran.dg/spread_size_limit_2.f90
@@ -40414,7 +40901,32 @@ new file mode 100644
 +	$(crt_compile) -mmacosx-version-min=10.6 -c $<
 --- a/src/libgfortran/ChangeLog
 +++ b/src/libgfortran/ChangeLog
-@@ -1,3 +1,54 @@
+@@ -1,3 +1,79 @@
++2020-02-22  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	Backport from trunk
++	PR fortran/93599
++	* io/async.c (destroy_adv_cond): Do not destroy lock.
++	(async_io): Make sure au->lock is locked for finishing of thread.
++	Do not lock/unlock around signalling emptysignal. Unlock au->lock
++	before return.
++	(init_adv_cond): Do not initialize lock.
++	(enqueue_transfer): Unlock after signal.
++	(enqueue_done_id): Likewise.
++	(enqueue_done): Likewise.
++	(enqueue_close): Likewise.
++	(enqueue_data_transfer): Likewise.
++	(async_wait_id): Do not lock/unlock around signalling au->work.
++	(async_wait): Unlock after signal.
++	* io/async.h (SIGNAL): Add comment about needed au->lock.
++	Remove locking/unlocking of advcond->lock.
++	(WAIT_SIGNAL_MUTEX): Add comment. Remove locking/unlocking of
++	advcond->lock.  Unlock mutex only at the end.  Loop on
++	__ghread_cond_wait returning zero.
++	(REVOKE_SIGNAL): Add comment. Remove locking/unlocking of
++	advcond->lock.
++	(struct adv_cond): Remove mutex from struct.
++
 +2020-01-21  Jerry DeLisle  <jvdelisle@gcc.gnu.org>
 +
 +        Backport from mainline
@@ -40469,7 +40981,7 @@ new file mode 100644
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -24,12 +75,12 @@
+@@ -24,12 +100,12 @@
  2019-05-20  Janne Blomqvist  <jb@gcc.gnu.org>
  
  	Backport from trunk
@@ -40580,6 +41092,207 @@ new file mode 100644
        njumps = 0;
        master_init = true;
      }
+--- a/src/libgfortran/io/async.c
++++ b/src/libgfortran/io/async.c
+@@ -80,7 +80,6 @@ update_pdt (st_parameter_dt **old, st_parameter_dt *new) {
+ static void
+ destroy_adv_cond (struct adv_cond *ac)
+ {
+-  T_ERROR (__gthread_mutex_destroy, &ac->lock);
+   T_ERROR (__gthread_cond_destroy, &ac->signal);
+ }
+ 
+@@ -156,6 +155,7 @@ async_io (void *arg)
+ 
+ 		case AIO_CLOSE:
+ 		  NOTE ("Received AIO_CLOSE");
++		  LOCK (&au->lock);
+ 		  goto finish_thread;
+ 
+ 		default:
+@@ -175,7 +175,6 @@ async_io (void *arg)
+ 	      else if (ctq->type == AIO_CLOSE)
+ 		{
+ 		  NOTE ("Received AIO_CLOSE during error condition");
+-		  UNLOCK (&au->lock);
+ 		  goto finish_thread;
+ 		}
+ 	    }
+@@ -189,9 +188,7 @@ async_io (void *arg)
+       au->tail = NULL;
+       au->head = NULL;
+       au->empty = 1;
+-      UNLOCK (&au->lock);
+       SIGNAL (&au->emptysignal);
+-      LOCK (&au->lock);
+     }
+  finish_thread:
+   au->tail = NULL;
+@@ -199,6 +196,7 @@ async_io (void *arg)
+   au->empty = 1;
+   SIGNAL (&au->emptysignal);
+   free (ctq);
++  UNLOCK (&au->lock);
+   return NULL;
+ }
+ 
+@@ -223,7 +221,6 @@ static void
+ init_adv_cond (struct adv_cond *ac)
+ {
+   ac->pending = 0;
+-  __GTHREAD_MUTEX_INIT_FUNCTION (&ac->lock);
+   __GTHREAD_COND_INIT_FUNCTION (&ac->signal);
+ }
+ 
+@@ -279,8 +276,8 @@ enqueue_transfer (async_unit *au, transfer_args *arg, enum aio_do type)
+   au->tail = tq;
+   REVOKE_SIGNAL (&(au->emptysignal));
+   au->empty = false;
+-  UNLOCK (&au->lock);
+   SIGNAL (&au->work);
++  UNLOCK (&au->lock);
+ }
+ 
+ /* Enqueue an st_write_done or st_read_done which contains an ID.  */
+@@ -303,8 +300,8 @@ enqueue_done_id (async_unit *au, enum aio_do type)
+   au->empty = false;
+   ret = au->id.high++;
+   NOTE ("Enqueue id: %d", ret);
+-  UNLOCK (&au->lock);
+   SIGNAL (&au->work);
++  UNLOCK (&au->lock);
+   return ret;
+ }
+ 
+@@ -324,8 +321,8 @@ enqueue_done (async_unit *au, enum aio_do type)
+   au->tail = tq;
+   REVOKE_SIGNAL (&(au->emptysignal));
+   au->empty = false;
+-  UNLOCK (&au->lock);
+   SIGNAL (&au->work);
++  UNLOCK (&au->lock);
+ }
+ 
+ /* Enqueue a CLOSE statement.  */
+@@ -344,8 +341,8 @@ enqueue_close (async_unit *au)
+   au->tail = tq;
+   REVOKE_SIGNAL (&(au->emptysignal));
+   au->empty = false;
+-  UNLOCK (&au->lock);
+   SIGNAL (&au->work);
++  UNLOCK (&au->lock);
+ }
+ 
+ /* The asynchronous unit keeps the currently active PDT around.
+@@ -374,9 +371,9 @@ enqueue_data_transfer_init (async_unit *au, st_parameter_dt *dt, int read_flag)
+     au->tail->next = tq;
+   au->tail = tq;
+   REVOKE_SIGNAL (&(au->emptysignal));
+-  au->empty = 0;
+-  UNLOCK (&au->lock);
++  au->empty = false;
+   SIGNAL (&au->work);
++  UNLOCK (&au->lock);
+ }
+ 
+ /* Collect the errors that may have happened asynchronously.  Return true if
+@@ -430,9 +427,7 @@ async_wait_id (st_parameter_common *cmp, async_unit *au, int i)
+   NOTE ("Waiting for id %d", i);
+   if (au->id.waiting < i)
+     au->id.waiting = i;
+-  UNLOCK (&au->lock);
+   SIGNAL (&(au->work));
+-  LOCK (&au->lock);
+   WAIT_SIGNAL_MUTEX (&(au->id.done),
+ 		     (au->id.low >= au->id.waiting || au->empty), &au->lock);
+   LOCK (&au->lock);
+@@ -454,8 +449,8 @@ async_wait (st_parameter_common *cmp, async_unit *au)
+   if (cmp == NULL)
+     cmp = au->error.cmp;
+ 
+-  SIGNAL (&(au->work));
+   LOCK (&(au->lock));
++  SIGNAL (&(au->work));
+ 
+   if (au->empty)
+     {
+--- a/src/libgfortran/io/async.h
++++ b/src/libgfortran/io/async.h
+@@ -229,44 +229,44 @@
+ 
+ #if ASYNC_IO
+ 
++/* au->lock has to be held when calling this macro.  */
++
+ #define SIGNAL(advcond) do{						\
+-    INTERN_LOCK (&(advcond)->lock);					\
+     (advcond)->pending = 1;						\
+     DEBUG_PRINTF ("%s%-75s %20s():%-5d %18p\n", aio_prefix, DEBUG_ORANGE "SIGNAL: " DEBUG_NORM \
+ 		 #advcond, __FUNCTION__, __LINE__, (void *) advcond);	\
+-    T_ERROR (__gthread_cond_broadcast, &(advcond)->signal);		\
+-    INTERN_UNLOCK (&(advcond)->lock);					\
++    T_ERROR (__gthread_cond_broadcast, &(advcond)->signal);			\
+   } while (0)
+ 
++/* Has to be entered with mutex locked.  */
++
+ #define WAIT_SIGNAL_MUTEX(advcond, condition, mutex) do{		\
+     __label__ finish;		       					\
+-    INTERN_LOCK (&((advcond)->lock));					\
+     DEBUG_PRINTF ("%s%-75s %20s():%-5d %18p\n", aio_prefix, DEBUG_BLUE "WAITING: " DEBUG_NORM \
+ 		 #advcond, __FUNCTION__, __LINE__, (void *) advcond);	\
+-    if ((advcond)->pending || (condition)){				\
+-      UNLOCK (mutex);							\
++    if ((advcond)->pending || (condition))				\
+       goto finish;							\
+-    }									\
+-    UNLOCK (mutex);							\
+-     while (!__gthread_cond_wait(&(advcond)->signal, &(advcond)->lock)) {	\
+-       { int cond;							\
+-	 LOCK (mutex); cond = condition; UNLOCK (mutex);	\
+-	   if (cond){							\
+-	     DEBUG_PRINTF ("%s%-75s %20s():%-5d %18p\n", aio_prefix, DEBUG_ORANGE "REC: " DEBUG_NORM \
+-		  #advcond,  __FUNCTION__, __LINE__, (void *)advcond);	\
+-	   break;				      			\
+-        }							\
++    while (1)								\
++      {									\
++	int err_ret = __gthread_cond_wait(&(advcond)->signal, mutex);	\
++	if (err_ret) internal_error (NULL, "WAIT_SIGNAL_MUTEX failed");	\
++	if (condition)							\
++	  {								\
++	    DEBUG_PRINTF ("%s%-75s %20s():%-5d %18p\n", aio_prefix, DEBUG_ORANGE \
++			  "REC: " DEBUG_NORM				\
++			  #advcond,  __FUNCTION__, __LINE__, (void *)advcond); \
++	    break;				      			\
++	  }								\
+       }									\
+-    }									\
+   finish:								\
+-		 (advcond)->pending = 0;				\
+-		 INTERN_UNLOCK (&((advcond)->lock));			\
+-		 } while (0)
++    (advcond)->pending = 0;						\
++    UNLOCK (mutex);							\
++  } while (0)
++
++/* au->lock has to be held when calling this macro.  */
+ 
+ #define REVOKE_SIGNAL(advcond) do{		\
+-    INTERN_LOCK (&(advcond)->lock);		\
+     (advcond)->pending = 0;			\
+-    INTERN_UNLOCK (&(advcond)->lock);		\
+   } while (0)
+ 
+ #else
+@@ -330,7 +330,6 @@ struct adv_cond
+ {
+ #if ASYNC_IO
+   int pending;
+-  __gthread_mutex_t lock;
+   __gthread_cond_t signal;
+ #endif
+ };
 --- a/src/libgfortran/io/transfer.c
 +++ b/src/libgfortran/io/transfer.c
 @@ -2529,26 +2529,62 @@ transfer_array_inner (st_parameter_dt *dtp, gfc_array_char *desc, int kind,
