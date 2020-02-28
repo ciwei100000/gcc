@@ -1,7 +1,7 @@
-# DP: updates from the 9 branch upto 20200224 (ba740092516).
+# DP: updates from the 9 branch upto 20200228 (9d8aaf46f07).
 
 LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
-	a0c06cc27d2146b7d86758ffa236516c6143d62c ba740092516cd759ac69e89d7f502a51d8bec19a \
+	a0c06cc27d2146b7d86758ffa236516c6143d62c 9d8aaf46f079e4ca081171a9f15baf22f7d3ca82 \
 	| awk '/^diff .*\.texi/ {skip=1; next} /^diff / { skip=0 } skip==0' \
 	| grep -v -E '^(diff|index)'
 
@@ -28,7 +28,14 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  /^using:/ { print ""; print; print ""; }
 --- a/src/fixincludes/ChangeLog
 +++ b/src/fixincludes/ChangeLog
-@@ -1,3 +1,26 @@
+@@ -1,3 +1,33 @@
++2020-02-26  Segher Boessenkool  <segher@kernel.crashing.org>
++
++	Backport from trunk
++	2020-02-13  Matheus Castanho  <msc@linux.ibm.com>
++
++	* fixinc.in: Skip machine_name fix on powerpc*-*-linux*.
++
 +2020-01-01  John David Anglin  <danglin@gcc.gnu.org>
 +
 +	Backport from mainline
@@ -55,6 +62,17 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
+--- a/src/fixincludes/fixinc.in
++++ b/src/fixincludes/fixinc.in
+@@ -136,7 +136,7 @@ fi
+ #  disable the fix.
+ 
+ case "${target_canonical}" in
+-    *-*-vxworks*)
++    *-*-vxworks* | powerpc*-*-linux*)
+ 	test -f ${MACRO_LIST} &&  echo > ${MACRO_LIST}
+         ;;
+ esac
 --- a/src/fixincludes/fixincl.x
 +++ b/src/fixincludes/fixincl.x
 @@ -2,11 +2,11 @@
@@ -366,7 +384,108 @@ new file mode 100644
 +9.2.1
 --- a/src/gcc/ChangeLog
 +++ b/src/gcc/ChangeLog
-@@ -1,3 +1,2140 @@
+@@ -1,3 +1,2241 @@
++2020-02-27  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c/93949
++	* gimplify.c (gimplify_init_constructor): Don't promote readonly
++	DECL_REGISTER variables to TREE_STATIC.
++
++2020-02-27  Jakub Jelinek  <jakub@redhat.com>
++
++	PR tree-optimization/93945
++	* tree-ssa-sccvn.c (vn_reference_lookup_3): For memset with non-zero
++	second operand, require ref->size to be a multiple of BITS_PER_UNIT.
++
++2020-02-26  Carl Love  <cel@us.ibm.com>
++
++	PR target/91276
++	* doc/extend.texi (PowerPC AltiVec Built-in Functions  Available on ISA
++	3.0): The builtin-function name __builtin_crypto_vpmsumb is only for
++	the vector unsigned short arguments.  It is also listed as the name of
++	the built-in for arguments vector unsigned short,
++	vector unsigned int and vector unsigned long long built-ins.  The
++	name of the builtins for these arguments should be:
++	__builtin_crypto_vpmsumh, __builtin_crypto_vpmsumw and
++	__builtin_crypto_vpmsumd respectively.
++
++2020-02-26  Jason Merrill  <jason@redhat.com>
++
++	PR c++/92003
++	* symtab.c (symtab_node::nonzero_address): A DECL_COMDAT decl has
++	non-zero address even if weak and not yet defined.
++
++2020-02-26  Jiufu Guo  <guojiufu@linux.ibm.com>
++
++	PR target/93047
++	* config/rs6000/rs6000.md (untyped_call): Add emit_clobber.
++
++2020-02-26  Jakub Jelinek  <jakub@redhat.com>
++
++	PR tree-optimization/93820
++	* gimple-ssa-store-merging.c (check_no_overlap): Change RHS_CODE
++	argument to ALL_INTEGER_CST_P boolean.
++	(imm_store_chain_info::try_coalesce_bswap): Adjust caller.
++	(imm_store_chain_info::coalesce_immediate_stores): Likewise.  Handle
++	adjacent INTEGER_CST store into merged_store->only_constants like
++	overlapping one.
++
++2020-02-25  Christophe Lyon  <christophe.lyon@linaro.org>
++
++	Backport from mainline
++	2020-02-25  Christophe Lyon  <christophe.lyon@linaro.org>
++
++	* config/arm/arm.md (required_for_purecode): New attribute.
++	(enabled): Handle required_for_purecode.
++	* config/arm/thumb1.md (thumb1_movsi_insn): Add alternative to
++	work with -mpure-code.
++
++2020-02-25  Christophe Lyon  <christophe.lyon@linaro.org>
++
++	Backport from mainline
++	2019-12-17  Christophe Lyon  <christophe.lyon@linaro.org>
++
++	* config/arm/arm-protos.h (thumb1_gen_const_int): Add new prototype.
++	* config/arm/arm.c (arm_option_check_internal): Remove restriction
++	on MOVT for -mpure-code.
++	(thumb1_gen_const_int): New function.
++	(thumb1_legitimate_address_p): Support -mpure-code.
++	(thumb1_rtx_costs): Likewise.
++	(thumb1_size_rtx_costs): Likewise.
++	(arm_thumb1_mi_thunk): Likewise.
++	* config/arm/arm.h (CASE_VECTOR_PC_RELATIVE): Likewise.
++	* config/arm/thumb1.md (thumb1_movsi_symbol_ref): New.
++	(*thumb1_movhf): Support -mpure-code.
++	* doc/invoke.texi (-mpure-code): Remove restriction on MOVT.
++
++2020-02-25  Jakub Jelinek  <jakub@redhat.com>
++
++	PR rtl-optimization/93908
++	* combine.c (find_split_point): For store into ZERO_EXTRACT, and src
++	with mask.
++
++2019-02-25  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* dwarf2out.c (dwarf2out_size_function): Run in early-DWARF mode.
++
++2020-02-25  Roman Zhuykov  <zhroma@ispras.ru>
++
++	Backport from master
++	2020-02-24  Roman Zhuykov  <zhroma@ispras.ru>
++
++	* doc/install.texi (--enable-checking): Properly document current
++	behavior.
++	(--enable-stage1-checking): Minor clarification about bootstrap.
++
++2020-02-24  Richard Sandiford  <richard.sandiford@arm.com>
++
++	Backport from mainline
++	2020-02-19  Richard Sandiford  <richard.sandiford@arm.com>
++
++	PR tree-optimization/93767
++	* tree-vect-data-refs.c (vect_compile_time_alias): Remove the
++	access-size bias from the offset calculations for negative strides.
++
 +2020-02-24  Bernd Edlinger  <bernd.edlinger@hotmail.de>
 +
 +	* collect2.c (tool_cleanup): Avoid calling not signal-safe
@@ -2507,7 +2626,7 @@ new file mode 100644
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -513,7 +2650,7 @@
+@@ -513,7 +2751,7 @@
  
  2019-07-11  Uroš Bizjak  <ubizjak@gmail.com>
  
@@ -2520,7 +2639,7 @@ new file mode 100644
 +++ b/src/gcc/DATESTAMP
 @@ -1 +1 @@
 -20190812
-+20200224
++20200228
 --- a/src/gcc/Makefile.in
 +++ b/src/gcc/Makefile.in
 @@ -1120,6 +1120,7 @@ endif
@@ -4133,7 +4252,20 @@ new file mode 100644
  	for (i = 0; i < num_files; ++i)
 --- a/src/gcc/combine.c
 +++ b/src/gcc/combine.c
-@@ -12424,7 +12424,8 @@ simplify_comparison (enum rtx_code code, rtx *pop0, rtx *pop1)
+@@ -5138,10 +5138,9 @@ find_split_point (rtx *loc, rtx_insn *insn, bool set_src)
+ 	{
+ 	  HOST_WIDE_INT pos = INTVAL (XEXP (SET_DEST (x), 2));
+ 	  unsigned HOST_WIDE_INT len = INTVAL (XEXP (SET_DEST (x), 1));
+-	  unsigned HOST_WIDE_INT src = INTVAL (SET_SRC (x));
+ 	  rtx dest = XEXP (SET_DEST (x), 0);
+-	  unsigned HOST_WIDE_INT mask
+-	    = (HOST_WIDE_INT_1U << len) - 1;
++	  unsigned HOST_WIDE_INT mask = (HOST_WIDE_INT_1U << len) - 1;
++	  unsigned HOST_WIDE_INT src = INTVAL (SET_SRC (x)) & mask;
+ 	  rtx or_mask;
+ 
+ 	  if (BITS_BIG_ENDIAN)
+@@ -12424,7 +12423,8 @@ simplify_comparison (enum rtx_code code, rtx *pop0, rtx *pop1)
  	     bit.  This will be converted into a ZERO_EXTRACT.  */
  	  if (const_op == 0 && sign_bit_comparison_p
  	      && CONST_INT_P (XEXP (op0, 1))
@@ -4671,9 +4803,120 @@ new file mode 100644
        return 1;
      case E_CC_FPU_UNEQmode:
        return 1;
+--- a/src/gcc/config/arm/arm-protos.h
++++ b/src/gcc/config/arm/arm-protos.h
+@@ -66,6 +66,7 @@ extern bool arm_small_register_classes_for_mode_p (machine_mode);
+ extern int const_ok_for_arm (HOST_WIDE_INT);
+ extern int const_ok_for_op (HOST_WIDE_INT, enum rtx_code);
+ extern int const_ok_for_dimode_op (HOST_WIDE_INT, enum rtx_code);
++extern void thumb1_gen_const_int (rtx, HOST_WIDE_INT);
+ extern int arm_split_constant (RTX_CODE, machine_mode, rtx,
+ 			       HOST_WIDE_INT, rtx, rtx, int);
+ extern int legitimate_pic_operand_p (rtx);
 --- a/src/gcc/config/arm/arm.c
 +++ b/src/gcc/config/arm/arm.c
-@@ -19670,6 +19670,35 @@ arm_compute_save_core_reg_mask (void)
+@@ -2904,13 +2904,18 @@ arm_option_check_internal (struct gcc_options *opts)
+     {
+       const char *flag = (target_pure_code ? "-mpure-code" :
+ 					     "-mslow-flash-data");
++      bool common_unsupported_modes = arm_arch_notm || flag_pic || TARGET_NEON;
+ 
+-      /* We only support -mpure-code and -mslow-flash-data on M-profile targets
+-	 with MOVT.  */
+-      if (!TARGET_HAVE_MOVT || arm_arch_notm || flag_pic || TARGET_NEON)
++      /* We only support -mslow-flash-data on M-profile targets with
++	 MOVT.  */
++      if (target_slow_flash_data && (!TARGET_HAVE_MOVT || common_unsupported_modes))
+ 	error ("%s only supports non-pic code on M-profile targets with the "
+ 	       "MOVT instruction", flag);
+ 
++      /* We only support -mpure-code on M-profile targets.  */
++      if (target_pure_code && common_unsupported_modes)
++	error ("%s only supports non-pic code on M-profile targets", flag);
++
+       /* Cannot load addresses: -mslow-flash-data forbids literal pool and
+ 	 -mword-relocations forbids relocation of MOVT/MOVW.  */
+       if (target_word_relocations)
+@@ -4316,6 +4321,38 @@ const_ok_for_dimode_op (HOST_WIDE_INT i, enum rtx_code code)
+     }
+ }
+ 
++/* Emit a sequence of movs/adds/shift to produce a 32-bit constant.
++   Avoid generating useless code when one of the bytes is zero.  */
++void
++thumb1_gen_const_int (rtx op0, HOST_WIDE_INT op1)
++{
++  bool mov_done_p = false;
++  int i;
++
++  /* Emit upper 3 bytes if needed.  */
++  for (i = 0; i < 3; i++)
++    {
++      int byte = (op1 >> (8 * (3 - i))) & 0xff;
++
++      if (byte)
++	{
++	  emit_set_insn (op0, mov_done_p
++			 ? gen_rtx_PLUS (SImode,op0, GEN_INT (byte))
++			 : GEN_INT (byte));
++	  mov_done_p = true;
++	}
++
++      if (mov_done_p)
++	emit_set_insn (op0, gen_rtx_ASHIFT (SImode, op0, GEN_INT (8)));
++    }
++
++  /* Emit lower byte if needed.  */
++  if (!mov_done_p)
++    emit_set_insn (op0, GEN_INT (op1 & 0xff));
++  else if (op1 & 0xff)
++    emit_set_insn (op0, gen_rtx_PLUS (SImode, op0, GEN_INT (op1 & 0xff)));
++}
++
+ /* Emit a sequence of insns to handle a large constant.
+    CODE is the code of the operation required, it can be any of SET, PLUS,
+    IOR, AND, XOR, MINUS;
+@@ -8325,7 +8362,8 @@ thumb1_legitimate_address_p (machine_mode mode, rtx x, int strict_p)
+   /* This is PC relative data before arm_reorg runs.  */
+   else if (GET_MODE_SIZE (mode) >= 4 && CONSTANT_P (x)
+ 	   && GET_CODE (x) == SYMBOL_REF
+-           && CONSTANT_POOL_ADDRESS_P (x) && !flag_pic)
++	   && CONSTANT_POOL_ADDRESS_P (x) && !flag_pic
++	   && !arm_disable_literal_pool)
+     return 1;
+ 
+   /* This is PC relative data after arm_reorg runs.  */
+@@ -8393,6 +8431,7 @@ thumb1_legitimate_address_p (machine_mode mode, rtx x, int strict_p)
+ 	   && GET_MODE_SIZE (mode) == 4
+ 	   && GET_CODE (x) == SYMBOL_REF
+ 	   && CONSTANT_POOL_ADDRESS_P (x)
++	   && !arm_disable_literal_pool
+ 	   && ! (flag_pic
+ 		 && symbol_mentioned_p (get_pool_constant (x))
+ 		 && ! pcrel_constant_p (get_pool_constant (x))))
+@@ -9028,7 +9067,9 @@ thumb1_rtx_costs (rtx x, enum rtx_code code, enum rtx_code outer)
+ 	    return 0;
+ 	  if (thumb_shiftable_const (INTVAL (x)))
+ 	    return COSTS_N_INSNS (2);
+-	  return COSTS_N_INSNS (3);
++	  return arm_disable_literal_pool
++	    ? COSTS_N_INSNS (8)
++	    : COSTS_N_INSNS (3);
+ 	}
+       else if ((outer == PLUS || outer == COMPARE)
+ 	       && INTVAL (x) < 256 && INTVAL (x) > -256)
+@@ -9185,7 +9226,9 @@ thumb1_size_rtx_costs (rtx x, enum rtx_code code, enum rtx_code outer)
+ 	  /* See split "TARGET_THUMB1 && satisfies_constraint_K".  */
+           if (thumb_shiftable_const (INTVAL (x)))
+             return COSTS_N_INSNS (2);
+-          return COSTS_N_INSNS (3);
++	  return arm_disable_literal_pool
++	    ? COSTS_N_INSNS (8)
++	    : COSTS_N_INSNS (3);
+         }
+       else if ((outer == PLUS || outer == COMPARE)
+                && INTVAL (x) < 256 && INTVAL (x) > -256)
+@@ -19670,6 +19713,35 @@ arm_compute_save_core_reg_mask (void)
    return save_reg_mask;
  }
  
@@ -4709,7 +4952,7 @@ new file mode 100644
  /* Compute a bit mask of which core registers need to be
     saved on the stack for the current function.  */
  static unsigned long
-@@ -19701,10 +19730,19 @@ thumb1_compute_save_core_reg_mask (void)
+@@ -19701,10 +19773,19 @@ thumb1_compute_save_core_reg_mask (void)
    if (mask & 0xff || thumb_force_lr_save ())
      mask |= (1 << LR_REGNUM);
  
@@ -4732,7 +4975,7 @@ new file mode 100644
        && ((mask & 0x0f00) || TARGET_BACKTRACE))
      {
        /* Use thumb_find_work_register to choose which register
-@@ -24930,12 +24968,7 @@ thumb1_unexpanded_epilogue (void)
+@@ -24930,12 +25011,7 @@ thumb1_unexpanded_epilogue (void)
        unsigned long mask = live_regs_mask & 0xff;
        int next_hi_reg;
  
@@ -4746,7 +4989,7 @@ new file mode 100644
  
        if (mask == 0)
  	/* Oh dear!  We have no low registers into which we can pop
-@@ -24943,7 +24976,7 @@ thumb1_unexpanded_epilogue (void)
+@@ -24943,7 +25019,7 @@ thumb1_unexpanded_epilogue (void)
  	internal_error
  	  ("no low registers available for popping high registers");
  
@@ -4755,7 +4998,7 @@ new file mode 100644
  	if (live_regs_mask & (1 << next_hi_reg))
  	  break;
  
-@@ -24951,7 +24984,7 @@ thumb1_unexpanded_epilogue (void)
+@@ -24951,7 +25027,7 @@ thumb1_unexpanded_epilogue (void)
  	{
  	  /* Find lo register(s) into which the high register(s) can
               be popped.  */
@@ -4764,7 +5007,7 @@ new file mode 100644
  	    {
  	      if (mask & (1 << regno))
  		high_regs_pushed--;
-@@ -24959,20 +24992,22 @@ thumb1_unexpanded_epilogue (void)
+@@ -24959,20 +25035,22 @@ thumb1_unexpanded_epilogue (void)
  		break;
  	    }
  
@@ -4790,7 +5033,7 @@ new file mode 100644
  		    if (live_regs_mask & (1 << next_hi_reg))
  		      break;
  		}
-@@ -25354,10 +25389,20 @@ thumb1_expand_prologue (void)
+@@ -25354,10 +25432,20 @@ thumb1_expand_prologue (void)
  	  break;
  
        /* Here we need to mask out registers used for passing arguments
@@ -4814,7 +5057,7 @@ new file mode 100644
  	pushable_regs &= ~(1 << LR_REGNUM);
  
        if (pushable_regs == 0)
-@@ -25398,6 +25443,11 @@ thumb1_expand_prologue (void)
+@@ -25398,6 +25486,11 @@ thumb1_expand_prologue (void)
  	      push_mask |= 1 << LR_REGNUM;
  	      real_regs_mask |= 1 << LR_REGNUM;
  	      lr_needs_saving = false;
@@ -4826,9 +5069,94 @@ new file mode 100644
  	    }
  
  	  insn = thumb1_emit_multi_reg_push (push_mask, real_regs_mask);
+@@ -26782,14 +26875,41 @@ arm_thumb1_mi_thunk (FILE *file, tree, HOST_WIDE_INT delta,
+ 	  /* push r3 so we can use it as a temporary.  */
+ 	  /* TODO: Omit this save if r3 is not used.  */
+ 	  fputs ("\tpush {r3}\n", file);
+-	  fputs ("\tldr\tr3, ", file);
++
++	  /* With -mpure-code, we cannot load the address from the
++	     constant pool: we build it explicitly.  */
++	  if (target_pure_code)
++	    {
++	      fputs ("\tmovs\tr3, #:upper8_15:#", file);
++	      assemble_name (file, XSTR (XEXP (DECL_RTL (function), 0), 0));
++	      fputc ('\n', file);
++	      fputs ("\tlsls r3, #8\n", file);
++	      fputs ("\tadds\tr3, #:upper0_7:#", file);
++	      assemble_name (file, XSTR (XEXP (DECL_RTL (function), 0), 0));
++	      fputc ('\n', file);
++	      fputs ("\tlsls r3, #8\n", file);
++	      fputs ("\tadds\tr3, #:lower8_15:#", file);
++	      assemble_name (file, XSTR (XEXP (DECL_RTL (function), 0), 0));
++	      fputc ('\n', file);
++	      fputs ("\tlsls r3, #8\n", file);
++	      fputs ("\tadds\tr3, #:lower0_7:#", file);
++	      assemble_name (file, XSTR (XEXP (DECL_RTL (function), 0), 0));
++	      fputc ('\n', file);
++	    }
++	  else
++	    fputs ("\tldr\tr3, ", file);
+ 	}
+       else
+ 	{
+ 	  fputs ("\tldr\tr12, ", file);
+ 	}
+-      assemble_name (file, label);
+-      fputc ('\n', file);
++
++      if (!target_pure_code)
++	{
++	  assemble_name (file, label);
++	  fputc ('\n', file);
++	}
++
+       if (flag_pic)
+ 	{
+ 	  /* If we are generating PIC, the ldr instruction below loads
+--- a/src/gcc/config/arm/arm.h
++++ b/src/gcc/config/arm/arm.h
+@@ -1854,9 +1854,11 @@ enum arm_auto_incmodes
+    for the index in the tablejump instruction.  */
+ #define CASE_VECTOR_MODE Pmode
+ 
+-#define CASE_VECTOR_PC_RELATIVE (TARGET_THUMB2				\
+-				 || (TARGET_THUMB1			\
+-				     && (optimize_size || flag_pic)))
++#define CASE_VECTOR_PC_RELATIVE ((TARGET_THUMB2				\
++				  || (TARGET_THUMB1			\
++				      && (optimize_size || flag_pic)))	\
++				 && (!target_pure_code))
++
+ 
+ #define CASE_VECTOR_SHORTEN_MODE(min, max, body)			\
+   (TARGET_THUMB1							\
 --- a/src/gcc/config/arm/arm.md
 +++ b/src/gcc/config/arm/arm.md
-@@ -4483,62 +4483,78 @@
+@@ -94,6 +94,11 @@
+ ; an IT block in their expansion which is not a short IT.
+ (define_attr "enabled_for_short_it" "no,yes" (const_string "yes"))
+ 
++; Mark an instruction sequence as the required way of loading a
++; constant when -mpure-code is enabled (which implies
++; arm_disable_literal_pool)
++(define_attr "required_for_purecode" "no,yes" (const_string "no"))
++
+ ;; Operand number of an input operand that is shifted.  Zero if the
+ ;; given instruction does not shift one of its input operands.
+ (define_attr "shift" "" (const_int 0))
+@@ -237,6 +242,10 @@
+ 	       (match_test "arm_restrict_it"))
+ 	  (const_string "no")
+ 
++	  (and (eq_attr "required_for_purecode" "yes")
++	       (not (match_test "arm_disable_literal_pool")))
++	  (const_string "no")
++
+ 	  (eq_attr "arch_enabled" "no")
+ 	  (const_string "no")]
+ 	 (const_string "yes")))
+@@ -4483,62 +4492,78 @@
  ; ARMv6+ unaligned load/store instructions (used for packed structure accesses).
  
  (define_insn "unaligned_loadsi"
@@ -5095,6 +5423,134 @@ new file mode 100644
  			       mthumb/march.$(ARCH)/mfloat-abi.soft=m$(MODE)/march.$(ARCH)/mfloat-abi.softfp))
  
 -endif		# Not APROFILE.
+--- a/src/gcc/config/arm/thumb1.md
++++ b/src/gcc/config/arm/thumb1.md
+@@ -43,6 +43,41 @@
+ 
+ 
+ 
++(define_insn "thumb1_movsi_symbol_ref"
++  [(set (match_operand:SI 0 "register_operand" "=l")
++	(match_operand:SI 1 "general_operand" ""))
++   ]
++  "TARGET_THUMB1
++   && arm_disable_literal_pool
++   && GET_CODE (operands[1]) == SYMBOL_REF"
++  "*
++  output_asm_insn (\"movs\\t%0, #:upper8_15:%1\", operands);
++  output_asm_insn (\"lsls\\t%0, #8\", operands);
++  output_asm_insn (\"adds\\t%0, #:upper0_7:%1\", operands);
++  output_asm_insn (\"lsls\\t%0, #8\", operands);
++  output_asm_insn (\"adds\\t%0, #:lower8_15:%1\", operands);
++  output_asm_insn (\"lsls\\t%0, #8\", operands);
++  output_asm_insn (\"adds\\t%0, #:lower0_7:%1\", operands);
++  return \"\";
++  "
++  [(set_attr "length" "14")
++   (set_attr "conds" "clob")]
++)
++
++(define_split
++  [(set (match_operand:SI 0 "register_operand" "")
++	(match_operand:SI 1 "immediate_operand" ""))]
++  "TARGET_THUMB1
++   && arm_disable_literal_pool
++   && GET_CODE (operands[1]) == CONST_INT
++   && !satisfies_constraint_I (operands[1])"
++  [(clobber (const_int 0))]
++  "
++    thumb1_gen_const_int (operands[0], INTVAL (operands[1]));
++    DONE;
++  "
++)
++
+ (define_insn "*thumb1_adddi3"
+   [(set (match_operand:DI          0 "register_operand" "=l")
+ 	(plus:DI (match_operand:DI 1 "register_operand" "%0")
+@@ -656,8 +691,8 @@
+ )
+ 
+ (define_insn "*thumb1_movsi_insn"
+-  [(set (match_operand:SI 0 "nonimmediate_operand" "=l,l,r,l,l,l,>,l, m,*l*h*k")
+-	(match_operand:SI 1 "general_operand"      "l, I,j,J,K,>,l,mi,l,*l*h*k"))]
++  [(set (match_operand:SI 0 "nonimmediate_operand" "=l,l,r,l,l,l,>,l, l, m,*l*h*k")
++	(match_operand:SI 1 "general_operand"      "l, I,j,J,K,>,l,i, mi,l,*l*h*k"))]
+   "TARGET_THUMB1
+    && (   register_operand (operands[0], SImode)
+        || register_operand (operands[1], SImode))"
+@@ -669,14 +704,16 @@
+    #
+    ldmia\\t%1, {%0}
+    stmia\\t%0, {%1}
++   movs\\t%0, #:upper8_15:%1; lsls\\t%0, #8; adds\\t%0, #:upper0_7:%1; lsls\\t%0, #8; adds\\t%0, #:lower8_15:%1; lsls\\t%0, #8; adds\\t%0, #:lower0_7:%1
+    ldr\\t%0, %1
+    str\\t%1, %0
+    mov\\t%0, %1"
+-  [(set_attr "length" "2,2,4,4,4,2,2,2,2,2")
+-   (set_attr "type" "mov_reg,mov_imm,mov_imm,multiple,multiple,load_4,store_4,load_4,store_4,mov_reg")
+-   (set_attr "pool_range" "*,*,*,*,*,*,*,1018,*,*")
+-   (set_attr "arch" "t1,t1,v8mb,t1,t1,t1,t1,t1,t1,t1")
+-   (set_attr "conds" "set,clob,nocond,*,*,nocond,nocond,nocond,nocond,nocond")])
++  [(set_attr "length" "2,2,4,4,4,2,2,14,2,2,2")
++   (set_attr "type" "mov_reg,mov_imm,mov_imm,multiple,multiple,load_4,store_4,alu_sreg,load_4,store_4,mov_reg")
++   (set_attr "pool_range" "*,*,*,*,*,*,*, *,1018,*,*")
++   (set_attr "arch" "t1,t1,v8mb,t1,t1,t1,t1,t1,t1,t1,t1")
++   (set_attr "required_for_purecode" "no,no,no,no,no,no,no,yes,no,no,no")
++   (set_attr "conds" "set,clob,nocond,*,*,nocond,nocond,nocond,nocond,nocond,nocond")])
+ 
+ ; Split the load of 64-bit constant into two loads for high and low 32-bit parts respectively
+ ; to see if we can load them in fewer instructions or fewer cycles.
+@@ -829,8 +866,8 @@
+    (set_attr "conds" "clob,nocond,nocond,nocond,nocond,clob")])
+ 
+ (define_insn "*thumb1_movhf"
+-  [(set (match_operand:HF     0 "nonimmediate_operand" "=l,l,m,*r,*h")
+-	(match_operand:HF     1 "general_operand"      "l,mF,l,*h,*r"))]
++  [(set (match_operand:HF     0 "nonimmediate_operand" "=l,l,l,m,*r,*h")
++	(match_operand:HF     1 "general_operand"      "l, m,F,l,*h,*r"))]
+   "TARGET_THUMB1
+    && (	  s_register_operand (operands[0], HFmode)
+        || s_register_operand (operands[1], HFmode))"
+@@ -855,14 +892,34 @@
+ 	  }
+ 	return \"ldrh\\t%0, %1\";
+       }
+-    case 2: return \"strh\\t%1, %0\";
++    case 2:
++    {
++      int bits;
++      int high;
++      rtx ops[3];
++
++      bits = real_to_target (NULL, CONST_DOUBLE_REAL_VALUE (operands[1]),
++			     HFmode);
++      ops[0] = operands[0];
++      high = (bits >> 8) & 0xff;
++      ops[1] = GEN_INT (high);
++      ops[2] = GEN_INT (bits & 0xff);
++      if (high != 0)
++	output_asm_insn (\"movs\\t%0, %1\;lsls\\t%0, #8\;adds\\t%0, %2\", ops);
++      else
++	output_asm_insn (\"movs\\t%0, %2\", ops);
++
++      return \"\";
++    }
++    case 3: return \"strh\\t%1, %0\";
+     default: return \"mov\\t%0, %1\";
+     }
+   "
+-  [(set_attr "length" "2")
+-   (set_attr "type" "mov_reg,load_4,store_4,mov_reg,mov_reg")
+-   (set_attr "pool_range" "*,1018,*,*,*")
+-   (set_attr "conds" "clob,nocond,nocond,nocond,nocond")])
++  [(set_attr "length" "2,2,6,2,2,2")
++   (set_attr "type" "mov_reg,load_4,mov_reg,store_4,mov_reg,mov_reg")
++   (set_attr "pool_range" "*,1018,*,*,*,*")
++   (set_attr "conds" "clob,nocond,nocond,nocond,nocond,nocond")])
++
+ ;;; ??? This should have alternatives for constants.
+ (define_insn "*thumb1_movsf_insn"
+   [(set (match_operand:SF     0 "nonimmediate_operand" "=l,l,>,l, m,*r,*h")
 --- a/src/gcc/config/avr/avr-arch.h
 +++ b/src/gcc/config/avr/avr-arch.h
 @@ -126,6 +126,9 @@ typedef struct
@@ -11193,7 +11649,18 @@ new file mode 100644
  
  ;;		MR           LA           LWZ          LFIWZX       LXSIWZX
  ;;		STW          STFIWX       STXSIWX      LI           LIS
-@@ -14322,7 +14315,225 @@
+@@ -10662,6 +10655,10 @@
+ 
+   emit_call_insn (gen_call (operands[0], const0_rtx, const0_rtx));
+ 
++  for (int i = 0; i < XVECLEN (operands[2], 0); i++)
++    emit_clobber (SET_SRC (XVECEXP (operands[2], 0, i)));
++  emit_insn (gen_blockage ());
++
+   for (i = 0; i < XVECLEN (operands[2], 0); i++)
+     {
+       rtx set = XVECEXP (operands[2], 0, i);
+@@ -14322,7 +14319,225 @@
     "xscmpuqp %0,%1,%2"
    [(set_attr "type" "veccmp")
     (set_attr "size" "128")])
@@ -11292,7 +11759,7 @@ new file mode 100644
 +  "TARGET_P9_MISC"
 +  "setb %0,%1"
 +  [(set_attr "type" "logical")])
- 
++
 +(define_insn "setb_unsigned"
 +   [(set (match_operand:SI 0 "gpc_reg_operand" "=r")
 +	 (if_then_else:SI (ltu (match_operand:CCUNS 1 "cc_reg_operand" "y")
@@ -11360,7 +11827,7 @@ new file mode 100644
 +  "TARGET_P9_MISC"
 +  "cmprb %0,1,%1,%2"
 +  [(set_attr "type" "logical")])
-+
+ 
 +;; Test byte membership within set of 8 bytes.
 +;;
 +;; The bytes of operand 1 are organized as xx:xx:xx:vv, where xx
@@ -12961,7 +13428,31 @@ new file mode 100644
  AC_SUBST(all_selected_languages)
 --- a/src/gcc/cp/ChangeLog
 +++ b/src/gcc/cp/ChangeLog
-@@ -1,3 +1,454 @@
+@@ -1,3 +1,478 @@
++2020-02-26  Marek Polacek  <polacek@redhat.com>
++
++	PR c++/92745 - bogus error when initializing array of vectors.
++	* decl.c (reshape_init_r): For a nested compound literal, do
++	call reshape_init_{class,array,vector}.
++
++2020-02-26  Jason Merrill  <jason@redhat.com>
++
++	PR c++/90951
++	* constexpr.c (cxx_eval_array_reference): {}-initialize missing
++	elements instead of value-initializing them.
++
++2020-02-26  Jason Merrill  <jason@redhat.com>
++
++	PR c++/93140
++	* pt.c (tsubst_decl) [PARM_DECL]: Check cp_unevaluated_operand in
++	handling of TREE_CHAIN for empty pack.
++
++2020-02-26  Jason Merrill  <jason@redhat.com>
++
++	PR c++/92852
++	* constexpr.c (maybe_constant_value): Don't unshare if the cached
++	value is the same as the argument.
++
 +2020-02-14  Jakub Jelinek  <jakub@redhat.com>
 +
 +	PR c++/61414
@@ -13416,7 +13907,7 @@ new file mode 100644
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -16,7 +467,7 @@
+@@ -16,7 +491,7 @@
  
  	Backported from mainline
  	2019-08-02  Marek Polacek  <polacek@redhat.com>
@@ -13886,7 +14377,26 @@ new file mode 100644
  	  *p = build_tree_list (parms, arg);
  	  p = &TREE_CHAIN (*p);
  	}
-@@ -2703,7 +2725,10 @@ cxx_eval_component_reference (const constexpr_ctx *ctx, tree t,
+@@ -2640,8 +2662,16 @@ cxx_eval_array_reference (const constexpr_ctx *ctx, tree t,
+     }
+ 
+   /* If it's within the array bounds but doesn't have an explicit
+-     initializer, it's value-initialized.  */
+-  tree val = build_value_init (elem_type, tf_warning_or_error);
++     initializer, it's initialized from {}.  But use build_value_init
++     directly for non-aggregates to avoid creating a garbage CONSTRUCTOR.  */
++  tree val;
++  if (CP_AGGREGATE_TYPE_P (elem_type))
++    {
++      tree empty_ctor = build_constructor (init_list_type_node, NULL);
++      val = digest_init (elem_type, empty_ctor, tf_warning_or_error);
++    }
++  else
++    val = build_value_init (elem_type, tf_warning_or_error);
+   return cxx_eval_constant_expression (ctx, val, lval, non_constant_p,
+ 				       overflow_p);
+ }
+@@ -2703,7 +2733,10 @@ cxx_eval_component_reference (const constexpr_ctx *ctx, tree t,
  	  : field == part)
  	{
  	  if (value)
@@ -13898,7 +14408,7 @@ new file mode 100644
  	  else
  	    /* We're in the middle of initializing it.  */
  	    break;
-@@ -2793,6 +2818,7 @@ cxx_eval_bit_field_ref (const constexpr_ctx *ctx, tree t,
+@@ -2793,6 +2826,7 @@ cxx_eval_bit_field_ref (const constexpr_ctx *ctx, tree t,
    FOR_EACH_CONSTRUCTOR_ELT (CONSTRUCTOR_ELTS (whole), i, field, value)
      {
        tree bitpos = bit_position (field);
@@ -13906,7 +14416,7 @@ new file mode 100644
        if (bitpos == start && DECL_SIZE (field) == TREE_OPERAND (t, 1))
  	return value;
        if (TREE_CODE (TREE_TYPE (field)) == INTEGER_TYPE
-@@ -3973,6 +3999,10 @@ cxx_eval_increment_expression (const constexpr_ctx *ctx, tree t,
+@@ -3973,6 +4007,10 @@ cxx_eval_increment_expression (const constexpr_ctx *ctx, tree t,
    tree offset = TREE_OPERAND (t, 1);
    gcc_assert (TREE_CONSTANT (offset));
  
@@ -13917,7 +14427,7 @@ new file mode 100644
    /* The operand as an lvalue.  */
    op = cxx_eval_constant_expression (ctx, op, true,
  				     non_constant_p, overflow_p);
-@@ -5116,6 +5146,7 @@ cxx_eval_constant_expression (const constexpr_ctx *ctx, tree t,
+@@ -5116,6 +5154,7 @@ cxx_eval_constant_expression (const constexpr_ctx *ctx, tree t,
  	tree obj = OBJ_TYPE_REF_OBJECT (t);
  	obj = cxx_eval_constant_expression (ctx, obj, lval, non_constant_p,
  					    overflow_p);
@@ -13925,16 +14435,24 @@ new file mode 100644
  	/* We expect something in the form of &x.D.2103.D.2094; get x. */
  	if (TREE_CODE (obj) != ADDR_EXPR
  	    || !DECL_P (get_base_address (TREE_OPERAND (obj, 0))))
-@@ -5551,7 +5582,7 @@ maybe_constant_value (tree t, tree decl, bool manifestly_const_eval)
+@@ -5551,7 +5590,15 @@ maybe_constant_value (tree t, tree decl, bool manifestly_const_eval)
    if (cv_cache == NULL)
      cv_cache = hash_map<tree, tree>::create_ggc (101);
    if (tree *cached = cv_cache->get (t))
 -    return *cached;
-+    return unshare_expr_without_location (*cached);
++    {
++      r = *cached;
++      if (r != t)
++	{
++	  r = unshare_expr_without_location (r);
++	  protected_set_expr_location (r, EXPR_LOCATION (t));
++	}
++      return r;
++    }
  
    r = cxx_eval_outermost_constant_expr (t, true, true, false, decl);
    gcc_checking_assert (r == t
-@@ -5917,6 +5948,7 @@ potential_constant_expression_1 (tree t, bool want_rval, bool strict, bool now,
+@@ -5917,6 +5964,7 @@ potential_constant_expression_1 (tree t, bool want_rval, bool strict, bool now,
      case LABEL_DECL:
      case LABEL_EXPR:
      case CASE_LABEL_EXPR:
@@ -13942,7 +14460,7 @@ new file mode 100644
      case CONST_DECL:
      case SIZEOF_EXPR:
      case ALIGNOF_EXPR:
-@@ -6751,7 +6783,6 @@ potential_constant_expression_1 (tree t, bool want_rval, bool strict, bool now,
+@@ -6751,7 +6799,6 @@ potential_constant_expression_1 (tree t, bool want_rval, bool strict, bool now,
  
      case CLEANUP_STMT:
      case EMPTY_CLASS_EXPR:
@@ -14132,7 +14650,29 @@ new file mode 100644
  		           "for type %qT", type);
  		  init = error_mark_node;
  		}
-@@ -8407,14 +8421,14 @@ expand_static_init (tree decl, tree init)
+@@ -6210,14 +6224,13 @@ reshape_init_r (tree type, reshape_iter *d, bool first_initializer_p,
+ 	       by the front end.  Here we have e.g. {.__pfn=0B, .__delta=0},
+ 	       which is missing outermost braces.  We should warn below, and
+ 	       one of the routines below will wrap it in additional { }.  */;
+-	  /* For a nested compound literal, there is no need to reshape since
+-	     we called reshape_init in finish_compound_literal, before calling
+-	     digest_init.  */
+-	  else if (COMPOUND_LITERAL_P (stripped_init)
+-		   /* Similarly, a CONSTRUCTOR of the target's type is a
+-		      previously digested initializer.  */
+-		   || same_type_ignoring_top_level_qualifiers_p (type,
+-								 init_type))
++	  /* For a nested compound literal, proceed to specialized routines,
++	     to handle initialization of arrays and similar.  */
++	  else if (COMPOUND_LITERAL_P (stripped_init))
++	    gcc_assert (!BRACE_ENCLOSED_INITIALIZER_P (stripped_init));
++	  /* A CONSTRUCTOR of the target's type is a previously
++	     digested initializer.  */
++	  else if (same_type_ignoring_top_level_qualifiers_p (type, init_type))
+ 	    {
+ 	      ++d->cur;
+ 	      gcc_assert (!BRACE_ENCLOSED_INITIALIZER_P (stripped_init));
+@@ -8407,14 +8420,14 @@ expand_static_init (tree decl, tree init)
  	      (acquire_name, build_function_type_list (integer_type_node,
  						       TREE_TYPE (guard_addr),
  						       NULL_TREE),
@@ -14149,7 +14689,7 @@ new file mode 100644
  	  if (!abort_fn)
  	    abort_fn = push_library_fn (abort_name, vfntype, NULL_TREE,
  					ECF_NOTHROW | ECF_LEAF);
-@@ -9539,10 +9553,12 @@ build_ptrmemfunc_type (tree type)
+@@ -9539,10 +9552,12 @@ build_ptrmemfunc_type (tree type)
    TYPE_PTRMEMFUNC_FLAG (t) = 1;
  
    field = build_decl (input_location, FIELD_DECL, pfn_identifier, type);
@@ -14162,7 +14702,7 @@ new file mode 100644
    DECL_CHAIN (field) = fields;
    fields = field;
  
-@@ -11435,6 +11451,8 @@ grokdeclarator (const cp_declarator *declarator,
+@@ -11435,6 +11450,8 @@ grokdeclarator (const cp_declarator *declarator,
  		else if (late_return_type
  			 && sfk != sfk_conversion)
  		  {
@@ -14171,7 +14711,7 @@ new file mode 100644
  		    if (cxx_dialect < cxx11)
  		      /* Not using maybe_warn_cpp0x because this should
  			 always be an error.  */
-@@ -12163,6 +12181,7 @@ grokdeclarator (const cp_declarator *declarator,
+@@ -12163,6 +12180,7 @@ grokdeclarator (const cp_declarator *declarator,
  	  memfn_quals |= type_memfn_quals (type);
  	  rqual = type_memfn_rqual (type);
  	  type_quals = TYPE_UNQUALIFIED;
@@ -14179,7 +14719,7 @@ new file mode 100644
  	}
      }
  
-@@ -13042,7 +13061,9 @@ check_default_argument (tree decl, tree arg, tsubst_flags_t complain)
+@@ -13042,7 +13060,9 @@ check_default_argument (tree decl, tree arg, tsubst_flags_t complain)
    /* Avoid redundant -Wzero-as-null-pointer-constant warnings at
       the call sites.  */
    if (TYPE_PTR_OR_PTRMEM_P (decl_type)
@@ -14190,7 +14730,7 @@ new file mode 100644
      return nullptr_node;
  
    /* [dcl.fct.default]
-@@ -15612,7 +15633,8 @@ start_preparsed_function (tree decl1, tree attrs, int flags)
+@@ -15612,7 +15632,8 @@ start_preparsed_function (tree decl1, tree attrs, int flags)
        && !implicit_default_ctor_p (decl1))
      cp_ubsan_maybe_initialize_vtbl_ptrs (current_class_ptr);
  
@@ -14200,7 +14740,7 @@ new file mode 100644
  
    return true;
  }
-@@ -16020,7 +16042,8 @@ finish_function (bool inline_p)
+@@ -16020,7 +16041,8 @@ finish_function (bool inline_p)
    if (fndecl == NULL_TREE)
      return error_mark_node;
  
@@ -14210,7 +14750,7 @@ new file mode 100644
  
    if (c_dialect_objc ())
      objc_finish_function ();
-@@ -16137,7 +16160,7 @@ finish_function (bool inline_p)
+@@ -16137,7 +16159,7 @@ finish_function (bool inline_p)
      invoke_plugin_callbacks (PLUGIN_PRE_GENERICIZE, fndecl);
  
    /* Perform delayed folding before NRV transformation.  */
@@ -14219,7 +14759,7 @@ new file mode 100644
      cp_fold_function (fndecl);
  
    /* Set up the named return value optimization, if we can.  Candidate
-@@ -16260,7 +16283,8 @@ finish_function (bool inline_p)
+@@ -16260,7 +16282,8 @@ finish_function (bool inline_p)
    if (!processing_template_decl)
      {
        struct language_function *f = DECL_SAVED_FUNCTION_DATA (fndecl);
@@ -14685,6 +15225,15 @@ new file mode 100644
    /* Substitute into the PATTERN with the (possibly altered)
       arguments.  */
    if (pattern == in_decl)
+@@ -13508,7 +13495,7 @@ tsubst_decl (tree t, tree args, tsubst_flags_t complain)
+ 
+                 /* Zero-length parameter packs are boring. Just substitute
+                    into the chain.  */
+-                if (len == 0)
++		if (len == 0 && !cp_unevaluated_operand)
+                   RETURN (tsubst (TREE_CHAIN (t), args, complain,
+ 				  TREE_CHAIN (t)));
+               }
 @@ -14758,6 +14745,71 @@ tsubst (tree t, tree args, tsubst_flags_t complain, tree in_decl)
  	if (t == void_list_node)
  	  return t;
@@ -15312,7 +15861,15 @@ new file mode 100644
    dwarf_file_data **slot
      = file_table->find_slot_with_hash (file_name, htab_hash_string (file_name),
  				       INSERT);
-@@ -29582,9 +29580,9 @@ prune_unused_types (void)
+@@ -27687,6 +27685,7 @@ dwarf2out_inline_entry (tree block)
+ static void
+ dwarf2out_size_function (tree decl)
+ {
++  set_early_dwarf s;
+   function_to_dwarf_procedure (decl);
+ }
+ 
+@@ -29582,9 +29581,9 @@ prune_unused_types (void)
    for (i = 0; base_types.iterate (i, &base_type); i++)
      prune_unused_types_mark (base_type, 1);
  
@@ -15325,7 +15882,7 @@ new file mode 100644
    cgraph_node *cnode;
    FOR_EACH_FUNCTION (cnode)
      if (cnode->referred_to_p (false))
-@@ -29593,8 +29591,7 @@ prune_unused_types (void)
+@@ -29593,8 +29592,7 @@ prune_unused_types (void)
  	if (die == NULL || die->die_mark)
  	  continue;
  	for (cgraph_edge *e = cnode->callers; e; e = e->next_caller)
@@ -19244,6 +19801,89 @@ new file mode 100644
        else if (removed * 100 / datarefs.length ()
  	  < (unsigned)PARAM_VALUE (PARAM_UNROLL_JAM_MIN_PERCENT))
  	profit_unroll = 1;
+--- a/src/gcc/gimple-ssa-store-merging.c
++++ b/src/gcc/gimple-ssa-store-merging.c
+@@ -2375,8 +2375,9 @@ gather_bswap_load_refs (vec<tree> *refs, tree val)
+ /* Check if there are any stores in M_STORE_INFO after index I
+    (where M_STORE_INFO must be sorted by sort_by_bitpos) that overlap
+    a potential group ending with END that have their order
+-   smaller than LAST_ORDER.  RHS_CODE is the kind of store in the
+-   group.  Return true if there are no such stores.
++   smaller than LAST_ORDER.  ALL_INTEGER_CST_P is true if
++   all the stores already merged and the one under consideration
++   have rhs_code of INTEGER_CST.  Return true if there are no such stores.
+    Consider:
+      MEM[(long long int *)p_28] = 0;
+      MEM[(long long int *)p_28 + 8B] = 0;
+@@ -2399,13 +2400,13 @@ gather_bswap_load_refs (vec<tree> *refs, tree val)
+    the MEM[(long long int *)p_28 + 8B] = 0; would now be before it,
+    so we need to refuse merging MEM[(long long int *)p_28 + 8B] = 0;
+    into the group.  That way it will be its own store group and will
+-   not be touched.  If RHS_CODE is INTEGER_CST and there are overlapping
++   not be touched.  If ALL_INTEGER_CST_P and there are overlapping
+    INTEGER_CST stores, those are mergeable using merge_overlapping,
+    so don't return false for those.  */
+ 
+ static bool
+ check_no_overlap (vec<store_immediate_info *> m_store_info, unsigned int i,
+-		  enum tree_code rhs_code, unsigned int last_order,
++		  bool all_integer_cst_p, unsigned int last_order,
+ 		  unsigned HOST_WIDE_INT end)
+ {
+   unsigned int len = m_store_info.length ();
+@@ -2415,7 +2416,7 @@ check_no_overlap (vec<store_immediate_info *> m_store_info, unsigned int i,
+       if (info->bitpos >= end)
+ 	break;
+       if (info->order < last_order
+-	  && (rhs_code != INTEGER_CST || info->rhs_code != INTEGER_CST))
++	  && (!all_integer_cst_p || info->rhs_code != INTEGER_CST))
+ 	return false;
+     }
+   return true;
+@@ -2568,7 +2569,7 @@ imm_store_chain_info::try_coalesce_bswap (merged_store_group *merged_store,
+   if (n.base_addr == NULL_TREE && !is_gimple_val (n.src))
+     return false;
+ 
+-  if (!check_no_overlap (m_store_info, last, LROTATE_EXPR, last_order, end))
++  if (!check_no_overlap (m_store_info, last, false, last_order, end))
+     return false;
+ 
+   /* Don't handle memory copy this way if normal non-bswap processing
+@@ -2709,7 +2710,14 @@ imm_store_chain_info::coalesce_immediate_stores ()
+ 	       |---store 2---|
+ 	 Overlapping stores.  */
+       else if (IN_RANGE (info->bitpos, merged_store->start,
+-			 merged_store->start + merged_store->width - 1))
++			 merged_store->start + merged_store->width - 1)
++	       /* |---store 1---||---store 2---|
++		  Handle also the consecutive INTEGER_CST stores case here,
++		  as we have here the code to deal with overlaps.  */
++	       || (info->bitregion_start <= merged_store->bitregion_end
++		   && info->rhs_code == INTEGER_CST
++		   && merged_store->only_constants
++		   && merged_store->can_be_merged_into (info)))
+ 	{
+ 	  /* Only allow overlapping stores of constants.  */
+ 	  if (info->rhs_code == INTEGER_CST && merged_store->only_constants)
+@@ -2719,8 +2727,7 @@ imm_store_chain_info::coalesce_immediate_stores ()
+ 	      unsigned HOST_WIDE_INT end
+ 		= MAX (merged_store->start + merged_store->width,
+ 		       info->bitpos + info->bitsize);
+-	      if (check_no_overlap (m_store_info, i, INTEGER_CST,
+-				    last_order, end))
++	      if (check_no_overlap (m_store_info, i, true, last_order, end))
+ 		{
+ 		  /* check_no_overlap call above made sure there are no
+ 		     overlapping stores with non-INTEGER_CST rhs_code
+@@ -2873,7 +2880,7 @@ imm_store_chain_info::coalesce_immediate_stores ()
+ 	      std::swap (info->ops[0], info->ops[1]);
+ 	      info->ops_swapped_p = true;
+ 	    }
+-	  if (check_no_overlap (m_store_info, i, info->rhs_code,
++	  if (check_no_overlap (m_store_info, i, false,
+ 				MAX (merged_store->last_order, info->order),
+ 				MAX (merged_store->start + merged_store->width,
+ 				     info->bitpos + info->bitsize)))
 --- a/src/gcc/gimple-streamer-out.c
 +++ b/src/gcc/gimple-streamer-out.c
 @@ -57,7 +57,7 @@ output_phi (struct output_block *ob, gphi *phi)
@@ -19293,7 +19933,15 @@ new file mode 100644
  	  region = lookup_stmt_eh_lp_fn (fn, stmt);
 --- a/src/gcc/gimplify.c
 +++ b/src/gcc/gimplify.c
-@@ -7058,6 +7058,8 @@ omp_default_clause (struct gimplify_omp_ctx *ctx, tree decl,
+@@ -4831,6 +4831,7 @@ gimplify_init_constructor (tree *expr_p, gimple_seq *pre_p, gimple_seq *post_p,
+ 	    && num_nonzero_elements > 1
+ 	    && TREE_READONLY (object)
+ 	    && VAR_P (object)
++	    && !DECL_REGISTER (object)
+ 	    && (flag_merge_constants >= 2 || !TREE_ADDRESSABLE (object))
+ 	    /* For ctors that have many repeated nonzero elements
+ 	       represented through RANGE_EXPRs, prefer initializing
+@@ -7058,6 +7059,8 @@ omp_default_clause (struct gimplify_omp_ctx *ctx, tree decl,
    kind = lang_hooks.decls.omp_predetermined_sharing (decl);
    if (kind != OMP_CLAUSE_DEFAULT_UNSPECIFIED)
      default_kind = kind;
@@ -19302,7 +19950,7 @@ new file mode 100644
  
    switch (default_kind)
      {
-@@ -8716,8 +8718,8 @@ gimplify_scan_omp_clauses (tree *list_p, gimple_seq *pre_p,
+@@ -8716,8 +8719,8 @@ gimplify_scan_omp_clauses (tree *list_p, gimple_seq *pre_p,
  			      break;
  			    if (scp)
  			      continue;
@@ -19313,7 +19961,7 @@ new file mode 100644
  			    tree d1 = OMP_CLAUSE_DECL (*sc);
  			    tree d2 = OMP_CLAUSE_DECL (c);
  			    while (TREE_CODE (d1) == ARRAY_REF)
-@@ -9079,9 +9081,13 @@ gimplify_scan_omp_clauses (tree *list_p, gimple_seq *pre_p,
+@@ -9079,9 +9082,13 @@ gimplify_scan_omp_clauses (tree *list_p, gimple_seq *pre_p,
  				  == POINTER_TYPE))))
  		    omp_firstprivatize_variable (outer_ctx, decl);
  		  else
@@ -19330,7 +19978,7 @@ new file mode 100644
  		}
  	    }
  	  if (outer_ctx)
-@@ -13519,7 +13525,8 @@ gimplify_expr (tree *expr_p, gimple_seq *pre_p, gimple_seq *post_p,
+@@ -13519,7 +13526,8 @@ gimplify_expr (tree *expr_p, gimple_seq *pre_p, gimple_seq *post_p,
  	{
  	  /* Avoid the extra copy if possible.  */
  	  *expr_p = create_tmp_reg (TREE_TYPE (name));
@@ -24888,6 +25536,34 @@ new file mode 100644
  
 --- a/src/gcc/symtab.c
 +++ b/src/gcc/symtab.c
+@@ -1955,22 +1955,22 @@ symtab_node::nonzero_address ()
+      bind to NULL. This is on by default on embedded targets only.
+ 
+      Otherwise all non-WEAK symbols must be defined and thus non-NULL or
+-     linking fails.  Important case of WEAK we want to do well are comdats.
+-     Those are handled by later check for definition.
++     linking fails.  Important case of WEAK we want to do well are comdats,
++     which also must be defined somewhere.
+ 
+      When parsing, beware the cases when WEAK attribute is added later.  */
+-  if (!DECL_WEAK (decl)
++  if ((!DECL_WEAK (decl) || DECL_COMDAT (decl))
+       && flag_delete_null_pointer_checks)
+     {
+       refuse_visibility_changes = true;
+       return true;
+     }
+ 
+-  /* If target is defined and either comdat or not extern, we know it will be
++  /* If target is defined and not extern, we know it will be
+      output and thus it will bind to non-NULL.
+      Play safe for flag_delete_null_pointer_checks where weak definition may
+      be re-defined by NULL.  */
+-  if (definition && (!DECL_EXTERNAL (decl) || DECL_COMDAT (decl))
++  if (definition && !DECL_EXTERNAL (decl)
+       && (flag_delete_null_pointer_checks || !DECL_WEAK (decl)))
+     {
+       if (!DECL_WEAK (decl))
 @@ -2328,10 +2328,18 @@ symtab_node::output_to_lto_symbol_table_p (void)
       first place.  */
    if (VAR_P (decl) && DECL_HARD_REGISTER (decl))
@@ -24913,7 +25589,80 @@ new file mode 100644
       down the refernces to libraries bit more because linker will otherwise
 --- a/src/gcc/testsuite/ChangeLog
 +++ b/src/gcc/testsuite/ChangeLog
-@@ -1,3 +1,1619 @@
+@@ -1,3 +1,1692 @@
++2020-02-26  Peter Bergner  <bergner@linux.ibm.com>
++
++	PR target/93913
++	* gcc.target/powerpc/fold-vec-st-char.c (scan-assembler-times): Allow
++	stxv and stxvx instructions as well.
++	* gcc.target/powerpc/fold-vec-st-float.c: Likewise.
++	* gcc.target/powerpc/fold-vec-st-int.c: Likewise.
++	* gcc.target/powerpc/fold-vec-st-short.c: Likewise.
++
++2020-02-27  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c/93949
++	* gcc.c-torture/compile/pr93949.c: New test.
++
++2020-02-27  Jakub Jelinek  <jakub@redhat.com>
++
++	PR tree-optimization/93945
++	* gcc.c-torture/execute/pr93945.c: New test.
++
++2020-02-26  Marek Polacek  <polacek@redhat.com>
++	    Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/92745 - bogus error when initializing array of vectors.
++	* g++.dg/cpp0x/initlist118.C: New test.
++	* g++.dg/cpp0x/initlist118.C: Add -Wno-psabi -w to dg-options.
++
++2020-02-26  Jiufu Guo  <guojiufu@linux.ibm.com>
++
++	PR target/93047
++	* gcc.dg/torture/stackalign/builtin-return-2.c: New test case.
++
++2020-02-26  Jakub Jelinek  <jakub@redhat.com>
++
++	PR tree-optimization/93820
++	* gcc.dg/pr93820.c: New test.
++
++2020-02-26  Jakub Jelinek  <jakub@redhat.com>
++
++	PR c++/93905
++	* g++.dg/cpp0x/pr93905.C: New test.
++
++2020-02-25  Christophe Lyon  <christophe.lyon@linaro.org>
++
++	Backport from mainline
++	2019-12-17  Christophe Lyon  <christophe.lyon@linaro.org>
++
++	* gcc.target/arm/pr45701-1.c: Adjust for -mpure-code.
++	* gcc.target/arm/pr45701-2.c: Likewise.
++	* gcc.target/arm/pure-code/no-literal-pool.c: Add tests for
++	__fp16.
++	* gcc.target/arm/pure-code/pure-code.exp: Remove thumb2 and movt
++	conditions.
++	* gcc.target/arm/thumb1-Os-mult.c: Skip if -mpure-code is used.
++
++2020-02-25  Jakub Jelinek  <jakub@redhat.com>
++
++	PR rtl-optimization/93908
++	* gcc.c-torture/execute/pr93908.c: New test.
++
++2019-02-25  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* gnat.dg/lto24.adb: New test.
++	* gnat.dg/lto24_pkg1.ads: New helper.
++	* gnat.dg/lto24_pkg2.ad[sb]: Likewise.
++
++2020-02-24  Richard Sandiford  <richard.sandiford@arm.com>
++
++	Backport from mainline
++	2020-02-19  Richard Sandiford  <richard.sandiford@arm.com>
++
++	PR tree-optimization/93767
++	* gcc.dg/vect/pr93767.c: New test.
++
 +2020-02-24  Mark Eggleston  <mark.eggleston@codethink.com>
 +
 +	Backported from master
@@ -26533,7 +27282,7 @@ new file mode 100644
  2019-08-12  Release Manager
  
  	* GCC 9.2.0 released.
-@@ -427,7 +2043,7 @@
+@@ -427,7 +2116,7 @@
  	Backport from mainline.
  	2019-05-15  Iain Sandoe  <iain@sandoe.co.uk>
  
@@ -26542,7 +27291,7 @@ new file mode 100644
  	(check_effective_target_powerpc_p8vector_ok): No support for Darwin.
  	(check_effective_target_powerpc_p9vector_ok): Likewise.
  	(check_effective_target_powerpc_float128_sw_ok): Likewise.
-@@ -720,7 +2336,7 @@
+@@ -720,7 +2409,7 @@
  
  	Backport from mainline
  	PR fortran/91077
@@ -26551,7 +27300,7 @@ new file mode 100644
  
  2019-07-05  Szabolcs Nagy  <szabolcs.nagy@arm.com>
  
-@@ -803,7 +2419,7 @@
+@@ -803,7 +2492,7 @@
  	Backport fom mainline
  	2019-06-21  Jeff Law  <law@redhat.com>
  
@@ -26560,7 +27309,7 @@ new file mode 100644
  	* gcc.c-torture/execute/pr90949.c: New test.
  
  2019-06-26  Martin Jambor  <mjambor@suse.cz>
-@@ -969,7 +2585,7 @@
+@@ -969,7 +2658,7 @@
         * gcc.target/i386/pr82699-6.c: Likewise
         * gcc.target/i386/returninst1.c: Likewise
         * gcc.target/i386/returninst2.c: Likewise
@@ -26569,7 +27318,7 @@ new file mode 100644
  
  2019-05-30  Iain Sandoe  <iain@sandoe.co.uk>
  
-@@ -1131,7 +2747,7 @@
+@@ -1131,7 +2820,7 @@
  
  	Backport from trunk
  	PR fortran/90498
@@ -26578,7 +27327,7 @@ new file mode 100644
  
  2019-05-17  Jakub Jelinek  <jakub@redhat.com>
  
-@@ -3801,21 +5417,21 @@
+@@ -3801,21 +5490,21 @@
  2019-02-23  Paul Thomas  <pault@gcc.gnu.org>
  
  	PR fortran/88117
@@ -26607,7 +27356,7 @@ new file mode 100644
  
  2019-02-22  David Malcolm  <dmalcolm@redhat.com>
  
-@@ -4444,7 +6060,7 @@
+@@ -4444,7 +6133,7 @@
  2019-02-09  Paul Thomas  <pault@gcc.gnu.org>
  
  	PR fortran/89200
@@ -26616,7 +27365,7 @@ new file mode 100644
  
  2019-02-09  Jakub Jelinek  <jakub@redhat.com>
  
-@@ -4704,17 +6320,17 @@
+@@ -4704,17 +6393,17 @@
  2019-02-02  Paul Thomas  <pault@gcc.gnu.org>
  
  	PR fortran/88393
@@ -27491,6 +28240,20 @@ new file mode 100644
 +static_assert (S2{}.c[0] == 'h', "");
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/g++.dg/cpp0x/constexpr-array24.C
+@@ -0,0 +1,10 @@
++// PR c++/90951
++// { dg-do compile { target c++11 } }
++
++#define assert(expr) static_assert (expr, #expr)
++
++struct S { const char a[2]; };
++
++constexpr struct S a[1][1][1] = { };
++
++assert ('\0' == *a[0][0][0].a);
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/g++.dg/cpp0x/constexpr-odr1.C
 @@ -0,0 +1,19 @@
 +// PR c++/92062 - ODR-use ignored for static member of class template.
@@ -27535,6 +28298,27 @@ new file mode 100644
 +  if (g != 42)
 +    __builtin_abort ();
 +}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/g++.dg/cpp0x/constexpr-static13.C
+@@ -0,0 +1,17 @@
++// PR c++/92003
++// { dg-do compile { target c++11 } }
++// { dg-prune-output "narrowing conversion" }
++
++constexpr char const* get_c_str() { return "abc"; }
++constexpr bool use_get_c_str_in_constexpr_context{get_c_str()}; // works
++
++template <char... Cs>
++struct string {
++  static constexpr char const* c_str() { return c; }
++
++ private:
++  static constexpr char c[]{Cs..., '\0'};
++};
++
++constexpr char const* cstr{string<'a', 'b', 'c'>::c_str()};
++constexpr bool use_cstr_in_constexpr_context{cstr}; // doesn't work
 --- a/src/gcc/testsuite/g++.dg/cpp0x/enum23.C
 +++ b/src/gcc/testsuite/g++.dg/cpp0x/enum23.C
 @@ -5,5 +5,5 @@ enum class MyEnum { A = 1 };
@@ -27730,6 +28514,36 @@ new file mode 100644
 +}
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/g++.dg/cpp0x/initlist118.C
+@@ -0,0 +1,26 @@
++// PR c++/92745 - bogus error when initializing array of vectors.
++// { dg-do compile { target c++11 } }
++// { dg-options "-Wno-psabi -w" }
++
++template <typename a, int b> struct c {
++  typedef a d[b];
++};
++
++template <typename a, int b> struct array {
++  typename c<a, b>::d e;
++  a operator[](long);
++};
++
++template<class T>
++using vec4_t __attribute__((vector_size(4*sizeof(T)))) = float;
++
++array<vec4_t<float>, 4>
++transpose(array<vec4_t<float>, 4> col)
++{
++  array<vec4_t<float>, 4>
++    ret{vec4_t<float>{col[0][0], col[1][0], col[2][0], col[3][0]},
++        vec4_t<float>{col[0][1], col[1][1], col[2][1], col[3][1]},
++        vec4_t<float>{col[0][2], col[1][2], col[2][2], col[3][2]},
++        vec4_t<float>{col[0][3], col[1][3], col[2][3], col[3][3]}};
++  return ret;
++}
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/g++.dg/cpp0x/lambda/lambda-template16.C
 @@ -0,0 +1,15 @@
 +// PR c++/93279
@@ -27881,6 +28695,28 @@ new file mode 100644
 +  A a;
 +  B{a};
 +}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/g++.dg/cpp0x/pr93905.C
+@@ -0,0 +1,18 @@
++// PR c++/93905
++// { dg-do compile { target c++11 } }
++
++enum class E { VALUE };
++
++struct B {
++  E e{E::VALUE};
++protected:
++  ~B () = default;  
++};
++
++struct D : B {};
++
++int
++main ()
++{
++  D d{};
++}
 --- a/src/gcc/testsuite/g++.dg/cpp0x/range-for19.C
 +++ b/src/gcc/testsuite/g++.dg/cpp0x/range-for19.C
 @@ -5,6 +5,6 @@
@@ -27949,6 +28785,27 @@ new file mode 100644
 +  foo (true, false);
 +  foo (false, true);
 +  foo (false, false);
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/g++.dg/cpp0x/variadic-parm1.C
+@@ -0,0 +1,17 @@
++// PR c++/93140
++// { dg-do compile { target c++11 } }
++
++int
++bar ()
++{
++  return 42;
++}
++
++template <typename... R>
++void foo (R... r, decltype (bar (r...)) x = 0) {}
++
++int
++main ()
++{
++  foo (3);
 +}
 new file mode 100644
 --- /dev/null
@@ -28182,44 +29039,6 @@ new file mode 100644
 +void ky () noexcept ([]{}); // IFNDR
 +// Optional error: void(*)() to bool conv in converted constant expression
 +// { dg-prune-output "converted constant expression" }
---- a/src/gcc/testsuite/g++.dg/cpp1z/decomp48.C
-+++ b/src/gcc/testsuite/g++.dg/cpp1z/decomp48.C
-@@ -18,7 +18,7 @@ f2 ()
- {
-   S v {1, 2};
-   auto& [s, t] = v;	// { dg-warning "structured bindings only available with" "" { target c++14_down } }
--  return s;		// { dg-warning "reference to local variable 'v' returned" "" { target *-*-* } .-1 }
-+  return s;		// { dg-warning "reference to local variable 'v' returned" }
- }
- 
- int &
-@@ -33,7 +33,7 @@ f4 ()
- {
-   int a[3] = {1, 2, 3};
-   auto& [s, t, u] = a;	// { dg-warning "structured bindings only available with" "" { target c++14_down } }
--  return s;		// { dg-warning "reference to local variable 'a' returned" "" { target *-*-* } .-1 }
-+  return s;		// { dg-warning "reference to local variable 'a' returned" }
- }
- 
- int &
-@@ -78,7 +78,7 @@ f10 ()
- {
-   S v {1, 2};
-   auto& [s, t] = v;	// { dg-warning "structured bindings only available with" "" { target c++14_down } }
--  return &s;		// { dg-warning "address of local variable 'v' returned" "" { target *-*-* } .-1 }
-+  return &s;		// { dg-warning "address of local variable 'v' returned" }
- }
- 
- int *
-@@ -93,7 +93,7 @@ f12 ()
- {
-   int a[3] = {1, 2, 3};
-   auto& [s, t, u] = a;	// { dg-warning "structured bindings only available with" "" { target c++14_down } }
--  return &s;		// { dg-warning "address of local variable 'a' returned" "" { target *-*-* } .-1 }
-+  return &s;		// { dg-warning "address of local variable 'a' returned" }
- }
- 
- int *
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/g++.dg/cpp1z/decomp50.C
@@ -30091,6 +30910,17 @@ new file mode 100644
 +}
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/gcc.c-torture/compile/pr93949.c
+@@ -0,0 +1,7 @@
++/* PR c/93949 */
++
++void
++foo (void)
++{
++  register const double d[3] = { 0., 1., 2. };
++}
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/gcc.c-torture/execute/20190820-1.c
 @@ -0,0 +1,111 @@
 +/* PR rtl-optimization/91347 */
@@ -31172,6 +32002,113 @@ new file mode 100644
 +    __builtin_abort ();
 +  return 0;
 +}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.c-torture/execute/pr93908.c
+@@ -0,0 +1,54 @@
++/* PR rtl-optimization/93908 */
++
++struct T
++{
++  int b;
++  int c;
++  unsigned short d;
++  unsigned e:1, f:1, g:1, h:2, i:1, j:1;
++  signed int k:2;
++};
++
++struct S
++{
++  struct T s;
++  char c[64];
++} buf[2];
++
++__attribute__ ((noipa)) void *
++baz (void)
++{
++  static int cnt;
++  return (void *) &buf[cnt++];
++}
++
++static inline __attribute__ ((always_inline)) struct T *
++bar (const char *a)
++{
++  struct T *s;
++  s = baz ();
++  s->b = 1;
++  s->k = -1;
++  return s;
++}
++
++__attribute__ ((noipa)) void
++foo (const char *x, struct T **y)
++{
++  struct T *l = bar (x);
++  struct T *m = bar (x);
++  y[0] = l;
++  y[1] = m;
++}
++
++int
++main ()
++{
++  struct T *r[2];
++  foo ("foo", r);
++  if (r[0]->e || r[0]->f || r[0]->g || r[0]->h || r[0]->i || r[0]->j || r[0]->k != -1)
++    __builtin_abort ();
++  if (r[1]->e || r[1]->f || r[1]->g || r[1]->h || r[1]->i || r[1]->j || r[1]->k != -1)
++    __builtin_abort ();
++  return 0;
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.c-torture/execute/pr93945.c
+@@ -0,0 +1,45 @@
++/* PR tree-optimization/93945 */
++
++union U { char a[8]; struct S { unsigned int b : 8, c : 13, d : 11; } e; } u;
++
++__attribute__((noipa)) int
++foo (void)
++{
++  __builtin_memset (&u.a, 0xf4, sizeof (u.a));
++  return u.e.c;
++}
++
++__attribute__((noipa)) int
++bar (void)
++{
++  asm volatile ("" : : "g" (&u) : "memory");
++  return u.e.c;
++}
++
++__attribute__((noipa)) int
++baz (void)
++{
++  __builtin_memset (&u.a, 0xf4, sizeof (u.a));
++  return u.e.d;
++}
++
++__attribute__((noipa)) int
++qux (void)
++{
++  asm volatile ("" : : "g" (&u) : "memory");
++  return u.e.d;
++}
++
++int
++main ()
++{
++  int a = foo ();
++  int b = bar ();
++  if (a != b)
++    __builtin_abort ();
++  a = baz ();
++  b = qux ();
++  if (a != b)
++    __builtin_abort ();
++  return 0;
++}
 --- a/src/gcc/testsuite/gcc.dg/Wnonnull.c
 +++ b/src/gcc/testsuite/gcc.dg/Wnonnull.c
 @@ -2,7 +2,10 @@
@@ -32035,6 +32972,36 @@ new file mode 100644
 +}
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/gcc.dg/pr93820.c
+@@ -0,0 +1,26 @@
++/* PR tree-optimization/93820 */
++/* { dg-do run } */
++/* { dg-options "-O2 -fno-tree-dse" } */
++
++typedef int v4si __attribute__((vector_size(4 * sizeof (int))));
++int a[10];
++
++__attribute__((noipa)) int
++foo (int *p)
++{
++  a[6] = *p;
++  a[4] = 1;
++  *(((v4si *)&a[0]) + 1) = (v4si) { 0, 0, 0, 0 };
++  a[3] = 0;
++}
++
++int
++main ()
++{
++  int i = 0;
++  foo (&i);
++  for (i = 0; i < 10; i++)
++    if (a[i])
++      __builtin_abort ();
++  return 0;
++}
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/gcc.dg/torture/pr90278.c
 @@ -0,0 +1,13 @@
 +/* { dg-do compile } */
@@ -32184,6 +33151,50 @@ new file mode 100644
 +    __builtin_abort ();
 +  return 0;
 +}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.dg/torture/stackalign/builtin-return-2.c
+@@ -0,0 +1,40 @@
++/* PR target/93047 */
++/* Originator: Andrew Church <gcczilla@achurch.org> */
++/* { dg-do run } */
++/* { dg-additional-options "-O3 -frename-registers" } */
++/* { dg-require-effective-target untyped_assembly } */
++
++#ifdef __MMIX__
++/* No parameters on stack for bar.  */
++#define STACK_ARGUMENTS_SIZE 0
++#else
++#define STACK_ARGUMENTS_SIZE 64
++#endif
++
++extern void abort(void);
++
++int foo(int n)
++{
++  return n+1;
++}
++
++int bar(int n)
++{
++  __builtin_return(__builtin_apply((void (*)(void))foo, __builtin_apply_args(),
++				   STACK_ARGUMENTS_SIZE));
++}
++
++int main(void)
++{
++  /* Allocate 64 bytes on the stack to make sure that __builtin_apply
++     can read at least 64 bytes above the return address.  */
++  char dummy[64];
++
++  __asm__ ("" : : "" (dummy));
++
++  if (bar(1) != 2)
++    abort();
++
++  return 0;
++}
++
 --- a/src/gcc/testsuite/gcc.dg/tree-ssa/gen-vect-11.c
 +++ b/src/gcc/testsuite/gcc.dg/tree-ssa/gen-vect-11.c
 @@ -1,6 +1,10 @@
@@ -32483,6 +33494,23 @@ new file mode 100644
 +}
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/gcc.dg/vect/pr93767.c
+@@ -0,0 +1,13 @@
++int
++main ()
++{
++  int a[10], b;
++  for (b = 6; b >= 3; b--)
++    {
++      a[b] = 1;
++      a[b + 2] = a[3];
++    }
++  if (a[5] != 1)
++    __builtin_abort ();
++  return 0;
++}
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/gcc.dg/vect/vect-fma-3.c
 @@ -0,0 +1,17 @@
 +/* PR tree-optimization/91723 */
@@ -32729,6 +33757,28 @@ new file mode 100644
      } {
  	check_multi_dir $opts $dir
      }
+--- a/src/gcc/testsuite/gcc.target/arm/pr45701-1.c
++++ b/src/gcc/testsuite/gcc.target/arm/pr45701-1.c
+@@ -2,7 +2,7 @@
+ /* { dg-skip-if "" { ! { arm_thumb1_ok || arm_thumb2_ok } } } */
+ /* { dg-options "-mthumb -Os" }  */
+ /* { dg-final { scan-assembler "push\t\{r3" } } */
+-/* { dg-final { scan-assembler-not "\[^\-\]r8" } } */
++/* { dg-final { scan-assembler-not "\[^\-e\]r8" } } */
+ 
+ extern int hist_verify;
+ extern int a1;
+--- a/src/gcc/testsuite/gcc.target/arm/pr45701-2.c
++++ b/src/gcc/testsuite/gcc.target/arm/pr45701-2.c
+@@ -2,7 +2,7 @@
+ /* { dg-skip-if "" { ! { arm_thumb1_ok || arm_thumb2_ok } } } */
+ /* { dg-options "-mthumb -Os" }  */
+ /* { dg-final { scan-assembler "push\t\{r3" } } */
+-/* { dg-final { scan-assembler-not "\[^\-\]r8" } } */
++/* { dg-final { scan-assembler-not "\[^\-e\]r8" } } */
+ 
+ extern int hist_verify;
+ extern int a1;
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/gcc.target/arm/pr88167-1.c
@@ -32770,6 +33820,66 @@ new file mode 100644
 +    __builtin_abort ();
 +  __builtin_exit (0);
 +}
+--- a/src/gcc/testsuite/gcc.target/arm/pure-code/no-literal-pool.c
++++ b/src/gcc/testsuite/gcc.target/arm/pure-code/no-literal-pool.c
+@@ -1,12 +1,24 @@
+ /* { dg-do compile } */
+-/* { dg-options "-mpure-code" } */
++/* { dg-options "-mpure-code -mfp16-format=ieee" } */
+ /* { dg-skip-if "" { *-*-* } { "-g" "-fpic" "-fPIC" } { "" } } */
+ 
++__fp16 hf;
+ float sf;
+ double df;
+ long long l;
+ static char *p = "Hello World";
+ 
++__fp16
++testsfp16 (__fp16 *p)
++{
++  hf = 1.3;
++  *p += hf;
++  if (*p > 1.1234f)
++    return 2.1234f;
++  else
++    return 3.1234f;
++}
++
+ float
+ testsf (float *p)
+ {
+--- a/src/gcc/testsuite/gcc.target/arm/pure-code/pure-code.exp
++++ b/src/gcc/testsuite/gcc.target/arm/pure-code/pure-code.exp
+@@ -25,11 +25,8 @@ if ![info exists DEFAULT_CFLAGS] then {
+     set DEFAULT_CFLAGS " -ansi -pedantic-errors"
+ }
+ 
+-# The -mpure-code option is only available for M-profile targets that support
+-# the MOVT instruction.
+-if {([check_effective_target_arm_thumb2_ok]
+-     || [check_effective_target_arm_thumb1_movt_ok])
+-    && [check_effective_target_arm_cortex_m]} then {
++# The -mpure-code option is only available for M-profile targets.
++if {[check_effective_target_arm_cortex_m]} then {
+ # Initialize `dg'.
+ dg-init
+ 
+@@ -56,4 +53,4 @@ set LTO_TORTURE_OPTIONS ${saved-lto_torture_options}
+ 
+ # All done.
+ dg-finish
+-}
++#}
+--- a/src/gcc/testsuite/gcc.target/arm/thumb1-Os-mult.c
++++ b/src/gcc/testsuite/gcc.target/arm/thumb1-Os-mult.c
+@@ -1,6 +1,7 @@
+ /* { dg-do compile } */
+ /* { dg-require-effective-target arm_thumb1_ok } */
+ /* { dg-options "-Os" } */
++/* { dg-skip-if "-mpure-code generates an inline multiplication code sequence" { *-*-* } { "-mpure-code" } } */
+ /* { dg-skip-if "" { ! { arm_thumb1 } } } */
+ 
+ int
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/gcc.target/i386/avx-pr93637.c
@@ -34429,6 +35539,39 @@ new file mode 100644
 +}
 +
 +/* { dg-final { scan-assembler-times {(?n)\mdarn .*,0\M} 4 } } */
+--- a/src/gcc/testsuite/gcc.target/powerpc/fold-vec-st-char.c
++++ b/src/gcc/testsuite/gcc.target/powerpc/fold-vec-st-char.c
+@@ -91,4 +91,4 @@ testst_cst7 (vector bool char vbc1, int i1, signed char * vscp)
+ 	return vec_st(vbc1, 36, vscp);
+ }
+ 
+-/* { dg-final { scan-assembler-times {\mstvx\M} 14 } } */
++/* { dg-final { scan-assembler-times {\m(?:stvx|stxv|stxvx)\M} 14 } } */
+--- a/src/gcc/testsuite/gcc.target/powerpc/fold-vec-st-float.c
++++ b/src/gcc/testsuite/gcc.target/powerpc/fold-vec-st-float.c
+@@ -31,4 +31,4 @@ testst_cst2 (vector float vf1, int i1, float * fp)
+ 	return vec_st(vf1, 24, fp);
+ }
+ 
+-/* { dg-final { scan-assembler-times {\mstvx\M}  4 } } */
++/* { dg-final { scan-assembler-times {\m(?:stvx|stxv|stxvx)\M} 4 } } */
+--- a/src/gcc/testsuite/gcc.target/powerpc/fold-vec-st-int.c
++++ b/src/gcc/testsuite/gcc.target/powerpc/fold-vec-st-int.c
+@@ -80,5 +80,5 @@ testst_cst7 (vector bool int vbi1, int i1, signed int * vsip)
+ 	return vec_st(vbi1, 36, vsip);
+ }
+ 
+-/* { dg-final { scan-assembler-times {\mstvx\M}  14 } } */
++/* { dg-final { scan-assembler-times {\m(?:stvx|stxv|stxvx)\M} 14 } } */
+ 
+--- a/src/gcc/testsuite/gcc.target/powerpc/fold-vec-st-short.c
++++ b/src/gcc/testsuite/gcc.target/powerpc/fold-vec-st-short.c
+@@ -80,4 +80,4 @@ testst_cst7 (vector bool short vbs1, int i1, signed short * vssp)
+ 	return vec_st(vbs1, 36, vssp);
+ }
+ 
+-/* { dg-final { scan-assembler-times {\mstvx\M} 14} } */
++/* { dg-final { scan-assembler-times {\m(?:stvx|stxv|stxvx)\M} 14} } */
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/gcc.target/powerpc/pr70010-1.c
@@ -35093,6 +36236,15 @@ new file mode 100644
 +  return u.s.b;
 +}
 +/* { dg-final { scan-assembler "srliw" } } */
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.target/s390/pr93908.c
+@@ -0,0 +1,5 @@
++/* PR rtl-optimization/93908 */
++/* { dg-do run { target s390_zEC12_hw } } */
++/* { dg-options "-O2 -march=zEC12 -mtune=z13" } */
++
++#include "../../gcc.c-torture/execute/pr93908.c"
 --- a/src/gcc/testsuite/gcc.target/s390/s390.exp
 +++ b/src/gcc/testsuite/gcc.target/s390/s390.exp
 @@ -86,18 +86,22 @@ proc check_effective_target_s390_useable_hw { } {
@@ -38139,6 +39291,62 @@ new file mode 100644
 +begin
 +  null;
 +end;
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gnat.dg/lto24.adb
+@@ -0,0 +1,10 @@
++-- { dg-do link }
++-- { dg-options "-O -g -flto" { target lto } }
++
++with Lto24_Pkg1;
++
++procedure Lto24 is
++  R : Lto24_Pkg1.Rec (False);
++begin
++  R.Empty := True;
++end;
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gnat.dg/lto24_pkg1.ads
+@@ -0,0 +1,17 @@
++with Lto24_Pkg2;
++
++package Lto24_Pkg1 is
++
++  Max_Elem : constant Natural := Lto24_Pkg2.Get;
++
++  type Arr is array (Natural range <>) of Boolean;
++
++  type Rec (B : Boolean) is record
++     I : Integer;
++     case B is
++       when True => A : Arr (1 .. Max_Elem);
++       when False => Empty : Boolean;
++     end case;
++  end record;
++
++end Lto24_Pkg1;
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gnat.dg/lto24_pkg2.adb
+@@ -0,0 +1,8 @@
++package body Lto24_Pkg2 is
++
++  function Get return Natural is
++  begin
++    return 16;
++  end;
++
++end Lto24_Pkg2;
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gnat.dg/lto24_pkg2.ads
+@@ -0,0 +1,5 @@
++package Lto24_Pkg2 is
++
++  function Get return Natural;
++
++end Lto24_Pkg2;
 --- a/src/gcc/testsuite/obj-c++.dg/stubify-1.mm
 +++ b/src/gcc/testsuite/obj-c++.dg/stubify-1.mm
 @@ -4,7 +4,7 @@
@@ -38968,7 +40176,17 @@ new file mode 100644
      return (void *)-1;
  
    /* If we cannot constrain the size of the reference we cannot
-@@ -2342,7 +2358,7 @@ vn_reference_lookup_3 (ao_ref *ref, tree vuse, void *vr_,
+@@ -2097,7 +2113,8 @@ vn_reference_lookup_3 (ao_ref *ref, tree vuse, void *vr_,
+ 	       || (INTEGRAL_TYPE_P (vr->type) && known_eq (ref->size, 8)))
+ 	      && CHAR_BIT == 8 && BITS_PER_UNIT == 8
+ 	      && offset.is_constant (&offseti)
+-	      && offseti % BITS_PER_UNIT == 0))
++	      && offseti % BITS_PER_UNIT == 0
++	      && multiple_p (ref->size, BITS_PER_UNIT)))
+       && poly_int_tree_p (gimple_call_arg (def_stmt, 2))
+       && (TREE_CODE (gimple_call_arg (def_stmt, 0)) == ADDR_EXPR
+ 	  || TREE_CODE (gimple_call_arg (def_stmt, 0)) == SSA_NAME))
+@@ -2342,7 +2359,7 @@ vn_reference_lookup_3 (ao_ref *ref, tree vuse, void *vr_,
  
    /* 5) For aggregate copies translate the reference through them if
       the copy kills ref.  */
@@ -38977,7 +40195,7 @@ new file mode 100644
  	   && gimple_assign_single_p (def_stmt)
  	   && (DECL_P (gimple_assign_rhs1 (def_stmt))
  	       || TREE_CODE (gimple_assign_rhs1 (def_stmt)) == MEM_REF
-@@ -2462,7 +2478,7 @@ vn_reference_lookup_3 (ao_ref *ref, tree vuse, void *vr_,
+@@ -2462,7 +2479,7 @@ vn_reference_lookup_3 (ao_ref *ref, tree vuse, void *vr_,
        *ref = r;
  
        /* Do not update last seen VUSE after translating.  */
@@ -38986,7 +40204,7 @@ new file mode 100644
  
        /* Keep looking for the adjusted *REF / VR pair.  */
        return NULL;
-@@ -2470,7 +2486,7 @@ vn_reference_lookup_3 (ao_ref *ref, tree vuse, void *vr_,
+@@ -2470,7 +2487,7 @@ vn_reference_lookup_3 (ao_ref *ref, tree vuse, void *vr_,
  
    /* 6) For memcpy copies translate the reference through them if
       the copy kills ref.  */
@@ -38995,7 +40213,7 @@ new file mode 100644
  	   && is_gimple_reg_type (vr->type)
  	   /* ???  Handle BCOPY as well.  */
  	   && (gimple_call_builtin_p (def_stmt, BUILT_IN_MEMCPY)
-@@ -2620,7 +2636,7 @@ vn_reference_lookup_3 (ao_ref *ref, tree vuse, void *vr_,
+@@ -2620,7 +2637,7 @@ vn_reference_lookup_3 (ao_ref *ref, tree vuse, void *vr_,
        *ref = r;
  
        /* Do not update last seen VUSE after translating.  */
@@ -39004,7 +40222,7 @@ new file mode 100644
  
        /* Keep looking for the adjusted *REF / VR pair.  */
        return NULL;
-@@ -2681,13 +2697,13 @@ vn_reference_lookup_pieces (tree vuse, alias_set_type set, tree type,
+@@ -2681,13 +2698,13 @@ vn_reference_lookup_pieces (tree vuse, alias_set_type set, tree type,
      {
        ao_ref r;
        unsigned limit = PARAM_VALUE (PARAM_SCCVN_MAX_ALIAS_QUERIES_PER_ACCESS);
@@ -39021,7 +40239,7 @@ new file mode 100644
        gcc_checking_assert (vr1.operands == shared_lookup_references);
      }
  
-@@ -2702,11 +2718,12 @@ vn_reference_lookup_pieces (tree vuse, alias_set_type set, tree type,
+@@ -2702,11 +2719,12 @@ vn_reference_lookup_pieces (tree vuse, alias_set_type set, tree type,
     not exist in the hash table or if the result field of the structure
     was NULL..  VNRESULT will be filled in with the vn_reference_t
     stored in the hashtable if one exists.  When TBAA_P is false assume
@@ -39036,7 +40254,7 @@ new file mode 100644
  {
    vec<vn_reference_op_s> operands;
    struct vn_reference_s vr1;
-@@ -2720,7 +2737,7 @@ vn_reference_lookup (tree op, tree vuse, vn_lookup_kind kind,
+@@ -2720,7 +2738,7 @@ vn_reference_lookup (tree op, tree vuse, vn_lookup_kind kind,
    vr1.operands = operands
      = valueize_shared_reference_ops_from_ref (op, &valuezied_anything);
    vr1.type = TREE_TYPE (op);
@@ -39045,7 +40263,7 @@ new file mode 100644
    vr1.hashcode = vn_reference_compute_hash (&vr1);
    if ((cst = fully_constant_vn_reference_p (&vr1)))
      return cst;
-@@ -2737,14 +2754,12 @@ vn_reference_lookup (tree op, tree vuse, vn_lookup_kind kind,
+@@ -2737,14 +2755,12 @@ vn_reference_lookup (tree op, tree vuse, vn_lookup_kind kind,
  	  || !ao_ref_init_from_vn_reference (&r, vr1.set, vr1.type,
  					     vr1.operands))
  	ao_ref_init (&r, op);
@@ -39063,7 +40281,7 @@ new file mode 100644
        gcc_checking_assert (vr1.operands == shared_lookup_references);
        if (wvnresult)
  	{
-@@ -4099,10 +4114,8 @@ visit_reference_op_load (tree lhs, tree op, gimple *stmt)
+@@ -4099,10 +4115,8 @@ visit_reference_op_load (tree lhs, tree op, gimple *stmt)
    tree result;
  
    last_vuse = gimple_vuse (stmt);
@@ -39255,6 +40473,25 @@ new file mode 100644
    /* We found the call, check whether it is suitable.  */
    tail_recursion = false;
    func = gimple_call_fndecl (call);
+--- a/src/gcc/tree-vect-data-refs.c
++++ b/src/gcc/tree-vect-data-refs.c
+@@ -3228,14 +3228,14 @@ vect_compile_time_alias (dr_vec_info *a, dr_vec_info *b,
+   if (tree_int_cst_compare (DR_STEP (a->dr), size_zero_node) < 0)
+     {
+       const_length_a = (-wi::to_poly_wide (segment_length_a)).force_uhwi ();
+-      offset_a = (offset_a + access_size_a) - const_length_a;
++      offset_a -= const_length_a;
+     }
+   else
+     const_length_a = tree_to_poly_uint64 (segment_length_a);
+   if (tree_int_cst_compare (DR_STEP (b->dr), size_zero_node) < 0)
+     {
+       const_length_b = (-wi::to_poly_wide (segment_length_b)).force_uhwi ();
+-      offset_b = (offset_b + access_size_b) - const_length_b;
++      offset_b -= const_length_b;
+     }
+   else
+     const_length_b = tree_to_poly_uint64 (segment_length_b);
 --- a/src/gcc/tree-vect-loop.c
 +++ b/src/gcc/tree-vect-loop.c
 @@ -6445,10 +6445,13 @@ vectorizable_reduction (stmt_vec_info stmt_info, gimple_stmt_iterator *gsi,
@@ -42415,7 +43652,57 @@ new file mode 100644
  #if defined(__x86_64__) && !defined(_LP64)
 --- a/src/libstdc++-v3/ChangeLog
 +++ b/src/libstdc++-v3/ChangeLog
-@@ -1,3 +1,453 @@
+@@ -1,3 +1,503 @@
++2020-02-26  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backport from mainline
++	2020-01-09  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/93205
++	* include/bits/random.h (operator>>): Check stream operation succeeds.
++	* include/bits/random.tcc (operator>>): Likewise.
++	(__extract_params): New function to fill a vector from a stream.
++	* testsuite/26_numerics/random/pr60037-neg.cc: Adjust dg-error line.
++
++	Backport from mainline
++	2019-12-10  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/92886
++	* include/bits/ios_base.h (std::ios_base::trunc): Fix comment.
++
++	Backport from mainline
++	2020-01-28  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/93325
++	* acinclude.m4 (GLIBCXX_ENABLE_LIBSTDCXX_TIME): Use AC_SEARCH_LIBS for
++	clock_gettime instead of explicit glibc version check.
++	* configure: Regenerate.
++
++	Backport from mainline
++	2020-02-04  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/93562
++	* include/bits/unique_ptr.h (__uniq_ptr_impl::swap): Define.
++	(unique_ptr::swap, unique_ptr<T[], D>::swap): Call it.
++	* testsuite/20_util/unique_ptr/modifiers/93562.cc: New test.
++
++	Backport from mainline
++	2020-01-17  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/92376
++	* include/bits/c++config: Only do PSTL config when the header is
++	present, to fix freestanding.
++	* libsupc++/new_opa.cc [!_GLIBCXX_HOSTED]: Declare allocation
++	functions if they were detected by configure.
++
++	Backport from mainline
++	2019-10-09  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/78552
++	* src/c++98/locale_init.cc (locale::classic()): Do not construct a new
++	locale object for every call.
++	(locale::_S_initialize_once()): Construct C locale here.
++
 +2020-01-24  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	Backport from mainline
@@ -42871,7 +44158,36 @@ new file mode 100644
  	* GCC 9.2.0 released.
 --- a/src/libstdc++-v3/acinclude.m4
 +++ b/src/libstdc++-v3/acinclude.m4
-@@ -3820,7 +3820,7 @@ changequote([,])dnl
+@@ -1405,20 +1405,14 @@ AC_DEFUN([GLIBCXX_ENABLE_LIBSTDCXX_TIME], [
+         ac_has_sched_yield=yes
+         ;;
+       gnu* | linux* | kfreebsd*-gnu | knetbsd*-gnu)
+-        AC_MSG_CHECKING([for at least GNU libc 2.17])
+-        AC_TRY_COMPILE(
+-          [#include <features.h>],
+-          [
+-          #if ! __GLIBC_PREREQ(2, 17)
+-          #error 
+-          #endif
+-          ],
+-          [glibcxx_glibc217=yes], [glibcxx_glibc217=no])
+-        AC_MSG_RESULT($glibcxx_glibc217)
+-
+-        if test x"$glibcxx_glibc217" = x"yes"; then
+-          ac_has_clock_monotonic=yes
+-          ac_has_clock_realtime=yes
++        # Don't use link test for freestanding library, in case gcc_no_link=yes
++        if test x"$is_hosted" = xyes; then
++          # Versions of glibc before 2.17 needed -lrt for clock_gettime.
++          AC_SEARCH_LIBS(clock_gettime, [rt])
++          if test x"$ac_cv_search_clock_gettime" = x"none required"; then
++            ac_has_clock_monotonic=yes
++            ac_has_clock_realtime=yes
++          fi
+         fi
+         ac_has_nanosleep=yes
+         ac_has_sched_yield=yes
+@@ -3820,7 +3814,7 @@ changequote([,])dnl
  fi
  
  # For libtool versioning info, format is CURRENT:REVISION:AGE
@@ -46140,7 +47456,98 @@ new file mode 100644
  template<typename T1, typename T2>
    struct same
    { typedef T2 type; };
-@@ -79469,7 +79672,7 @@ $as_echo "$as_me: WARNING: === Symbol versioning will be disabled." >&2;}
+@@ -20835,35 +21038,72 @@ ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
+         ac_has_sched_yield=yes
+         ;;
+       gnu* | linux* | kfreebsd*-gnu | knetbsd*-gnu)
+-        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for at least GNU libc 2.17" >&5
+-$as_echo_n "checking for at least GNU libc 2.17... " >&6; }
+-        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
++        # Don't use link test for freestanding library, in case gcc_no_link=yes
++        if test x"$is_hosted" = xyes; then
++          # Versions of glibc before 2.17 needed -lrt for clock_gettime.
++          { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing clock_gettime" >&5
++$as_echo_n "checking for library containing clock_gettime... " >&6; }
++if ${ac_cv_search_clock_gettime+:} false; then :
++  $as_echo_n "(cached) " >&6
++else
++  ac_func_search_save_LIBS=$LIBS
++cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+ /* end confdefs.h.  */
+-#include <features.h>
++
++/* Override any GCC internal prototype to avoid an error.
++   Use char because int might match the return type of a GCC
++   builtin and then its argument prototype would still apply.  */
++#ifdef __cplusplus
++extern "C"
++#endif
++char clock_gettime ();
+ int
+ main ()
+ {
+-
+-          #if ! __GLIBC_PREREQ(2, 17)
+-          #error
+-          #endif
+-
++return clock_gettime ();
+   ;
+   return 0;
+ }
+ _ACEOF
+-if ac_fn_cxx_try_compile "$LINENO"; then :
+-  glibcxx_glibc217=yes
++for ac_lib in '' rt; do
++  if test -z "$ac_lib"; then
++    ac_res="none required"
++  else
++    ac_res=-l$ac_lib
++    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
++  fi
++  if test x$gcc_no_link = xyes; then
++  as_fn_error $? "Link tests are not allowed after GCC_NO_EXECUTABLES." "$LINENO" 5
++fi
++if ac_fn_cxx_try_link "$LINENO"; then :
++  ac_cv_search_clock_gettime=$ac_res
++fi
++rm -f core conftest.err conftest.$ac_objext \
++    conftest$ac_exeext
++  if ${ac_cv_search_clock_gettime+:} false; then :
++  break
++fi
++done
++if ${ac_cv_search_clock_gettime+:} false; then :
++
+ else
+-  glibcxx_glibc217=no
++  ac_cv_search_clock_gettime=no
++fi
++rm conftest.$ac_ext
++LIBS=$ac_func_search_save_LIBS
++fi
++{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_clock_gettime" >&5
++$as_echo "$ac_cv_search_clock_gettime" >&6; }
++ac_res=$ac_cv_search_clock_gettime
++if test "$ac_res" != no; then :
++  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
++
+ fi
+-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: $glibcxx_glibc217" >&5
+-$as_echo "$glibcxx_glibc217" >&6; }
+ 
+-        if test x"$glibcxx_glibc217" = x"yes"; then
+-          ac_has_clock_monotonic=yes
+-          ac_has_clock_realtime=yes
++          if test x"$ac_cv_search_clock_gettime" = x"none required"; then
++            ac_has_clock_monotonic=yes
++            ac_has_clock_realtime=yes
++          fi
+         fi
+         ac_has_nanosleep=yes
+         ac_has_sched_yield=yes
+@@ -79469,7 +79709,7 @@ $as_echo "$as_me: WARNING: === Symbol versioning will be disabled." >&2;}
  fi
  
  # For libtool versioning info, format is CURRENT:REVISION:AGE
@@ -46764,6 +48171,26 @@ new file mode 100644
     * @ingroup sorting_algorithms
     *
     * These algorithms are common set operations performed on sequences
+--- a/src/libstdc++-v3/include/bits/c++config
++++ b/src/libstdc++-v3/include/bits/c++config
+@@ -668,6 +668,8 @@ namespace std
+ // PSTL configuration
+ 
+ #if __cplusplus >= 201703L
++// This header is not installed for freestanding:
++#if __has_include(<pstl/pstl_config.h>)
+ // Preserved here so we have some idea which version of upstream we've pulled in
+ // #define PSTL_VERSION 104
+ // #define PSTL_VERSION_MAJOR (PSTL_VERSION/100)
+@@ -686,6 +688,7 @@ namespace std
+ # define __PSTL_ASSERT_MSG(_Condition, _Message) __glibcxx_assert(_Condition)
+ 
+ #include <pstl/pstl_config.h>
++#endif // __has_include
++#endif // C++17
+ 
+-#endif
+ // End of prewritten config; the settings discovered at configure time follow.
 --- a/src/libstdc++-v3/include/bits/fs_path.h
 +++ b/src/libstdc++-v3/include/bits/fs_path.h
 @@ -612,6 +612,36 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
@@ -46846,6 +48273,17 @@ new file mode 100644
    struct path::_Cmpt : path
    {
      _Cmpt(basic_string_view<value_type> __s, _Type __t, size_t __pos)
+--- a/src/libstdc++-v3/include/bits/ios_base.h
++++ b/src/libstdc++-v3/include/bits/ios_base.h
+@@ -445,7 +445,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+     /// Open for output.  Default for @c ofstream and fstream.
+     static const openmode out =		_S_out;
+ 
+-    /// Open for input.  Default for @c ofstream.
++    /// Truncate an existing stream when opening.  Default for @c ofstream.
+     static const openmode trunc =	_S_trunc;
+ 
+     // 27.4.2.1.5  Type ios_base::seekdir
 --- a/src/libstdc++-v3/include/bits/memoryfwd.h
 +++ b/src/libstdc++-v3/include/bits/memoryfwd.h
 @@ -66,9 +66,11 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
@@ -46860,6 +48298,367 @@ new file mode 100644
  
    /// @} group memory
  
+--- a/src/libstdc++-v3/include/bits/random.h
++++ b/src/libstdc++-v3/include/bits/random.h
+@@ -3715,8 +3715,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 	       std::bernoulli_distribution& __x)
+     {
+       double __p;
+-      __is >> __p;
+-      __x.param(bernoulli_distribution::param_type(__p));
++      if (__is >> __p)
++	__x.param(bernoulli_distribution::param_type(__p));
+       return __is;
+     }
+ 
+--- a/src/libstdc++-v3/include/bits/random.tcc
++++ b/src/libstdc++-v3/include/bits/random.tcc
+@@ -905,9 +905,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       __is.flags(__ios_base::dec | __ios_base::skipws);
+ 
+       _IntType __a, __b;
+-      __is >> __a >> __b;
+-      __x.param(typename uniform_int_distribution<_IntType>::
+-		param_type(__a, __b));
++      if (__is >> __a >> __b)
++	__x.param(typename uniform_int_distribution<_IntType>::
++		  param_type(__a, __b));
+ 
+       __is.flags(__flags);
+       return __is;
+@@ -967,9 +967,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       __is.flags(__ios_base::skipws);
+ 
+       _RealType __a, __b;
+-      __is >> __a >> __b;
+-      __x.param(typename uniform_real_distribution<_RealType>::
+-		param_type(__a, __b));
++      if (__is >> __a >> __b)
++	__x.param(typename uniform_real_distribution<_RealType>::
++		  param_type(__a, __b));
+ 
+       __is.flags(__flags);
+       return __is;
+@@ -1111,8 +1111,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       __is.flags(__ios_base::skipws);
+ 
+       double __p;
+-      __is >> __p;
+-      __x.param(typename geometric_distribution<_IntType>::param_type(__p));
++      if (__is >> __p)
++	__x.param(typename geometric_distribution<_IntType>::param_type(__p));
+ 
+       __is.flags(__flags);
+       return __is;
+@@ -1228,9 +1228,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 
+       _IntType __k;
+       double __p;
+-      __is >> __k >> __p >> __x._M_gd;
+-      __x.param(typename negative_binomial_distribution<_IntType>::
+-		param_type(__k, __p));
++      if (__is >> __k >> __p >> __x._M_gd)
++	__x.param(typename negative_binomial_distribution<_IntType>::
++		  param_type(__k, __p));
+ 
+       __is.flags(__flags);
+       return __is;
+@@ -1438,8 +1438,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       __is.flags(__ios_base::skipws);
+ 
+       double __mean;
+-      __is >> __mean >> __x._M_nd;
+-      __x.param(typename poisson_distribution<_IntType>::param_type(__mean));
++      if (__is >> __mean >> __x._M_nd)
++	__x.param(typename poisson_distribution<_IntType>::param_type(__mean));
+ 
+       __is.flags(__flags);
+       return __is;
+@@ -1707,9 +1707,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 
+       _IntType __t;
+       double __p;
+-      __is >> __t >> __p >> __x._M_nd;
+-      __x.param(typename binomial_distribution<_IntType>::
+-		param_type(__t, __p));
++      if (__is >> __t >> __p >> __x._M_nd)
++	__x.param(typename binomial_distribution<_IntType>::
++		  param_type(__t, __p));
+ 
+       __is.flags(__flags);
+       return __is;
+@@ -1767,9 +1767,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       __is.flags(__ios_base::dec | __ios_base::skipws);
+ 
+       _RealType __lambda;
+-      __is >> __lambda;
+-      __x.param(typename exponential_distribution<_RealType>::
+-		param_type(__lambda));
++      if (__is >> __lambda)
++	__x.param(typename exponential_distribution<_RealType>::
++		  param_type(__lambda));
+ 
+       __is.flags(__flags);
+       return __is;
+@@ -1938,12 +1938,16 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       __is.flags(__ios_base::dec | __ios_base::skipws);
+ 
+       double __mean, __stddev;
+-      __is >> __mean >> __stddev
+-	   >> __x._M_saved_available;
+-      if (__x._M_saved_available)
+-	__is >> __x._M_saved;
+-      __x.param(typename normal_distribution<_RealType>::
+-		param_type(__mean, __stddev));
++      bool __saved_avail;
++      if (__is >> __mean >> __stddev >> __saved_avail)
++	{
++	  if (__saved_avail && (__is >> __x._M_saved))
++	    {
++	      __x._M_saved_available = __saved_avail;
++	      __x.param(typename normal_distribution<_RealType>::
++			param_type(__mean, __stddev));
++	    }
++	}
+ 
+       __is.flags(__flags);
+       return __is;
+@@ -2001,9 +2005,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       __is.flags(__ios_base::dec | __ios_base::skipws);
+ 
+       _RealType __m, __s;
+-      __is >> __m >> __s >> __x._M_nd;
+-      __x.param(typename lognormal_distribution<_RealType>::
+-		param_type(__m, __s));
++      if (__is >> __m >> __s >> __x._M_nd)
++	__x.param(typename lognormal_distribution<_RealType>::
++		  param_type(__m, __s));
+ 
+       __is.flags(__flags);
+       return __is;
+@@ -2073,9 +2077,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       __is.flags(__ios_base::dec | __ios_base::skipws);
+ 
+       _RealType __n;
+-      __is >> __n >> __x._M_gd;
+-      __x.param(typename chi_squared_distribution<_RealType>::
+-		param_type(__n));
++      if (__is >> __n >> __x._M_gd)
++	__x.param(typename chi_squared_distribution<_RealType>::
++		  param_type(__n));
+ 
+       __is.flags(__flags);
+       return __is;
+@@ -2160,9 +2164,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       __is.flags(__ios_base::dec | __ios_base::skipws);
+ 
+       _RealType __a, __b;
+-      __is >> __a >> __b;
+-      __x.param(typename cauchy_distribution<_RealType>::
+-		param_type(__a, __b));
++      if (__is >> __a >> __b)
++	__x.param(typename cauchy_distribution<_RealType>::
++		  param_type(__a, __b));
+ 
+       __is.flags(__flags);
+       return __is;
+@@ -2238,9 +2242,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       __is.flags(__ios_base::dec | __ios_base::skipws);
+ 
+       _RealType __m, __n;
+-      __is >> __m >> __n >> __x._M_gd_x >> __x._M_gd_y;
+-      __x.param(typename fisher_f_distribution<_RealType>::
+-		param_type(__m, __n));
++      if (__is >> __m >> __n >> __x._M_gd_x >> __x._M_gd_y)
++	__x.param(typename fisher_f_distribution<_RealType>::
++		  param_type(__m, __n));
+ 
+       __is.flags(__flags);
+       return __is;
+@@ -2312,8 +2316,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       __is.flags(__ios_base::dec | __ios_base::skipws);
+ 
+       _RealType __n;
+-      __is >> __n >> __x._M_nd >> __x._M_gd;
+-      __x.param(typename student_t_distribution<_RealType>::param_type(__n));
++      if (__is >> __n >> __x._M_nd >> __x._M_gd)
++	__x.param(typename student_t_distribution<_RealType>::param_type(__n));
+ 
+       __is.flags(__flags);
+       return __is;
+@@ -2482,9 +2486,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       __is.flags(__ios_base::dec | __ios_base::skipws);
+ 
+       _RealType __alpha_val, __beta_val;
+-      __is >> __alpha_val >> __beta_val >> __x._M_nd;
+-      __x.param(typename gamma_distribution<_RealType>::
+-		param_type(__alpha_val, __beta_val));
++      if (__is >> __alpha_val >> __beta_val >> __x._M_nd)
++	__x.param(typename gamma_distribution<_RealType>::
++		  param_type(__alpha_val, __beta_val));
+ 
+       __is.flags(__flags);
+       return __is;
+@@ -2559,9 +2563,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       __is.flags(__ios_base::dec | __ios_base::skipws);
+ 
+       _RealType __a, __b;
+-      __is >> __a >> __b;
+-      __x.param(typename weibull_distribution<_RealType>::
+-		param_type(__a, __b));
++      if (__is >> __a >> __b)
++	__x.param(typename weibull_distribution<_RealType>::
++		  param_type(__a, __b));
+ 
+       __is.flags(__flags);
+       return __is;
+@@ -2635,9 +2639,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       __is.flags(__ios_base::dec | __ios_base::skipws);
+ 
+       _RealType __a, __b;
+-      __is >> __a >> __b;
+-      __x.param(typename extreme_value_distribution<_RealType>::
+-		param_type(__a, __b));
++      if (__is >> __a >> __b)
++	__x.param(typename extreme_value_distribution<_RealType>::
++		  param_type(__a, __b));
+ 
+       __is.flags(__flags);
+       return __is;
+@@ -2762,6 +2766,26 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       return __os;
+     }
+ 
++namespace __detail
++{
++  template<typename _ValT, typename _CharT, typename _Traits>
++    basic_istream<_CharT, _Traits>&
++    __extract_params(basic_istream<_CharT, _Traits>& __is,
++		     vector<_ValT>& __vals, size_t __n)
++    {
++      __vals.reserve(__n);
++      while (__n--)
++	{
++	  _ValT __val;
++	  if (__is >> __val)
++	    __vals.push_back(__val);
++	  else
++	    break;
++	}
++      return __is;
++    }
++} // namespace __detail
++
+   template<typename _IntType, typename _CharT, typename _Traits>
+     std::basic_istream<_CharT, _Traits>&
+     operator>>(std::basic_istream<_CharT, _Traits>& __is,
+@@ -2774,20 +2798,13 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       __is.flags(__ios_base::dec | __ios_base::skipws);
+ 
+       size_t __n;
+-      __is >> __n;
+-
+-      std::vector<double> __prob_vec;
+-      __prob_vec.reserve(__n);
+-      for (; __n != 0; --__n)
++      if (__is >> __n)
+ 	{
+-	  double __prob;
+-	  __is >> __prob;
+-	  __prob_vec.push_back(__prob);
++	  std::vector<double> __prob_vec;
++	  if (__detail::__extract_params(__is, __prob_vec, __n))
++	    __x.param({__prob_vec.begin(), __prob_vec.end()});
+ 	}
+ 
+-      __x.param(typename discrete_distribution<_IntType>::
+-		param_type(__prob_vec.begin(), __prob_vec.end()));
+-
+       __is.flags(__flags);
+       return __is;
+     }
+@@ -2989,29 +3006,20 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       __is.flags(__ios_base::dec | __ios_base::skipws);
+ 
+       size_t __n;
+-      __is >> __n;
+-
+-      std::vector<_RealType> __int_vec;
+-      __int_vec.reserve(__n + 1);
+-      for (size_t __i = 0; __i <= __n; ++__i)
+-	{
+-	  _RealType __int;
+-	  __is >> __int;
+-	  __int_vec.push_back(__int);
+-	}
+-
+-      std::vector<double> __den_vec;
+-      __den_vec.reserve(__n);
+-      for (size_t __i = 0; __i < __n; ++__i)
++      if (__is >> __n)
+ 	{
+-	  double __den;
+-	  __is >> __den;
+-	  __den_vec.push_back(__den);
++	  std::vector<_RealType> __int_vec;
++	  if (__detail::__extract_params(__is, __int_vec, __n + 1))
++	    {
++	      std::vector<double> __den_vec;
++	      if (__detail::__extract_params(__is, __den_vec, __n))
++		{
++		  __x.param({ __int_vec.begin(), __int_vec.end(),
++			      __den_vec.begin() });
++		}
++	    }
+ 	}
+ 
+-      __x.param(typename piecewise_constant_distribution<_RealType>::
+-	  param_type(__int_vec.begin(), __int_vec.end(), __den_vec.begin()));
+-
+       __is.flags(__flags);
+       return __is;
+     }
+@@ -3205,29 +3213,19 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       __is.flags(__ios_base::dec | __ios_base::skipws);
+ 
+       size_t __n;
+-      __is >> __n;
+-
+-      std::vector<_RealType> __int_vec;
+-      __int_vec.reserve(__n + 1);
+-      for (size_t __i = 0; __i <= __n; ++__i)
++      if (__is >> __n)
+ 	{
+-	  _RealType __int;
+-	  __is >> __int;
+-	  __int_vec.push_back(__int);
+-	}
+-
+-      std::vector<double> __den_vec;
+-      __den_vec.reserve(__n + 1);
+-      for (size_t __i = 0; __i <= __n; ++__i)
+-	{
+-	  double __den;
+-	  __is >> __den;
+-	  __den_vec.push_back(__den);
++	  vector<_RealType> __int_vec;
++	  if (__detail::__extract_params(__is, __int_vec, __n + 1))
++	    {
++	      vector<double> __den_vec;
++	      if (__detail::__extract_params(__is, __den_vec, __n + 1))
++		{
++		  __x.param({ __int_vec.begin(), __int_vec.end(),
++			      __den_vec.begin() });
++		}
++	    }
+ 	}
+-
+-      __x.param(typename piecewise_linear_distribution<_RealType>::
+-	  param_type(__int_vec.begin(), __int_vec.end(), __den_vec.begin()));
+-
+       __is.flags(__flags);
+       return __is;
+     }
 --- a/src/libstdc++-v3/include/bits/std_function.h
 +++ b/src/libstdc++-v3/include/bits/std_function.h
 @@ -359,10 +359,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
@@ -47089,6 +48888,45 @@ new file mode 100644
        const bool __assignable = is_copy_assignable<_ValueType>::value;
  #endif
        return __uninitialized_fill_n<__is_trivial(_ValueType) && __assignable>::
+--- a/src/libstdc++-v3/include/bits/unique_ptr.h
++++ b/src/libstdc++-v3/include/bits/unique_ptr.h
+@@ -155,6 +155,14 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       _Dp&       _M_deleter() { return std::get<1>(_M_t); }
+       const _Dp& _M_deleter() const { return std::get<1>(_M_t); }
+ 
++      void
++      swap(__uniq_ptr_impl& __rhs) noexcept
++      {
++	using std::swap;
++	swap(this->_M_ptr(), __rhs._M_ptr());
++	swap(this->_M_deleter(), __rhs._M_deleter());
++      }
++
+     private:
+       tuple<pointer, _Dp> _M_t;
+     };
+@@ -398,8 +406,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       void
+       swap(unique_ptr& __u) noexcept
+       {
+-	using std::swap;
+-	swap(_M_t, __u._M_t);
++	static_assert(__is_swappable<_Dp>::value, "deleter must be swappable");
++	_M_t.swap(__u._M_t);
+       }
+ 
+       // Disable copy from lvalue.
+@@ -673,8 +681,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       void
+       swap(unique_ptr& __u) noexcept
+       {
+-	using std::swap;
+-	swap(_M_t, __u._M_t);
++	static_assert(__is_swappable<_Dp>::value, "deleter must be swappable");
++	_M_t.swap(__u._M_t);
+       }
+ 
+       // Disable copy from lvalue.
 --- a/src/libstdc++-v3/include/experimental/internet
 +++ b/src/libstdc++-v3/include/experimental/internet
 @@ -50,6 +50,9 @@
@@ -48638,7 +50476,29 @@ new file mode 100644
    __atomic_exchange (&__unexpected_handler, &func, &old, __ATOMIC_ACQ_REL);
 --- a/src/libstdc++-v3/libsupc++/new_opa.cc
 +++ b/src/libstdc++-v3/libsupc++/new_opa.cc
-@@ -114,9 +114,10 @@ operator new (std::size_t sz, std::align_val_t al)
+@@ -43,6 +43,21 @@ extern "C" void *memalign(std::size_t boundary, std::size_t size);
+ using std::new_handler;
+ using std::bad_alloc;
+ 
++#if ! _GLIBCXX_HOSTED
++extern "C"
++{
++# if _GLIBCXX_HAVE_ALIGNED_ALLOC
++  void *aligned_alloc(size_t alignment, size_t size);
++# elif _GLIBCXX_HAVE__ALIGNED_MALLOC
++  void *_aligned_malloc(size_t size, size_t alignment);
++# elif _GLIBCXX_HAVE_POSIX_MEMALIGN
++  void *posix_memalign(void **, size_t alignment, size_t size);
++# elif _GLIBCXX_HAVE_MEMALIGN
++  void *memalign(size_t alignment, size_t size);
++# endif
++}
++#endif
++
+ namespace __gnu_cxx {
+ #if _GLIBCXX_HAVE_ALIGNED_ALLOC
+ using ::aligned_alloc;
+@@ -114,9 +129,10 @@ operator new (std::size_t sz, std::align_val_t al)
      sz = 1;
  
  #if _GLIBCXX_HAVE_ALIGNED_ALLOC
@@ -48774,6 +50634,25 @@ new file mode 100644
  #include <string>
  
  namespace std _GLIBCXX_VISIBILITY(default)
+--- a/src/libstdc++-v3/src/c++98/locale_init.cc
++++ b/src/libstdc++-v3/src/c++98/locale_init.cc
+@@ -303,7 +303,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+   locale::classic()
+   {
+     _S_initialize();
+-    return *(new (&c_locale) locale(_S_classic));
++    return *(const locale*)c_locale;
+   }
+ 
+   void
+@@ -313,6 +313,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+     // One reference for _S_classic, one for _S_global
+     _S_classic = new (&c_locale_impl) _Impl(2);
+     _S_global = _S_classic;
++    new (&c_locale) locale(_S_classic);
+   }
+ 
+   void
 --- a/src/libstdc++-v3/src/filesystem/dir.cc
 +++ b/src/libstdc++-v3/src/filesystem/dir.cc
 @@ -26,6 +26,7 @@
@@ -49465,6 +51344,108 @@ new file mode 100644
 +  std::uninitialized_fill_n(p, 1, x); // { dg-error "here" }
 +}
 +// { dg-error "must be constructible" "" { target *-*-* } 0 }
+new file mode 100644
+--- /dev/null
++++ b/src/libstdc++-v3/testsuite/20_util/unique_ptr/modifiers/93562.cc
+@@ -0,0 +1,98 @@
++// Copyright (C) 2020 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-do run { target c++11 } }
++
++#include <memory>
++#include <testsuite_hooks.h>
++
++struct incomplete;
++
++// This function isn't called, we just need to check it compiles.
++void
++test01(std::unique_ptr<incomplete>& p1, std::unique_ptr<incomplete>& p2)
++{
++  // PR libstdc++/93562
++  p1.swap(p2);
++  swap(p1, p2);
++}
++
++// This function isn't called, we just need to check it compiles.
++void
++test02(std::unique_ptr<incomplete[]>& p1, std::unique_ptr<incomplete[]>& p2)
++{
++  // PR libstdc++/93562
++  p1.swap(p2);
++  swap(p1, p2);
++}
++
++namespace A
++{
++  struct Deleter
++  {
++    Deleter& operator=(const Deleter&) = delete;
++
++    void operator()(int* p) const noexcept { delete p; }
++
++    // found by ADL
++    friend void swap(Deleter& lhs, Deleter& rhs) noexcept
++    { std::swap(lhs.id, rhs.id); }
++
++    int id;
++  };
++
++  static_assert(!std::is_move_assignable<Deleter>::value, "not assignable");
++#if __cplusplus >= 201703L
++  static_assert(std::is_swappable_v<Deleter>, "but swappable");
++#endif
++} // namespace A
++
++void
++test03()
++{
++  std::unique_ptr<int, A::Deleter> p1(new int(1), { -1 });
++  std::unique_ptr<int, A::Deleter> p2(new int(2), { -2 });
++  int* const pi1 = p1.get();
++  int* const pi2 = p2.get();
++  // This type must swappable even though the deleter is not move-assignable:
++  swap(p1, p2);
++  VERIFY(p1.get() == pi2);
++  VERIFY(p1.get_deleter().id == -2);
++  VERIFY(p2.get() == pi1);
++  VERIFY(p2.get_deleter().id == -1);
++}
++
++void
++test04()
++{
++  std::unique_ptr<int[], A::Deleter> p1(new int[1]{1}, { -1 });
++  std::unique_ptr<int[], A::Deleter> p2(new int[2]{2, 2}, { -2 });
++  int* const pi1 = p1.get();
++  int* const pi2 = p2.get();
++  // This type must swappable even though the deleter is not move-assignable:
++  swap(p1, p2);
++  VERIFY(p1.get() == pi2);
++  VERIFY(p1.get_deleter().id == -2);
++  VERIFY(p2.get() == pi1);
++  VERIFY(p2.get_deleter().id == -1);
++}
++
++int main()
++{
++  test03();
++  test04();
++}
 --- a/src/libstdc++-v3/testsuite/23_containers/deque/requirements/dr438/assign_neg.cc
 +++ b/src/libstdc++-v3/testsuite/23_containers/deque/requirements/dr438/assign_neg.cc
 @@ -18,6 +18,7 @@
@@ -50461,6 +52442,14 @@ new file mode 100644
 +  test02();
 +  test03();
 +}
+--- a/src/libstdc++-v3/testsuite/26_numerics/random/pr60037-neg.cc
++++ b/src/libstdc++-v3/testsuite/26_numerics/random/pr60037-neg.cc
+@@ -12,4 +12,4 @@ auto x = std::generate_canonical<std::size_t,
+ 
+ // { dg-error "static assertion failed: template argument must be a floating point type" "" { target *-*-* } 156 }
+ 
+-// { dg-error "static assertion failed: template argument must be a floating point type" "" { target *-*-* } 3320 }
++// { dg-error "static assertion failed: template argument must be a floating point type" "" { target *-*-* } 3318 }
 new file mode 100644
 --- /dev/null
 +++ b/src/libstdc++-v3/testsuite/26_numerics/reduce/1.cc
