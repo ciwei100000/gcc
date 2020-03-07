@@ -132,7 +132,7 @@ endif
 	$(call do_strip_lib_dbg, $(p_lgnat), $(p_lgnat_dbg), $(v_dbg),,)
 	$(cross_shlibdeps) dh_shlibdeps -p$(p_lgnat) \
 		$(call shlibdirs_to_search, \
-			$(subst gnat-$(GNAT_SONAME),gcc$(GCC_SONAME),$(p_lgnat)) \
+			$(subst gnat-$(GNAT_SONAME),$(libgcc_basename)$(GCC_SONAME),$(p_lgnat)) \
 			$(subst gnat-$(GNAT_SONAME),atomic$(ATOMIC_SONAME),$(p_lgnat)) \
 		,) \
 		$(if $(filter yes, $(with_common_libs)),,-- -Ldebian/shlibs.common)
@@ -170,7 +170,7 @@ $(binary_stamp)-libgnatvsn: $(install_stamp)
 	cat debian/$(p_lgnatvsn)/DEBIAN/shlibs >> debian/shlibs.local
 	$(cross_shlibdeps) dh_shlibdeps -p$(p_lgnatvsn) \
 		$(call shlibdirs_to_search, \
-			$(subst gnatvsn$(GNAT_SONAME),gcc$(GCC_SONAME),$(p_lgnatvsn)) \
+			$(subst gnatvsn$(GNAT_SONAME),$(libgcc_basename)$(GCC_SONAME),$(p_lgnatvsn)) \
 			$(subst gnatvsn$(GNAT_SONAME),atomic$(ATOMIC_SONAME),$(p_lgnatvsn)) \
 			$(subst gnatvsn$(GNAT_SONAME),gnat-$(GNAT_SONAME),$(p_lgnatvsn)) \
 		,) \
