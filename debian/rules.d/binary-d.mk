@@ -186,7 +186,7 @@ define __do_libphobos
 	$(call cross_mangle_shlibs,$(p_l))
 	$(ignshld)DIRNAME=$(subst n,,$(2)) $(cross_shlibdeps) dh_shlibdeps -p$(p_l) \
 		$(call shlibdirs_to_search, \
-			$(subst gphobos$(GPHOBOS_SONAME),gcc$(GCC_SONAME),$(p_l)) \
+			$(subst gphobos$(GPHOBOS_SONAME),$(libgcc_basename)$(GCC_SONAME),$(p_l)) \
 		,$(2)) \
 		$(if $(filter yes, $(with_common_libs)),,-- -Ldebian/shlibs.common$(2))
 	$(call cross_mangle_substvars,$(p_l))
