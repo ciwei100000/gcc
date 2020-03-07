@@ -35,7 +35,7 @@ define __do_gomp
 	$(cross_makeshlibs) dh_makeshlibs $(ldconfig_arg) -p$(p_l)
 	$(call cross_mangle_shlibs,$(p_l))
 	$(ignshld)DIRNAME=$(subst n,,$(2)) $(cross_shlibdeps) dh_shlibdeps -p$(p_l) \
-		$(call shlibdirs_to_search,$(subst gomp$(GOMP_SONAME),gcc$(GCC_SONAME),$(p_l)),$(2)) \
+		$(call shlibdirs_to_search,$(subst gomp$(GOMP_SONAME),gcc-s$(GCC_SONAME),$(p_l)),$(2)) \
 		$(if $(filter yes, $(with_common_libs)),,-- -Ldebian/shlibs.common$(2))
 	$(call cross_mangle_substvars,$(p_l))
 	echo $(p_l) $(if $(with_dbg), $(p_d)) >> debian/$(lib_binaries)
