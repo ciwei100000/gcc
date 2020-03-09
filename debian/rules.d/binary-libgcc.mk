@@ -63,8 +63,6 @@ header_files = \
 		do \
 		  test -e $(d)/$(gcc_lib_dir)/include/$$h \
 		    && echo $(gcc_lib_dir)/include/$$h; \
-		  test -e $(d)/$(gcc_lib_dir)/include-fixed/$$h \
-		    && echo $(gcc_lib_dir)/include-fixed/$$h; \
 		done) \
 	$(shell for d in \
 		  asm bits cilk gnu linux sanitizer $(TARGET_ALIAS) \
@@ -72,8 +70,6 @@ header_files = \
 		do \
 		  test -e $(d)/$(gcc_lib_dir)/include/$$d \
 		    && echo $(gcc_lib_dir)/include/$$d; \
-		  test -e $(d)/$(gcc_lib_dir)/include-fixed/$$d \
-		    && echo $(gcc_lib_dir)/include-fixed/$$d; \
 		done)
 
 ifeq ($(with_libssp),yes)
