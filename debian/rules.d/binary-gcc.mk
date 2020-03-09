@@ -30,7 +30,7 @@ dirs_gcc = \
 	$(docdir)/$(p_xbase)/{gcc,libssp,gomp,itm,quadmath,sanitizer} \
 	$(PF)/bin \
 	$(gcc_lexec_dir) \
-	$(gcc_lib_dir)/{include,include-fixed} \
+	$(gcc_lib_dir)/include \
 	$(PF)/share/man/man1 $(libgcc_dir)
 
 # XXX: what about triarch mapping?
@@ -52,13 +52,7 @@ files_gcc += \
 
 ifeq ($(DEB_STAGE),stage1)
     files_gcc += \
-	$(gcc_lib_dir)/include \
-	$(shell for h in \
-		  README limits.h syslimits.h; \
-		do \
-		  test -e $(d)/$(gcc_lib_dir)/include-fixed/$$h \
-		    && echo $(gcc_lib_dir)/include-fixed/$$h; \
-		done)
+	$(gcc_lib_dir)/include
 endif
 
 ifneq ($(GFDL_INVARIANT_FREE),yes)
