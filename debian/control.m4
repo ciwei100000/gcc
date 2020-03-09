@@ -6348,7 +6348,7 @@ ifdef(`TARGET',`Multi-Arch: foreign
 Priority: optional
 Depends: BASEDEP, gcc`'PV (= ${gcc:Version}), ${dep:libcdev},
   libgomp-plugin-amdgcn`'GOMP_SO (>= ${gcc:Version}),
-  llvm-9, lld-9,
+  llvm-LLVM_VER, lld-LLVM_VER,
   ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
 Description: GCC offloading compiler to GCN

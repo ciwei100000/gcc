@@ -43,11 +43,11 @@ $(binary_stamp)-gcn: $(install_stamp)
 
 	mkdir -p $(d_gcn)/usr/$(gcn_target_name)/bin
 	dh_link -p$(p_gcn) \
-	  /usr/lib/llvm-9/bin/llvm-ar /usr/$(gcn_target_name)/bin/ar \
-	  /usr/lib/llvm-9/bin/llvm-mc /usr/$(gcn_target_name)/bin/as \
-	  /usr/lib/llvm-9/bin/lld /usr/$(gcn_target_name)/bin/ld \
-	  /usr/lib/llvm-9/bin/llvm-nm /usr/$(gcn_target_name)/bin/nm \
-	  /usr/lib/llvm-9/bin/llvm-ranlib /usr/$(gcn_target_name)/bin/ranlib
+	  /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/llvm-ar /usr/$(gcn_target_name)/bin/ar \
+	  /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/llvm-mc /usr/$(gcn_target_name)/bin/as \
+	  /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/lld /usr/$(gcn_target_name)/bin/ld \
+	  /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/llvm-nm /usr/$(gcn_target_name)/bin/nm \
+	  /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/llvm-ranlib /usr/$(gcn_target_name)/bin/ranlib
 
 	mkdir -p $(d_gcn)/usr/share/lintian/overrides
 	( \

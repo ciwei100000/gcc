@@ -761,7 +761,13 @@ with_offload_nvptx := $(call envfilt, nvptx, , , $(with_offload_nvptx))
 
 gcn_archs := amd64
 gcn_target_name = amdgcn-amdhsa
-#gcn_target_name = amdgcn-unknown-amdhsa
+
+ifneq (,$(filter $(distrelease),sid unstable xenial bionic eoan))
+  gcn_tools_llvm_version = 9
+else
+  gcn_tools_llvm_version = 10
+endif
+
 ifneq (,$(filter $(DEB_TARGET_ARCH),$(gcn_archs)))
   offload_targets += $(gcn_target_name)
   with_offload_gcn := yes
