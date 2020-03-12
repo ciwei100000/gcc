@@ -109,7 +109,9 @@ Package: gcc-snapshot`'TS
 Architecture: any
 Section: devel
 Priority: optional
-Depends: binutils`'TS (>= ${binutils:Version}), ${dep:libcbiarchdev}, ${dep:libcdev}, ${dep:libunwinddev}, ${snap:depends}, ${shlibs:Depends}, python3, ${misc:Depends}
+Depends: binutils`'TS (>= ${binutils:Version}),
+  ${dep:libcbiarchdev}, ${dep:libcdev}, ${dep:libunwinddev}, python3,
+  ${snap:depends}, ${shlibs:Depends}, ${misc:Depends}
 Recommends: ${snap:recommends}
 Suggests: ${dep:gold}
 Provides: c++-compiler`'TS`'ifdef(`TARGET',`',`, c++abi2-dev')

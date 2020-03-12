@@ -1468,8 +1468,6 @@ CONFARGS_GCN := \
 
 #	--without-headers \
 
-gcn_tools_llvm_version = 10
-
 CONFARGS_GCN += --program-prefix=$(gcn_target_name)-
 ifeq ($(versioned_packages),yes)
   CONFARGS_GCN += --program-suffix=-$(BASE_VERSION)
@@ -2531,6 +2529,7 @@ $(install_nvptx_stamp): $(build_nvptx_stamp) $(install_stamp) \
 	rm -rf $(d)-nvptx/$(PF)/lib/gcc/nvptx-none/$(versiondir)/{install-tools,plugin}
 	rm -rf $(d)-nvptx/$(PF)/lib/gcc/$(DEB_HOST_GNU_TYPE)/$(versiondir)/accel/nvptx-none/{install-tools,plugin,include-fixed}
 	rm -rf $(d)-nvptx/$(PF)/lib/libc[cp]1*
+	rm -rf $(d)-nvptx/$(PF)/lib{32,64,n32,x32}
 
 	mv -f $(d)-nvptx/$(PF)/nvptx-none/lib/*.{a,spec} \
 	  $(d)-nvptx/$(PF)/lib/gcc/$(DEB_HOST_GNU_TYPE)/$(versiondir)/accel/nvptx-none/
@@ -2579,6 +2578,7 @@ $(install_gcn_stamp): $(build_gcn_stamp) $(install_stamp) \
 	rm -rf $(d)-gcn/$(PF)/lib/gcc/$(gcn_target_name)/$(versiondir)/{install-tools,plugin}
 	rm -rf $(d)-gcn/$(PF)/lib/gcc/$(DEB_HOST_GNU_TYPE)/$(versiondir)/accel/$(gcn_target_name)/{install-tools,plugin,include-fixed}
 	rm -rf $(d)-gcn/$(PF)/lib/libc[cp]1*
+	rm -rf $(d)-gcn/$(PF)/lib{32,64,n32,x32}
 
 	mv -f $(d)-gcn/$(PF)/$(gcn_target_name)/lib/*.{a,spec} \
 	  $(d)-gcn/$(PF)/lib/gcc/$(DEB_HOST_GNU_TYPE)/$(versiondir)/accel/$(gcn_target_name)/
@@ -2712,9 +2712,11 @@ endif
 	  echo dh_gencontrol $$pkgs -- -v$(DEB_EVERSION) $(common_substvars); \
 	  dh_gencontrol $$pkgs -- -v$(DEB_EVERSION) $(common_substvars); \
 	fi
-ifeq ($(with_libcompatgcc),yes)
+ifneq ($(single_package),yes)
+  ifeq ($(with_libcompatgcc),yes)
 	cp -p debian/.debhelper/generated/$(p_lgcc)/triggers \
 		debian/.debhelper/generated/$(subst gcc-s,gcc,$(p_lgcc))/.
+  endif
 endif
 	test ! -s debian/arch_binaries.all || \
 	  dh_installdeb $(foreach p,$(shell echo `cat debian/arch_binaries.all`),-p$(p))

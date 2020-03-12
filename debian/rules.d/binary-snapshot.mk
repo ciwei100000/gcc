@@ -18,11 +18,18 @@ dirs_snap = \
 	usr/lib
 
 ifeq ($(with_hppa64),yes)
-  snapshot_depends = binutils-hppa64
+  snapshot_depends = binutils-hppa64,
+endif
+ifeq ($(with_offload_gcn),yes)
+  snapshot_depends += llvm-$(gcn_tools_llvm_version), lld-$(gcn_tools_llvm_version),
 endif
 
+
+
 # ----------------------------------------------------------------------
-$(binary_stamp)-snapshot: $(install_snap_stamp)
+$(binary_stamp)-snapshot: $(install_snap_stamp) \
+    $(if $(filter yes, $(with_offload_nvptx)), $(install_nvptx_stamp)) \
+    $(if $(filter yes, $(with_offload_gcn)), $(install_gcn_stamp))
 	dh_testdir
 	dh_testroot
 	mv $(install_snap_stamp) $(install_snap_stamp)-tmp
@@ -72,6 +79,25 @@ ifeq ($(with_ada),yes FIXME: apply our ada patches)
 endif
 ifeq ($(with_ada),yes)
 	ln -sf gcc $(d_snap)/$(PF)/bin/gnatgcc
+endif
+
+ifeq ($(with_offload_nvptx),yes)
+	tar -c -C $(d)-nvptx -f - $(gcc_lib_dir)/accel/nvptx-none $(gcc_lexec_dir)/accel/nvptx-none \
+	  | tar x -C $(d_snap) -f -
+endif
+
+ifeq ($(with_offload_gcn),yes)
+	tar -c -C $(d)-gcn -f - $(gcc_lib_dir)/accel/$(gcn_target_name) $(gcc_lexec_dir)/accel/$(gcn_target_name) \
+	  | tar x -C $(d_snap) -f -
+
+	dh_link -p$(p_gcn) \
+	  /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/llvm-ar /$(PF)/bin/$(gcn_target_name)-ar \
+	  /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/llvm-mc /$(PF)/bin/$(gcn_target_name)-as \
+	  /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/lld /$(PF)/bin/$(gcn_target_name)-ld \
+	  /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/llvm-nm /$(PF)/bin/$(gcn_target_name)-nm \
+	  /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/llvm-ranlib /$(PF)/bin/$(gcn_target_name)-ranlib
+	rm -f $(d_snap)/$(PF)/bin/*-lto-dump
+	rm -f $(d_snap)/$(PF)/share/man/man1/*-accel-$(gcn_target_name)-*.1
 endif
 
 ifeq ($(with_hppa64),yes)
