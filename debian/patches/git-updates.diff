@@ -1,7 +1,1128 @@
-# DP: updates from the 9 branch upto 20200306 (39bdebf3725).
+# DP: updates from the 9 branch upto 20200316 (a81912b0740).
 
 LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
-	a0c06cc27d2146b7d86758ffa236516c6143d62c 39bdebf3725d7681e5e9ba06e3862f8facef3572 \
+	4212a6a3e44f870412d9025eeb323fd4f50a61da a81912b0740ee887796e1345936a198085926f28 \
 	| awk '/^diff .*\.texi/ {skip=1; next} /^diff / { skip=0 } skip==0' \
 	| grep -v -E '^(diff|index)'
 
+--- a/src/gcc/ChangeLog
++++ b/src/gcc/ChangeLog
+@@ -1,3 +1,48 @@
++2020-03-13  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/94163
++	* tree-ssa-pre.c (create_expression_by_pieces): Check
++	whether alignment would be zero.
++
++2020-03-13  Eric Botcazou  <ebotcazou@adacore.com>
++
++	PR rtl-optimization/94119
++	* resource.h (clear_hashed_info_until_next_barrier): Declare.
++	* resource.c (clear_hashed_info_until_next_barrier): New function.
++	* reorg.c (add_to_delay_list): Fix formatting.
++	(relax_delay_slots): Call clear_hashed_info_until_next_barrier on
++	the next instruction after removing a BARRIER.
++
++2020-03-12  Bill Schmidt  <wschmidt@linux.ibm.com>
++
++	Backport from master
++	2020-03-02  Bill Schmidt  <wschmidt@linux.ibm.com>
++
++	PR target/87560
++	* rs6000-cpus.def (OTHER_ALTIVEC_MASKS): New #define.
++	* rs6000.c (rs6000_disable_incompatible_switches): Add table entry
++	for OPTION_MASK_ALTIVEC.
++
++2020-03-12  Richard Earnshaw  <rearnsha@arm.com>
++
++	Backport from master
++	2020-02-10  Richard Earnshaw  <rearnsha@arm.com>
++
++	PR target/91913
++	* config/arm/arm.md (movsi_compare0): Allow SP as a source register
++	in Thumb state and also as a destination in Arm state.  Add T16
++	variants.
++
++2020-03-12  Martin Liska  <mliska@suse.cz>
++
++	Backport from mainline
++	2020-03-09  Martin Liska  <mliska@suse.cz>
++
++	PR target/93800
++	* config/rs6000/rs6000.c (rs6000_option_override_internal):
++	Remove set of str_align_loops and str_align_jumps as these
++	should be set in previous 2 conditions in the function.
++
+ 2020-03-12  Release Manager
+ 
+ 	* GCC 9.3.0 released.
+--- a/src/gcc/DATESTAMP
++++ b/src/gcc/DATESTAMP
+@@ -1 +1 @@
+-20200312
++20200316
+--- a/src/gcc/config/arm/arm.md
++++ b/src/gcc/config/arm/arm.md
+@@ -6362,16 +6362,21 @@
+ 
+ (define_insn "*movsi_compare0"
+   [(set (reg:CC CC_REGNUM)
+-	(compare:CC (match_operand:SI 1 "s_register_operand" "0,r")
++	(compare:CC (match_operand:SI 1 "s_register_operand" "0,0,l,rk,rk")
+ 		    (const_int 0)))
+-   (set (match_operand:SI 0 "s_register_operand" "=r,r")
++   (set (match_operand:SI 0 "s_register_operand" "=l,rk,l,r,rk")
+ 	(match_dup 1))]
+   "TARGET_32BIT"
+   "@
+    cmp%?\\t%0, #0
++   cmp%?\\t%0, #0
++   subs%?\\t%0, %1, #0
++   subs%?\\t%0, %1, #0
+    subs%?\\t%0, %1, #0"
+   [(set_attr "conds" "set")
+-   (set_attr "type" "alus_imm,alus_imm")]
++   (set_attr "arch" "t2,*,t2,t2,a")
++   (set_attr "type" "alus_imm")
++   (set_attr "length" "2,4,2,4,4")]
+ )
+ 
+ ;; Subroutine to store a half word from a register into memory.
+--- a/src/gcc/config/rs6000/rs6000-cpus.def
++++ b/src/gcc/config/rs6000/rs6000-cpus.def
+@@ -88,6 +88,10 @@
+ 				 | OPTION_MASK_FLOAT128_KEYWORD		\
+ 				 | OPTION_MASK_P8_VECTOR)
+ 
++/* Flags that need to be turned off if -mno-altivec.  */
++#define OTHER_ALTIVEC_MASKS	(OTHER_VSX_VECTOR_MASKS			\
++				 | OPTION_MASK_VSX)
++
+ #define POWERPC_7400_MASK	(OPTION_MASK_PPC_GFXOPT | OPTION_MASK_ALTIVEC)
+ 
+ /* Deal with ports that do not have -mstrict-align.  */
+--- a/src/gcc/config/rs6000/rs6000.c
++++ b/src/gcc/config/rs6000/rs6000.c
+@@ -4715,11 +4715,6 @@ rs6000_option_override_internal (bool global_init_p)
+ 		  str_align_loops = "16";
+ 		}
+ 	    }
+-
+-	  if (flag_align_jumps && !str_align_jumps)
+-	    str_align_jumps = "16";
+-	  if (flag_align_loops && !str_align_loops)
+-	    str_align_loops = "16";
+ 	}
+ 
+       /* Arrange to save and restore machine status around nested functions.  */
+@@ -37399,6 +37394,7 @@ rs6000_disable_incompatible_switches (void)
+     { OPTION_MASK_P9_VECTOR,	OTHER_P9_VECTOR_MASKS,	"power9-vector"	},
+     { OPTION_MASK_P8_VECTOR,	OTHER_P8_VECTOR_MASKS,	"power8-vector"	},
+     { OPTION_MASK_VSX,		OTHER_VSX_VECTOR_MASKS,	"vsx"		},
++    { OPTION_MASK_ALTIVEC,	OTHER_ALTIVEC_MASKS,	"altivec"	},
+   };
+ 
+   for (i = 0; i < ARRAY_SIZE (flags); i++)
+--- a/src/gcc/cp/ChangeLog
++++ b/src/gcc/cp/ChangeLog
+@@ -1,3 +1,21 @@
++2020-03-14  Jason Merrill  <jason@redhat.com>
++
++	PR c++/92909
++	* pt.c (find_parameter_packs_r): [DECL_EXPR]: Walk
++	DECL_ORIGINAL_TYPE of a typedef.
++
++2020-03-14  Jason Merrill  <jason@redhat.com>
++
++	PR c++/92068
++	* pt.c (process_partial_specialization): Error rather than crash on
++	extra pack expansion.
++
++2020-03-14  Jason Merrill  <jason@redhat.com>
++
++	PR c++/93248
++	* pt.c (build_deduction_guide): Clear cp_unevaluated_operand for
++	substituting DECL_ARGUMENTS.
++
+ 2020-03-12  Release Manager
+ 
+ 	* GCC 9.3.0 released.
+--- a/src/gcc/cp/pt.c
++++ b/src/gcc/cp/pt.c
+@@ -3773,10 +3773,18 @@ find_parameter_packs_r (tree *tp, int *walk_subtrees, void* data)
+       return NULL_TREE;
+ 
+     case DECL_EXPR:
+-      /* Ignore the declaration of a capture proxy for a parameter pack.  */
+-      if (is_capture_proxy (DECL_EXPR_DECL (t)))
+-	*walk_subtrees = 0;
+-      return NULL_TREE;
++      {
++	tree decl = DECL_EXPR_DECL (t);
++	/* Ignore the declaration of a capture proxy for a parameter pack.  */
++	if (is_capture_proxy (decl))
++	  *walk_subtrees = 0;
++	if (is_typedef_decl (decl) && TYPE_ALIAS_P (TREE_TYPE (decl)))
++	  /* Since we stop at aliases above, we need to look through them at
++	     the point of the DECL_EXPR.  */
++	  cp_walk_tree (&DECL_ORIGINAL_TYPE (decl),
++			&find_parameter_packs_r, ppd, ppd->visited);
++	return NULL_TREE;
++      }
+ 
+     case RECORD_TYPE:
+       if (TYPE_PTRMEMFUNC_P (t))
+@@ -4877,6 +4885,14 @@ process_partial_specialization (tree decl)
+       return decl;
+     }
+ 
++  else if (nargs > DECL_NTPARMS (maintmpl))
++    {
++      error ("too many arguments for partial specialization %qT", type);
++      inform (DECL_SOURCE_LOCATION (maintmpl), "primary template here");
++      /* Avoid crash below.  */
++      return decl;
++    }
++
+   /* If we aren't in a dependent class, we can actually try deduction.  */
+   else if (tpd.level == 1
+ 	   /* FIXME we should be able to handle a partial specialization of a
+@@ -4903,7 +4919,6 @@ process_partial_specialization (tree decl)
+ 
+      Also, we verify that pack expansions only occur at the
+      end of the argument list.  */
+-  gcc_assert (nargs == DECL_NTPARMS (maintmpl));
+   tpd2.parms = 0;
+   for (i = 0; i < nargs; ++i)
+     {
+@@ -27376,10 +27391,13 @@ build_deduction_guide (tree ctor, tree outer_args, tsubst_flags_t complain)
+ 				     complain, ctor);
+ 	  if (fparms == error_mark_node)
+ 	    ok = false;
+-	  fargs = tsubst (fargs, tsubst_args, complain, ctor);
+ 	  if (ci)
+ 	    ci = tsubst_constraint_info (ci, tsubst_args, complain, ctor);
+ 
++	  /* Parms are to have DECL_CHAIN tsubsted, which would be skipped if
++	     cp_unevaluated_operand.  */
++	  cp_evaluated ev;
++	  fargs = tsubst (fargs, tsubst_args, complain, ctor);
+ 	  current_template_parms = save_parms;
+ 	}
+ 
+--- a/src/gcc/reorg.c
++++ b/src/gcc/reorg.c
+@@ -577,8 +577,9 @@ add_to_delay_list (rtx_insn *insn, vec<rtx_insn *> *delay_list)
+ {
+   /* If INSN has its block number recorded, clear it since we may
+      be moving the insn to a new block.  */
+-      clear_hashed_info_for_insn (insn);
+-      delay_list->safe_push (insn);
++  clear_hashed_info_for_insn (insn);
++
++  delay_list->safe_push (insn);
+ }
+ 
+ /* Delete INSN from the delay slot of the insn that it is in, which may
+@@ -3221,7 +3222,14 @@ relax_delay_slots (rtx_insn *first)
+ 
+ 	      if (invert_jump (jump_insn, label, 1))
+ 		{
+-		  delete_related_insns (next);
++		  rtx_insn *from = delete_related_insns (next);
++
++		  /* We have just removed a BARRIER, which means that the block
++		     number of the next insns has effectively been changed (see
++		     find_basic_block in resource.c), so clear it.  */
++		  if (from)
++		    clear_hashed_info_until_next_barrier (from);
++
+ 		  next = jump_insn;
+ 		}
+ 
+@@ -3494,18 +3502,22 @@ relax_delay_slots (rtx_insn *first)
+ 
+ 	      if (invert_jump (delay_jump_insn, label, 1))
+ 		{
+-		  int i;
+-
+ 		  /* Must update the INSN_FROM_TARGET_P bits now that
+ 		     the branch is reversed, so that mark_target_live_regs
+ 		     will handle the delay slot insn correctly.  */
+-		  for (i = 1; i < XVECLEN (PATTERN (insn), 0); i++)
++		  for (int i = 1; i < XVECLEN (PATTERN (insn), 0); i++)
+ 		    {
+ 		      rtx slot = XVECEXP (PATTERN (insn), 0, i);
+ 		      INSN_FROM_TARGET_P (slot) = ! INSN_FROM_TARGET_P (slot);
+ 		    }
+ 
+-		  delete_related_insns (next);
++		  /* We have just removed a BARRIER, which means that the block
++		     number of the next insns has effectively been changed (see
++		     find_basic_block in resource.c), so clear it.  */
++		  rtx_insn *from = delete_related_insns (next);
++		  if (from)
++		    clear_hashed_info_until_next_barrier (from);
++
+ 		  next = insn;
+ 		}
+ 
+--- a/src/gcc/resource.c
++++ b/src/gcc/resource.c
+@@ -1311,7 +1311,26 @@ clear_hashed_info_for_insn (rtx_insn *insn)
+ 	tinfo->block = -1;
+     }
+ }
+-
++
++/* Clear any hashed information that we have stored for instructions
++   between INSN and the next BARRIER that follow a JUMP or a LABEL.  */
++
++void
++clear_hashed_info_until_next_barrier (rtx_insn *insn)
++{
++  while (insn && !BARRIER_P (insn))
++    {
++      if (JUMP_P (insn) || LABEL_P (insn))
++	{
++	  rtx_insn *next = next_active_insn (insn);
++	  if (next)
++	    clear_hashed_info_for_insn (next);
++	}
++
++      insn = next_nonnote_insn (insn);
++    }
++}
++
+ /* Increment the tick count for the basic block that contains INSN.  */
+ 
+ void
+--- a/src/gcc/resource.h
++++ b/src/gcc/resource.h
+@@ -46,6 +46,7 @@ extern void mark_set_resources (rtx, struct resources *, int,
+ 				enum mark_resource_type);
+ extern void mark_referenced_resources (rtx, struct resources *, bool);
+ extern void clear_hashed_info_for_insn (rtx_insn *);
++extern void clear_hashed_info_until_next_barrier (rtx_insn *);
+ extern void incr_ticks_for_insn (rtx_insn *);
+ extern void mark_end_of_function_resources (rtx, bool);
+ extern void init_resource_info (rtx_insn *);
+--- a/src/gcc/testsuite/ChangeLog
++++ b/src/gcc/testsuite/ChangeLog
+@@ -1,3 +1,19 @@
++2020-03-12  Richard Earnshaw  <rearnsha@arm.com>
++
++	Backport from master
++	2020-02-10  Jakub Jelinek  <jakub@redhat.com>
++
++	PR target/91913
++	* gfortran.dg/pr91913.f90: New test.
++
++2020-03-12  Martin Liska  <mliska@suse.cz>
++
++	Backport from mainline
++	2020-03-09  Martin Liska  <mliska@suse.cz>
++
++	PR target/93800
++	* gcc.target/powerpc/pr93800.c: New test.
++
+ 2020-03-12  Release Manager
+ 
+ 	* GCC 9.3.0 released.
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/g++.dg/cpp0x/lambda/lambda-variadic10.C
+@@ -0,0 +1,12 @@
++// PR c++/92909
++// { dg-do compile { target c++11 } }
++
++template <class ... Ts>
++void foo()
++{
++    []
++    {
++        using T = Ts;
++    }();			// { dg-error "not expanded" }
++}
++template void foo<>();
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/g++.dg/cpp0x/variadic178.C
+@@ -0,0 +1,6 @@
++// PR c++/92068
++// { dg-do compile { target c++11 } }
++
++template <typename, typename> struct a;
++template <typename b, typename c, typename... d>
++struct a<b, c, d...> { };	// { dg-error "arguments" }
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/g++.dg/cpp1z/class-deduction71.C
+@@ -0,0 +1,6 @@
++// PR c++/93248
++// { dg-do compile { target c++17 } }
++
++template <typename T> struct S
++{ template <typename V> S (T, V, long = 0); };
++using U = decltype(S{0, 4u});
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.target/powerpc/pr93800.c
+@@ -0,0 +1,14 @@
++/* { dg-do compile } */
++/* { dg-options "-mcpu=860 -O2" } */
++/* { dg-require-effective-target ilp32 } */
++/* { dg-final { scan-assembler-not "\\.p2align 4" } } */
++
++volatile int g;
++int f(int a, int b)
++{
++	int i;
++
++	for (i = 0; i < b; i++)
++		a += g;
++	return a;
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/pr91913.f90
+@@ -0,0 +1,5 @@
++! PR target/91913
++! { dg-do compile }
++! { dg-options "-std=legacy -Ofast --param max-cse-insns=0 -fno-schedule-insns -fsanitize=null" }
++
++include 'string_ctor_1.f90'
+--- a/src/gcc/tree-ssa-pre.c
++++ b/src/gcc/tree-ssa-pre.c
+@@ -2810,7 +2810,8 @@ create_expression_by_pieces (basic_block block, pre_expr expr,
+ 	      unsigned HOST_WIDE_INT hmisalign
+ 		= args.length () == 3 ? tree_to_uhwi (args[2]) : 0;
+ 	      if ((halign & (halign - 1)) == 0
+-		  && (hmisalign & ~(halign - 1)) == 0)
++		  && (hmisalign & ~(halign - 1)) == 0
++		  && (unsigned int)halign != 0)
+ 		set_ptr_info_alignment (get_ptr_info (forcedname),
+ 					halign, hmisalign);
+ 	    }
+--- a/src/libstdc++-v3/ChangeLog
++++ b/src/libstdc++-v3/ChangeLog
+@@ -1,3 +1,45 @@
++2020-03-12  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backport from mainline
++	2020-03-09  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/94063
++	* src/c++17/fs_path.cc (path::operator+=(const path&)): Add kluge to
++	handle concatenations that change the type of the first component.
++	(path::operator+=(basic_string_view<value_type>)): Likewise.
++	* testsuite/27_io/filesystem/path/concat/94063.cc: New test.
++
++	Backport from mainline
++	2020-02-04  Jonathan Wakely  <jwakely@redhat.com>
++
++	* include/std/functional (_GLIBCXX_NOT_FN_CALL_OP): Un-define after
++	use.
++
++	Backport from mainline
++	2020-03-12  Jonathan Wakely  <jwakely@redhat.com>
++
++	* testsuite/tr1/8_c_compatibility/cstdlib/functions.cc: Do not pass
++	a null pointer to functions with nonnull(1) attribute.
++
++	Backport from mainline
++	2020-02-28  Jonathan Wakely  <jwakely@redhat.com>
++
++	* testsuite/27_io/filesystem/operations/last_write_time.cc: Fixes for
++	filesystems that silently truncate timestamps.
++	* testsuite/experimental/filesystem/operations/last_write_time.cc:
++	Likewise.
++
++	Backport from mainline
++	2020-01-13  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/93244
++	* include/bits/fs_path.h (path::generic_string<C,A>)
++	[_GLIBCXX_FILESYSTEM_IS_WINDOWS]: Convert root-dir to forward-slash.
++	* testsuite/27_io/filesystem/path/generic/generic_string.cc: Check
++	root-dir is converted to forward slash in generic pathname.
++	* testsuite/27_io/filesystem/path/generic/utf.cc: New test.
++	* testsuite/27_io/filesystem/path/generic/wchar_t.cc: New test.
++
+ 2020-03-12  Release Manager
+ 
+ 	* GCC 9.3.0 released.
+--- a/src/libstdc++-v3/include/bits/fs_path.h
++++ b/src/libstdc++-v3/include/bits/fs_path.h
+@@ -1073,6 +1073,13 @@ _GLIBCXX_BEGIN_NAMESPACE_CXX11
+ 	  bool __add_slash = false;
+ 	  for (auto& __elem : *this)
+ 	    {
++#ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
++	      if (__elem._M_type() == _Type::_Root_dir)
++		{
++		  __str += __slash;
++		  continue;
++		}
++#endif
+ 	      if (__add_slash)
+ 		__str += __slash;
+ 	      __str += __elem._M_pathname;
+--- a/src/libstdc++-v3/include/std/functional
++++ b/src/libstdc++-v3/include/std/functional
+@@ -974,7 +974,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       _GLIBCXX_NOT_FN_CALL_OP( const & )
+       _GLIBCXX_NOT_FN_CALL_OP( && )
+       _GLIBCXX_NOT_FN_CALL_OP( const && )
+-#undef _GLIBCXX_NOT_FN_CALL
++#undef _GLIBCXX_NOT_FN_CALL_OP
+ 
+     private:
+       _Fn _M_fn;
+--- a/src/libstdc++-v3/src/c++17/fs_path.cc
++++ b/src/libstdc++-v3/src/c++17/fs_path.cc
+@@ -845,6 +845,26 @@ path::operator+=(const path& p)
+       return *this;
+     }
+ 
++#if _GLIBCXX_FILESYSTEM_IS_WINDOWS
++  if (_M_type() == _Type::_Root_name
++      || (_M_type() == _Type::_Filename && _M_pathname.size() == 1))
++    {
++      // Handle path("C") += path(":") and path("C:") += path("/x")
++      // FIXME: do this more efficiently
++      *this = path(_M_pathname + p._M_pathname);
++      return *this;
++    }
++#endif
++#if SLASHSLASH_IS_ROOTNAME
++  if (_M_type() == _Type::_Root_dir)
++    {
++      // Handle path("/") += path("/x") and path("//") += path("x")
++      // FIXME: do this more efficiently
++      *this = path(_M_pathname + p._M_pathname);
++      return *this;
++    }
++#endif
++
+   const auto orig_pathlen = _M_pathname.length();
+   const auto orig_type = _M_type();
+   const auto orig_size = _M_cmpts.size();
+@@ -1031,6 +1051,26 @@ path::_M_concat(basic_string_view<value_type> s)
+       return;
+     }
+ 
++#if _GLIBCXX_FILESYSTEM_IS_WINDOWS
++  if (_M_type() == _Type::_Root_name
++      || (_M_type() == _Type::_Filename && _M_pathname.size() == 1))
++    {
++      // Handle path("C") += ":" and path("C:") += "/x"
++      // FIXME: do this more efficiently
++      *this = path(_M_pathname + string_type(s));
++      return;
++    }
++#endif
++#if SLASHSLASH_IS_ROOTNAME
++  if (_M_type() == _Type::_Root_dir)
++    {
++      // Handle path("/") += "/x" and path("//") += "x"
++      // FIXME: do this more efficiently
++      *this = path(_M_pathname + string_type(s));
++      return;
++    }
++#endif
++
+   const auto orig_pathlen = _M_pathname.length();
+   const auto orig_type = _M_type();
+   const auto orig_size = _M_cmpts.size();
+--- a/src/libstdc++-v3/testsuite/27_io/filesystem/operations/last_write_time.cc
++++ b/src/libstdc++-v3/testsuite/27_io/filesystem/operations/last_write_time.cc
+@@ -32,9 +32,12 @@
+ #if _GLIBCXX_HAVE_UTIME_H
+ # include <utime.h>
+ #endif
++#include <stdio.h>
+ 
+ using time_type = std::filesystem::file_time_type;
+ 
++namespace chrono = std::chrono;
++
+ void
+ test01()
+ {
+@@ -67,10 +70,15 @@ test01()
+ 
+   auto end_of_time = time_type::duration::max();
+   auto last_second
+-    = std::chrono::duration_cast<std::chrono::seconds>(end_of_time).count();
++    = chrono::duration_cast<chrono::seconds>(end_of_time).count();
+   if (last_second > std::numeric_limits<std::time_t>::max())
+-    return; // can't test overflow
++  {
++    puts("Range of time_t is smaller than range of chrono::file_clock, "
++	 "can't test for overflow on this target.");
++    return;
++  }
+ 
++  // Set mtime to a date past the maximum possible file_time_type:
+ #if _GLIBCXX_USE_UTIMENSAT
+   struct ::timespec ts[2];
+   ts[0].tv_sec = 0;
+@@ -84,25 +92,34 @@ test01()
+   times.actime = std::numeric_limits<std::time_t>::max() - 1;
+   VERIFY( !::utime(p.string().c_str(), &times) );
+ #else
++  puts("No utimensat or utime, giving up.");
+   return;
+ #endif
+ 
++  // Try to read back the impossibly-large mtime:
+   mtime = last_write_time(p, ec);
+-  VERIFY( ec );
+-  VERIFY( ec == std::make_error_code(std::errc::value_too_large) );
+-  VERIFY( mtime == time_type::min() );
++  // Some filesystems (e.g. XFS) silently truncate distant times to
++  // the time_t epochalypse, Jan 19 2038, so we won't get an error when
++  // reading it back:
++  if (ec)
++  {
++    VERIFY( ec == std::make_error_code(std::errc::value_too_large) );
++    VERIFY( mtime == time_type::min() );
++  }
++  else
++    puts("No overflow error, filesystem may not support 64-bit time_t.");
+ 
+ #if __cpp_exceptions
+-  caught = false;
++  // Once more, with exceptions:
+   try {
+-    mtime = last_write_time(p);
+-  } catch (std::system_error const& e) {
+-    caught = true;
+-    ec = e.code();
++    auto mtime2 = last_write_time(p);
++    // If it didn't throw, expect to have read back the same value:
++    VERIFY( mtime2 == mtime );
++  } catch (std::filesystem::filesystem_error const& e) {
++    // If it did throw, expect the error_code to be the same:
++    VERIFY( e.code() == ec );
++    VERIFY( e.path1() == p );
+   }
+-  VERIFY( caught );
+-  VERIFY( ec );
+-  VERIFY( ec == std::make_error_code(std::errc::value_too_large) );
+ #endif
+ }
+ 
+@@ -111,7 +128,7 @@ bool approx_equal(time_type file_time, time_type expected)
+   auto delta = expected - file_time;
+   if (delta < delta.zero())
+     delta = -delta;
+-  return delta < std::chrono::seconds(1);
++  return delta < chrono::seconds(1);
+ }
+ 
+ void
+@@ -124,20 +141,20 @@ test02()
+   std::error_code ec;
+   time_type time;
+ 
+-  time = last_write_time(f.path);
+   ec = bad_ec;
++  time = last_write_time(f.path);
+   last_write_time(f.path, time, ec);
+   VERIFY( !ec );
+   VERIFY( approx_equal(last_write_time(f.path), time) );
+ 
+   ec = bad_ec;
+-  time -= std::chrono::milliseconds(1000 * 60 * 10 + 15);
++  time -= chrono::milliseconds(1000 * 60 * 10 + 15);
+   last_write_time(f.path, time, ec);
+   VERIFY( !ec );
+   VERIFY( approx_equal(last_write_time(f.path), time) );
+ 
+   ec = bad_ec;
+-  time += std::chrono::milliseconds(1000 * 60 * 20 + 15);
++  time += chrono::milliseconds(1000 * 60 * 20 + 15);
+   last_write_time(f.path, time, ec);
+   VERIFY( !ec );
+   VERIFY( approx_equal(last_write_time(f.path), time) );
+@@ -146,6 +163,28 @@ test02()
+       < std::numeric_limits<std::int64_t>::max())
+     return; // file clock's epoch is out of range for 32-bit time_t
+ 
++  using sys_time_32b
++    = chrono::time_point<chrono::system_clock, chrono::duration<std::int32_t>>;
++  auto duration_until_2038 = sys_time_32b::max() - sys_time_32b::clock::now();
++  auto file_time_2038 = time_type::clock::now() + duration_until_2038;
++
++  ec = bad_ec;
++  time = file_time_2038 - chrono::seconds(1);
++  // Assume all filesystems can store times that fit in 32-bit time_t
++  // (i.e. up to Jan 19 2038)
++  last_write_time(f.path, time, ec);
++  VERIFY( !ec );
++  VERIFY( approx_equal(last_write_time(f.path), time) );
++
++  // Check whether the filesystem supports times larger than 32-bit time_t:
++  time += chrono::seconds(60);
++  last_write_time(f.path, time, ec);
++  if (ec || !approx_equal(last_write_time(f.path), time))
++  {
++    puts("Filesystem seems to truncate times past Jan 19 2038, giving up.");
++    return; // Tests below will fail on this filesystem
++  }
++
+   ec = bad_ec;
+   // The file clock's epoch:
+   time = time_type();
+@@ -155,14 +194,14 @@ test02()
+ 
+   ec = bad_ec;
+   // A time after the epoch
+-  time += std::chrono::milliseconds(1000 * 60 * 10 + 15);
++  time += chrono::milliseconds(1000 * 60 * 10 + 15);
+   last_write_time(f.path, time, ec);
+   VERIFY( !ec );
+   VERIFY( approx_equal(last_write_time(f.path), time) );
+ 
+   ec = bad_ec;
+   // A time before than the epoch
+-  time -= std::chrono::milliseconds(1000 * 60 * 20 + 15);
++  time -= chrono::milliseconds(1000 * 60 * 20 + 15);
+   last_write_time(f.path, time, ec);
+   VERIFY( !ec );
+   VERIFY( approx_equal(last_write_time(f.path), time) );
+new file mode 100644
+--- /dev/null
++++ b/src/libstdc++-v3/testsuite/27_io/filesystem/path/concat/94063.cc
+@@ -0,0 +1,111 @@
++// Copyright (C) 2020 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// { dg-options "-std=gnu++17" }
++// { dg-do run { target { *-*-*mingw* || *-*-cygwin } } }
++// { dg-require-effective-target c++17 }
++
++#include <filesystem>
++#include <testsuite_hooks.h>
++
++void
++test01()
++{
++  using std::filesystem::path;
++  path p;
++
++  // PR libstdc++/94063
++#ifdef _GLIBCXX_FILESYSTEM_IS_WINDOWS
++  p = L"C";
++  p += path(L":");
++  VERIFY( p.has_root_name() );
++  VERIFY( p.root_name() == p );
++  p += path(L"\\");
++  VERIFY( p.has_root_name() );
++  VERIFY( p.has_root_directory() );
++  VERIFY( p.root_name() == L"C:" );
++  VERIFY( p.root_directory() == L"\\" );
++
++  p = L"C";
++  p += L':';
++  VERIFY( p.has_root_name() );
++  VERIFY( p.root_name() == p );
++  p += L'\\';
++  VERIFY( p.has_root_name() );
++  VERIFY( p.has_root_directory() );
++  VERIFY( p.root_name() == L"C:" );
++  VERIFY( p.root_directory() == L"\\" );
++
++  p = L"C:";
++  p += path(L"/foo");
++  VERIFY( p.has_root_name() );
++  VERIFY( p.has_root_directory() );
++  VERIFY( p.root_name() == L"C:" );
++  VERIFY( p.root_directory() == L"/" );
++  VERIFY( p.filename() == L"foo" );
++
++  p = L"C:";
++  p += L"/foo";
++  VERIFY( p.has_root_name() );
++  VERIFY( p.has_root_directory() );
++  VERIFY( p.root_name() == L"C:" );
++  VERIFY( p.root_directory() == L"/" );
++  VERIFY( p.filename() == L"foo" );
++
++  p = L"C";
++  p += path(L":/foo");
++  VERIFY( p.has_root_name() );
++  VERIFY( p.has_root_directory() );
++  VERIFY( p.root_name() == L"C:" );
++  VERIFY( p.root_directory() == L"/" );
++  VERIFY( p.filename() == L"foo" );
++
++  p = L"C";
++  p += L":/foo";
++  VERIFY( p.has_root_name() );
++  VERIFY( p.has_root_directory() );
++  VERIFY( p.root_name() == L"C:" );
++  VERIFY( p.root_directory() == L"/" );
++  VERIFY( p.filename() == L"foo" );
++#elif defined __CYGWIN__
++  p = "/";
++  p += path("/x");
++  VERIFY( p.has_root_name() );
++  VERIFY( p.root_name() == p );
++
++  p = "/";
++  p += "/x";
++  VERIFY( p.has_root_name() );
++  VERIFY( p.root_name() == p );
++
++  p = "/";
++  p += path("/");
++  VERIFY( !p.has_root_name() );
++  VERIFY( p.has_root_directory() );
++
++  p = "/";
++  p += "/";
++  VERIFY( !p.has_root_name() );
++  VERIFY( p.has_root_directory() );
++#endif
++}
++
++int
++main()
++{
++  test01();
++}
+--- a/src/libstdc++-v3/testsuite/27_io/filesystem/path/generic/generic_string.cc
++++ b/src/libstdc++-v3/testsuite/27_io/filesystem/path/generic/generic_string.cc
+@@ -1,7 +1,7 @@
+ // { dg-options "-std=gnu++17" }
+ // { dg-do run { target c++17 } }
+ 
+-// Copyright (C) 2017-2019 Free Software Foundation, Inc.
++// Copyright (C) 2017-2020 Free Software Foundation, Inc.
+ //
+ // This file is part of the GNU ISO C++ Library.  This library is free
+ // software; you can redistribute it and/or modify it under the
+@@ -46,8 +46,20 @@ test01()
+   VERIFY( path("/a//b//.").generic_string() == "/a/b/." );
+ }
+ 
++void
++test02()
++{
++  if constexpr (path::preferred_separator == L'\\')
++  {
++    // PR libstdc++/93244
++    VERIFY( path("C:\\foo\\bar").generic_string() == "C:/foo/bar" );
++    VERIFY( path("C://foo//bar").generic_string() == "C:/foo/bar" );
++  }
++}
++
+ int
+ main()
+ {
+   test01();
++  test02();
+ }
+new file mode 100644
+--- /dev/null
++++ b/src/libstdc++-v3/testsuite/27_io/filesystem/path/generic/utf.cc
+@@ -0,0 +1,65 @@
++// { dg-options "-std=gnu++17" }
++// { dg-do run { target c++17 } }
++
++// Copyright (C) 2017-2020 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// C++17 30.10.7.4.7 path generic format observers [fs.path.generic.obs]
++
++#include <filesystem>
++#include <testsuite_hooks.h>
++
++using std::filesystem::path;
++
++void
++test01()
++{
++  VERIFY( path().generic_u32string() == U"" );
++  VERIFY( path("/").generic_u32string() == U"/" );
++  VERIFY( path("////").generic_u32string() == U"/" );
++#ifdef __CYGWIN__
++  VERIFY( path("//a").generic_u32string() == U"//a" );
++  VERIFY( path("//a/").generic_u32string() == U"//a/" );
++  VERIFY( path("//a/b").generic_u32string() == U"//a/b" );
++#else
++  VERIFY( path("//a").generic_u32string() == U"/a" );
++  VERIFY( path("//a/").generic_u32string() == U"/a/" );
++  VERIFY( path("//a/b").generic_u32string() == U"/a/b" );
++#endif
++  VERIFY( path("/a//b").generic_u32string() == U"/a/b" );
++  VERIFY( path("/a//b/").generic_u32string() == U"/a/b/" );
++  VERIFY( path("/a//b//").generic_u32string() == U"/a/b/" );
++  VERIFY( path("/a//b//.").generic_u32string() == U"/a/b/." );
++}
++
++void
++test02()
++{
++  if constexpr (path::preferred_separator == L'\\')
++  {
++    // PR libstdc++/93244
++    VERIFY( path("C:\\foo\\bar").generic_u32string() == U"C:/foo/bar" );
++    VERIFY( path("C://foo//bar").generic_u32string() == U"C:/foo/bar" );
++  }
++}
++
++int
++main()
++{
++  test01();
++  test02();
++}
+new file mode 100644
+--- /dev/null
++++ b/src/libstdc++-v3/testsuite/27_io/filesystem/path/generic/wchar_t.cc
+@@ -0,0 +1,65 @@
++// { dg-options "-std=gnu++17" }
++// { dg-do run { target c++17 } }
++
++// Copyright (C) 2017-2020 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// C++17 30.10.7.4.7 path generic format observers [fs.path.generic.obs]
++
++#include <filesystem>
++#include <testsuite_hooks.h>
++
++using std::filesystem::path;
++
++void
++test01()
++{
++  VERIFY( path().generic_wstring() == L"" );
++  VERIFY( path("/").generic_wstring() == L"/" );
++  VERIFY( path("////").generic_wstring() == L"/" );
++#ifdef __CYGWIN__
++  VERIFY( path("//a").generic_wstring() == L"//a" );
++  VERIFY( path("//a/").generic_wstring() == L"//a/" );
++  VERIFY( path("//a/b").generic_wstring() == L"//a/b" );
++#else
++  VERIFY( path("//a").generic_wstring() == L"/a" );
++  VERIFY( path("//a/").generic_wstring() == L"/a/" );
++  VERIFY( path("//a/b").generic_wstring() == L"/a/b" );
++#endif
++  VERIFY( path("/a//b").generic_wstring() == L"/a/b" );
++  VERIFY( path("/a//b/").generic_wstring() == L"/a/b/" );
++  VERIFY( path("/a//b//").generic_wstring() == L"/a/b/" );
++  VERIFY( path("/a//b//.").generic_wstring() == L"/a/b/." );
++}
++
++void
++test02()
++{
++  if constexpr (path::preferred_separator == L'\\')
++  {
++    // PR libstdc++/93244
++    VERIFY( path("C:\\foo\\bar").generic_wstring() == L"C:/foo/bar" );
++    VERIFY( path("C://foo//bar").generic_wstring() == L"C:/foo/bar" );
++  }
++}
++
++int
++main()
++{
++  test01();
++  test02();
++}
+--- a/src/libstdc++-v3/testsuite/experimental/filesystem/operations/last_write_time.cc
++++ b/src/libstdc++-v3/testsuite/experimental/filesystem/operations/last_write_time.cc
+@@ -22,6 +22,7 @@
+ // 15.25 Permissions [fs.op.last_write_time]
+ 
+ #include <experimental/filesystem>
++#include <limits>
+ #include <testsuite_fs.h>
+ #include <testsuite_hooks.h>
+ 
+@@ -31,9 +32,12 @@
+ #if _GLIBCXX_HAVE_UTIME_H
+ # include <utime.h>
+ #endif
++#include <stdio.h>
+ 
+ using time_type = std::experimental::filesystem::file_time_type;
+ 
++namespace chrono = std::chrono;
++
+ void
+ test01()
+ {
+@@ -66,10 +70,15 @@ test01()
+ 
+   auto end_of_time = time_type::duration::max();
+   auto last_second
+-    = std::chrono::duration_cast<std::chrono::seconds>(end_of_time).count();
++    = chrono::duration_cast<chrono::seconds>(end_of_time).count();
+   if (last_second > std::numeric_limits<std::time_t>::max())
+-    return; // can't test overflow
++  {
++    puts("Range of time_t is smaller than range of chrono::file_clock, "
++	 "can't test for overflow on this target.");
++    return;
++  }
+ 
++  // Set mtime to a date past the maximum possible file_time_type:
+ #if _GLIBCXX_USE_UTIMENSAT
+   struct ::timespec ts[2];
+   ts[0].tv_sec = 0;
+@@ -83,25 +92,34 @@ test01()
+   times.actime = std::numeric_limits<std::time_t>::max() - 1;
+   VERIFY( !::utime(p.string().c_str(), &times) );
+ #else
++  puts("No utimensat or utime, giving up.");
+   return;
+ #endif
+ 
++  // Try to read back the impossibly-large mtime:
+   mtime = last_write_time(p, ec);
+-  VERIFY( ec );
+-  VERIFY( ec == std::make_error_code(std::errc::value_too_large) );
+-  VERIFY( mtime == time_type::min() );
++  // Some filesystems (e.g. XFS) silently truncate distant times to
++  // the time_t epochalypse, Jan 19 2038, so we won't get an error when
++  // reading it back:
++  if (ec)
++  {
++    VERIFY( ec == std::make_error_code(std::errc::value_too_large) );
++    VERIFY( mtime == time_type::min() );
++  }
++  else
++    puts("No overflow error, filesystem may not support 64-bit time_t.");
+ 
+ #if __cpp_exceptions
+-  caught = false;
++  // Once more, with exceptions:
+   try {
+-    mtime = last_write_time(p);
+-  } catch (std::system_error const& e) {
+-    caught = true;
+-    ec = e.code();
++    auto mtime2 = last_write_time(p);
++    // If it didn't throw, expect to have read back the same value:
++    VERIFY( mtime2 == mtime );
++  } catch (std::experimental::filesystem::filesystem_error const& e) {
++    // If it did throw, expect the error_code to be the same:
++    VERIFY( e.code() == ec );
++    VERIFY( e.path1() == p );
+   }
+-  VERIFY( caught );
+-  VERIFY( ec );
+-  VERIFY( ec == std::make_error_code(std::errc::value_too_large) );
+ #endif
+ }
+ 
+@@ -110,7 +128,7 @@ bool approx_equal(time_type file_time, time_type expected)
+   auto delta = expected - file_time;
+   if (delta < delta.zero())
+     delta = -delta;
+-  return delta < std::chrono::seconds(1);
++  return delta < chrono::seconds(1);
+ }
+ 
+ void
+@@ -118,31 +136,37 @@ test02()
+ {
+   // write times
+ 
++  const std::error_code bad_ec = make_error_code(std::errc::invalid_argument);
+   __gnu_test::scoped_file f;
+   std::error_code ec;
+   time_type time;
+ 
++  ec = bad_ec;
+   time = last_write_time(f.path);
+   last_write_time(f.path, time, ec);
+   VERIFY( !ec );
+   VERIFY( approx_equal(last_write_time(f.path), time) );
+ 
+-  time -= std::chrono::milliseconds(1000 * 60 * 10 + 15);
++  ec = bad_ec;
++  time -= chrono::milliseconds(1000 * 60 * 10 + 15);
+   last_write_time(f.path, time, ec);
+   VERIFY( !ec );
+   VERIFY( approx_equal(last_write_time(f.path), time) );
+ 
+-  time += std::chrono::milliseconds(1000 * 60 * 20 + 15);
++  ec = bad_ec;
++  time += chrono::milliseconds(1000 * 60 * 20 + 15);
+   last_write_time(f.path, time, ec);
+   VERIFY( !ec );
+   VERIFY( approx_equal(last_write_time(f.path), time) );
+ 
++  ec = bad_ec;
+   time = time_type();
+   last_write_time(f.path, time, ec);
+   VERIFY( !ec );
+   VERIFY( approx_equal(last_write_time(f.path), time) );
+ 
+-  time -= std::chrono::milliseconds(1000 * 60 * 10 + 15);
++  ec = bad_ec;
++  time -= chrono::milliseconds(1000 * 60 * 10 + 15);
+   last_write_time(f.path, time, ec);
+   VERIFY( !ec );
+   VERIFY( approx_equal(last_write_time(f.path), time) );
+--- a/src/libstdc++-v3/testsuite/tr1/8_c_compatibility/cstdlib/functions.cc
++++ b/src/libstdc++-v3/testsuite/tr1/8_c_compatibility/cstdlib/functions.cc
+@@ -30,7 +30,7 @@ void test01()
+ #if _GLIBCXX_USE_C99_STDLIB
+ 
+   long long i = 0;
+-  const char* s = 0;
++  const char* s = "";
+   char** endptr = 0;
+   int base = 0;
+ 
