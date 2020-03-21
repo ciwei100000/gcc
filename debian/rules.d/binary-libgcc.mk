@@ -138,8 +138,10 @@ define __do_gcc_devels2
 	$(dh_compat2) dh_movefiles -p$(2) \
 		$(3)/{libgcc*,libgcov.a,*.o} \
 		$(if $(1),,$(gcc_lib_dir)/include/*.h $(gcc_lib_dir)/sanitizer/*.h) # Only move headers for the "main" package
-	$(if $(1),,mv debian/$(2)/$(gcc_lib_dir)/include/ISO_Fortran_binding.h \
-	  $(d)/$(gcc_lib_dir)/include/.)
+	$(if $(1),, for h in ISO_Fortran_binding.h libgccjit.h libgccjit++.h; do \
+	  if [ -f debian/$(2)/$(gcc_lib_dir)/include/$$h ]; then \
+	    mv debian/$(2)/$(gcc_lib_dir)/include/$$h $(d)/$(gcc_lib_dir)/include/.; \
+	  fi; done)
 
 	: # libbacktrace not installed by default
 	$(if $(filter yes, $(with_backtrace)),

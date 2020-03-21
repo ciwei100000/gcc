@@ -374,6 +374,9 @@ Depends: BASELDEP, ${dep:libgcc}, ${dep:libssp}, ${dep:libgomp}, ${dep:libitm},
  ${dep:libqmath}, ${dep:libunwinddev}, ${shlibs:Depends}, ${misc:Depends}
 ifdef(`MULTIARCH', `Multi-Arch: same
 ')`'dnl
+ifdef(`TARGET',`',`Breaks: libgccjit`'PV-dev (<< 10-20200321-1)
+Replaces: libgccjit`'PV-dev (<< 10-20200321-1)
+')`'dnl
 BUILT_USING`'dnl
 Description: GCC support library (development files)
  This package contains the headers and static library files necessary for
