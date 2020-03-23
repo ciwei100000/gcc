@@ -44,8 +44,8 @@ ifneq ($(DEB_STAGE),rtlibs)
   endif
 endif
 
-p_lgcc		= libgcc$(GCC_SONAME)$(cross_lib_arch)
-p_lgccdbg	= libgcc$(GCC_SONAME)-dbg$(cross_lib_arch)
+p_lgcc		= lib$(libgcc_basename)$(GCC_SONAME)$(cross_lib_arch)
+p_lgccdbg	= lib$(libgcc_basename)$(GCC_SONAME)-dbg$(cross_lib_arch)
 p_lgccdev	= libgcc-$(BASE_VERSION)-dev$(cross_lib_arch)
 d_lgcc		= debian/$(p_lgcc)
 d_lgccdbg	= debian/$(p_lgccdbg)
