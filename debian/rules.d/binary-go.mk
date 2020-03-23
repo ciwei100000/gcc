@@ -114,7 +114,7 @@ define __do_gccgo
 		$(usr_lib$(2))/libgo.so.*
 
 	debian/dh_doclink -p$(p_l) $(p_lbase)
-	debian/dh_doclink -p$(p_d) $(p_lbase)
+	$(if $(with_dbg),debian/dh_doclink -p$(p_d) $(p_lbase))
 
 	mkdir -p debian/$(p_l)/usr/share/lintian/overrides
 	echo '$(p_l) binary: unstripped-binary-or-object' \
