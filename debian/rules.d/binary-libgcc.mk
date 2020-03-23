@@ -44,66 +44,6 @@ ifneq ($(DEB_STAGE),rtlibs)
   endif
 endif
 
-header_files = \
-	$(gcc_lib_dir)/include/std*.h \
-	$(shell for h in \
-		    README features.h arm_fp16.h arm_neon.h arm_cmse.h loongson.h \
-		    {cpuid,decfloat,float,gcov,iso646,limits,mm3dnow,mm_malloc}.h \
-		    {ppu_intrinsics,paired,spu2vmx,vec_types,si2vmx}.h \
-		    {,a,b,e,i,n,p,s,t,w,x}mmintrin.h mmintrin-common.h \
-		    {abm,adx,avx,avx2,bmi,bmi2,f16c,fma,fma4,fxsr,ia32,}intrin.h \
-		    {lwp,lzcnt,popcnt,prfchw,rdseed,rtm,tbm,x86,xop,xsave{,opt},xtest,}intrin.h \
-		    {htm,htmxl,mwaitx,pku,sha,vaes,vec,sgx}intrin.h \
-		    avx512{bw,er,cd,dq,f,ifma,ifmavl,pf,vlbw,vbmi,vldq,vbmivl,vl}intrin.h \
-		    avx512{4fmaps,4vnniw,bitalg,vnni,vnnivl,vpopcntdq,vpopcntdqvl}intrin.h \
-		    avx512vbmi{2,2vl}intrin.h \
-		    {movdir,pconfig,vpclmulqdq,wbnoinvd}intrin.h \
-		    {cet,clflushopt,clwb,clzero,gfni,pcommit,xsavec,xsaves}intrin.h \
-		    {arm_acle,unwind-arm-common,s390intrin}.h \
-		    amo.h msa.h \
-		    {cet,cross-stdarg,syslimits,unwind,varargs}.h; \
-		do \
-		  test -e $(d)/$(gcc_lib_dir)/include/$$h \
-		    && echo $(gcc_lib_dir)/include/$$h; \
-		done) \
-	$(shell for d in \
-		  asm bits cilk gnu linux sanitizer $(TARGET_ALIAS) \
-		  $(subst $(DEB_TARGET_GNU_CPU),$(biarch_cpu),$(TARGET_ALIAS)); \
-		do \
-		  test -e $(d)/$(gcc_lib_dir)/include/$$d \
-		    && echo $(gcc_lib_dir)/include/$$d; \
-		done)
-
-ifeq ($(with_libssp),yes)
-    header_files += $(gcc_lib_dir)/include/ssp
-endif
-ifeq ($(with_gomp),yes)
-    header_files += $(gcc_lib_dir)/include/{omp,openacc}.h
-endif
-ifeq ($(with_qmath),yes)
-    header_files += $(gcc_lib_dir)/include/quadmath{,_weak}.h
-endif
-
-ifeq ($(DEB_TARGET_ARCH),ia64)
-    header_files += $(gcc_lib_dir)/include/ia64intrin.h
-endif
-
-ifeq ($(DEB_TARGET_ARCH),m68k)
-    header_files += $(gcc_lib_dir)/include/math-68881.h
-endif
-
-ifneq (,$(filter $(DEB_TARGET_ARCH),powerpc ppc64 ppc64el))
-    header_files += $(gcc_lib_dir)/include/{altivec.h,ppc-asm.h}
-endif
-
-ifeq ($(DEB_TARGET_ARCH),powerpcspe)
-    header_files += $(gcc_lib_dir)/include/{ppc-asm.h,spe.h}
-endif
-
-ifeq ($(DEB_TARGET_ARCH),tilegx)
-    header_files += $(gcc_lib_dir)/include/feedback.h
-endif
-
 p_lgcc		= libgcc$(GCC_SONAME)$(cross_lib_arch)
 p_lgccdbg	= libgcc$(GCC_SONAME)-dbg$(cross_lib_arch)
 p_lgccdev	= libgcc-$(BASE_VERSION)-dev$(cross_lib_arch)
@@ -199,7 +139,11 @@ define __do_gcc_devels2
 	)
 	$(dh_compat2) dh_movefiles -p$(2) \
 		$(3)/{libgcc*,libgcov.a,*.o} \
-		$(if $(1),,$(header_files)) # Only move headers for the "main" package
+		$(if $(1),,$(gcc_lib_dir)/include/*.h $(gcc_lib_dir)/include/sanitizer/*.h) # Only move headers for the "main" package
+	$(if $(1),, for h in libgccjit.h libgccjit++.h; do \
+	  if [ -f debian/$(2)/$(gcc_lib_dir)/include/$$h ]; then \
+	    mv debian/$(2)/$(gcc_lib_dir)/include/$$h $(d)/$(gcc_lib_dir)/include/.; \
+	  fi; done)
 
 	: # libbacktrace not installed by default
 	$(if $(filter yes, $(with_backtrace)),
