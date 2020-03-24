@@ -791,7 +791,7 @@ ifeq ($(single_package),yes)
     with_offload_gcn := disabled for snapshot builds
   endif
 endif
-ifneq ($(findstring nonvptx, $(DEB_BUILD_OPTIONS)),)
+ifneq ($(findstring nogcn, $(DEB_BUILD_OPTIONS)),)
   with_offload_gcn := disabled by DEB_BUILD_OPTIONS
 endif
 with_offload_gcn := $(call envfilt, gcn, , , $(with_offload_gcn))
@@ -808,6 +808,9 @@ endif
 
 ifeq ($(single_package),yes)
   with_offload_hsa := disabled for snapshot builds
+endif
+ifneq ($(findstring nohsa, $(DEB_BUILD_OPTIONS)),)
+  with_offload_hsa := disabled by DEB_BUILD_OPTIONS
 endif
 with_offload_hsa := $(call envfilt, hsa, , , $(with_offload_hsa))
 #with_offload_hsa := not yet built for GCC 10
@@ -1656,7 +1659,7 @@ endif
 #    with_check := disabled for $(DEB_HOST_ARCH), testsuite timeouts with expect
 #  endif
 #endif
-#with_check := disabled for this upload
+with_check := disabled for this upload
 
 # not a dependency on all archs, but if available, use it for the testsuite
 ifneq (,$(wildcard /usr/bin/localedef))
