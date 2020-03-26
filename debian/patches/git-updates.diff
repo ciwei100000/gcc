@@ -1,13 +1,42 @@
-# DP: updates from the 9 branch upto 20200320 (bf061b9a5f7).
+# DP: updates from the 9 branch upto 20200324 (95c969e58f7).
 
 LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
-	4212a6a3e44f870412d9025eeb323fd4f50a61da bf061b9a5f77bfda10bd5a82eb6db2cc5a71d271 \
+	4212a6a3e44f870412d9025eeb323fd4f50a61da 95c969e58f7905b14d3f2889cf41595eb2c13cbb \
 	| awk '/^diff .*\.texi/ {skip=1; next} /^diff / { skip=0 } skip==0' \
 	| grep -v -E '^(diff|index)'
 
 --- a/src/gcc/ChangeLog
 +++ b/src/gcc/ChangeLog
-@@ -1,3 +1,145 @@
+@@ -1,3 +1,174 @@
++2020-03-24  Bin Cheng  <bin.cheng@linux.alibaba.com>
++
++	Backport from mainline
++	2020-03-16  Bin Cheng  <bin.cheng@linux.alibaba.com>
++
++	PR tree-optimization/94125
++	* tree-loop-distribution.c
++	(loop_distribution::break_alias_scc_partitions): Update post order
++	number for merged scc.
++
++2020-03-23  Will Schmidt  <will_schmidt@vnet.ibm.com>
++
++	Backport from mainline
++	2020-03-10  Will Schmidt  <will_schmidt@vnet.ibm.com>
++
++	PR target/90763
++	    * config/rs6000/rs6000-c.c (altivec_resolve_overloaded_builtin):
++	    Add clause to handle P9V_BUILTIN_VEC_LXVL with const arguments.
++
++2020-03-23  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backport from master.
++	2020-03-22  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* config/i386/darwin.h (JUMP_TABLES_IN_TEXT_SECTION): Remove
++	references to Darwin.
++	* config/i386/i386.h (JUMP_TABLES_IN_TEXT_SECTION): Define this
++	unconditionally and comment on why.
++
 +2020-03-19  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	Backport from mainline
@@ -157,7 +186,7 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
 +++ b/src/gcc/DATESTAMP
 @@ -1 +1 @@
 -20200312
-+20200320
++20200324
 --- a/src/gcc/builtins.c
 +++ b/src/gcc/builtins.c
 @@ -3112,27 +3112,25 @@ expand_builtin_strnlen (tree exp, rtx target, machine_mode target_mode)
@@ -246,6 +275,41 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  )
  
  ;; Subroutine to store a half word from a register into memory.
+--- a/src/gcc/config/i386/darwin.h
++++ b/src/gcc/config/i386/darwin.h
+@@ -239,6 +239,16 @@ along with GCC; see the file COPYING3.  If not see
+ #undef TARGET_ASM_OUTPUT_IDENT
+ #define TARGET_ASM_OUTPUT_IDENT default_asm_output_ident_directive
+ 
++/* We always want jump tables in the text section:
++   * for PIC code, we need the subtracted symbol to be defined at
++     assembly-time.
++   * for mdynamic-no-pic, we cannot support jump tables in the .const
++     section for weak functions, this looks to ld64 like direct access
++     to the weak symbol from an anonymous atom.  */
++
++#undef JUMP_TABLES_IN_TEXT_SECTION
++#define JUMP_TABLES_IN_TEXT_SECTION 1
++
+ /* Darwin profiling -- call mcount.  */
+ #undef FUNCTION_PROFILER
+ #define FUNCTION_PROFILER(FILE, LABELNO)				\
+--- a/src/gcc/config/i386/i386.h
++++ b/src/gcc/config/i386/i386.h
+@@ -2232,11 +2232,10 @@ extern int const svr4_dbx_register_map[FIRST_PSEUDO_REGISTER];
+ 
+ /* Under some conditions we need jump tables in the text section,
+    because the assembler cannot handle label differences between
+-   sections.  This is the case for x86_64 on Mach-O for example.  */
++   sections.  */
+ 
+ #define JUMP_TABLES_IN_TEXT_SECTION \
+-  (flag_pic && ((TARGET_MACHO && TARGET_64BIT) \
+-   || (!TARGET_64BIT && !HAVE_AS_GOTOFF_IN_DATA)))
++  (flag_pic && !(TARGET_64BIT || HAVE_AS_GOTOFF_IN_DATA))
+ 
+ /* Switch to init or fini section via SECTION_OP, emit a call to FUNC,
+    and switch back.  For x86 we do this only to save a few bytes that
 --- a/src/gcc/config/pdp11/pdp11.c
 +++ b/src/gcc/config/pdp11/pdp11.c
 @@ -744,6 +744,7 @@ void
@@ -266,6 +330,28 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
        assemble_name (file, name);
        fputs (":", file);
        ASM_OUTPUT_SKIP (file, size);
+--- a/src/gcc/config/rs6000/rs6000-c.c
++++ b/src/gcc/config/rs6000/rs6000-c.c
+@@ -6853,6 +6853,19 @@ altivec_resolve_overloaded_builtin (location_t loc, tree fndecl,
+ 	  arg = fold_convert (type, arg);
+ 	}
+ 
++      /* For P9V_BUILTIN_VEC_LXVL, convert any const * to its non constant
++	 equivalent to simplify the overload matching below.  */
++      if (fcode == P9V_BUILTIN_VEC_LXVL)
++	{
++	  if (POINTER_TYPE_P (type)
++	      && TYPE_READONLY (TREE_TYPE (type)))
++	    {
++	      type = build_pointer_type (build_qualified_type (
++						TREE_TYPE (type),0));
++	      arg = fold_convert (type, arg);
++	    }
++	}
++
+       args[n] = arg;
+       types[n] = type;
+     }
 --- a/src/gcc/config/rs6000/rs6000-cpus.def
 +++ b/src/gcc/config/rs6000/rs6000-cpus.def
 @@ -88,6 +88,10 @@
@@ -532,7 +618,23 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  extern void init_resource_info (rtx_insn *);
 --- a/src/gcc/testsuite/ChangeLog
 +++ b/src/gcc/testsuite/ChangeLog
-@@ -1,3 +1,85 @@
+@@ -1,3 +1,101 @@
++2020-03-24  Bin Cheng  <bin.cheng@linux.alibaba.com>
++
++	Backport from mainline
++	2020-03-16  Bin Cheng  <bin.cheng@linux.alibaba.com>
++
++	PR tree-optimization/94125
++	* gcc.dg/tree-ssa/pr94125.c: New test.
++
++2020-03-23  Will Schmidt  <will_schmidt@vnet.ibm.com>
++
++	Backport from mainline
++	2020-03-10  Will Schmidt  <will_schmidt@vnet.ibm.com>
++
++	PR target/90763
++	* gcc.target/powerpc/pr90763.c: New.
++
 +2020-03-19  Jiufu Guo  <guojiufu@linux.ibm.com>
 +
 +	PR target/93709
@@ -861,6 +963,51 @@ new file mode 100644
 +{
 +  return __builtin_strnlen (a, 5);	/* { dg-warning "specified bound 5 exceeds the size 4 of unterminated array" } */
 +}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.dg/tree-ssa/pr94125.c
+@@ -0,0 +1,41 @@
++/* { dg-do run } */
++/* { dg-options "-O3" } */
++
++unsigned char b, f;
++short d[1][8][1], *g = &d[0][3][0];
++
++void __attribute__((noinline)) foo ()
++{
++  int k[256] = { 0, 0, 0, 4, 0, 0 };
++  for (int c = 252; c >= 0; c--)
++    {
++      b = f;
++      *g = k[c + 3];
++      k[c + 1] = 0;
++    }
++  for (int i = 0; i < 8; i++)
++    if (d[0][i][0] != 0)
++      __builtin_abort ();
++}
++
++void __attribute__((noinline)) bar ()
++{
++  int k[256] = { 0, 0, 0, 4, 0, 0 };
++  k[255] = 4;
++  for (int c = 0; c <=252; c++)
++    {
++      b = f;
++      *g = k[c + 3];
++      k[c + 1] = 0;
++    }
++  for (int i = 0; i < 8; i++)
++    if ((i == 3 && d[0][i][0] != 4) || (i != 3 && d[0][i][0] != 0))
++      __builtin_abort ();
++}
++
++int main ()
++{
++  foo ();
++  bar ();
++  return 0;
++}
 --- a/src/gcc/testsuite/gcc.dg/vect/slp-perm-12.c
 +++ b/src/gcc/testsuite/gcc.dg/vect/slp-perm-12.c
 @@ -49,4 +49,4 @@ int main()
@@ -903,6 +1050,98 @@ new file mode 100644
 +{
 +  return a > b ? b : a;
 +}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.target/powerpc/pr90763.c
+@@ -0,0 +1,88 @@
++/* { dg-do compile { target { powerpc*-*-* && lp64 } } } */
++/* { dg-require-effective-target powerpc_p9vector_ok } */
++/* { dg-options "-mcpu=power9 -O2" } */
++
++/* PR90763: PowerPC vec_xl_len should take const.
++*/
++
++#include <altivec.h>
++
++vector unsigned char vec_load_uc(unsigned char *p, int num) {
++    return vec_xl_len(p, num);
++}
++vector unsigned char vec_load_const_uc(const unsigned char *p, int num) {
++    return vec_xl_len(p, num);
++}
++vector signed char vec_load_sc(signed char *p, int num) {
++    return vec_xl_len(p, num);
++}
++vector signed char vec_load_const_sc(const signed char *p, int num) {
++    return vec_xl_len(p, num);
++}
++
++vector signed short vec_load_ss(signed short *p, int num) {
++    return vec_xl_len(p, num);
++}
++vector signed short vec_load_const_ss(const signed short *p, int num) {
++    return vec_xl_len(p, num);
++}
++vector unsigned short vec_load_us(unsigned short *p, int num) {
++    return vec_xl_len(p, num);
++}
++vector unsigned short vec_load_const_us(const unsigned short *p, int num) {
++    return vec_xl_len(p, num);
++}
++
++vector signed int vec_load_si(signed int *p, int num) {
++    return vec_xl_len(p, num);
++}
++vector signed int vec_load_const_si(const signed int *p, int num) {
++    return vec_xl_len(p, num);
++}
++vector unsigned int vec_load_ui(unsigned int *p, int num) {
++    return vec_xl_len(p, num);
++}
++vector unsigned int vec_load_const_ui(const unsigned int *p, int num) {
++    return vec_xl_len(p, num);
++}
++
++vector signed long long vec_load_sll(signed long long *p, int num) {
++    return vec_xl_len(p, num);
++}
++vector signed long long vec_load_const_sll(const signed long long *p, int num) {
++    return vec_xl_len(p, num);
++}
++vector unsigned long long vec_load_ull(unsigned long long *p, int num) {
++    return vec_xl_len(p, num);
++}
++vector unsigned long long vec_load_const_ull(const unsigned long long *p, int num) {
++    return vec_xl_len(p, num);
++}
++
++vector signed __int128 vec_load_si128(signed __int128 *p, int num) {
++    return vec_xl_len(p, num);
++}
++vector signed __int128 vec_load_const_si128(const signed __int128 *p, int num) {
++    return vec_xl_len(p, num);
++}
++vector unsigned __int128 vec_load_ui128(unsigned __int128 *p, int num) {
++    return vec_xl_len(p, num);
++}
++vector unsigned __int128 vec_load_const_ui128(const unsigned __int128 *p, int num) {
++    return vec_xl_len(p, num);
++}
++
++vector float vec_load_f(float *p, int num) {
++    return vec_xl_len(p, num);
++}
++vector float vec_load_const_f(const float *p, int num) {
++    return vec_xl_len(p, num);
++}
++
++vector double vec_load_d(double *p, int num) {
++    return vec_xl_len(p, num);
++}
++vector double vec_load_const_d(const double *p, int num) {
++    return vec_xl_len(p, num);
++}
++
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/gcc.target/powerpc/pr93800.c
@@ -975,6 +1214,26 @@ new file mode 100644
    if (partition->kind == PKIND_MEMCPY
        || ! ptr_derefs_may_alias_p (dest, src))
      kind = BUILT_IN_MEMCPY;
+@@ -2364,14 +2364,11 @@ break_alias_scc_partitions (struct graph *rdg,
+ 	      if (cbdata.vertices_component[k] != i)
+ 		continue;
+ 
+-	      /* Update postorder number so that merged reduction partition is
+-		 sorted after other partitions.  */
+-	      if (!partition_reduction_p (first)
+-		  && partition_reduction_p (partition))
+-		{
+-		  gcc_assert (pg->vertices[k].post < pg->vertices[j].post);
+-		  pg->vertices[j].post = pg->vertices[k].post;
+-		}
++	      /* Update to the minimal postordeer number of vertices in scc so
++		 that merged partition is sorted correctly against others.  */
++	      if (pg->vertices[j].post > pg->vertices[k].post)
++		pg->vertices[j].post = pg->vertices[k].post;
++
+ 	      partition_merge_into (NULL, first, partition, FUSE_SAME_SCC);
+ 	      (*partitions)[k] = NULL;
+ 	      partition_free (partition);
 --- a/src/gcc/tree-nested.c
 +++ b/src/gcc/tree-nested.c
 @@ -1178,7 +1178,7 @@ convert_nonlocal_omp_clauses (tree *pclauses, struct walk_stmt_info *wi)
