@@ -1,13 +1,24 @@
-# DP: updates from the 9 branch upto 20200324 (95c969e58f7).
+# DP: updates from the 9 branch upto 20200331 (bebb36077969).
 
 LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
-	4212a6a3e44f870412d9025eeb323fd4f50a61da 95c969e58f7905b14d3f2889cf41595eb2c13cbb \
+	4212a6a3e44f870412d9025eeb323fd4f50a61da bebb360779696d91a2e9ce0ec00da3a0f8cb7936 \
 	| awk '/^diff .*\.texi/ {skip=1; next} /^diff / { skip=0 } skip==0' \
 	| grep -v -E '^(diff|index)'
 
 --- a/src/gcc/ChangeLog
 +++ b/src/gcc/ChangeLog
-@@ -1,3 +1,174 @@
+@@ -1,3 +1,185 @@
++2020-03-24  John David Anglin  <danglin@gcc.gnu.org>
++
++	PR lto/94249
++	* config/pa/pa.h (TARGET_CPU_CPP_BUILTINS): Define __BIG_ENDIAN__.
++
++2020-03-24  Tamar Christina  <tamar.christina@arm.com>
++
++	PR target/94052
++	* config/aarch64/aarch64-simd.md (mov<mode>): Remove paradoxical
++	subregs of VSTRUCT modes.
++
 +2020-03-24  Bin Cheng  <bin.cheng@linux.alibaba.com>
 +
 +	Backport from mainline
@@ -186,7 +197,7 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
 +++ b/src/gcc/DATESTAMP
 @@ -1 +1 @@
 -20200312
-+20200324
++20200331
 --- a/src/gcc/builtins.c
 +++ b/src/gcc/builtins.c
 @@ -3112,27 +3112,25 @@ expand_builtin_strnlen (tree exp, rtx target, machine_mode target_mode)
@@ -227,6 +238,35 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  	}
  
        if (!len)
+--- a/src/gcc/config/aarch64/aarch64-simd.md
++++ b/src/gcc/config/aarch64/aarch64-simd.md
+@@ -5214,6 +5214,26 @@
+       if (GET_CODE (operands[0]) != REG)
+ 	operands[1] = force_reg (<MODE>mode, operands[1]);
+     }
++
++  /* If we have a paradoxical subreg trying to write to <MODE> from and the
++     registers don't overlap then we need to break it apart.  What it's trying
++     to do is give two kind of information at the same time.  It's trying to
++     convey liveness information by saying that the entire register will be
++     written to eventually, but it also only wants to write a single part of the
++     register.  Hence the paradoxical subreg.
++
++     Instead of allowing this we will split the two concerns.  The liveness
++     information will be conveyed using a clobber and then we break apart the
++     paradoxical subreg into just a normal write of the part that it wanted to
++     write originally.  */
++
++  if (REG_P (operands[0]) && paradoxical_subreg_p (operands[1]))
++    {
++      if (!reg_overlap_mentioned_p (operands[0], operands[1]))
++	emit_clobber (operands[0]);
++      operands[1] = SUBREG_REG (operands[1]);
++      operands[0] = gen_lowpart (GET_MODE (operands[1]), operands[0]);
++    }
+ })
+ 
+ 
 --- a/src/gcc/config/aarch64/aarch64.c
 +++ b/src/gcc/config/aarch64/aarch64.c
 @@ -2818,7 +2818,7 @@ aarch64_add_offset_1 (scalar_int_mode mode, rtx dest,
@@ -310,6 +350,16 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  
  /* Switch to init or fini section via SECTION_OP, emit a call to FUNC,
     and switch back.  For x86 we do this only to save a few bytes that
+--- a/src/gcc/config/pa/pa.h
++++ b/src/gcc/config/pa/pa.h
+@@ -171,6 +171,7 @@ do {								\
+      builtin_assert("machine=hppa");				\
+      builtin_define("__hppa");					\
+      builtin_define("__hppa__");				\
++     builtin_define("__BIG_ENDIAN__");				\
+      if (TARGET_PA_20)						\
+        builtin_define("_PA_RISC2_0");				\
+      else if (TARGET_PA_11)					\
 --- a/src/gcc/config/pdp11/pdp11.c
 +++ b/src/gcc/config/pdp11/pdp11.c
 @@ -744,6 +744,7 @@ void
@@ -402,7 +452,12 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
    for (i = 0; i < ARRAY_SIZE (flags); i++)
 --- a/src/gcc/cp/ChangeLog
 +++ b/src/gcc/cp/ChangeLog
-@@ -1,3 +1,21 @@
+@@ -1,3 +1,26 @@
++2020-03-27  Nathan Sidwell  <nathan@acm.org>
++
++	PR c++/84733
++	* name-lookup.c (do_pushdecl): Look through cleanp levels.
++
 +2020-03-14  Jason Merrill  <jason@redhat.com>
 +
 +	PR c++/92909
@@ -424,6 +479,18 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  2020-03-12  Release Manager
  
  	* GCC 9.3.0 released.
+--- a/src/gcc/cp/name-lookup.c
++++ b/src/gcc/cp/name-lookup.c
+@@ -2988,7 +2988,8 @@ do_pushdecl (tree decl, bool is_friend)
+   /* The binding level we will be pushing into.  During local class
+      pushing, we want to push to the containing scope.  */
+   cp_binding_level *level = current_binding_level;
+-  while (level->kind == sk_class)
++  while (level->kind == sk_class
++	 || level->kind == sk_cleanup)
+     level = level->level_chain;
+ 
+   /* An anonymous namespace has a NULL DECL_NAME, but we still want to
 --- a/src/gcc/cp/pt.c
 +++ b/src/gcc/cp/pt.c
 @@ -3773,10 +3773,18 @@ find_parameter_packs_r (tree *tp, int *walk_subtrees, void* data)
@@ -506,6 +573,72 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
    real_from_string3 (to, string, fmt);
  }
  
+--- a/src/gcc/fortran/ChangeLog
++++ b/src/gcc/fortran/ChangeLog
+@@ -1,3 +1,21 @@
++2020-03-28  Tobias Burnus  <tobias@codesourcery.com>
++
++	Backport from mainline
++	2020-03-28  Tobias Burnus  <tobias@codesourcery.com>
++
++	PR fortran/94348
++	* decl.c (gfc_match_submod_proc): Add result var to the
++	proc's namespace.
++
++2020-03-25  Mark Eggleston <markeggleston@gcc.gnu.org>
++
++	Backport from master
++	2020-03-25  Mark Eggleston <markeggleston@gcc.gnu.org>
++
++	PR fortran/93484
++	* match.c (gfc_match_type_spec): Replace gfc_match_init_expr with
++	gfc_match_expr. Return m if m is MATCH_NO or MATCH_ERROR.
++
+ 2020-03-12  Release Manager
+ 
+ 	* GCC 9.3.0 released.
+--- a/src/gcc/fortran/decl.c
++++ b/src/gcc/fortran/decl.c
+@@ -9602,13 +9602,20 @@ gfc_match_submod_proc (void)
+   if (get_proc_name (name, &sym, false))
+     return MATCH_ERROR;
+ 
+-  /* Make sure that the result field is appropriately filled, even though
+-     the result symbol will be replaced later on.  */
++  /* Make sure that the result field is appropriately filled.  */
+   if (sym->tlink && sym->tlink->attr.function)
+     {
+-      if (sym->tlink->result
+-	  && sym->tlink->result != sym->tlink)
+-	sym->result= sym->tlink->result;
++      if (sym->tlink->result && sym->tlink->result != sym->tlink)
++	{
++	  sym->result = sym->tlink->result;
++	  if (!sym->result->attr.use_assoc)
++	    {
++	      gfc_symtree *st = gfc_new_symtree (&gfc_current_ns->sym_root,
++						 sym->result->name);
++	      st->n.sym = sym->result;
++	      sym->result->refs++;
++	    }
++	}
+       else
+ 	sym->result = sym;
+     }
+--- a/src/gcc/fortran/match.c
++++ b/src/gcc/fortran/match.c
+@@ -2200,9 +2200,9 @@ gfc_match_type_spec (gfc_typespec *ts)
+ 
+ found:
+ 
+-      m = gfc_match_init_expr (&e);
++      m = gfc_match_expr (&e);
+       if (m == MATCH_NO || m == MATCH_ERROR)
+-	return MATCH_NO;
++	return m;
+ 
+       /* If a comma appears, it is an intrinsic subprogram. */
+       gfc_gobble_whitespace ();
 --- a/src/gcc/print-rtl.c
 +++ b/src/gcc/print-rtl.c
 @@ -1678,7 +1678,9 @@ print_value (pretty_printer *pp, const_rtx x, int verbose)
@@ -618,7 +751,38 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  extern void init_resource_info (rtx_insn *);
 --- a/src/gcc/testsuite/ChangeLog
 +++ b/src/gcc/testsuite/ChangeLog
-@@ -1,3 +1,101 @@
+@@ -1,3 +1,132 @@
++2020-03-28  Tobias Burnus  <tobias@codesourcery.com>
++
++	Backport from mainline
++	2020-03-28  Tobias Burnus  <tobias@codesourcery.com>
++
++	PR fortran/94348
++	* gfortran.dg/module_procedure_3.f90: New.
++
++2020-03-25  Mark Eggleston <markeggleston@gcc.gnu.org>
++
++	Backport from master
++	2020-03-25  Mark Eggleston <markeggleston@gcc.gnu.org>
++
++	PR fortran/93484
++	* gfortran.dg/pr93484_1.f90: New test.
++	* gfortran.dg/pr93484_2.f90: New test.
++
++2020-03-25  Kewen Lin  <linkw@gcc.gnu.org>
++
++	Backport from master
++	2020-03-13  Kewen Lin  <linkw@gcc.gnu.org>
++
++	PR testsuite/93935
++	* gcc.dg/vect/bb-slp-over-widen-2.c: Expect basic block vectorized
++	messages only on vect_hw_misalign targets.
++
++2020-03-24  Tamar Christina  <tamar.christina@arm.com>
++
++	PR target/94052
++	* g++.target/aarch64/pr94052.C: New test.
++
 +2020-03-24  Bin Cheng  <bin.cheng@linux.alibaba.com>
 +
 +	Backport from mainline
@@ -784,6 +948,209 @@ new file mode 100644
 +  K x;
 +  return foo (x);
 +}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/g++.dg/lookup/pr84733.C
+@@ -0,0 +1,21 @@
++// { dg-do compile { target c++11 } }
++// PR c++/84733 ICE popping local binding after cleanup region
++
++struct c {
++  ~c();
++} b;
++
++void f() {
++#ifndef OK
++  try {
++  d:
++    ;
++  } catch (int) {
++  }
++#endif
++  decltype(b) a;
++  int e;
++  struct e { } f;
++  e = 5;
++  struct e j;
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/g++.target/aarch64/pr94052.C
+@@ -0,0 +1,174 @@
++/* { dg-do compile } */
++/* { dg-additional-options "-O2 -std=gnu++11 -w" } */
++
++namespace c {
++typedef int d;
++template <typename e> struct f { typedef e g; };
++template <bool, typename> struct h;
++template <typename e> e aa(typename f<e>::g i) { return i; }
++template <typename, typename> struct j {};
++template <d, typename> struct k;
++template <class l, class m> struct k<1, j<l, m>> { typedef m g; };
++template <d n, class l, class m> typename k<n, j<l, m>>::g ab(j<l, m>);
++} // namespace c
++typedef long d;
++typedef char o;
++typedef int p;
++typedef char q;
++typedef int r;
++namespace {
++struct s;
++constexpr d t = 6;
++template <typename> class ad {
++public:
++  static constexpr d u = t;
++  d v();
++  d x();
++  d y();
++};
++class z : ad<int> {};
++struct ae {
++  p af;
++};
++class ag {
++public:
++  ae ah();
++};
++} // namespace
++typedef __Int32x4_t ai;
++typedef struct {
++  ai aj[2];
++} ak;
++typedef int al;
++void am(p *a, ai b) { __builtin_aarch64_st1v4si(a, b); }
++namespace an {
++class ao {
++public:
++  bool operator==(ao);
++  d v();
++  d x();
++};
++class ap : public ad<r> {};
++class aq {
++public:
++  c::j<int, int> ar();
++  int as();
++  int at();
++};
++class au {
++public:
++  virtual d av(d);
++  virtual ap aw();
++  virtual ag ax();
++};
++class ay {};
++class az {
++  virtual void ba(const ay &, const s &);
++};
++using bb = az;
++class bc;
++class bd : bb {
++  void ba(const ay &, const s &);
++  bc *be;
++  bc *bf;
++  bc *bg;
++  aq bh;
++  int bi;
++  int bj;
++  ao bk;
++};
++namespace bl {
++namespace bm {
++namespace bn {
++class bo;
++}
++} // namespace bm
++} // namespace bl
++namespace bn {
++template <typename ac = c::h<0, bl::bm ::bn::bo>>
++ai bp(ac *, ac *, ac *, al, al, al, d, p);
++template <typename ac = c::h<0, bl::bm ::bn::bo>>
++ak bq(ac *br, ac *bs, ac *bt, al bu, al bv, al bw, d bx, int, int by) {
++  ak{bp(br, bs, bt, bu, bv, bw, bx, by), bp(br, bs, bt, bu, bv, bw, bx, by)};
++}
++template <typename ac = c::h<0, bl::bm ::bn::bo>>
++ak bz(ac *, ac *, ac *, al, al, al &, int, p);
++template <int> void ca(p *, const ak &);
++template <> void ca<1>(p *buffer, const ak &cb) {
++  am(buffer, cb.aj[0]);
++  am(buffer + 4, cb.aj[1]);
++}
++int cc(int, int);
++} // namespace bn
++class bc {
++public:
++  virtual au *cd();
++};
++class ce {
++public:
++  q *cf();
++};
++template <d> struct cg {
++  template <typename ch> static void ci(ay, z cj, ch ck) { ck(cj); }
++};
++template <typename ch> void cl(ay w, ch ck) {
++  z cj;
++  cg<z::u>::ci(w, cj, c::aa<ch>(ck));
++}
++namespace {
++template <typename T1, typename cm, int cn> class co {
++public:
++  static void convolve(ay, int cs, bc *cp, bc *cq, bc *cr, aq cw, int, ao ct) {
++    int by = cp->cd()->ax().ah().af;
++    int cu = cq->cd()->ax().ah().af;
++    cp->cd()->aw().v();
++    int cv = cp->cd()->aw().x();
++    cp->cd()->aw().y();
++    cp->cd()->aw();
++    int da = cr->cd()->aw().x();
++    int cx = cq->cd()->aw().x();
++    cq->cd()->aw().y();
++    int cy = cr->cd()->av(0);
++    int cz = cr->cd()->av(1);
++    bn::cc(cs, cn);
++    int de = c::ab<1>(cw.ar());
++    cw.as();
++    cw.at();
++    ay db;
++    ce dc;
++    ce dd;
++    ce w;
++    q *di = w.cf();
++    cl(db, [&](z) {
++      int df;
++      dc;
++      di;
++      cx;
++      auto dg(cu);
++      auto dh(cu);
++      auto dl(cu);
++      for (; cz; df += de) {
++        auto br = reinterpret_cast<T1 *>(cv);
++        auto bs = reinterpret_cast<T1 *>(cv);
++        auto bt = reinterpret_cast<T1 *>(df * ct.x());
++        auto dj = reinterpret_cast<cm *>(dd.cf() + da);
++        for (int dk; dk < cy; dk += cs, dj += cs)
++          if (ct == ao()) {
++            auto vres = bn::bz(br, bs, bt, dg, dh, dl, cn, by);
++            bn::ca<cn>(dj, vres);
++          } else
++            bn::bq(br, bs, bt, dg, dh, dl, ct.v(), cn, by);
++      }
++    });
++  }
++};
++template <typename T1, typename cm>
++void bz(ay dm, int cs, bc *cp, bc *cq, bc *cr, aq cw, int dn, ao ct) {
++  co<T1, cm, 1>::convolve(dm, cs, cp, cq, cr, cw, dn, ct);
++  co<T1, cm, 2>::convolve(dm, cs, cp, cq, cr, cw, dn, ct);
++}
++} // namespace
++void bd::ba(const ay &dm, const s &) {
++  bz<o, p>(dm, bi, be, bg, bf, bh, bj, bk);
++}
++} // namespace an
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/gcc.c-torture/execute/pr94130.c
@@ -1008,6 +1375,14 @@ new file mode 100644
 +  bar ();
 +  return 0;
 +}
+--- a/src/gcc/testsuite/gcc.dg/vect/bb-slp-over-widen-2.c
++++ b/src/gcc/testsuite/gcc.dg/vect/bb-slp-over-widen-2.c
+@@ -63,4 +63,4 @@ main (void)
+ /* { dg-final { scan-tree-dump "demoting int to signed short" "slp2" { target { ! vect_widen_shift } } } } */
+ /* { dg-final { scan-tree-dump "demoting int to unsigned short" "slp2" { target { ! vect_widen_shift } } } } */
+ /* { dg-final { scan-tree-dump {\.AVG_FLOOR} "slp2" { target vect_avg_qi } } } */
+-/* { dg-final { scan-tree-dump-times "basic block vectorized" 2 "slp2" } } */
++/* { dg-final { scan-tree-dump-times "basic block vectorized" 2 "slp2" { target vect_hw_misalign } } } */
 --- a/src/gcc/testsuite/gcc.dg/vect/slp-perm-12.c
 +++ b/src/gcc/testsuite/gcc.dg/vect/slp-perm-12.c
 @@ -49,4 +49,4 @@ int main()
@@ -1162,6 +1537,37 @@ new file mode 100644
 +}
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/module_procedure_3.f90
+@@ -0,0 +1,27 @@
++! { dg-do run }
++!
++! PR fortran/94348
++!
++! Contributed by Damian Rouson
++
++module foo_module
++  implicit none
++
++  interface
++     module function foo() result(bar)
++       implicit none
++       integer bar
++     end function
++  end interface
++
++contains
++  module procedure foo
++    bar = 5
++  end procedure
++end module
++
++program main
++  use foo_module
++  implicit none
++  if (foo() /= 5) stop 1
++end program main
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/gfortran.dg/pr91913.f90
 @@ -0,0 +1,5 @@
 +! PR target/91913
@@ -1169,6 +1575,30 @@ new file mode 100644
 +! { dg-options "-std=legacy -Ofast --param max-cse-insns=0 -fno-schedule-insns -fsanitize=null" }
 +
 +include 'string_ctor_1.f90'
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/pr93484_1.f90
+@@ -0,0 +1,8 @@
++! { dg-do compile }
++!
++program p
++  implicit none
++  integer :: x(4) = [1,2,3,4]
++  print *, [real(x(k))] ! { dg-error "Symbol 'k' at .1. has no IMPLICIT type" } 
++end
++
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/pr93484_2.f90
+@@ -0,0 +1,8 @@
++! { dg-do compile }
++!
++program p
++  implicit none
++  integer, parameter :: x(4) = [1,2,3,4]
++  print *, [real(x(k))] ! { dg-error "Symbol 'k' at .1. has no IMPLICIT type" }
++end
++
 --- a/src/gcc/tree-inline.c
 +++ b/src/gcc/tree-inline.c
 @@ -3213,10 +3213,10 @@ insert_init_stmt (copy_body_data *id, basic_block bb, gimple *init_stmt)
