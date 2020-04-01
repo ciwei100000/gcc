@@ -90,7 +90,7 @@ ifeq ($(with_offload_gcn),yes)
 	tar -c -C $(d)-gcn -f - $(gcc_lib_dir)/accel/$(gcn_target_name) $(gcc_lexec_dir)/accel/$(gcn_target_name) \
 	  | tar x -C $(d_snap) -f -
 
-	dh_link -p$(p_gcn) \
+	dh_link -p$(p_snap) \
 	  /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/llvm-ar /$(PF)/bin/$(gcn_target_name)-ar \
 	  /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/llvm-mc /$(PF)/bin/$(gcn_target_name)-as \
 	  /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/lld /$(PF)/bin/$(gcn_target_name)-ld \
