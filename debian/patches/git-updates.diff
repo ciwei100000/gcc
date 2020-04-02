@@ -1,13 +1,77 @@
-# DP: updates from the 8 branch upto 20200323 (3c1be1b68cb).
+# DP: updates from the 8 branch upto 20200402 (26191cec3421).
 
 LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
-        8cd3bffead2ed1d1998c190865694f920fbc93ab 3c1be1b68cbbc7324ab6ac0c6c689dbf35600293 \
+        8cd3bffead2ed1d1998c190865694f920fbc93ab 26191cec3421a157f4bafa7760cfd1bc4f90f0e5 \
 	| awk '/^diff .*\.texi/ {skip=1; next} /^diff / { skip=0 } skip==0' \
 	| grep -v -E '^(diff|index)'
 
 --- a/src/gcc/ChangeLog
 +++ b/src/gcc/ChangeLog
-@@ -1,3 +1,43 @@
+@@ -1,3 +1,107 @@
++2020-03-31  Carl Love  <cel@us.ibm.com>
++
++	Backport of:
++	  commit e97929e20b2f52e6cfc046c1302324d1b24d95e3
++	  Author: Carl Love <carll@us.ibm.com>
++	  Date:   Wed Mar 25 18:33:37 2020 -0500
++
++	PR target/93819
++        * gcc/config/rs6000/altivec.h:
++        Fixed swapped arguments for vec_rlnm define.
++
++2020-03-31  Carl Love  <cel@us.ibm.com>
++
++	backport of mainline commit
++
++	commit 68dd57808f7c0147acdb5ca72c88ff655afcb0ce
++	Author: Carl Love <carll@us.ibm.com>
++	Date:   Fri Mar 20 18:15:05 2020 -0500
++
++	whith change log typo fixed.
++
++	PR target/87583
++	* gcc/config/rs6000/rs6000.c (rs6000_option_override_internal):
++	Add check for TARGET_FPRND for Power 7 or newer.
++
++2020-03-29  Martin Liska  <mliska@suse.cz>
++
++	Backport from mainline
++	2019-09-02  Martin Liska  <mliska@suse.cz>
++
++	PR gcov-profile/91601
++	* gcov.c (path_contains_zero_cycle_arc): Rename to ...
++	(path_contains_zero_or_negative_cycle_arc): ... this and handle
++	also negative edges.
++	(circuit): Handle also negative edges as they can happen
++	in some situations.
++
++2020-03-29  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backport from master.
++	2018-08-22  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* config/i386/i386.c (ix86_output_addr_diff_elt): Move the MACH-O
++	specific test before the one for HAVE_AS_GOTOFF_IN_DATA.
++
++	Backport from master.
++	2020-03-22  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* config/i386/darwin.h (JUMP_TABLES_IN_TEXT_SECTION): Remove
++	references to Darwin.
++	* config/i386/i386.h (JUMP_TABLES_IN_TEXT_SECTION): Define this
++	unconditionally and comment on why.
++
++2020-03-24  John David Anglin  <danglin@gcc.gnu.org>
++
++	PR lto/94249
++	* config/pa/pa.h (TARGET_CPU_CPP_BUILTINS): Define __BIG_ENDIAN__.
++
++2020-03-24  Tamar Christina  <tamar.christina@arm.com>
++
++	PR target/94052
++	* config/aarch64/aarch64-simd.md (mov<mode>): Remove paradoxical
++	subregs of VSTRUCT modes.
++
 +2020-03-19  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	Backport from mainline
@@ -55,7 +119,36 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
 +++ b/src/gcc/DATESTAMP
 @@ -1 +1 @@
 -20200304
-+20200323
++20200402
+--- a/src/gcc/config/aarch64/aarch64-simd.md
++++ b/src/gcc/config/aarch64/aarch64-simd.md
+@@ -5060,6 +5060,26 @@
+       if (GET_CODE (operands[0]) != REG)
+ 	operands[1] = force_reg (<MODE>mode, operands[1]);
+     }
++
++  /* If we have a paradoxical subreg trying to write to <MODE> from and the
++     registers don't overlap then we need to break it apart.  What it's trying
++     to do is give two kind of information at the same time.  It's trying to
++     convey liveness information by saying that the entire register will be
++     written to eventually, but it also only wants to write a single part of the
++     register.  Hence the paradoxical subreg.
++
++     Instead of allowing this we will split the two concerns.  The liveness
++     information will be conveyed using a clobber and then we break apart the
++     paradoxical subreg into just a normal write of the part that it wanted to
++     write originally.  */
++
++  if (REG_P (operands[0]) && paradoxical_subreg_p (operands[1]))
++    {
++      if (!reg_overlap_mentioned_p (operands[0], operands[1]))
++	emit_clobber (operands[0]);
++      operands[1] = SUBREG_REG (operands[1]);
++      operands[0] = gen_lowpart (GET_MODE (operands[1]), operands[0]);
++    }
+ })
+ 
+ (define_insn "*aarch64_mov<mode>"
 --- a/src/gcc/config/arm/arm.md
 +++ b/src/gcc/config/arm/arm.md
 @@ -6312,16 +6312,21 @@
@@ -83,9 +176,107 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  )
  
  ;; Subroutine to store a half word from a register into memory.
+--- a/src/gcc/config/i386/darwin.h
++++ b/src/gcc/config/i386/darwin.h
+@@ -236,6 +236,16 @@ along with GCC; see the file COPYING3.  If not see
+ #undef TARGET_ASM_OUTPUT_IDENT
+ #define TARGET_ASM_OUTPUT_IDENT default_asm_output_ident_directive
+ 
++/* We always want jump tables in the text section:
++   * for PIC code, we need the subtracted symbol to be defined at
++     assembly-time.
++   * for mdynamic-no-pic, we cannot support jump tables in the .const
++     section for weak functions, this looks to ld64 like direct access
++     to the weak symbol from an anonymous atom.  */
++
++#undef JUMP_TABLES_IN_TEXT_SECTION
++#define JUMP_TABLES_IN_TEXT_SECTION 1
++
+ /* Darwin profiling -- call mcount.  */
+ #undef FUNCTION_PROFILER
+ #define FUNCTION_PROFILER(FILE, LABELNO)				\
+--- a/src/gcc/config/i386/i386.c
++++ b/src/gcc/config/i386/i386.c
+@@ -19922,8 +19922,6 @@ ix86_output_addr_diff_elt (FILE *file, int value, int rel)
+   if (TARGET_64BIT || TARGET_VXWORKS_RTP)
+     fprintf (file, "%s%s%d-%s%d\n",
+ 	     directive, LPREFIX, value, LPREFIX, rel);
+-  else if (HAVE_AS_GOTOFF_IN_DATA)
+-    fprintf (file, ASM_LONG "%s%d@GOTOFF\n", LPREFIX, value);
+ #if TARGET_MACHO
+   else if (TARGET_MACHO)
+     {
+@@ -19932,6 +19930,8 @@ ix86_output_addr_diff_elt (FILE *file, int value, int rel)
+       putc ('\n', file);
+     }
+ #endif
++  else if (HAVE_AS_GOTOFF_IN_DATA)
++    fprintf (file, ASM_LONG "%s%d@GOTOFF\n", LPREFIX, value);
+   else
+     asm_fprintf (file, ASM_LONG "%U%s+[.-%s%d]\n",
+ 		 GOT_SYMBOL_NAME, LPREFIX, value);
+--- a/src/gcc/config/i386/i386.h
++++ b/src/gcc/config/i386/i386.h
+@@ -2254,11 +2254,10 @@ extern int const svr4_dbx_register_map[FIRST_PSEUDO_REGISTER];
+ 
+ /* Under some conditions we need jump tables in the text section,
+    because the assembler cannot handle label differences between
+-   sections.  This is the case for x86_64 on Mach-O for example.  */
++   sections.  */
+ 
+ #define JUMP_TABLES_IN_TEXT_SECTION \
+-  (flag_pic && ((TARGET_MACHO && TARGET_64BIT) \
+-   || (!TARGET_64BIT && !HAVE_AS_GOTOFF_IN_DATA)))
++  (flag_pic && !(TARGET_64BIT || HAVE_AS_GOTOFF_IN_DATA))
+ 
+ /* Switch to init or fini section via SECTION_OP, emit a call to FUNC,
+    and switch back.  For x86 we do this only to save a few bytes that
+--- a/src/gcc/config/pa/pa.h
++++ b/src/gcc/config/pa/pa.h
+@@ -171,6 +171,7 @@ do {								\
+      builtin_assert("machine=hppa");				\
+      builtin_define("__hppa");					\
+      builtin_define("__hppa__");				\
++     builtin_define("__BIG_ENDIAN__");				\
+      if (TARGET_PA_20)						\
+        builtin_define("_PA_RISC2_0");				\
+      else if (TARGET_PA_11)					\
+--- a/src/gcc/config/rs6000/altivec.h
++++ b/src/gcc/config/rs6000/altivec.h
+@@ -180,7 +180,7 @@
+ #define vec_recipdiv __builtin_vec_recipdiv
+ #define vec_rlmi __builtin_vec_rlmi
+ #define vec_vrlnm __builtin_vec_rlnm
+-#define vec_rlnm(a,b,c) (__builtin_vec_rlnm((a),((b)<<8)|(c)))
++#define vec_rlnm(a,b,c) (__builtin_vec_rlnm((a),((c)<<8)|(b)))
+ #define vec_rsqrt __builtin_vec_rsqrt
+ #define vec_rsqrte __builtin_vec_rsqrte
+ #define vec_signed __builtin_vec_vsigned
+--- a/src/gcc/config/rs6000/rs6000.c
++++ b/src/gcc/config/rs6000/rs6000.c
+@@ -4401,6 +4401,14 @@ rs6000_option_override_internal (bool global_init_p)
+       rs6000_isa_flags &= ~OPTION_MASK_CRYPTO;
+     }
+ 
++  if (!TARGET_FPRND && TARGET_VSX)
++    {
++      if (rs6000_isa_flags_explicit & OPTION_MASK_FPRND)
++	/* TARGET_VSX = 1 implies Power 7 and newer */
++	error ("%qs requires %qs", "-mvsx", "-mfprnd");
++      rs6000_isa_flags &= ~OPTION_MASK_FPRND;
++    }
++
+   if (TARGET_DIRECT_MOVE && !TARGET_VSX)
+     {
+       if (rs6000_isa_flags_explicit & OPTION_MASK_DIRECT_MOVE)
 --- a/src/gcc/cp/ChangeLog
 +++ b/src/gcc/cp/ChangeLog
-@@ -1,3 +1,21 @@
+@@ -1,3 +1,26 @@
++2020-03-27  Nathan Sidwell  <nathan@acm.org>
++
++	PR c++/84733
++	* name-lookup.c (do_pushdecl): Look through cleanp levels.
++
 +2020-03-14  Jason Merrill  <jason@redhat.com>
 +
 +	PR c++/92909
@@ -107,6 +298,18 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  2020-03-04  Release Manager
  
  	* GCC 8.4.0 released.
+--- a/src/gcc/cp/name-lookup.c
++++ b/src/gcc/cp/name-lookup.c
+@@ -2971,7 +2971,8 @@ do_pushdecl (tree decl, bool is_friend)
+   /* The binding level we will be pushing into.  During local class
+      pushing, we want to push to the containing scope.  */
+   cp_binding_level *level = current_binding_level;
+-  while (level->kind == sk_class)
++  while (level->kind == sk_class
++	 || level->kind == sk_cleanup)
+     level = level->level_chain;
+ 
+   /* An anonymous namespace has a NULL DECL_NAME, but we still want to
 --- a/src/gcc/cp/pt.c
 +++ b/src/gcc/cp/pt.c
 @@ -3814,10 +3814,18 @@ find_parameter_packs_r (tree *tp, int *walk_subtrees, void* data)
@@ -172,7 +375,42 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  
 --- a/src/gcc/fortran/ChangeLog
 +++ b/src/gcc/fortran/ChangeLog
-@@ -1,3 +1,12 @@
+@@ -1,3 +1,47 @@
++2020-04-02  Mark Eggleston <markeggleston@gcc.gnu.org>
++
++	Backport from master
++	2020-04-02  Mark Eggleston <markeggleston@gcc.gnu.org>
++	Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/94030
++	* gfortran.dg/pr94030_1.f90: New test.
++	* gfortran.dg/pr94030_2.f90: New test.
++
++2020-03-30  Jakub Jelinek  <jakub@redhat.com>
++
++	Backported from mainline
++	2019-12-06  Jakub Jelinek  <jakub@redhat.com>
++
++	PR fortran/92775
++	* trans.h (struct lang_type, struct lang_decl): Remove span member.
++	(GFC_DECL_SPAN, GFC_TYPE_ARRAY_SPAN): Remove macros.
++	* trans-array.h (gfc_get_descriptor_offsets_for_info): Add another
++	argument.
++	* trans-array.c (gfc_get_descriptor_offsets_for_info): Add SPAN_OFF
++	argument and initialize *SPAN_OFF to the offset of span field.
++	* trans-types.c (gfc_get_array_descr_info): Adjust
++	gfc_get_descriptor_offsets_for_info caller.  Compute elem_size
++	as base->span instead of TYPE_SIZE_UNIT (etype) constant.
++
++2020-03-25  Mark Eggleston <markeggleston@gcc.gnu.org>
++
++	Backport from master
++	2020-03-25  Mark Eggleston <markeggleston@gcc.gnu.org>
++
++	PR fortran/93484
++	* match.c (gfc_match_type_spec): Replace gfc_match_init_expr with
++	gfc_match_expr. Return m if m is MATCH_NO or MATCH_ERROR.
++
 +2020-02-04  Tobias Burnus  <tobias@codesourcery.com>
 +
 +	Backported from mainline
@@ -195,6 +433,183 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  	    case EXEC_OMP_ATOMIC:
  	      in_omp_atomic = true;
  	      break;
+--- a/src/gcc/fortran/match.c
++++ b/src/gcc/fortran/match.c
+@@ -2183,9 +2183,9 @@ gfc_match_type_spec (gfc_typespec *ts)
+ 
+ found:
+ 
+-      m = gfc_match_init_expr (&e);
++      m = gfc_match_expr (&e);
+       if (m == MATCH_NO || m == MATCH_ERROR)
+-	return MATCH_NO;
++	return m;
+ 
+       /* If a comma appears, it is an intrinsic subprogram. */
+       gfc_gobble_whitespace ();
+--- a/src/gcc/fortran/resolve.c
++++ b/src/gcc/fortran/resolve.c
+@@ -16311,7 +16311,8 @@ resolve_equivalence (gfc_equiv *eq)
+ 	  && !gfc_notify_std (GFC_STD_GNU, msg, sym->name, &e->where))
+ 		continue;
+ 
+-  identical_types:
++identical_types:
++
+       last_ts =&sym->ts;
+       last_where = &e->where;
+ 
+@@ -16319,8 +16320,7 @@ resolve_equivalence (gfc_equiv *eq)
+ 	continue;
+ 
+       /* Shall not be an automatic array.  */
+-      if (e->ref->type == REF_ARRAY
+-	  && !gfc_resolve_array_spec (e->ref->u.ar.as, 1))
++      if (e->ref->type == REF_ARRAY && is_non_constant_shape_array (sym))
+ 	{
+ 	  gfc_error ("Array %qs at %L with non-constant bounds cannot be "
+ 		     "an EQUIVALENCE object", sym->name, &e->where);
+--- a/src/gcc/fortran/trans-array.c
++++ b/src/gcc/fortran/trans-array.c
+@@ -503,9 +503,10 @@ gfc_conv_shift_descriptor_lbound (stmtblock_t* block, tree desc,
+ 
+ void
+ gfc_get_descriptor_offsets_for_info (const_tree desc_type, tree *data_off,
+-				     tree *dtype_off, tree *dim_off,
+-				     tree *dim_size, tree *stride_suboff,
+-				     tree *lower_suboff, tree *upper_suboff)
++				     tree *dtype_off, tree *span_off,
++				     tree *dim_off, tree *dim_size,
++				     tree *stride_suboff, tree *lower_suboff,
++				     tree *upper_suboff)
+ {
+   tree field;
+   tree type;
+@@ -515,6 +516,8 @@ gfc_get_descriptor_offsets_for_info (const_tree desc_type, tree *data_off,
+   *data_off = byte_position (field);
+   field = gfc_advance_chain (TYPE_FIELDS (type), DTYPE_FIELD);
+   *dtype_off = byte_position (field);
++  field = gfc_advance_chain (TYPE_FIELDS (type), SPAN_FIELD);
++  *span_off = byte_position (field);
+   field = gfc_advance_chain (TYPE_FIELDS (type), DIMENSION_FIELD);
+   *dim_off = byte_position (field);
+   type = TREE_TYPE (TREE_TYPE (field));
+--- a/src/gcc/fortran/trans-array.h
++++ b/src/gcc/fortran/trans-array.h
+@@ -159,7 +159,7 @@ void gfc_trans_array_cobounds (tree, stmtblock_t *, const gfc_symbol *);
+ 
+ /* Build expressions for accessing components of an array descriptor.  */
+ void gfc_get_descriptor_offsets_for_info (const_tree, tree *, tree *, tree *, tree *,
+-					  tree *, tree *, tree *);
++					  tree *, tree *, tree *, tree *);
+ 
+ tree gfc_conv_descriptor_data_get (tree);
+ tree gfc_conv_descriptor_data_addr (tree);
+--- a/src/gcc/fortran/trans-types.c
++++ b/src/gcc/fortran/trans-types.c
+@@ -3344,7 +3344,7 @@ gfc_get_array_descr_info (const_tree type, struct array_descr_info *info)
+   int rank, dim;
+   bool indirect = false;
+   tree etype, ptype, t, base_decl;
+-  tree data_off, dim_off, dtype_off, dim_size, elem_size;
++  tree data_off, span_off, dim_off, dtype_off, dim_size, elem_size;
+   tree lower_suboff, upper_suboff, stride_suboff;
+   tree dtype, field, rank_off;
+ 
+@@ -3401,12 +3401,13 @@ gfc_get_array_descr_info (const_tree type, struct array_descr_info *info)
+   if (indirect)
+     base_decl = build1 (INDIRECT_REF, ptype, base_decl);
+ 
+-  elem_size = fold_convert (gfc_array_index_type, TYPE_SIZE_UNIT (etype));
+-
+-  gfc_get_descriptor_offsets_for_info (type, &data_off, &dtype_off, &dim_off,
+-				       &dim_size, &stride_suboff,
++  gfc_get_descriptor_offsets_for_info (type, &data_off, &dtype_off, &span_off,
++				       &dim_off, &dim_size, &stride_suboff,
+ 				       &lower_suboff, &upper_suboff);
+ 
++  t = fold_build_pointer_plus (base_decl, span_off);
++  elem_size = build1 (INDIRECT_REF, gfc_array_index_type, t);
++
+   t = base_decl;
+   if (!integer_zerop (data_off))
+     t = fold_build_pointer_plus (t, data_off);
+--- a/src/gcc/fortran/trans.h
++++ b/src/gcc/fortran/trans.h
+@@ -953,7 +953,6 @@ struct GTY(())	lang_type	 {
+   tree offset;
+   tree dtype;
+   tree dataptr_type;
+-  tree span;
+   tree base_decl[2];
+   tree nonrestricted_type;
+   tree caf_token;
+@@ -969,7 +968,6 @@ struct GTY(()) lang_decl {
+      address of target label.  */
+   tree stringlen;
+   tree addr;
+-  tree span;
+   /* For assumed-shape coarrays.  */
+   tree token, caf_offset;
+   unsigned int scalar_allocatable : 1;
+@@ -979,7 +977,6 @@ struct GTY(()) lang_decl {
+ 
+ #define GFC_DECL_ASSIGN_ADDR(node) DECL_LANG_SPECIFIC(node)->addr
+ #define GFC_DECL_STRING_LEN(node) DECL_LANG_SPECIFIC(node)->stringlen
+-#define GFC_DECL_SPAN(node) DECL_LANG_SPECIFIC(node)->span
+ #define GFC_DECL_TOKEN(node) DECL_LANG_SPECIFIC(node)->token
+ #define GFC_DECL_CAF_OFFSET(node) DECL_LANG_SPECIFIC(node)->caf_offset
+ #define GFC_DECL_SAVED_DESCRIPTOR(node) \
+@@ -1028,7 +1025,6 @@ struct GTY(()) lang_decl {
+ #define GFC_TYPE_ARRAY_DTYPE(node) (TYPE_LANG_SPECIFIC(node)->dtype)
+ #define GFC_TYPE_ARRAY_DATAPTR_TYPE(node) \
+   (TYPE_LANG_SPECIFIC(node)->dataptr_type)
+-#define GFC_TYPE_ARRAY_SPAN(node) (TYPE_LANG_SPECIFIC(node)->span)
+ #define GFC_TYPE_ARRAY_BASE_DECL(node, internal) \
+   (TYPE_LANG_SPECIFIC(node)->base_decl[(internal)])
+ 
+--- a/src/gcc/gcov.c
++++ b/src/gcc/gcov.c
+@@ -653,10 +653,10 @@ unblock (const block_info *u, block_vector_t &blocked,
+ /* Return true when PATH contains a zero cycle arc count.  */
+ 
+ static bool
+-path_contains_zero_cycle_arc (arc_vector_t &path)
++path_contains_zero_or_negative_cycle_arc (arc_vector_t &path)
+ {
+   for (unsigned i = 0; i < path.size (); i++)
+-    if (path[i]->cs_count == 0)
++    if (path[i]->cs_count <= 0)
+       return true;
+   return false;
+ }
+@@ -682,7 +682,7 @@ circuit (block_info *v, arc_vector_t &path, block_info *start,
+     {
+       block_info *w = arc->dst;
+       if (w < start
+-	  || arc->cs_count == 0
++	  || arc->cs_count <= 0
+ 	  || !linfo.has_block (w))
+ 	continue;
+ 
+@@ -693,7 +693,7 @@ circuit (block_info *v, arc_vector_t &path, block_info *start,
+ 	  handle_cycle (path, count);
+ 	  loop_found = true;
+ 	}
+-      else if (!path_contains_zero_cycle_arc (path)
++      else if (!path_contains_zero_or_negative_cycle_arc (path)
+ 	       &&  find (blocked.begin (), blocked.end (), w) == blocked.end ())
+ 	loop_found |= circuit (w, path, start, blocked, block_lists, linfo,
+ 			       count);
+@@ -708,7 +708,7 @@ circuit (block_info *v, arc_vector_t &path, block_info *start,
+       {
+ 	block_info *w = arc->dst;
+ 	if (w < start
+-	    || arc->cs_count == 0
++	    || arc->cs_count <= 0
+ 	    || !linfo.has_block (w))
+ 	  continue;
+ 
 --- a/src/gcc/gimplify.c
 +++ b/src/gcc/gimplify.c
 @@ -4814,6 +4814,7 @@ gimplify_init_constructor (tree *expr_p, gimple_seq *pre_p, gimple_seq *post_p,
@@ -304,7 +719,33 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  extern void init_resource_info (rtx_insn *);
 --- a/src/gcc/testsuite/ChangeLog
 +++ b/src/gcc/testsuite/ChangeLog
-@@ -1,3 +1,24 @@
+@@ -1,3 +1,50 @@
++2020-04-02  Mark Eggleston <markeggleston@gcc.gnu.org>
++
++	Backport from master
++	2020-04-02  Steven G. Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/94030
++	* resolve.c (resolve_equivalence): Correct formatting
++	around the label "identical_types".  Instead of using
++	gfc_resolve_array_spec use is_non_constants_shape_array
++	to determine whether the array can be used in a in an
++	equivalence statement.
++
++2020-03-25  Mark Eggleston <markeggleston@gcc.gnu.org>
++
++	Backport from master
++	2020-03-25  Mark Eggleston <markeggleston@gcc.gnu.org>
++
++	PR fortran/93484
++	* gfortran.dg/pr93484_1.f90: New test.
++	* gfortran.dg/pr93484_2.f90: New test.
++
++2020-03-24  Tamar Christina  <tamar.christina@arm.com>
++
++	* g++.target/aarch64/aarch64.exp: New file.
++	* g++.target/aarch64/pr94052.C: New test.
++
 +2020-03-12  Richard Earnshaw  <rearnsha@arm.com>
 +
 +	Backport from master
@@ -367,6 +808,257 @@ new file mode 100644
 +using U = decltype(S{0, 4u});
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/g++.dg/lookup/pr84733.C
+@@ -0,0 +1,21 @@
++// { dg-do compile { target c++11 } }
++// PR c++/84733 ICE popping local binding after cleanup region
++
++struct c {
++  ~c();
++} b;
++
++void f() {
++#ifndef OK
++  try {
++  d:
++    ;
++  } catch (int) {
++  }
++#endif
++  decltype(b) a;
++  int e;
++  struct e { } f;
++  e = 5;
++  struct e j;
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/g++.target/aarch64/aarch64.exp
+@@ -0,0 +1,44 @@
++#  Specific regression driver for AArch64.
++#  Copyright (C) 2009-2019 Free Software Foundation, Inc.
++#
++#  This file is part of GCC.
++#
++#  GCC is free software; you can redistribute it and/or modify it
++#  under the terms of the GNU General Public License as published by
++#  the Free Software Foundation; either version 3, or (at your option)
++#  any later version.
++#
++#  GCC is distributed in the hope that it will be useful, but
++#  WITHOUT ANY WARRANTY; without even the implied warranty of
++#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++#  General Public License for more details.
++#
++#  You should have received a copy of the GNU General Public License
++#  along with GCC; see the file COPYING3.  If not see
++#  <http://www.gnu.org/licenses/>.  */
++
++# GCC testsuite that uses the `dg.exp' driver.
++
++# Exit immediately if this isn't an AArch64 target.
++if {![istarget aarch64*-*-*] } then {
++  return
++}
++
++# Load support procs.
++load_lib g++-dg.exp
++
++global DEFAULT_CXXFLAGS
++if ![info exists DEFAULT_CXXFLAGS] then {
++    set DEFAULT_CXXFLAGS " -pedantic-errors"
++}
++
++# Initialize `dg'.
++dg-init
++
++# Main loop.
++dg-runtest [lsort [glob -nocomplain $srcdir/$subdir/*.C]] \
++        "" $DEFAULT_CXXFLAGS
++
++# All done.
++dg-finish
++
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/g++.target/aarch64/pr94052.C
+@@ -0,0 +1,174 @@
++/* { dg-do compile } */
++/* { dg-additional-options "-O2 -std=gnu++11 -w" } */
++
++namespace c {
++typedef int d;
++template <typename e> struct f { typedef e g; };
++template <bool, typename> struct h;
++template <typename e> e aa(typename f<e>::g i) { return i; }
++template <typename, typename> struct j {};
++template <d, typename> struct k;
++template <class l, class m> struct k<1, j<l, m>> { typedef m g; };
++template <d n, class l, class m> typename k<n, j<l, m>>::g ab(j<l, m>);
++} // namespace c
++typedef long d;
++typedef char o;
++typedef int p;
++typedef char q;
++typedef int r;
++namespace {
++struct s;
++constexpr d t = 6;
++template <typename> class ad {
++public:
++  static constexpr d u = t;
++  d v();
++  d x();
++  d y();
++};
++class z : ad<int> {};
++struct ae {
++  p af;
++};
++class ag {
++public:
++  ae ah();
++};
++} // namespace
++typedef __Int32x4_t ai;
++typedef struct {
++  ai aj[2];
++} ak;
++typedef int al;
++void am(p *a, ai b) { __builtin_aarch64_st1v4si(a, b); }
++namespace an {
++class ao {
++public:
++  bool operator==(ao);
++  d v();
++  d x();
++};
++class ap : public ad<r> {};
++class aq {
++public:
++  c::j<int, int> ar();
++  int as();
++  int at();
++};
++class au {
++public:
++  virtual d av(d);
++  virtual ap aw();
++  virtual ag ax();
++};
++class ay {};
++class az {
++  virtual void ba(const ay &, const s &);
++};
++using bb = az;
++class bc;
++class bd : bb {
++  void ba(const ay &, const s &);
++  bc *be;
++  bc *bf;
++  bc *bg;
++  aq bh;
++  int bi;
++  int bj;
++  ao bk;
++};
++namespace bl {
++namespace bm {
++namespace bn {
++class bo;
++}
++} // namespace bm
++} // namespace bl
++namespace bn {
++template <typename ac = c::h<0, bl::bm ::bn::bo>>
++ai bp(ac *, ac *, ac *, al, al, al, d, p);
++template <typename ac = c::h<0, bl::bm ::bn::bo>>
++ak bq(ac *br, ac *bs, ac *bt, al bu, al bv, al bw, d bx, int, int by) {
++  ak{bp(br, bs, bt, bu, bv, bw, bx, by), bp(br, bs, bt, bu, bv, bw, bx, by)};
++}
++template <typename ac = c::h<0, bl::bm ::bn::bo>>
++ak bz(ac *, ac *, ac *, al, al, al &, int, p);
++template <int> void ca(p *, const ak &);
++template <> void ca<1>(p *buffer, const ak &cb) {
++  am(buffer, cb.aj[0]);
++  am(buffer + 4, cb.aj[1]);
++}
++int cc(int, int);
++} // namespace bn
++class bc {
++public:
++  virtual au *cd();
++};
++class ce {
++public:
++  q *cf();
++};
++template <d> struct cg {
++  template <typename ch> static void ci(ay, z cj, ch ck) { ck(cj); }
++};
++template <typename ch> void cl(ay w, ch ck) {
++  z cj;
++  cg<z::u>::ci(w, cj, c::aa<ch>(ck));
++}
++namespace {
++template <typename T1, typename cm, int cn> class co {
++public:
++  static void convolve(ay, int cs, bc *cp, bc *cq, bc *cr, aq cw, int, ao ct) {
++    int by = cp->cd()->ax().ah().af;
++    int cu = cq->cd()->ax().ah().af;
++    cp->cd()->aw().v();
++    int cv = cp->cd()->aw().x();
++    cp->cd()->aw().y();
++    cp->cd()->aw();
++    int da = cr->cd()->aw().x();
++    int cx = cq->cd()->aw().x();
++    cq->cd()->aw().y();
++    int cy = cr->cd()->av(0);
++    int cz = cr->cd()->av(1);
++    bn::cc(cs, cn);
++    int de = c::ab<1>(cw.ar());
++    cw.as();
++    cw.at();
++    ay db;
++    ce dc;
++    ce dd;
++    ce w;
++    q *di = w.cf();
++    cl(db, [&](z) {
++      int df;
++      dc;
++      di;
++      cx;
++      auto dg(cu);
++      auto dh(cu);
++      auto dl(cu);
++      for (; cz; df += de) {
++        auto br = reinterpret_cast<T1 *>(cv);
++        auto bs = reinterpret_cast<T1 *>(cv);
++        auto bt = reinterpret_cast<T1 *>(df * ct.x());
++        auto dj = reinterpret_cast<cm *>(dd.cf() + da);
++        for (int dk; dk < cy; dk += cs, dj += cs)
++          if (ct == ao()) {
++            auto vres = bn::bz(br, bs, bt, dg, dh, dl, cn, by);
++            bn::ca<cn>(dj, vres);
++          } else
++            bn::bq(br, bs, bt, dg, dh, dl, ct.v(), cn, by);
++      }
++    });
++  }
++};
++template <typename T1, typename cm>
++void bz(ay dm, int cs, bc *cp, bc *cq, bc *cr, aq cw, int dn, ao ct) {
++  co<T1, cm, 1>::convolve(dm, cs, cp, cq, cr, cw, dn, ct);
++  co<T1, cm, 2>::convolve(dm, cs, cp, cq, cr, cw, dn, ct);
++}
++} // namespace
++void bd::ba(const ay &dm, const s &) {
++  bz<o, p>(dm, bi, be, bg, bf, bh, bj, bk);
++}
++} // namespace an
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/gcc.c-torture/compile/pr93949.c
 @@ -0,0 +1,7 @@
 +/* PR c/93949 */
@@ -406,6 +1098,82 @@ new file mode 100644
 +! { dg-options "-std=legacy -Ofast --param max-cse-insns=0 -fno-schedule-insns -fsanitize=null" }
 +
 +include 'string_ctor_1.f90'
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/pr93484_1.f90
+@@ -0,0 +1,8 @@
++! { dg-do compile }
++!
++program p
++  implicit none
++  integer :: x(4) = [1,2,3,4]
++  print *, [real(x(k))] ! { dg-error "Symbol 'k' at .1. has no IMPLICIT type" } 
++end
++
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/pr93484_2.f90
+@@ -0,0 +1,8 @@
++! { dg-do compile }
++!
++program p
++  implicit none
++  integer, parameter :: x(4) = [1,2,3,4]
++  print *, [real(x(k))] ! { dg-error "Symbol 'k' at .1. has no IMPLICIT type" }
++end
++
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/pr94030_1.f90
+@@ -0,0 +1,11 @@
++! { dg-do compile }
++!
++
++subroutine f(n)
++  integer :: n
++  integer :: arr(n)
++  integer :: i
++  equivalence (i, arr(1))
++end
++
++! { dg-error "Array 'arr' at .1. with non-constant bounds cannot be an EQUIVALENCE object" " " { target *-*-* } 8 }
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/pr94030_2.f90
+@@ -0,0 +1,33 @@
++! { dg-do compile }
++!
++! Provided by Steve Kargl.
++
++subroutine foo(n,m)
++  integer, intent(in) :: n, m
++  integer a(n)
++  real b(n)
++  equivalence(a,b)
++  if (m /= 2) then
++      a = 1
++      print *, a(1)
++  else
++      b = 42.
++      print *, b(1)
++   end if
++end subroutine 
++
++subroutine bar(m)
++  integer, intent(in) :: m
++  integer x(8)
++  real y(8)
++  equivalence(x,y)
++  if (m /= 2) then
++      x = 1
++      print *, x(1)
++  else
++      y = 42.
++      print *, y(1)
++   end if
++end subroutine 
++
++! { dg-error "Array '.' at .1. with non-constant bounds cannot be an EQUIVALENCE object" " " { target *-*-* } 9 }
 --- a/src/gcc/tree-ssa-pre.c
 +++ b/src/gcc/tree-ssa-pre.c
 @@ -2797,7 +2797,8 @@ create_expression_by_pieces (basic_block block, pre_expr expr,
