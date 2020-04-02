@@ -751,10 +751,8 @@ ifneq (,$(findstring build-cross, $(build_type)))
 endif
 
 ifeq ($(single_package),yes)
-  ifeq ($(trunk_build),yes)
-    with_offload_nvptx := yes
-  else
-    with_offload_nvptx := disabled for snapshot builds
+  ifneq ($(trunk_build),yes)
+    with_offload_nvptx := disabled for $(PKGSOURCE) builds
   endif
 endif
 ifneq ($(findstring nonvptx, $(DEB_BUILD_OPTIONS)),)
@@ -785,10 +783,8 @@ ifneq (,$(findstring build-cross, $(build_type)))
 endif
 
 ifeq ($(single_package),yes)
-  ifeq ($(trunk_build),yes)
-    with_offload_gcn := yes
-  else
-    with_offload_gcn := disabled for snapshot builds
+  ifneq ($(trunk_build),yes)
+    with_offload_gcn := disabled for $(PKGSOURCE) builds
   endif
 endif
 ifneq ($(findstring nogcn, $(DEB_BUILD_OPTIONS)),)
@@ -1270,7 +1266,7 @@ endif
 ifneq (,$(filter $(distrelease),precise))
   with_m2 := disabled for $(distrelease) backport
 endif
-#with_m2 := disabled for GCC 10
+with_m2 := disabled for GCC 10
 
 with_m2 := $(call envfilt, m2, , , $(with_m2))
 
