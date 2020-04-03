@@ -6,6 +6,11 @@ Description: set ALI timestamps from SOURCE_DATE_EPOCH if available.
  https://reproducible-builds.org/specs/source-date-epoch/
  .
  Also see debian/ada/test_ada_source_date_epoch.sh.
+ .
+ c1d276b0e2cb60140389aa4c23ac3addb7a77af3 shortens this diff but
+ modifies libgnat/*.  Such changes must wait a new GCC version because
+ they invalidate the checksums in the .ali files.
+ https://bugs.debian.org/954681 shows why this must be avoided.
 Author: Nicolas Boulenguez <nicolas@debian.org>
 
 --- a/src/gcc/ada/osint.adb
@@ -63,14 +68,18 @@ Author: Nicolas Boulenguez <nicolas@debian.org>
     end File_Stamp;
  
     function File_Stamp (Name : Path_Name_Type) return Time_Stamp_Type is
-@@ -1660,7 +1676,12 @@ package body Osint is
+@@ -1660,7 +1676,16 @@ package body Osint is
     ----------------
  
     procedure Initialize is
 +      SDE_Env_Var : String_Access;
++      Get_OK      : Boolean;
     begin
 +      SDE_Env_Var := Getenv ("SOURCE_DATE_EPOCH");
-+      Source_Date_Epoch := UNIX_Epoch_To_OS_Time (SDE_Env_Var.all);
++      Get_OS_Time_From_String (SDE_Env_Var.all, Get_OK, Source_Date_Epoch);
++      if not Get_OK then
++         Source_Date_Epoch := Invalid_Time;
++      end if;
 +      Free (SDE_Env_Var);
 +
        Number_File_Names       := 0;
@@ -100,47 +109,60 @@ Author: Nicolas Boulenguez <nicolas@debian.org>
       (Name : C_File_Name;
 --- a/src/gcc/ada/libgnat/s-os_lib.adb
 +++ b/src/gcc/ada/libgnat/s-os_lib.adb
-@@ -3006,6 +3006,31 @@
-       return Return_Val;
-    end To_Path_String_Access;
+@@ -1146,6 +1146,41 @@ package body System.OS_Lib is
+       return Result;
+    end Get_Object_Suffix;
  
-+   ---------------------------
-+   -- UNIX_Epoch_To_OS_Time --
-+   ---------------------------
++   -----------------------------
++   -- Get_OS_Time_From_String --
++   -----------------------------
 +
-+   function UNIX_Epoch_To_OS_Time (Epoch : String) return OS_Time is
++   procedure Get_OS_Time_From_String (Arg     : String;
++                                      Success : out Boolean;
++                                      Result  : out OS_Time) is
 +      --  Calling System.Val_LLI breaks the bootstrap sequence.
-+      Digit  : OS_Time range 0 .. 9;
-+      Result : OS_Time range 0 .. OS_Time'Last := 0;
++      Digit : OS_Time;
 +   begin
-+      if Epoch'Length = 0 then
-+         return Invalid_Time;
++      Result := 0;
++      if Arg'Length = 0 then
++         Success := False;
++         return;
 +      end if;
-+      for I in Epoch'Range loop
-+         if Epoch (I) not in '0' .. '9' then
-+            return Invalid_Time;
++      for I in Arg'Range loop
++         if Arg (I) not in '0' .. '9' then
++            Success := False;
++            return;
 +         end if;
-+         Digit := OS_Time (Character'Pos (Epoch (I)) - Character'Pos ('0'));
-+         if (OS_Time'Last - Digit) / 10 < Result then
-+            return Invalid_Time;
++         Digit := OS_Time (Character'Pos (Arg (I)) - Character'Pos ('0'));
++         if OS_Time'Last / 10 < Result then
++            Success := False;
++            return;
 +         end if;
-+         Result := Result * 10 + Digit;
++         Result := Result * 10;
++         if OS_Time'Last - Digit < Result then
++            Success := False;
++            return;
++         end if;
++         Result := Result + Digit;
 +      end loop;
-+      return Result;
-+   end UNIX_Epoch_To_OS_Time;
++      Success := True;
++   end Get_OS_Time_From_String;
 +
-    ------------------
-    -- Wait_Process --
-    ------------------
+    ----------------------------------
+    -- Get_Target_Debuggable_Suffix --
+    ----------------------------------
 --- a/src/gcc/ada/libgnat/s-os_lib.ads
 +++ b/src/gcc/ada/libgnat/s-os_lib.ads
-@@ -164,6 +164,10 @@
+@@ -164,6 +164,13 @@ package System.OS_Lib is
     --  component parts to be interpreted in the local time zone, and returns
     --  an OS_Time. Returns Invalid_Time if the creation fails.
  
-+   function UNIX_Epoch_To_OS_Time (Epoch : String) return OS_Time;
-+   --  If Epoch is not empty, only contains decimal digits, and the represented
-+   --  value fits in the OS_Time range, return it.  Else, return Invalid_Time.
++   procedure Get_OS_Time_From_String (Arg     : String;
++                                      Success : out Boolean;
++                                      Result  : out OS_Time);
++   --  Success is set if Arg is not empty, only contains decimal
++   --  digits and represents an integer within OS_Time range.  Result
++   --  is then affected with the represented value.
 +
     ----------------
     -- File Stuff --

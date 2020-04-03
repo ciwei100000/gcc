@@ -93,3 +93,5 @@ touch lib.ali -d @50
 SOURCE_DATE_EPOCH=30 $gnatmake -v main.adb
 grep '^D lib\.ads\s\+19700101000020'  lib.ali
 grep '^D lib\.ads\s\+19700101000020' main.ali
+
+echo "All tests passed"
