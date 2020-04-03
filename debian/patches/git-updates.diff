@@ -1,13 +1,38 @@
-# DP: updates from the 9 branch upto 20200402 (be64fc4cab7).
+# DP: updates from the 9 branch upto 20200403 (7fe7c950c32).
 
 LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
-	4212a6a3e44f870412d9025eeb323fd4f50a61da be64fc4cab7facee309447302b6ee7616dfe60b4 \
+	4212a6a3e44f870412d9025eeb323fd4f50a61da 7fe7c950c32213f35bd074dca6d4ed54fa11c8a6 \
 	| awk '/^diff .*\.texi/ {skip=1; next} /^diff / { skip=0 } skip==0' \
 	| grep -v -E '^(diff|index)'
 
 --- a/src/gcc/ChangeLog
 +++ b/src/gcc/ChangeLog
-@@ -1,3 +1,291 @@
+@@ -1,3 +1,316 @@
++2020-04-02  Fritz Reese  <foreese@gcc.gnu.org>
++
++	Backport from master.
++	2020-04-02  Fritz Reese  <foreese@gcc.gnu.org>
++
++	PR fortran/85982
++	* fortran/decl.c (match_attr_spec): Lump COMP_STRUCTURE/COMP_MAP into
++	attribute checking used by TYPE.
++
++2020-04-02  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2020-03-12  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/94103
++	* tree-ssa-sccvn.c (visit_reference_op_load): Avoid type
++	punning when the mode precision is not sufficient.
++
++	2020-03-18  Richard Biener  <rguenther@suse.de>
++
++	PR middle-end/94206
++	* gimple-fold.c (gimple_fold_builtin_memset): Avoid using
++	partial int modes or not mode-precision integer types for
++	the store.
++
 +2020-04-02  Jakub Jelinek  <jakub@redhat.com>
 +
 +	PR target/94435
@@ -303,7 +328,7 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
 +++ b/src/gcc/DATESTAMP
 @@ -1 +1 @@
 -20200312
-+20200402
++20200403
 --- a/src/gcc/builtins.c
 +++ b/src/gcc/builtins.c
 @@ -3112,27 +3112,25 @@ expand_builtin_strnlen (tree exp, rtx target, machine_mode target_mode)
@@ -1441,7 +1466,71 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
    m = ap->next->next->next->expr;
 --- a/src/gcc/fortran/decl.c
 +++ b/src/gcc/fortran/decl.c
-@@ -9602,13 +9602,20 @@ gfc_match_submod_proc (void)
+@@ -5339,15 +5339,19 @@ match_attr_spec (void)
+       if (d == DECL_STATIC && seen[DECL_SAVE])
+ 	continue;
+ 
+-      if (gfc_current_state () == COMP_DERIVED
++      if (gfc_comp_struct (gfc_current_state ())
+ 	  && d != DECL_DIMENSION && d != DECL_CODIMENSION
+ 	  && d != DECL_POINTER   && d != DECL_PRIVATE
+ 	  && d != DECL_PUBLIC && d != DECL_CONTIGUOUS && d != DECL_NONE)
+ 	{
++	  bool is_derived = gfc_current_state () == COMP_DERIVED;
+ 	  if (d == DECL_ALLOCATABLE)
+ 	    {
+-	      if (!gfc_notify_std (GFC_STD_F2003, "ALLOCATABLE "
+-				   "attribute at %C in a TYPE definition"))
++	      if (!gfc_notify_std (GFC_STD_F2003, is_derived
++				   ? G_("ALLOCATABLE attribute at %C in a "
++					"TYPE definition")
++				   : G_("ALLOCATABLE attribute at %C in a "
++					"STRUCTURE definition")))
+ 		{
+ 		  m = MATCH_ERROR;
+ 		  goto cleanup;
+@@ -5355,8 +5359,11 @@ match_attr_spec (void)
+ 	    }
+ 	  else if (d == DECL_KIND)
+ 	    {
+-	      if (!gfc_notify_std (GFC_STD_F2003, "KIND "
+-				   "attribute at %C in a TYPE definition"))
++	      if (!gfc_notify_std (GFC_STD_F2003, is_derived
++				   ? G_("KIND attribute at %C in a "
++					"TYPE definition")
++				   : G_("KIND attribute at %C in a "
++					"STRUCTURE definition")))
+ 		{
+ 		  m = MATCH_ERROR;
+ 		  goto cleanup;
+@@ -5379,8 +5386,11 @@ match_attr_spec (void)
+ 	    }
+ 	  else if (d == DECL_LEN)
+ 	    {
+-	      if (!gfc_notify_std (GFC_STD_F2003, "LEN "
+-				   "attribute at %C in a TYPE definition"))
++	      if (!gfc_notify_std (GFC_STD_F2003, is_derived
++				   ? G_("LEN attribute at %C in a "
++					"TYPE definition")
++				   : G_("LEN attribute at %C in a "
++					"STRUCTURE definition")))
+ 		{
+ 		  m = MATCH_ERROR;
+ 		  goto cleanup;
+@@ -5403,8 +5413,10 @@ match_attr_spec (void)
+ 	    }
+ 	  else
+ 	    {
+-	      gfc_error ("Attribute at %L is not allowed in a TYPE definition",
+-			 &seen_at[d]);
++	      gfc_error (is_derived ? G_("Attribute at %L is not allowed in a "
++					 "TYPE definition")
++				    : G_("Attribute at %L is not allowed in a "
++					 "STRUCTURE definition"), &seen_at[d]);
+ 	      m = MATCH_ERROR;
+ 	      goto cleanup;
+ 	    }
+@@ -9602,13 +9614,20 @@ gfc_match_submod_proc (void)
    if (get_proc_name (name, &sym, false))
      return MATCH_ERROR;
  
@@ -1503,6 +1592,27 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  	{
  	  gfc_error ("Array %qs at %L with non-constant bounds cannot be "
  		     "an EQUIVALENCE object", sym->name, &e->where);
+--- a/src/gcc/gimple-fold.c
++++ b/src/gcc/gimple-fold.c
+@@ -1242,12 +1242,18 @@ gimple_fold_builtin_memset (gimple_stmt_iterator *gsi, tree c, tree len)
+ 
+   length = tree_to_uhwi (len);
+   if (GET_MODE_SIZE (SCALAR_INT_TYPE_MODE (etype)) != length
++      || (GET_MODE_PRECISION (SCALAR_INT_TYPE_MODE (etype))
++	  != GET_MODE_BITSIZE (SCALAR_INT_TYPE_MODE (etype)))
+       || get_pointer_alignment (dest) / BITS_PER_UNIT < length)
+     return NULL_TREE;
+ 
+   if (length > HOST_BITS_PER_WIDE_INT / BITS_PER_UNIT)
+     return NULL_TREE;
+ 
++  if (!type_has_mode_precision_p (etype))
++    etype = lang_hooks.types.type_for_mode (SCALAR_INT_TYPE_MODE (etype),
++					    TYPE_UNSIGNED (etype));
++
+   if (integer_zerop (c))
+     cval = 0;
+   else
 --- a/src/gcc/print-rtl.c
 +++ b/src/gcc/print-rtl.c
 @@ -1678,7 +1678,9 @@ print_value (pretty_printer *pp, const_rtx x, int verbose)
@@ -1615,7 +1725,28 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  extern void init_resource_info (rtx_insn *);
 --- a/src/gcc/testsuite/ChangeLog
 +++ b/src/gcc/testsuite/ChangeLog
-@@ -1,3 +1,186 @@
+@@ -1,3 +1,207 @@
++2020-04-02  Fritz Reese  <foreese@gcc.gnu.org>
++
++	Backport from master.
++	2020-04-02  Fritz Reese  <foreese@gcc.gnu.org>
++
++	PR fortran/85982
++	* gfortran.dg/dec_structure_28.f90: New test.
++
++2020-04-02  Richard Biener  <rguenther@suse.de>
++
++	Backport from mainline
++	2020-03-12  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/94103
++	* gcc.target/i386/pr94103.c: New testcase.
++
++	2020-03-18  Richard Biener  <rguenther@suse.de>
++
++	PR middle-end/94206
++	* gcc.dg/torture/pr94206.c: New testcase.
++
 +2020-04-02  Jakub Jelinek  <jakub@redhat.com>
 +
 +	PR target/94435
@@ -2321,6 +2452,27 @@ new file mode 100644
 +}
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/gcc.dg/torture/pr94206.c
+@@ -0,0 +1,17 @@
++/* { dg-do run { target lp64 } } */
++
++struct {
++    unsigned long x:33;
++} s;
++typedef __typeof__(s.x + 0) uint33;
++
++int main()
++{
++  uint33 x;
++  __builtin_memset(&x, -1, sizeof x);
++  unsigned long u;
++  __builtin_memcpy(&u, &x, sizeof u);
++  if (u != -1ul)
++    __builtin_abort ();
++  return 0;
++}
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/gcc.dg/tree-ssa/pr94125.c
 @@ -0,0 +1,41 @@
 +/* { dg-do run } */
@@ -2577,6 +2729,27 @@ new file mode 100644
  
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/gcc.target/i386/pr94103.c
+@@ -0,0 +1,17 @@
++/* { dg-do run { target lp64 } } */
++/* { dg-options "-O3" } */
++
++int main()
++{
++  long double x;
++  unsigned long u[2] = {0xEEEEEEEEEEEEEEEEUL, 0xEEEEEEEEEEEEEEEEUL};
++  __builtin_memcpy(&x, &u, sizeof x);
++  __builtin_memcpy(&u, &x, sizeof u);
++  ++*(unsigned char *)&x;
++  (void)-x;
++  __builtin_memcpy(&u, &x, sizeof u);
++  if (u[1] != 0xEEEEEEEEEEEEEEEEUL
++      || u[0] != 0xEEEEEEEEEEEEEEEFUL)
++    __builtin_abort ();
++  return 0;
++}
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/gcc.target/powerpc/p9-minmax-3.c
 @@ -0,0 +1,17 @@
 +/* { dg-do compile { target { powerpc*-*-* } } } */
@@ -2706,6 +2879,45 @@ new file mode 100644
 +		a += g;
 +	return a;
 +}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/dec_structure_28.f90
+@@ -0,0 +1,35 @@
++! { dg-do compile }
++! { dg-options "-fdec-structure -fdec-static" }
++!
++! PR fortran/85982
++!
++! Test a regression wherein some component attributes were erroneously accepted
++! within a DEC structure.
++!
++
++structure /s/
++  integer :: a
++  integer, intent(in) :: b ! { dg-error "is not allowed" }
++  integer, intent(out) :: c ! { dg-error "is not allowed" }
++  integer, intent(inout) :: d ! { dg-error "is not allowed" }
++  integer, dimension(1,1) :: e ! OK
++  integer, external, pointer :: f ! { dg-error "is not allowed" }
++  integer, intrinsic :: f ! { dg-error "is not allowed" }
++  integer, optional :: g ! { dg-error "is not allowed" }
++  integer, parameter :: h ! { dg-error "is not allowed" }
++  integer, protected :: i ! { dg-error "is not allowed" }
++  integer, private :: j ! { dg-error "is not allowed" }
++  integer, static :: k ! { dg-error "is not allowed" }
++  integer, automatic :: l ! { dg-error "is not allowed" }
++  integer, public :: m ! { dg-error "is not allowed" }
++  integer, save :: n ! { dg-error "is not allowed" }
++  integer, target :: o ! { dg-error "is not allowed" }
++  integer, value :: p ! { dg-error "is not allowed" }
++  integer, volatile :: q ! { dg-error "is not allowed" }
++  integer, bind(c) :: r ! { dg-error "is not allowed" }
++  integer, asynchronous :: t ! { dg-error "is not allowed" }
++  character(len=3) :: v ! OK
++  integer(kind=4) :: w ! OK
++end structure
++
++end
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/gfortran.dg/module_procedure_3.f90
@@ -3125,6 +3337,38 @@ new file mode 100644
  		set_ptr_info_alignment (get_ptr_info (forcedname),
  					halign, hmisalign);
  	    }
+--- a/src/gcc/tree-ssa-sccvn.c
++++ b/src/gcc/tree-ssa-sccvn.c
+@@ -4124,13 +4124,22 @@ visit_reference_op_load (tree lhs, tree op, gimple *stmt)
+   if (result
+       && !useless_type_conversion_p (TREE_TYPE (result), TREE_TYPE (op)))
+     {
+-      /* We will be setting the value number of lhs to the value number
+-	 of VIEW_CONVERT_EXPR <TREE_TYPE (result)> (result).
+-	 So first simplify and lookup this expression to see if it
+-	 is already available.  */
+-      gimple_match_op res_op (gimple_match_cond::UNCOND,
+-			      VIEW_CONVERT_EXPR, TREE_TYPE (op), result);
+-      result = vn_nary_build_or_lookup (&res_op);
++      /* Avoid the type punning in case the result mode has padding where
++	 the op we lookup has not.  */
++      if (maybe_lt (GET_MODE_PRECISION (TYPE_MODE (TREE_TYPE (result))),
++		    GET_MODE_PRECISION (TYPE_MODE (TREE_TYPE (op)))))
++	result = NULL_TREE;
++      else
++	{
++	  /* We will be setting the value number of lhs to the value number
++	     of VIEW_CONVERT_EXPR <TREE_TYPE (result)> (result).
++	     So first simplify and lookup this expression to see if it
++	     is already available.  */
++	  gimple_match_op res_op (gimple_match_cond::UNCOND,
++				  VIEW_CONVERT_EXPR, TREE_TYPE (op), result);
++	  result = vn_nary_build_or_lookup (&res_op);
++	}
++
+       /* When building the conversion fails avoid inserting the reference
+          again.  */
+       if (!result)
 --- a/src/gcc/tree-tailcall.c
 +++ b/src/gcc/tree-tailcall.c
 @@ -327,7 +327,8 @@ process_assignment (gassign *stmt,
