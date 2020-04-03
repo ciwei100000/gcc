@@ -206,7 +206,7 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
 Section: ifdef(`TARGET',`devel',`libs')
 Priority: optional
 Depends: BASELDEP, ${shlibs:Depends}, ${misc:Depends}
-Provides: libgcc1`'LS (= ${gcc:EpochVersion}), libgcc-s1`'LS (= ${gcc:EpochVersion}), ifdef(`TARGET',`libgcc-s1-TARGET-dcv1',`libgcc-s1-armel [armel], libgcc-s1-armhf [armhf]')
+Provides: libgcc1`'LS (= ${gcc:EpochVersion}), ifdef(`TARGET',`libgcc-s1-TARGET-dcv1',`libgcc-s1-armel [armel], libgcc-s1-armhf [armhf]')
 ifdef(`MULTIARCH', `Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
 ')`'dnl
@@ -292,7 +292,7 @@ ifdef(`MULTIARCH', `Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
 ')`'dnl
 Depends: BASELDEP, ${shlibs:Depends}, ${misc:Depends}
-Provides: libgcc2`'LS (= ${gcc:EpochVersion}), libgcc-s2`'LS (= ${gcc:EpochVersion}),ifdef(`TARGET',` libgcc-s2-TARGET-dcv1')`'
+Provides: libgcc2`'LS (= ${gcc:EpochVersion}), ifdef(`TARGET',`libgcc-s2-TARGET-dcv1')`'
 ifdef(`TARGET',`dnl
 Breaks: libgcc2`'LS (<< 1:10)
 Replaces: libgcc2`'LS (<< 1:10)
@@ -389,7 +389,7 @@ Architecture: ifdef(`TARGET',`CROSS_ARCH',`hppa')
 ifdef(`MULTIARCH', `Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
 ')`'dnl
-Provides: libgcc4`'LS (= ${gcc:EpochVersion}), libgcc-s4`'LS (= ${gcc:EpochVersion})
+Provides: libgcc4`'LS (= ${gcc:EpochVersion})
 ifdef(`TARGET',`dnl
 Breaks: libgcc4`'LS (<< 1:10)
 Replaces: libgcc4`'LS (<< 1:10)
