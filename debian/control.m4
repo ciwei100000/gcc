@@ -190,7 +190,6 @@ Architecture: any
 Section: libs
 Priority: PRI(optional)
 Depends: ${misc:Depends}
-Breaks: gcc-4.6 (<< 4.6.1-8~)
 BUILT_USING`'dnl
 Description: GNU Ada compiler (common files)
  GNAT is a compiler for the Ada programming language. It produces optimized
@@ -1140,7 +1139,7 @@ Package: cpp`'PV-doc
 Architecture: all
 Section: doc
 Priority: PRI(optional)
-Depends: gcc`'PV-base (>= ${gcc:SoftVersion}), dpkg (>= 1.15.4) | install-info, ${misc:Depends}
+Depends: gcc`'PV-base (>= ${gcc:SoftVersion}), ${misc:Depends}
 Description: Documentation for the GNU C preprocessor (cpp)
  Documentation for the GNU C preprocessor in info `format'.
 ')`'dnl gfdldoc
@@ -3848,7 +3847,7 @@ Package: gfortran`'PV-doc
 Architecture: all
 Section: doc
 Priority: PRI(optional)
-Depends: gcc`'PV-base (>= ${gcc:SoftVersion}), dpkg (>= 1.15.4) | install-info, ${misc:Depends}
+Depends: gcc`'PV-base (>= ${gcc:SoftVersion}), ${misc:Depends}
 Description: Documentation for the GNU Fortran compiler (gfortran)
  Documentation for the GNU Fortran compiler in info `format'.
 ')`'dnl gfdldoc
@@ -4197,7 +4196,7 @@ Package: gccgo`'PV-doc
 Architecture: all
 Section: doc
 Priority: PRI(optional)
-Depends: gcc`'PV-base (>= ${gcc:SoftVersion}), dpkg (>= 1.15.4) | install-info, ${misc:Depends}
+Depends: gcc`'PV-base (>= ${gcc:SoftVersion}), ${misc:Depends}
 BUILT_USING`'dnl
 Description: Documentation for the GNU Go compiler (gccgo)
  Documentation for the GNU Go compiler in info `format'.
@@ -5057,19 +5056,11 @@ ifdef(`MULTIARCH', `Pre-Depends: ${misc:Pre-Depends}
 ')`'dnl
 Depends: BASEDEP, gcc`'PV`'TS (>= ${gcc:SoftVersion}), ${dep:libgnat}, ${dep:libcdev}, ${shlibs:Depends}, ${misc:Depends}
 Suggests: gnat`'PV-doc, ada-reference-manual-2012, gnat`'-GNAT_V-sjlj
-Breaks:   gnat (<< 4.6.1), dh-ada-library (<< 6.0), gnat-4.6-base (= 4.6.4-2),
- gnat-4.9-base (= 4.9-20140330-1)
-Replaces: gnat (<< 4.6.1), dh-ada-library (<< 6.0), gnat-4.6-base (= 4.6.4-2),
- gnat-4.9-base (= 4.9-20140330-1)
-# Takes over symlink from gnat (<< 4.6.1): /usr/bin/gnatgcc.
-# Takes over file from dh-ada-library (<< 6.0): debian_packaging.mk.
-# g-base 4.6.4-2, 4.9-20140330-1 contain debian_packaging.mk by mistake.
-# Newer versions of gnat and dh-ada-library will not provide these files.
-Conflicts: gnat (<< 4.1), gnat-3.1, gnat-3.2, gnat-3.3, gnat-3.4, gnat-3.5,
- gnat-4.0, gnat-4.1, gnat-4.2, gnat-4.3, gnat-4.4, gnat-4.6, gnat-4.7, gnat-4.8,
- gnat-4.9, gnat-5`'TS, gnat-6`'TS, gnat-7`'TS, gnat-8`'TS, gnat-9`'TS,
-# These other packages will continue to provide /usr/bin/gnatmake and
-# other files.
+Breaks: gnat-4.9-base (= 4.9-20140330-1)
+Replaces: gnat-4.9-base (= 4.9-20140330-1)
+# gnat-base 4.9-20140330-1 contains debian_packaging.mk by mistake.
+Conflicts: gnat-4.9, gnat-5`'TS, gnat-6`'TS, gnat-7`'TS, gnat-8`'TS, gnat-9`'TS,
+# Previous versions conflict for (at least) /usr/bin/gnatmake.
 BUILT_USING`'dnl
 Description: GNU Ada compiler
  GNAT is a compiler for the Ada programming language. It produces optimized
@@ -5146,9 +5137,7 @@ Architecture: any
 Priority: optional
 Depends: BASELDEP, gnat`'PV`'TS (= ${gnat:Version}),
  libgnatvsn`'GNAT_V`'LS (= ${gnat:Version}), ${misc:Depends}
-Conflicts: libgnatvsn-dev (<< `'GNAT_V),
- libgnatvsn4.1-dev, libgnatvsn4.3-dev, libgnatvsn4.4-dev,
- libgnatvsn4.5-dev, libgnatvsn4.6-dev, libgnatvsn4.9-dev,
+Conflicts: libgnatvsn4.9-dev,
  libgnatvsn5-dev`'LS, libgnatvsn6-dev`'LS, libgnatvsn7-dev`'LS,
 BUILT_USING`'dnl
 Description: GNU Ada compiler selected components (development files)
@@ -5229,11 +5218,9 @@ Package: gnat`'PV-doc
 Architecture: all
 Section: doc
 Priority: PRI(optional)
-Depends: dpkg (>= 1.15.4) | install-info, ${misc:Depends}
+Depends: ${misc:Depends}
 Suggests: gnat`'PV
-Conflicts: gnat-4.1-doc, gnat-4.2-doc,
-  gnat-4.3-doc, gnat-4.4-doc,
-  gnat-4.6-doc, gnat-4.9-doc,
+Conflicts: gnat-4.9-doc,
   gnat-5-doc, gnat-6-doc, gnat-7-doc, gnat-8-doc, gnat-9-doc,
 BUILT_USING`'dnl
 Description: GNU Ada compiler (documentation)
@@ -6306,7 +6293,7 @@ Package: gcc`'PV-doc
 Architecture: all
 Section: doc
 Priority: PRI(optional)
-Depends: gcc`'PV-base (>= ${gcc:SoftVersion}), dpkg (>= 1.15.4) | install-info, ${misc:Depends}
+Depends: gcc`'PV-base (>= ${gcc:SoftVersion}), ${misc:Depends}
 Conflicts: gcc-docs (<< 2.95.2)
 Replaces: gcc (<=2.7.2.3-4.3), gcc-docs (<< 2.95.2)
 Description: Documentation for the GNU compilers (gcc, gobjc, g++)
