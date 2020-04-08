@@ -20,8 +20,7 @@ $(binary_stamp)-base: $(install_dependencies)
 	dh_testdir
 	dh_testroot
 	rm -rf $(d_base)
-	dh_installdirs -p$(p_base) \
-		$(gcc_lexec_dir)
+	dh_installdirs -p$(p_base)
 
 ifeq ($(with_base_only),yes)
 	dh_installdocs -p$(p_base) debian/README.Debian
