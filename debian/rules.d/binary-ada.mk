@@ -47,10 +47,6 @@ d_gnatd	= debian/$(p_gnatd)
 GNAT_TOOLS = gnat gnatbind gnatchop gnatclean gnatfind gnatkr gnatlink \
 	     gnatls gnatmake gnatname gnatprep gnatxref gnathtml
 
-ifeq ($(with_gnatsjlj),yes)
-	rts_subdir = 
-endif
-
 dirs_gnat = \
 	$(docdir)/$(p_gbase) \
 	$(PF)/bin \
@@ -64,12 +60,6 @@ files_gnat = \
 	$(gcc_lib_dir)/adalib/*.ali \
 	$(gcc_lib_dir)/adalib/lib*.a \
 	$(foreach i,$(GNAT_TOOLS),$(PF)/bin/$(cmd_prefix)$(i)$(pkg_ver))
-
-dirs_lgnat = \
-	$(docdir) \
-	$(PF)/lib
-files_lgnat = \
-	$(usr_lib)/lib{gnat,gnarl}-$(GNAT_SONAME).so.1
 
 $(binary_stamp)-gnatbase: $(install_stamp)
 	dh_testdir
@@ -97,14 +87,8 @@ $(binary_stamp)-libgnat: $(install_stamp)
 
 	: # libgnat
 	rm -rf $(d_lgnat)
-	dh_installdirs -p$(p_lgnat) $(dirs_lgnat)
 
-	for lib in lib{gnat,gnarl}; do \
-	  vlib=$$lib-$(GNAT_SONAME); \
-	  mv $(d)/$(gcc_lib_dir)/$(rts_subdir)/adalib/$$vlib.so.1 $(d)/$(usr_lib)/. ; \
-	  rm -f $(d)/$(gcc_lib_dir)/adalib/$$lib.so.1; \
-	done
-	$(dh_compat2) dh_movefiles -p$(p_lgnat) $(files_lgnat)
+	dh_install -p$(p_lgnat) $(gcc_lib_dir)/adalib/libgna{t,rl}-$(GNAT_SONAME).so $(usr_lib)
 
 	debian/dh_doclink -p$(p_lgnat) $(p_glbase)
 
@@ -203,17 +187,11 @@ ifeq ($(with_gnatsjlj),yes)
 endif
 
 ifeq ($(with_libgnat),yes)
-	for lib in lib{gnat,gnarl}; do \
-	  vlib=$$lib-$(GNAT_SONAME); \
-	  dh_link -p$(p_gnat) \
-	    /$(usr_lib)/$$vlib.so.1 /$(usr_lib)/$$vlib.so \
-	    /$(usr_lib)/$$vlib.so.1 /$(usr_lib)/$$lib.so; \
-	done
-	for lib in lib{gnat,gnarl}; do \
-	  vlib=$$lib-$(GNAT_SONAME); \
-	  dh_link -p$(p_gnat) \
-	    /$(usr_lib)/$$vlib.so.1 $(gcc_lib_dir)/$(rts_subdir)adalib/$$lib.so; \
-	done
+  # Development links to actual shared libraries provided by libgnat.
+	dh_install -p$(p_gnat) $(gcc_lib_dir)/adalib/libgna{t,rl}.so $(usr_lib)
+  # Similar links specific to Debian. FIXME: what is their purpose?
+	dh_link -p$(p_gnat) $(foreach lib,libgnat libgnarl,\
+	  $(usr_lib)/$(lib)-$(GNAT_SONAME).so $(gcc_lib_dir)/adalib/$(lib).so)
 endif
 	debian/dh_doclink -p$(p_gnat)      $(p_gbase)
 ifeq ($(with_gnatsjlj),yes)

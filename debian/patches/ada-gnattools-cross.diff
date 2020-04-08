@@ -10,10 +10,8 @@ to stamp-gnatlib2 is not necessary anymore with gcc-9.
   The same thing would be useful for gnat1drv, but is less easy.
 * TOOLS_ALREADY_COMPILED lists LIBGNAT objects that
   gcc/ada/gcc-interface/Makefile should not rebuild.
-* Install the shared Ada libraries as '.so.1', not '.so' to conform
-  to the Debian policy.
 * Link libgnat/gnarl with LDFLAGS.
-* Create libgnat-BV.so symbolic link, use it and -L to link libgnarl.
+* Link libgnarl with explicit -L and -l options.
   This prevents undefined symbols or unwanted usage of host libgnat.
 * Compile with -gnatn for efficiency.
   Double-check the link since Debian moves some symbols.
@@ -63,23 +61,6 @@ This patch depends on ada-libgnatvsn.diff.
  # Needs to be built with CC=gcc
  # Since the RTL should be built with the latest compiler, remove the
  #  stamp target in the parent directory whenever gnat1 is rebuilt
-@@ -532,14 +546,10 @@ install-gnatlib: ../stamp-gnatlib-$(RTSD
- #     Also install the .dSYM directories if they exist (these directories
- #     contain the debug information for the shared libraries on darwin)
- 	for file in gnat gnarl; do \
--	   if [ -f $(RTSDIR)/lib$${file}$(hyphen)$(LIBRARY_VERSION)$(soext) ]; then \
--	      $(INSTALL) $(RTSDIR)/lib$${file}$(hyphen)$(LIBRARY_VERSION)$(soext) \
-+	   if [ -f $(RTSDIR)/lib$${file}$(hyphen)$(LIBRARY_VERSION)$(soext).1 ]; then \
-+	      $(INSTALL) $(RTSDIR)/lib$${file}$(hyphen)$(LIBRARY_VERSION)$(soext).1 \
- 			 $(DESTDIR)$(ADA_RTL_DSO_DIR); \
- 	   fi; \
--	   if [ -f $(RTSDIR)/lib$${file}$(soext) ]; then \
--	      $(LN_S) lib$${file}$(hyphen)$(LIBRARY_VERSION)$(soext) \
--	      $(DESTDIR)$(ADA_RTL_DSO_DIR)/lib$${file}$(soext); \
--	   fi; \
- 	   if [ -d $(RTSDIR)/lib$${file}$(hyphen)$(LIBRARY_VERSION)$(soext).dSYM ]; then \
- 	      $(CP) -r $(RTSDIR)/lib$${file}$(hyphen)$(LIBRARY_VERSION)$(soext).dSYM \
- 	        $(DESTDIR)$(ADA_RTL_DSO_DIR); \
 @@ -609,7 +619,7 @@ $(RTSDIR)/s-oscons.ads: ../stamp-gnatlib
  	    $(OSCONS_EXTRACT) ; \
  	    ../bldtools/oscons/xoscons s-oscons)
@@ -89,7 +70,7 @@ This patch depends on ada-libgnatvsn.diff.
  	test -f $(RTSDIR)/s-oscons.ads || exit 1
  # C files
  	$(MAKE) -C $(RTSDIR) \
-@@ -643,37 +653,51 @@ gnatlib: ../stamp-gnatlib1-$(RTSDIR) ../
+@@ -643,32 +653,47 @@
  		$(RANLIB_FOR_TARGET) $(RTSDIR)/libgmem$(arext)
          endif
  	$(CHMOD) a-wx $(RTSDIR)/*.ali
@@ -107,7 +88,6 @@ This patch depends on ada-libgnatvsn.diff.
 -	     THREAD_KIND="$(THREAD_KIND)" \
 -	     LN_S="$(LN_S)" \
 -             gnatlib
--	$(RM) $(RTSDIR)/libgna*$(soext)
 +	$(MAKE) -C $(RTSDIR) \
 +		CC="`echo \"$(GCC_FOR_TARGET)\" \
 +		| sed -e 's,\./xgcc,../../xgcc,' -e 's,-B\./,-B../../,'`" \
@@ -126,43 +106,32 @@ This patch depends on ada-libgnatvsn.diff.
 +		srcdir=$(fsrcdir) \
 +	        -f ../Makefile \
 +	        $(GNATRTL_OBJS)
-+	$(RM) $(RTSDIR)/libgna*$(soext) $(RTSDIR)/libgna*$(soext).1
+ 	$(RM) $(RTSDIR)/libgna*$(soext)
  	cd $(RTSDIR); `echo "$(GCC_FOR_TARGET)" \
                  | sed -e 's,\./xgcc,../../xgcc,' -e 's,-B\./,-B../../,'` -shared $(GNATLIBCFLAGS) \
  		$(PICFLAG_FOR_TARGET) \
--		-o libgnat$(hyphen)$(LIBRARY_VERSION)$(soext) \
-+		-o libgnat$(hyphen)$(LIBRARY_VERSION)$(soext).1 $(LDFLAGS) \
+ 		-o libgnat$(hyphen)$(LIBRARY_VERSION)$(soext) \
++		$(LDFLAGS) \
  		$(GNATRTL_NONTASKING_OBJS) $(LIBGNAT_OBJS) \
--		$(SO_OPTS)libgnat$(hyphen)$(LIBRARY_VERSION)$(soext) \
-+		$(SO_OPTS)libgnat$(hyphen)$(LIBRARY_VERSION)$(soext).1 \
+ 		$(SO_OPTS)libgnat$(hyphen)$(LIBRARY_VERSION)$(soext) \
  		$(MISCLIB) -lm
-+	cd $(RTSDIR) && $(LN_S) -f libgnat$(hyphen)$(LIBRARY_VERSION)$(soext).1 \
-+		libgnat$(hyphen)$(LIBRARY_VERSION)$(soext)
  	cd $(RTSDIR); `echo "$(GCC_FOR_TARGET)" \
                  | sed -e 's,\./xgcc,../../xgcc,' -e 's,-B\./,-B../../,'` -shared $(GNATLIBCFLAGS) \
  		$(PICFLAG_FOR_TARGET) \
--		-o libgnarl$(hyphen)$(LIBRARY_VERSION)$(soext) \
-+		-o libgnarl$(hyphen)$(LIBRARY_VERSION)$(soext).1 $(LDFLAGS) \
+ 		-o libgnarl$(hyphen)$(LIBRARY_VERSION)$(soext) \
++		$(LDFLAGS) \
  		$(GNATRTL_TASKING_OBJS) \
--		$(SO_OPTS)libgnarl$(hyphen)$(LIBRARY_VERSION)$(soext) \
-+		$(SO_OPTS)libgnarl$(hyphen)$(LIBRARY_VERSION)$(soext).1 \
+ 		$(SO_OPTS)libgnarl$(hyphen)$(LIBRARY_VERSION)$(soext) \
 +		-L. -lgnat$(hyphen)$(LIBRARY_VERSION) \
  		$(THREADSLIB)
--	cd $(RTSDIR); $(LN_S) libgnat$(hyphen)$(LIBRARY_VERSION)$(soext) \
--		libgnat$(soext)
--	cd $(RTSDIR); $(LN_S) libgnarl$(hyphen)$(LIBRARY_VERSION)$(soext) \
--		libgnarl$(soext)
-+	cd $(RTSDIR) && $(LN_S) -f libgnarl$(hyphen)$(LIBRARY_VERSION)$(soext).1 \
-+		libgnarl$(hyphen)$(LIBRARY_VERSION)$(soext)
-+	$(CHMOD) a-wx $(RTSDIR)/*.ali
- 
- 	# Create static libgnat and libgnarl compiled with -fPIC
- 	$(RM) $(RTSDIR)/libgnat_pic$(arext) $(RTSDIR)/libgnarl_pic$(arext)
-@@ -684,6 +708,9 @@ gnatlib-shared-default:
+ 	cd $(RTSDIR); $(LN_S) libgnat$(hyphen)$(LIBRARY_VERSION)$(soext) \
+ 		libgnat$(soext)
+@@ -684,6 +708,10 @@
  	   $(addprefix $(RTSDIR)/,$(GNATRTL_TASKING_OBJS))
  	$(RANLIB_FOR_TARGET) $(RTSDIR)/libgnarl_pic$(arext)
  
 +# Provide .ads .adb (read-only).ali .so .a, but prevent direct use of .o.
++	$(CHMOD) a-wx $(RTSDIR)/*.ali
 +	$(RM) $(RTSDIR)/*.o
 +
  gnatlib-shared-dual:
