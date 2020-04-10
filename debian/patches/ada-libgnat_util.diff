@@ -9,10 +9,10 @@ More recently, upstream has created a library named libgnat_util
 external tools, but duplicating code outside the GCC tree.
 
 The intent is similar, it make senses that the Debian library is
-renamed accordingly during next GCC passage through the NEW queue.
+named accordingly.
 
 However, some divergences seem necessary.
-* AdaCore links GNAT tools with libcommon.a, but simplifies gnatvsn in
+* AdaCore links GNAT tools with libcommon.a, but simplifies gnatvsn.adb in
   gnat_util so that it does not refer to version.c anymore.
 * AdaCore links GNAT tools link with libcommon-target.a, but lets
   osint.adb in gnat_util refer to a update_path() from
@@ -26,7 +26,7 @@ a good soluton.
 prefix.c requires libbacktrace, a C++ compiler, and so on, so
 recompiling or embedding it is quite complex. For now, no tool (in
 Debian) requires the Ada sources depending on it, so in the absence of
-a better idea, we remove from libgnatvsn all Ada sources needing
+a better idea, we remove from libgnat_util all Ada sources needing
 prefix.c.
 Removed from spec_with_body: ali ali-util errout erroutc errutil fmap
   fname-uf osint restrict scng sdefault styleg stylesw switch switch-m
@@ -38,15 +38,19 @@ course welcome.
 'Makefile.in' and 'aclocal.m4' are generated, but required for the
 Debian build. If this patch belongs an upstream commit, 'configure'
 should also be added. autoreconf -fi' rebuilds all 3 files.
+(Beware to set AUTOCONF ACLOCAL AUTOMAKE to the versions currently
+used by the GCC build, which may differ from the Debian default)
 
 # Please read ada-changes-in-autogen-output.diff about src/Makefile.def.
+Disable various unused templates for this library in Makefile.def in
+order to reduce the noise in ada-changes-in-autogen-output.diff.
 
 # !!! Must be applied after ada-link-lib.diff
 
 --- /dev/null
-+++ b/src/libgnatvsn/configure.ac
++++ b/src/libgnat_util/configure.ac
 @@ -0,0 +1,162 @@
-+# Configure script for libgnatvsn.
++# Configure script for libgnat_util.
 +#   Copyright (C) 2006 Ludovic Brenta <ludovic@ludovic-brenta.org>
 +#   Copyright (C) 2017-2019 Nicolas Boulenguez <nicolas@debian.org>
 +#
@@ -64,7 +68,7 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
 +# along with this program; see the file COPYING3.  If not see
 +# <http://www.gnu.org/licenses/>.
 +
-+AC_INIT([gnatvsn], [version-unused])
++AC_INIT([gnat_util], [version-unused])
 +
 +# Gets build, host, target, *_vendor, *_cpu, *_os, etc.
 +#
@@ -156,7 +160,7 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
 +AC_SUBST(enable_static)
 +AM_MAINTAINER_MODE
 +
-+AC_CONFIG_SRCDIR([gnatvsn.gpr.in])
++AC_CONFIG_SRCDIR([gnat_util.gpr.in])
 +AC_CONFIG_MACRO_DIR([..])
 +AC_PROG_MKDIR_P
 +AC_PROG_LN_S
@@ -209,20 +213,28 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
 +AC_CONFIG_FILES([Makefile])
 +AC_OUTPUT
 --- /dev/null
-+++ b/src/libgnatvsn/gnatvsn.gpr.in
++++ b/src/libgnat_util/gnatvsn.gpr
+@@ -0,0 +1,5 @@
++--  The library has been renamed.  Please use gnat_util.gpr directly.
++with "gnat_util.gpr";
++abstract project Gnatvsn is
++   for Source_Dirs use ();
++end Gnatvsn;
+--- /dev/null
++++ b/src/libgnat_util/gnat_util.gpr.in
 @@ -0,0 +1,8 @@
-+library project Gnatvsn is
-+   for Library_Name use "@PACKAGE@";
++library project Gnat_Util is
++   for Library_Name use "gnat_util";
 +   for Library_Kind use "dynamic";
 +   for Library_Dir use "@libdir@";
 +   for Source_Dirs use ("@pkgadaincludedir@");
 +   for Library_ALI_Dir use "@pkgexecalidir@";
 +   for Externally_Built use "true";
-+end Gnatvsn;
++end Gnat_Util;
 --- /dev/null
-+++ b/src/libgnatvsn/Makefile.am
-@@ -0,0 +1,207 @@
-+# Makefile for libgnatvsn.
++++ b/src/libgnat_util/Makefile.am
+@@ -0,0 +1,203 @@
++# Makefile for libgnat_util.
 +#   Copyright (c) 2006 Ludovic Brenta <ludovic@ludovic-brenta.org>
 +#   Copyright (c) 2017-2019 Nicolas Boulenguez <nicolas@debian.org>
 +#
@@ -246,7 +258,7 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
 +gcc_base_version = `$(get_gcc_base_ver) $(srcdir)/../gcc/BASE-VER`
 +
 +# This module only builds a library.
-+lib_LTLIBRARIES = libgnatvsn.la
++lib_LTLIBRARIES = libgnat_util.la
 +
 +# The library links against the Ada Runtime Library/libada/libgnat.
 +# GNAT tools and other projects outside the GCC tree link against it.
@@ -284,7 +296,7 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
 +# silently rebuild missing dependencies when the lists above become out of
 +# sync with MANIFEST.gnat_util. An explicit failure is way better.
 +# For both Ada and C, automake takes .. as a subdirectory and would
-+# create objects like ../gcc/ada/libgnatvsn_la_link.o, interfering with
++# create objects like ../gcc/ada/libgnat_util_la_link.o, interfering with
 +# parent directories (some warnings say that subdir-objects will
 +# become the default in the future).
 +# Both problems disappear for C headers.
@@ -304,14 +316,14 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
 +# Compile
 +
 +# C headers are mentioned here for dependency tracking.
-+libgnatvsn_la_SOURCES = $(ada_sources) $(c) $(c_gcc) $(h_gcc)
++libgnat_util_la_SOURCES = $(ada_sources) $(c) $(c_gcc) $(h_gcc)
 +
 +# So that version.c sees version.h.
-+libgnatvsn_la_CPPFLAGS = -I$(srcdir)/../gcc
++libgnat_util_la_CPPFLAGS = -I$(srcdir)/../gcc
 +
 +# The Makefiles of other Ada components seem to imply that
 +# CFLAGS and ADA_CFLAGS should affect both Ada and C.
-+libgnatvsn_la_CFLAGS = $(ADA_CFLAGS)
++libgnat_util_la_CFLAGS = $(ADA_CFLAGS)
 +
 +# According to libtool documentation, something like
 +# .ads.o:
@@ -353,9 +365,9 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
 +#########################
 +# Link the shared library
 +
-+EXTRA_libgnatvsn_la_DEPENDENCIES = $(lo_ada)
-+libgnatvsn_la_LIBADD = $(rtl_libadd) $(lo_ada) $(LIBATOMIC)
-+libgnatvsn_la_LDFLAGS = \
++EXTRA_libgnat_util_la_DEPENDENCIES = $(lo_ada)
++libgnat_util_la_LIBADD = $(rtl_libadd) $(lo_ada) $(LIBATOMIC)
++libgnat_util_la_LDFLAGS = \
 +  -version-info $(gcc_base_version) \
 +  -Wl,--no-allow-shlib-undefined \
 +  -Wl,--no-copy-dt-needed-entries \
@@ -364,14 +376,14 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
 +##################################
 +# Prepare later link of GNAT tools
 +
-+# GNAT tools like to find all gnatvsn stuff in one directory, but
++# GNAT tools like to find all gnat_util stuff in one directory, but
 +# '.' already contains static .o and static read-and-write .ali.
 +all-local: lib-for-gnat-tools
-+lib-for-gnat-tools: libgnatvsn.la
++lib-for-gnat-tools: libgnat_util.la
 +	rm -fr $@
 +	mkdir $@
 +	$(INSTALL) -m 444 .libs/*.ali $@
-+	cd $@ && $(LN_S) ../*.ad[bs] ../.libs/libgnatvsn.so* .
++	cd $@ && $(LN_S) ../*.ad[bs] ../.libs/libgnat_util.so* .
 +
 +cleandirs_lib_for_gnat_tools = lib-for-gnat-tools
 +
@@ -405,22 +417,18 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
 +##################
 +# GPRBuild project
 +
-+# Gnatvsn will one day be renamed to Gnat_Util, prepare the transition.
++# Also provide the deprecated name "gnatvsn".
 +gprdir = $(datadir)/gpr
 +gpr_DATA = gnatvsn.gpr gnat_util.gpr
 +
-+gnatvsn.gpr: $(srcdir)/gnatvsn.gpr.in Makefile
++gnat_util.gpr: $(srcdir)/gnat_util.gpr.in Makefile
 +	$(SED) \
-+	  -e 's|@PACKAGE[@]|$(PACKAGE)|' \
 +	  -e 's|@libdir[@]|$(libdir)|' \
 +	  -e 's|@pkgadaincludedir[@]|$(pkgadaincludedir)|' \
 +	  -e 's|@pkgexecalidir[@]|$(pkgexecalidir)|' \
 +	  $< > $@
 +
-+gnat_util.gpr: gnatvsn.gpr
-+	$(SED) s/Gnatvsn/Gnat_Util/ $< > $@
-+
-+cleanfiles_gpr = $(gpr_DATA)
++cleanfiles_gpr = gnat_util.gpr
 +
 +#############################
 +
@@ -431,11 +439,11 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
 +	rm -fr $(uninstall_removedir_sources) $(uninstall_removedir_ali)
 --- a/src/Makefile.def
 +++ b/src/Makefile.def
-@@ -184,6 +184,16 @@ target_modules = { module= libada; no_in
- 		   missing= TAGS;
- 		   missing= install-info;
- 		   missing= installcheck; };
-+target_modules = { module= libgnatvsn; no_check=true;
+@@ -169,6 +169,16 @@ target_modules = { module= libffi; no_in
+ target_modules = { module= zlib; };
+ target_modules = { module= rda; };
+ target_modules = { module= libada; };
++target_modules = { module= libgnat_util; no_check=true;
 +		   missing= info;
 +		   missing= dvi;
 +		   missing= html;
@@ -448,28 +456,28 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
  target_modules = { module= libgm2; lib_path=.libs; };
  target_modules = { module= libgomp; bootstrap= true; lib_path=.libs; };
  target_modules = { module= libitm; lib_path=.libs; };
-@@ -389,6 +399,8 @@ dependencies = { module=all-fixincludes;
+@@ -374,6 +384,8 @@ dependencies = { module=all-fixincludes;
  dependencies = { module=all-target-libada; on=all-gcc; };
  dependencies = { module=all-gnattools; on=all-target-libada; };
  dependencies = { module=all-gnattools; on=all-target-libstdc++-v3; };
-+dependencies = { module=all-gnattools; on=all-target-libgnatvsn; };
-+dependencies = { module=all-target-libgnatvsn; on=all-target-libada; };
++dependencies = { module=all-gnattools; on=all-target-libgnat_util; };
++dependencies = { module=all-target-libgnat_util; on=all-target-libada; };
  
  // Depending on the specific configuration, the LTO plugin will either use the
  // generic libiberty build or the specific build for linker plugins.
-@@ -572,6 +584,7 @@ dependencies = { module=configure-target
+@@ -568,6 +580,7 @@ dependencies = { module=configure-target
  dependencies = { module=all-target-libgo; on=all-target-libbacktrace; };
  dependencies = { module=all-target-libgo; on=all-target-libffi; };
  dependencies = { module=all-target-libgo; on=all-target-libatomic; };
-+dependencies = { module=all-target-libgnatvsn; on=all-target-libatomic; };
++dependencies = { module=all-target-libgnat_util; on=all-target-libatomic; };
  dependencies = { module=configure-target-libphobos; on=configure-target-libbacktrace; };
  dependencies = { module=configure-target-libphobos; on=configure-target-zlib; };
  dependencies = { module=all-target-libphobos; on=all-target-libbacktrace; };
-@@ -588,6 +601,7 @@ dependencies = { module=all-target-libst
+@@ -584,6 +597,7 @@ dependencies = { module=all-target-libst
  dependencies = { module=all-target-liboffloadmic; on=all-target-libgomp; };
  
  dependencies = { module=install-target-libgo; on=install-target-libatomic; };
-+dependencies = { module=install-target-libgnatvsn; on=install-target-libatomic; };
++dependencies = { module=install-target-libgnat_util; on=install-target-libatomic; };
  dependencies = { module=install-target-libgfortran; on=install-target-libquadmath; };
  dependencies = { module=install-target-libgfortran; on=install-target-libgcc; };
  dependencies = { module=install-target-libphobos; on=install-target-libatomic; };
@@ -479,7 +487,7 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
  		target-libobjc \
  		target-libada \
  		${target_libiberty} \
-+		target-libgnatvsn \
++		target-libgnat_util \
  		target-libgm2 \
  		target-libgo \
  		target-libphobos \
@@ -488,7 +496,7 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
  ENABLE_LIBADA=yes)
  if test "${ENABLE_LIBADA}" != "yes" ; then
 -  noconfigdirs="$noconfigdirs gnattools"
-+  noconfigdirs="$noconfigdirs target-libgnatvsn gnattools"
++  noconfigdirs="$noconfigdirs target-libgnat_util gnattools"
  fi
  
  AC_ARG_ENABLE(libgm2,
@@ -499,7 +507,7 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
  fi
  
 -target_libs="target-libada"
-+target_libs="target-libada target-libgnatvsn"
++target_libs="target-libada target-libgnat_util"
  lang_dirs="libada gnattools"
  
  # Ada is not enabled by default for the time being.
@@ -511,10 +519,10 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
  
 +target_gcc="$BASE/xgcc -B$BASE/"
 +target=`$target_gcc -dumpmachine`
-+vsn_lib_dir=$BASE/../$target/libgnatvsn/lib-for-gnat-tools
++vsn_lib_dir=$BASE/../$target/libgnat_util/lib-for-gnat-tools
 +LD_LIBRARY_PATH=$vsn_lib_dir:$LD_LIBRARY_PATH
 +if [ ! -d $vsn_lib_dir ]; then
-+   echo libgnatvsn not found in "$vsn_lib_dir", exiting.
++   echo libgnat_util not found in "$vsn_lib_dir", exiting.
 +   exit 1
 +fi
 +
@@ -527,10 +535,10 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
  	set gnat_target_current "[current_target_name]"
  	if [info exists TOOL_OPTIONS] {
  	    set rtsdir "[get_multilibs ${TOOL_OPTIONS}]/libada"
-+	    set vsndir "[get_multilibs ${TOOL_OPTIONS}]/libgnatvsn/lib-for-gnat-tools"
++	    set vsndir "[get_multilibs ${TOOL_OPTIONS}]/libgnat_util/lib-for-gnat-tools"
  	} else {
  	    set rtsdir "[get_multilibs]/libada"
-+	    set vsndir "[get_multilibs]/libgnatvsn/libgnatvsn/lib-for-gnat-tools"
++	    set vsndir "[get_multilibs]/libgnat_util/libgnat_util/lib-for-gnat-tools"
  	}
  	if [info exists TOOL_EXECUTABLE] {
  	    set GNAT_UNDER_TEST "$TOOL_EXECUTABLE"
@@ -555,8 +563,8 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
  	}
      }
 --- /dev/null
-+++ b/src/libgnatvsn/Makefile.in
-@@ -0,0 +1,938 @@
++++ b/src/libgnat_util/Makefile.in
+@@ -0,0 +1,939 @@
 +# Makefile.in generated by automake 1.15.1 from Makefile.am.
 +# @configure_input@
 +
@@ -573,7 +581,7 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
 +
 +@SET_MAKE@
 +
-+# Makefile for libgnatvsn.
++# Makefile for libgnat_util.
 +#   Copyright (c) 2006 Ludovic Brenta <ludovic@ludovic-brenta.org>
 +#   Copyright (c) 2017-2019 Nicolas Boulenguez <nicolas@debian.org>
 +#
@@ -669,14 +677,14 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
 +target_triplet = @target@
 +subdir = .
 +ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-+am__aclocal_m4_deps = $(top_srcdir)/../libtool.m4 \
-+	$(top_srcdir)/../ltoptions.m4 $(top_srcdir)/../ltsugar.m4 \
-+	$(top_srcdir)/../ltversion.m4 $(top_srcdir)/../lt~obsolete.m4 \
-+	$(top_srcdir)/../config/depstand.m4 \
++am__aclocal_m4_deps = $(top_srcdir)/../config/depstand.m4 \
 +	$(top_srcdir)/../config/lead-dot.m4 \
 +	$(top_srcdir)/../config/lthostflags.m4 \
 +	$(top_srcdir)/../config/override.m4 \
-+	$(top_srcdir)/../config/acx.m4 $(top_srcdir)/configure.ac
++	$(top_srcdir)/../libtool.m4 $(top_srcdir)/../ltoptions.m4 \
++	$(top_srcdir)/../ltsugar.m4 $(top_srcdir)/../ltversion.m4 \
++	$(top_srcdir)/../lt~obsolete.m4 $(top_srcdir)/../config/acx.m4 \
++	$(top_srcdir)/configure.ac
 +am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 +	$(ACLOCAL_M4)
 +DIST_COMMON = $(srcdir)/Makefile.am $(top_srcdir)/configure \
@@ -729,23 +737,24 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
 +am__DEPENDENCIES_5 = alloc.lo hostparm.lo rident.lo
 +am__DEPENDENCIES_6 = $(am__DEPENDENCIES_5)
 +am__DEPENDENCIES_7 = $(am__DEPENDENCIES_4) $(am__DEPENDENCIES_6)
-+libgnatvsn_la_DEPENDENCIES = $(am__DEPENDENCIES_1) \
++libgnat_util_la_DEPENDENCIES = $(am__DEPENDENCIES_1) \
 +	$(am__DEPENDENCIES_7) $(am__DEPENDENCIES_1)
 +am__objects_1 =
 +am__objects_2 = $(am__objects_1) $(am__objects_1) $(am__objects_1) \
 +	$(am__objects_1) $(am__objects_1) $(am__objects_1)
-+am__objects_3 = libgnatvsn_la-link.lo
-+am__objects_4 = libgnatvsn_la-version.lo
-+am_libgnatvsn_la_OBJECTS = $(am__objects_2) $(am__objects_3) \
++am__objects_3 = libgnat_util_la-link.lo
++am__objects_4 = libgnat_util_la-version.lo
++am_libgnat_util_la_OBJECTS = $(am__objects_2) $(am__objects_3) \
 +	$(am__objects_4) $(am__objects_1)
-+libgnatvsn_la_OBJECTS = $(am_libgnatvsn_la_OBJECTS)
++libgnat_util_la_OBJECTS = $(am_libgnat_util_la_OBJECTS)
 +AM_V_lt = $(am__v_lt_@AM_V@)
 +am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 +am__v_lt_0 = --silent
 +am__v_lt_1 = 
-+libgnatvsn_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
-+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(libgnatvsn_la_CFLAGS) \
-+	$(CFLAGS) $(libgnatvsn_la_LDFLAGS) $(LDFLAGS) -o $@
++libgnat_util_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
++	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
++	$(libgnat_util_la_CFLAGS) $(CFLAGS) $(libgnat_util_la_LDFLAGS) \
++	$(LDFLAGS) -o $@
 +AM_V_P = $(am__v_P_@AM_V@)
 +am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 +am__v_P_0 = false
@@ -780,7 +789,7 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
 +am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 +am__v_CCLD_0 = @echo "  CCLD    " $@;
 +am__v_CCLD_1 = 
-+SOURCES = $(libgnatvsn_la_SOURCES)
++SOURCES = $(libgnat_util_la_SOURCES)
 +am__can_run_installinfo = \
 +  case $$AM_UPDATE_INFO_DIR in \
 +    n|no|NO) false;; \
@@ -824,6 +833,7 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
 +CYGPATH_W = @CYGPATH_W@
 +DEFS = @DEFS@
 +DEPDIR = @DEPDIR@
++DLLTOOL = @DLLTOOL@
 +DSYMUTIL = @DSYMUTIL@
 +DUMPBIN = @DUMPBIN@
 +ECHO_C = @ECHO_C@
@@ -847,8 +857,10 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
 +LIPO = @LIPO@
 +LN_S = @LN_S@
 +LTLIBOBJS = @LTLIBOBJS@
++LT_SYS_LIBRARY_PATH = @LT_SYS_LIBRARY_PATH@
 +MAINT = @MAINT@
 +MAKEINFO = @MAKEINFO@
++MANIFEST_TOOL = @MANIFEST_TOOL@
 +MKDIR_P = @MKDIR_P@
 +NM = @NM@
 +NMEDIT = @NMEDIT@
@@ -921,6 +933,7 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
 +prefix = @prefix@
 +program_transform_name = @program_transform_name@
 +psdir = @psdir@
++runstatedir = @runstatedir@
 +sbindir = @sbindir@
 +sharedstatedir = @sharedstatedir@
 +srcdir = @srcdir@
@@ -941,7 +954,7 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
 +gcc_base_version = `$(get_gcc_base_ver) $(srcdir)/../gcc/BASE-VER`
 +
 +# This module only builds a library.
-+lib_LTLIBRARIES = libgnatvsn.la
++lib_LTLIBRARIES = libgnat_util.la
 +
 +# The library links against the Ada Runtime Library/libada/libgnat.
 +# GNAT tools and other projects outside the GCC tree link against it.
@@ -979,7 +992,7 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
 +# silently rebuild missing dependencies when the lists above become out of
 +# sync with MANIFEST.gnat_util. An explicit failure is way better.
 +# For both Ada and C, automake takes .. as a subdirectory and would
-+# create objects like ../gcc/ada/libgnatvsn_la_link.o, interfering with
++# create objects like ../gcc/ada/libgnat_util_la_link.o, interfering with
 +# parent directories (some warnings say that subdir-objects will
 +# become the default in the future).
 +# Both problems disappear for C headers.
@@ -995,14 +1008,14 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
 +# Compile
 +
 +# C headers are mentioned here for dependency tracking.
-+libgnatvsn_la_SOURCES = $(ada_sources) $(c) $(c_gcc) $(h_gcc)
++libgnat_util_la_SOURCES = $(ada_sources) $(c) $(c_gcc) $(h_gcc)
 +
 +# So that version.c sees version.h.
-+libgnatvsn_la_CPPFLAGS = -I$(srcdir)/../gcc
++libgnat_util_la_CPPFLAGS = -I$(srcdir)/../gcc
 +
 +# The Makefiles of other Ada components seem to imply that
 +# CFLAGS and ADA_CFLAGS should affect both Ada and C.
-+libgnatvsn_la_CFLAGS = $(ADA_CFLAGS)
++libgnat_util_la_CFLAGS = $(ADA_CFLAGS)
 +
 +# According to libtool documentation, something like
 +# .ads.o:
@@ -1040,9 +1053,9 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
 +
 +#########################
 +# Link the shared library
-+EXTRA_libgnatvsn_la_DEPENDENCIES = $(lo_ada)
-+libgnatvsn_la_LIBADD = $(rtl_libadd) $(lo_ada) $(LIBATOMIC)
-+libgnatvsn_la_LDFLAGS = \
++EXTRA_libgnat_util_la_DEPENDENCIES = $(lo_ada)
++libgnat_util_la_LIBADD = $(rtl_libadd) $(lo_ada) $(LIBATOMIC)
++libgnat_util_la_LDFLAGS = \
 +  -version-info $(gcc_base_version) \
 +  -Wl,--no-allow-shlib-undefined \
 +  -Wl,--no-copy-dt-needed-entries \
@@ -1073,10 +1086,10 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
 +##################
 +# GPRBuild project
 +
-+# Gnatvsn will one day be renamed to Gnat_Util, prepare the transition.
++# Also provide the deprecated name "gnatvsn".
 +gprdir = $(datadir)/gpr
 +gpr_DATA = gnatvsn.gpr gnat_util.gpr
-+cleanfiles_gpr = $(gpr_DATA)
++cleanfiles_gpr = gnat_util.gpr
 +
 +#############################
 +CLEANFILES = $(cleanfiles_ali) $(cleanfiles_gpr) multilib.out $(cleanfiles_src)
@@ -1154,8 +1167,8 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
 +	  rm -f $${locs}; \
 +	}
 +
-+libgnatvsn.la: $(libgnatvsn_la_OBJECTS) $(libgnatvsn_la_DEPENDENCIES) $(EXTRA_libgnatvsn_la_DEPENDENCIES) 
-+	$(AM_V_CCLD)$(libgnatvsn_la_LINK) -rpath $(libdir) $(libgnatvsn_la_OBJECTS) $(libgnatvsn_la_LIBADD) $(LIBS)
++libgnat_util.la: $(libgnat_util_la_OBJECTS) $(libgnat_util_la_DEPENDENCIES) $(EXTRA_libgnat_util_la_DEPENDENCIES) 
++	$(AM_V_CCLD)$(libgnat_util_la_LINK) -rpath $(libdir) $(libgnat_util_la_OBJECTS) $(libgnat_util_la_LIBADD) $(LIBS)
 +
 +mostlyclean-compile:
 +	-rm -f *.$(OBJEXT)
@@ -1163,8 +1176,8 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
 +distclean-compile:
 +	-rm -f *.tab.c
 +
-+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libgnatvsn_la-link.Plo@am__quote@
-+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libgnatvsn_la-version.Plo@am__quote@
++@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libgnat_util_la-link.Plo@am__quote@
++@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libgnat_util_la-version.Plo@am__quote@
 +
 +.c.o:
 +@am__fastdepCC_TRUE@	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
@@ -1190,19 +1203,19 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
 +@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 +@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LTCOMPILE) -c -o $@ $<
 +
-+libgnatvsn_la-link.lo: link.c
-+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgnatvsn_la_CPPFLAGS) $(CPPFLAGS) $(libgnatvsn_la_CFLAGS) $(CFLAGS) -MT libgnatvsn_la-link.lo -MD -MP -MF $(DEPDIR)/libgnatvsn_la-link.Tpo -c -o libgnatvsn_la-link.lo `test -f 'link.c' || echo '$(srcdir)/'`link.c
-+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libgnatvsn_la-link.Tpo $(DEPDIR)/libgnatvsn_la-link.Plo
-+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='link.c' object='libgnatvsn_la-link.lo' libtool=yes @AMDEPBACKSLASH@
++libgnat_util_la-link.lo: link.c
++@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgnat_util_la_CPPFLAGS) $(CPPFLAGS) $(libgnat_util_la_CFLAGS) $(CFLAGS) -MT libgnat_util_la-link.lo -MD -MP -MF $(DEPDIR)/libgnat_util_la-link.Tpo -c -o libgnat_util_la-link.lo `test -f 'link.c' || echo '$(srcdir)/'`link.c
++@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libgnat_util_la-link.Tpo $(DEPDIR)/libgnat_util_la-link.Plo
++@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='link.c' object='libgnat_util_la-link.lo' libtool=yes @AMDEPBACKSLASH@
 +@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgnatvsn_la_CPPFLAGS) $(CPPFLAGS) $(libgnatvsn_la_CFLAGS) $(CFLAGS) -c -o libgnatvsn_la-link.lo `test -f 'link.c' || echo '$(srcdir)/'`link.c
++@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgnat_util_la_CPPFLAGS) $(CPPFLAGS) $(libgnat_util_la_CFLAGS) $(CFLAGS) -c -o libgnat_util_la-link.lo `test -f 'link.c' || echo '$(srcdir)/'`link.c
 +
-+libgnatvsn_la-version.lo: version.c
-+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgnatvsn_la_CPPFLAGS) $(CPPFLAGS) $(libgnatvsn_la_CFLAGS) $(CFLAGS) -MT libgnatvsn_la-version.lo -MD -MP -MF $(DEPDIR)/libgnatvsn_la-version.Tpo -c -o libgnatvsn_la-version.lo `test -f 'version.c' || echo '$(srcdir)/'`version.c
-+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libgnatvsn_la-version.Tpo $(DEPDIR)/libgnatvsn_la-version.Plo
-+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='version.c' object='libgnatvsn_la-version.lo' libtool=yes @AMDEPBACKSLASH@
++libgnat_util_la-version.lo: version.c
++@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgnat_util_la_CPPFLAGS) $(CPPFLAGS) $(libgnat_util_la_CFLAGS) $(CFLAGS) -MT libgnat_util_la-version.lo -MD -MP -MF $(DEPDIR)/libgnat_util_la-version.Tpo -c -o libgnat_util_la-version.lo `test -f 'version.c' || echo '$(srcdir)/'`version.c
++@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libgnat_util_la-version.Tpo $(DEPDIR)/libgnat_util_la-version.Plo
++@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='version.c' object='libgnat_util_la-version.lo' libtool=yes @AMDEPBACKSLASH@
 +@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgnatvsn_la_CPPFLAGS) $(CPPFLAGS) $(libgnatvsn_la_CFLAGS) $(CFLAGS) -c -o libgnatvsn_la-version.lo `test -f 'version.c' || echo '$(srcdir)/'`version.c
++@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libgnat_util_la_CPPFLAGS) $(CPPFLAGS) $(libgnat_util_la_CFLAGS) $(CFLAGS) -c -o libgnat_util_la-version.lo `test -f 'version.c' || echo '$(srcdir)/'`version.c
 +
 +mostlyclean-libtool:
 +	-rm -f *.lo
@@ -1462,14 +1475,14 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
 +##################################
 +# Prepare later link of GNAT tools
 +
-+# GNAT tools like to find all gnatvsn stuff in one directory, but
++# GNAT tools like to find all gnat_util stuff in one directory, but
 +# '.' already contains static .o and static read-and-write .ali.
 +all-local: lib-for-gnat-tools
-+lib-for-gnat-tools: libgnatvsn.la
++lib-for-gnat-tools: libgnat_util.la
 +	rm -fr $@
 +	mkdir $@
 +	$(INSTALL) -m 444 .libs/*.ali $@
-+	cd $@ && $(LN_S) ../*.ad[bs] ../.libs/libgnatvsn.so* .
++	cd $@ && $(LN_S) ../*.ad[bs] ../.libs/libgnat_util.so* .
 +# pkgexecali_DATA would require an explicit list prefixed with .libs/,
 +# and the mode needs to be fixed anyway.
 +
@@ -1477,16 +1490,12 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
 +	$(MKDIR_P) '$(DESTDIR)$(pkgexecalidir)'
 +	$(INSTALL) -m 444 .libs/*.ali '$(DESTDIR)$(pkgexecalidir)'
 +
-+gnatvsn.gpr: $(srcdir)/gnatvsn.gpr.in Makefile
++gnat_util.gpr: $(srcdir)/gnat_util.gpr.in Makefile
 +	$(SED) \
-+	  -e 's|@PACKAGE[@]|$(PACKAGE)|' \
 +	  -e 's|@libdir[@]|$(libdir)|' \
 +	  -e 's|@pkgadaincludedir[@]|$(pkgadaincludedir)|' \
 +	  -e 's|@pkgexecalidir[@]|$(pkgexecalidir)|' \
 +	  $< > $@
-+
-+gnat_util.gpr: gnatvsn.gpr
-+	$(SED) s/Gnatvsn/Gnat_Util/ $< > $@
 +clean-local:
 +	rm -fr $(cleandirs_deps) $(cleandirs_lib_for_gnat_tools)
 +uninstall-local:
@@ -1496,7 +1505,7 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
 +# Otherwise a system limit (for SysV at least) may be exceeded.
 +.NOEXPORT:
 --- /dev/null
-+++ b/src/libgnatvsn/aclocal.m4
++++ b/src/libgnat_util/aclocal.m4
 @@ -0,0 +1,1238 @@
 +# generated automatically by aclocal 1.15.1 -*- Autoconf -*-
 +
@@ -2727,12 +2736,12 @@ should also be added. autoreconf -fi' rebuilds all 3 files.
 +AC_SUBST([am__untar])
 +]) # _AM_PROG_TAR
 +
++m4_include([../config/depstand.m4])
++m4_include([../config/lead-dot.m4])
++m4_include([../config/lthostflags.m4])
++m4_include([../config/override.m4])
 +m4_include([../libtool.m4])
 +m4_include([../ltoptions.m4])
 +m4_include([../ltsugar.m4])
 +m4_include([../ltversion.m4])
 +m4_include([../lt~obsolete.m4])
-+m4_include([../config/depstand.m4])
-+m4_include([../config/lead-dot.m4])
-+m4_include([../config/lthostflags.m4])
-+m4_include([../config/override.m4])

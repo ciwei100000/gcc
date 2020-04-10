@@ -13,7 +13,7 @@ set -C -e -u -x
 # Inside the GCC tree:
 mkdir build/test_ada_source_data_epoch
 cd build/test_ada_source_data_epoch
-export LD_LIBRARY_PATH=../gcc/ada/rts:`echo ../*/libgnatvsn/.libs`
+export LD_LIBRARY_PATH=../gcc/ada/rts:`echo ../*/libgnat_util/.libs`
 gnatmake="../gcc/gnatmake --RTS=`echo ../*/libada` --GCC=../gcc/xgcc -c -v"
 # For local tests:
 # gnatmake="gnatmake -c -v"

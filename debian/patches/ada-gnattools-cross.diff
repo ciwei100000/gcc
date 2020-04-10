@@ -17,16 +17,16 @@ to stamp-gnatlib2 is not necessary anymore with gcc-9.
   Double-check the link since Debian moves some symbols.
 * set LD_LIBRARY_PATH so that rebuilt tools can be executed.
 
-This patch depends on ada-libgnatvsn.diff.
+This patch depends on ada-libgnat_util.diff.
 
-# DP: - When building a cross gnat, link against the libgnatvsnBV-dev
+# DP: - When building a cross gnat, link against the libgnat_utilBV-dev
 # DP:   package.
 # DP:   This link will be done by /usr/bin/$(host_alias)-gnat*, thus
 # DP:   the native gnat with the same major version will be required.
 
 --- a/src/gcc/ada/Makefile.rtl
 +++ b/src/gcc/ada/Makefile.rtl
-@@ -1785,6 +1785,11 @@ ifeq ($(strip $(filter-out s390% linux%,
+@@ -1793,6 +1793,11 @@ ifeq ($(strip $(filter-out s390% linux%,
    LIBRARY_VERSION := $(LIB_VERSION)
  endif
  
@@ -61,7 +61,7 @@ This patch depends on ada-libgnatvsn.diff.
  # Needs to be built with CC=gcc
  # Since the RTL should be built with the latest compiler, remove the
  #  stamp target in the parent directory whenever gnat1 is rebuilt
-@@ -609,7 +619,7 @@ $(RTSDIR)/s-oscons.ads: ../stamp-gnatlib
+@@ -609,7 +623,7 @@ $(RTSDIR)/s-oscons.ads: ../stamp-gnatlib
  	    $(OSCONS_EXTRACT) ; \
  	    ../bldtools/oscons/xoscons s-oscons)
  
@@ -70,7 +70,7 @@ This patch depends on ada-libgnatvsn.diff.
  	test -f $(RTSDIR)/s-oscons.ads || exit 1
  # C files
  	$(MAKE) -C $(RTSDIR) \
-@@ -643,32 +653,47 @@
+@@ -643,23 +657,36 @@ gnatlib: ../stamp-gnatlib1-$(RTSDIR) ../
  		$(RANLIB_FOR_TARGET) $(RTSDIR)/libgmem$(arext)
          endif
  	$(CHMOD) a-wx $(RTSDIR)/*.ali
@@ -115,7 +115,7 @@ This patch depends on ada-libgnatvsn.diff.
  		$(GNATRTL_NONTASKING_OBJS) $(LIBGNAT_OBJS) \
  		$(SO_OPTS)libgnat$(hyphen)$(LIBRARY_VERSION)$(soext) \
  		$(MISCLIB) -lm
- 	cd $(RTSDIR); `echo "$(GCC_FOR_TARGET)" \
+@@ -667,8 +694,10 @@ gnatlib-shared-default:
                  | sed -e 's,\./xgcc,../../xgcc,' -e 's,-B\./,-B../../,'` -shared $(GNATLIBCFLAGS) \
  		$(PICFLAG_FOR_TARGET) \
  		-o libgnarl$(hyphen)$(LIBRARY_VERSION)$(soext) \
@@ -126,7 +126,7 @@ This patch depends on ada-libgnatvsn.diff.
  		$(THREADSLIB)
  	cd $(RTSDIR); $(LN_S) libgnat$(hyphen)$(LIBRARY_VERSION)$(soext) \
  		libgnat$(soext)
-@@ -684,6 +708,10 @@
+@@ -684,6 +713,10 @@ gnatlib-shared-default:
  	   $(addprefix $(RTSDIR)/,$(GNATRTL_TASKING_OBJS))
  	$(RANLIB_FOR_TARGET) $(RTSDIR)/libgnarl_pic$(arext)
  
@@ -137,7 +137,7 @@ This patch depends on ada-libgnatvsn.diff.
  gnatlib-shared-dual:
  	$(MAKE) $(FLAGS_TO_PASS) \
               GNATLIBFLAGS="$(GNATLIBFLAGS)" \
-@@ -693,11 +720,8 @@ gnatlib-shared-dual:
+@@ -693,11 +726,8 @@ gnatlib-shared-dual:
  	     MULTISUBDIR="$(MULTISUBDIR)" \
  	     THREAD_KIND="$(THREAD_KIND)" \
  	     LN_S="$(LN_S)" \
@@ -151,7 +151,7 @@ This patch depends on ada-libgnatvsn.diff.
  	$(MAKE) $(FLAGS_TO_PASS) \
               GNATLIBFLAGS="$(GNATLIBFLAGS)" \
  	     GNATLIBCFLAGS="$(GNATLIBCFLAGS)" \
-@@ -705,10 +729,7 @@ gnatlib-shared-dual:
+@@ -705,10 +735,7 @@ gnatlib-shared-dual:
  	     MULTISUBDIR="$(MULTISUBDIR)" \
  	     THREAD_KIND="$(THREAD_KIND)" \
  	     LN_S="$(LN_S)" \
@@ -163,7 +163,7 @@ This patch depends on ada-libgnatvsn.diff.
  
  gnatlib-shared-dual-win32:
  	$(MAKE) $(FLAGS_TO_PASS) \
-@@ -719,9 +740,8 @@ gnatlib-shared-dual-win32:
+@@ -719,9 +746,8 @@ gnatlib-shared-dual-win32:
  	     MULTISUBDIR="$(MULTISUBDIR)" \
  	     THREAD_KIND="$(THREAD_KIND)" \
  	     LN_S="$(LN_S)" \
@@ -175,7 +175,7 @@ This patch depends on ada-libgnatvsn.diff.
  	$(MAKE) $(FLAGS_TO_PASS) \
               GNATLIBFLAGS="$(GNATLIBFLAGS)" \
  	     GNATLIBCFLAGS="$(GNATLIBCFLAGS)" \
-@@ -729,8 +749,7 @@ gnatlib-shared-dual-win32:
+@@ -729,8 +755,7 @@ gnatlib-shared-dual-win32:
  	     MULTISUBDIR="$(MULTISUBDIR)" \
  	     THREAD_KIND="$(THREAD_KIND)" \
  	     LN_S="$(LN_S)" \
@@ -192,7 +192,7 @@ This patch depends on ada-libgnatvsn.diff.
   -L../../../$(target_noncanonical)/libstdc++-v3/libsupc++/.libs
  
 +rtsdir := $(abspath ../gcc/ada/rts)
-+vsndir := $(abspath ../$(target_noncanonical)/libgnatvsn/lib-for-gnat-tools)
++utildir := $(abspath ../$(target_noncanonical)/libgnat_util/lib-for-gnat-tools)
 +
  # Variables for gnattools, native
  TOOLS_FLAGS_TO_PASS_NATIVE= \
@@ -207,10 +207,10 @@ This patch depends on ada-libgnatvsn.diff.
  	"ADA_CFLAGS=$(ADA_CFLAGS)" \
  	"INCLUDES=$(INCLUDES_FOR_SUBDIR)" \
 -	"ADA_INCLUDES=-I- -I../rts $(ADA_INCLUDES_FOR_SUBDIR)"\
-+	"ADA_INCLUDES=-I- -nostdinc -I$(vsndir) -I$(rtsdir) $(ADA_INCLUDES_FOR_SUBDIR)" \
-+	"TOOLS_ALREADY_COMPILED=$(foreach d, $(vsndir) $(rtsdir), \
++	"ADA_INCLUDES=-I- -nostdinc -I$(utildir) -I$(rtsdir) $(ADA_INCLUDES_FOR_SUBDIR)" \
++	"TOOLS_ALREADY_COMPILED=$(foreach d, $(utildir) $(rtsdir), \
 +	  $(patsubst $(d)/%.ali,%.o, $(wildcard $(d)/*.ali)))" \
-+	'LIBGNAT=-L$(vsndir) -lgnatvsn -L$(rtsdir) -lgnat-$$(LIB_VERSION)' \
++	'LIBGNAT=-L$(utildir) -lgnat_util -L$(rtsdir) -lgnat-$$(LIB_VERSION)' \
 +	"GNATBIND_FLAGS=-nostdlib -x" \
  	"exeext=$(exeext)" \
  	"fsrcdir=$(fsrcdir)" \
@@ -220,7 +220,7 @@ This patch depends on ada-libgnatvsn.diff.
  # everything has been compiled once, gnatmake can be recompiled with itself 
  # (see target regnattools) 
 +gnattools-native: export LD_LIBRARY_PATH := \
-+  $(if $(LD_LIBRARY_PATH),$(LD_LIBRARY_PATH):)$(vsndir):$(rtsdir)
++  $(if $(LD_LIBRARY_PATH),$(LD_LIBRARY_PATH):)$(utildir):$(rtsdir)
 +# Useful even for 1st pass, as ../../gnatmake may already be
 +# dynamically linked in case this target has already been invoked.
  gnattools-native: $(GCC_DIR)/stamp-tools $(GCC_DIR)/stamp-gnatlib-rts
