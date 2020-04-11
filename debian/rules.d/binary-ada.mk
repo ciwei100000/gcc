@@ -113,6 +113,8 @@ ifneq (,$(filter $(build_type), build-native cross-build-native))
 		$(d_lgnat)/usr/share/lintian/overrides/$(p_lgnat)
 endif
 
+# The subst Make command below could be simplified, but ensures
+# consistency with libraries building non-default multilib packages.
 	$(call do_strip_lib_dbg, $(p_lgnat), $(p_lgnat_dbg), $(v_dbg),,)
 	$(cross_shlibdeps) dh_shlibdeps -p$(p_lgnat) \
 		$(call shlibdirs_to_search, \
