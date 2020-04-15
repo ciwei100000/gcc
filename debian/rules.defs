@@ -335,6 +335,10 @@ ifneq ($(trunk_build),yes)
   # Enable LTO only for 64bit builds
   ifeq ($(DEB_BUILD_ARCH_BITS)-$(DEB_HOST_ARCH_BITS),64-64)
     with_lto_build := yes
+    # times out on the buildds ...
+    ifneq (,$(filter $(DEB_HOST_ARCH), arm64))
+      with_lto_build :=
+    endif
   endif
   with_lto_build := yes
 
@@ -343,7 +347,8 @@ ifneq ($(trunk_build),yes)
   # FIXME: buildds not powerful ebough: mips*, sparc64
   # FIXME: just let it build, takes too long: hurd-i386
   # FIXME: not yet tried to build: alpha
-  ifneq (,$(filter $(DEB_HOST_ARCH), alpha hppa m68k mips mipsel mips64el riscv64 sh4 sparc64 hurd-i386))
+  # FIXME: armhf and arm64 ftbfs, started with 8.3.0-22
+  ifneq (,$(filter $(DEB_HOST_ARCH), alpha armhf arm64 hppa m68k mips mipsel mips64el riscv64 sh4 sparc64 hurd-i386))
     with_lto_build :=
   endif
   # Debian armel/armhf buildds too slow
@@ -355,7 +360,7 @@ ifneq ($(trunk_build),yes)
   with_lto_build :=
 
   # FIXME: newer binutils needed?
-  ifneq (,$(filter $(distrelease),precise trusty xenial))
+  ifneq (,$(filter $(distrelease),precise trusty xenial bionic))
     with_bootstrap :=
     with_lto_build :=
   endif
@@ -376,7 +381,7 @@ ifeq ($(with_lto_build),yes)
   ifeq (,$(filter $(distrelease),jessie stretch precise trusty xenial bionic cosmic disco))
     with_dwz := yes
   endif
-else ifneq (,$(filter $(distrelease),jessie stretch precise trusty xenial))
+else ifneq (,$(filter $(distrelease),jessie stretch precise trusty xenial bionic))
   with_dwz :=
 else
   with_dwz := yes
@@ -523,7 +528,7 @@ endif
 # gcc versions (fixincludes, ...)
 with_common_pkgs := yes
 # ... and some libraries, which do not change (libgcc1, libssp0).
-#with_common_libs := yes
+with_common_libs := yes
 # XXX: should with_common_libs be "yes" only if this is the default compiler
 # version on the targeted arch?
 
@@ -1553,7 +1558,7 @@ endif
 # run testsuite ---------------
 with_check := yes
 # if you don't want to run the gcc testsuite, uncomment the next line
-#with_check := disabled by hand
+with_check := disabled by hand
 ifeq ($(with_base_only),yes)
   with_check := no
 endif
