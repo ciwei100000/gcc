@@ -82,12 +82,15 @@ ifeq ($(with_ada),yes)
 endif
 
 ifeq ($(with_offload_nvptx),yes)
-	tar -c -C $(d)-nvptx -f - $(gcc_lib_dir)/accel/nvptx-none $(gcc_lexec_dir)/accel/nvptx-none \
-	  | tar x -C $(d_snap) -f -
+	tar -c -C $(d)-nvptx -f - $(PF)
+	    | tar x -C $(d_snap) -f -
+
+	rm -f $(d_snap)/$(PF)/bin/*-lto-dump
+	rm -f $(d_snap)/$(PF)/share/man/man1/*-accel-nvptx-none-*.1
 endif
 
 ifeq ($(with_offload_gcn),yes)
-	tar -c -C $(d)-gcn -f - $(gcc_lib_dir)/accel/$(gcn_target_name) $(gcc_lexec_dir)/accel/$(gcn_target_name) \
+	tar -c -C $(d)-gcn -f - $(PF) \
 	  | tar x -C $(d_snap) -f -
 
 	dh_link -p$(p_snap) \
