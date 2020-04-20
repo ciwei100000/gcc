@@ -20,6 +20,9 @@ dirs_snap = \
 ifeq ($(with_hppa64),yes)
   snapshot_depends = binutils-hppa64,
 endif
+ifeq ($(with_offload_nvptx),yes)
+  snapshot_depends += nvptx-tools,
+endif
 ifeq ($(with_offload_gcn),yes)
   snapshot_depends += llvm-$(gcn_tools_llvm_version), lld-$(gcn_tools_llvm_version),
 endif
