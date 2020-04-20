@@ -82,7 +82,7 @@ ifeq ($(with_ada),yes)
 endif
 
 ifeq ($(with_offload_nvptx),yes)
-	tar -c -C $(d)-nvptx -f - $(PF)
+	tar -c -C $(d)-nvptx -f - $(PF) \
 	    | tar x -C $(d_snap) -f -
 
 	rm -f $(d_snap)/$(PF)/bin/*-lto-dump
