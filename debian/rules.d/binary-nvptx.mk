@@ -41,6 +41,12 @@ $(binary_stamp)-nvptx: $(install_stamp)
 	$(dh_compat2) dh_movefiles --sourcedir=$(d)-nvptx -p$(p_nvptx) \
 		$(files_nvptx)
 
+	dh_link -p$(p_nvptx) \
+	  /usr/bin/nvptx-none-ar     /$(gcc_lib_dir)/accel/nvptx-none/ar \
+	  /usr/bin/nvptx-none-as     /$(gcc_lib_dir)/accel/nvptx-none/as \
+	  /usr/bin/nvptx-none-ld     /$(gcc_lib_dir)/accel/nvptx-none/ld \
+	  /usr/bin/nvptx-none-ranlib /$(gcc_lib_dir)/accel/nvptx-none/ranlib
+
 	mkdir -p $(d_nvptx)/usr/share/lintian/overrides
 	echo '$(p_nvptx) binary: hardening-no-pie' \
 	  > $(d_nvptx)/usr/share/lintian/overrides/$(p_nvptx)

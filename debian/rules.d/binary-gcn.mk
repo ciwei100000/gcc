@@ -41,6 +41,13 @@ $(binary_stamp)-gcn: $(install_stamp)
 	$(dh_compat2) dh_movefiles --sourcedir=$(d)-gcn -p$(p_gcn) \
 		$(files_gcn)
 
+	dh_link -p$(p_gcn) \
+	  /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/llvm-ar /$(gcc_lib_dir)/accel/$(gcn_target_name)/ar \
+	  /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/llvm-mc /$(gcc_lib_dir)/accel/$(gcn_target_name)/as \
+	  /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/lld /$(gcc_lib_dir)/accel/$(gcn_target_name)/ld \
+	  /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/llvm-nm /$(gcc_lib_dir)/accel/$(gcn_target_name)/nm \
+	  /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/llvm-ranlib /$(gcc_lib_dir)/accel/$(gcn_target_name)/ranlib
+
 	mkdir -p $(d_gcn)/usr/$(gcn_target_name)/bin
 	dh_link -p$(p_gcn) \
 	  /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/llvm-ar /usr/$(gcn_target_name)/bin/ar \
