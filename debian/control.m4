@@ -281,29 +281,6 @@ ifdef(`TARGET', `dnl
  environment.
 ')`'dnl
 ')`'dnl libdbg
-')`'dnl libgcc
-
-ifenabled(`cdev',`
-Package: libgcc`'PV-dev`'LS
-TARGET_PACKAGE`'dnl
-Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
-Section: libdevel
-Priority: optional
-Recommends: ${dep:libcdev}
-Depends: BASELDEP, ${dep:libgcc}, ${dep:libssp}, ${dep:libgomp}, ${dep:libitm},
- ${dep:libatomic}, ${dep:libbtrace}, ${dep:libasan}, ${dep:liblsan},
- ${dep:libtsan}, ${dep:libubsan}, ${dep:libvtv},
- ${dep:libqmath}, ${dep:libunwinddev}, ${shlibs:Depends}, ${misc:Depends}
-ifdef(`MULTIARCH', `Multi-Arch: same
-')`'dnl
-ifdef(`TARGET',`',`Breaks: libgccjit`'PV-dev (<< 9.3.0-6)
-Replaces: libgccjit`'PV-dev (<< 9.3.0-6)
-')`'dnl
-BUILT_USING`'dnl
-Description: GCC support library (development files)
- This package contains the headers and static library files necessary for
- building C programs which use libgcc, libgomp, libquadmath, libssp or libitm.
-')`'dnl libgcc
 
 Package: libgcc4`'LS
 TARGET_PACKAGE`'dnl
@@ -344,6 +321,29 @@ ifdef(`TARGET', `dnl
  environment.
 ')`'dnl
 ')`'dnl libdbg
+')`'dnl libgcc
+
+ifenabled(`cdev',`
+Package: libgcc`'PV-dev`'LS
+TARGET_PACKAGE`'dnl
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
+Section: libdevel
+Priority: optional
+Recommends: ${dep:libcdev}
+Depends: BASELDEP, ${dep:libgcc}, ${dep:libssp}, ${dep:libgomp}, ${dep:libitm},
+ ${dep:libatomic}, ${dep:libbtrace}, ${dep:libasan}, ${dep:liblsan},
+ ${dep:libtsan}, ${dep:libubsan}, ${dep:libvtv},
+ ${dep:libqmath}, ${dep:libunwinddev}, ${shlibs:Depends}, ${misc:Depends}
+ifdef(`MULTIARCH', `Multi-Arch: same
+')`'dnl
+ifdef(`TARGET',`',`Breaks: libgccjit`'PV-dev (<< 9.3.0-6)
+Replaces: libgccjit`'PV-dev (<< 9.3.0-6)
+')`'dnl
+BUILT_USING`'dnl
+Description: GCC support library (development files)
+ This package contains the headers and static library files necessary for
+ building C programs which use libgcc, libgomp, libquadmath, libssp or libitm.
+')`'dnl cdev
 
 ifenabled(`lib64gcc',`
 Package: lib64gcc1`'LS
@@ -6040,7 +6040,7 @@ Description: GCC offloading compiler to NVPTX
  programs linked with -fopenmp will by default add PTX code into the binaries,
  which can be offloaded to NVidia PTX capable devices if available.
 
-ifenabled(`libgompnvptx',`
+ifenabled(`gompnvptx',`
 Package: libgomp-plugin-nvptx`'GOMP_SO
 Architecture: amd64 ppc64el
 Multi-Arch: same
@@ -6052,11 +6052,11 @@ Description: GCC OpenMP v4.5 plugin for offloading to NVPTX
  This package contains libgomp plugin for offloading to NVidia
  PTX.  The plugin needs libcuda.so.1 shared library that has to be
  installed separately.
-')`'dnl libgompnvptx
+')`'dnl gompnvptx
 ')`'dnl olnvptx
 
 ifenabled(`olhsa',`
-ifenabled(`libgomphsa',`
+ifenabled(`gomphsa',`
 Package: libgomp-plugin-hsa`'GOMP_SO
 Architecture: amd64
 Multi-Arch: same
@@ -6065,8 +6065,8 @@ Depends: BASEDEP, libgomp`'GOMP_SO`'LS, ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
 Description: GCC OpenMP v4.5 plugin for offloading to HSA
  This package contains libgomp plugin for offloading to HSA.
-')`'dnl libgompnvptx
-')`'dnl olnvptx
+')`'dnl gomphsa
+')`'dnl olhsa
 
 ifdef(`TARGET',`',`dnl
 ifenabled(`libnof',`
