@@ -174,7 +174,7 @@ define __do_libphobos
 	dh_installdirs -p$(p_l) \
 		$(usr_lib$(2))
 	$(dh_compat2) dh_movefiles -p$(p_l) \
-		$(usr_lib$(2))/libgphobos.so.* \
+		$(if $(filter $(DEB_HOST_ARCH), $(druntime_only_archs)),,$(usr_lib$(2))/libgphobos.so.*) \
 		$(usr_lib$(2))/libgdruntime.so.*
 
 	debian/dh_doclink -p$(p_l) $(p_lbase)
@@ -217,7 +217,9 @@ define __do_libphobos_dev
 		$(gcc_lib_dir$(2))
 
 	$(call install_gcc_lib,libgdruntime,$(GDRUNTIME_SONAME),$(2),$(p_l))
-	$(call install_gcc_lib,libgphobos,$(GPHOBOS_SONAME),$(2),$(p_l))
+	$(if $(filter $(DEB_HOST_ARCH), $(druntime_only_archs)),, \
+		$(call install_gcc_lib,libgphobos,$(GPHOBOS_SONAME),$(2),$(p_l))
+	)
 
 	$(if $(2),,
 	$(dh_compat2) dh_movefiles -p$(p_l) \
