@@ -4193,7 +4193,7 @@ TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch32_archs')
 Section: ifdef(`TARGET',`devel',`libs')
 Priority: optional
-Depends: BASELDEP, libdep(gcc1,32), ${shlibs:Depends}, ${misc:Depends}
+Depends: BASELDEP, libdep(gcc-s1,32), ${shlibs:Depends}, ${misc:Depends}
 Conflicts: ${confl:lib32}
 ifdef(`TARGET',`Provides: lib32stdc++CXX_SO-TARGET-dcv1
 ',`')`'dnl
@@ -4214,7 +4214,7 @@ TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarch64_archs')
 Section: ifdef(`TARGET',`devel',`libs')
 Priority: optional
-Depends: BASELDEP, libdep(gcc1,64), ${shlibs:Depends}, ${misc:Depends}
+Depends: BASELDEP, libdep(gcc-s1,64), ${shlibs:Depends}, ${misc:Depends}
 ifdef(`TARGET',`Provides: lib64stdc++CXX_SO-TARGET-dcv1
 ',`')`'dnl
 BUILT_USING`'dnl
@@ -4238,7 +4238,7 @@ TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchn32_archs')
 Section: ifdef(`TARGET',`devel',`libs')
 Priority: optional
-Depends: BASELDEP, libdep(gcc1,n32), ${shlibs:Depends}, ${misc:Depends}
+Depends: BASELDEP, libdep(gcc-s1,n32), ${shlibs:Depends}, ${misc:Depends}
 ifdef(`TARGET',`Provides: libn32stdc++CXX_SO-TARGET-dcv1
 ',`')`'dnl
 BUILT_USING`'dnl
@@ -4262,7 +4262,7 @@ TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchx32_archs')
 Section: ifdef(`TARGET',`devel',`libs')
 Priority: optional
-Depends: BASELDEP, libdep(gcc1,x32), ${shlibs:Depends}, ${misc:Depends}
+Depends: BASELDEP, libdep(gcc-s1,x32), ${shlibs:Depends}, ${misc:Depends}
 ifdef(`TARGET',`Provides: libx32stdc++CXX_SO-TARGET-dcv1
 ',`')`'dnl
 BUILT_USING`'dnl
@@ -4286,7 +4286,7 @@ TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchhf_archs')
 Section: ifdef(`TARGET',`devel',`libs')
 Priority: optional
-Depends: BASELDEP, libdep(gcc1,hf), ${shlibs:Depends}, ${misc:Depends}
+Depends: BASELDEP, libdep(gcc-s1,hf), ${shlibs:Depends}, ${misc:Depends}
 ifdef(`TARGET',`Provides: libhfstdc++CXX_SO-TARGET-dcv1
 ',`')`'dnl
 ifdef(`TARGET',`dnl',`Conflicts: libstdc++'CXX_SO`-armhf [biarchhf_archs]')
@@ -4311,7 +4311,7 @@ TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`biarchsf_archs')
 Section: ifdef(`TARGET',`devel',`libs')
 Priority: optional
-Depends: BASELDEP, libdep(gcc1,sf), ${shlibs:Depends}, ${misc:Depends}
+Depends: BASELDEP, libdep(gcc-s1,sf), ${shlibs:Depends}, ${misc:Depends}
 ifdef(`TARGET',`Provides: libsfstdc++CXX_SO-TARGET-dcv1
 ',`')`'dnl
 ifdef(`TARGET',`dnl',`Conflicts: libstdc++'CXX_SO`-armel [biarchsf_archs]')
