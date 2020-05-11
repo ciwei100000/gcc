@@ -633,23 +633,6 @@ Description: GCC support library (32 bit development files)
  building C programs which use libgcc, libgomp, libquadmath, libssp or libitm.
 ')`'dnl cdev
 
-ifenabled(`libneongcc',`
-Package: libgcc1-neon`'LS
-TARGET_PACKAGE`'dnl
-Architecture: NEON_ARCHS
-Section: libs
-Priority: optional
-Depends: BASELDEP, libc6-neon`'LS, ${shlibs:Depends}, ${misc:Depends}
-BUILT_USING`'dnl
-Description: GCC support library [neon optimized]
- Shared version of the support library, a library of internal subroutines
- that GCC uses to overcome shortcomings of particular machines, or
- special needs for some languages.
- .
- This set of libraries is optimized to use a NEON coprocessor, and will
- be selected instead when running under systems which have one.
-')`'dnl libneongcc1
-
 ifenabled(`libhfgcc',`
 Package: libhfgcc-s1`'LS
 TARGET_PACKAGE`'dnl
@@ -1480,22 +1463,6 @@ Description: GCC OpenMP (GOMP) support library (soft float ABI debug symbols)
  GOMP is an implementation of OpenMP for the C, C++, and Fortran compilers
 ')`'dnl libdbg
 ')`'dnl libsfgomp
-
-ifenabled(`libneongomp',`
-Package: libgomp`'GOMP_SO-neon`'LS
-TARGET_PACKAGE`'dnl
-Architecture: NEON_ARCHS
-Section: libs
-Priority: optional
-Depends: BASELDEP, libc6-neon`'LS, ${shlibs:Depends}, ${misc:Depends}
-BUILT_USING`'dnl
-Description: GCC OpenMP (GOMP) support library [neon optimized]
- GOMP is an implementation of OpenMP for the C, C++, and Fortran compilers
- in the GNU Compiler Collection.
- .
- This set of libraries is optimized to use a NEON coprocessor, and will
- be selected instead when running under systems which have one.
-')`'dnl libneongomp
 ')`'dnl libgomp
 
 ifenabled(`libitm',`
@@ -1694,23 +1661,6 @@ Description: GNU Transactional Memory Library (soft float ABI debug symbols)
  accesses to shared memory by several threads.
 ')`'dnl libdbg
 ')`'dnl libsfitm
-
-ifenabled(`libneonitm',`
-Package: libitm`'ITM_SO-neon`'LS
-TARGET_PACKAGE`'dnl
-Architecture: NEON_ARCHS
-Section: libs
-Priority: optional
-Depends: BASELDEP, libc6-neon`'LS, ${shlibs:Depends}, ${misc:Depends}
-BUILT_USING`'dnl
-Description: GNU Transactional Memory Library [neon optimized]
- GNU Transactional Memory Library (libitm) provides transaction support for
- accesses to the memory of a process, enabling easy-to-use synchronization of
- accesses to shared memory by several threads.
- .
- This set of libraries is optimized to use a NEON coprocessor, and will
- be selected instead when running under systems which have one.
-')`'dnl libneonitm
 ')`'dnl libitm
 
 ifenabled(`libatomic',`
@@ -1899,22 +1849,6 @@ Description: support library providing __atomic built-in functions (soft float A
  be turned into lock-free instructions, GCC will make calls into this library.
 ')`'dnl libdbg
 ')`'dnl libsfatomic
-
-ifenabled(`libneonatomic',`
-Package: libatomic`'ATOMIC_SO-neon`'LS
-TARGET_PACKAGE`'dnl
-Architecture: NEON_ARCHS
-Section: libs
-Priority: optional
-Depends: BASELDEP, libc6-neon`'LS, ${shlibs:Depends}, ${misc:Depends}
-BUILT_USING`'dnl
-Description: support library providing __atomic built-in functions [neon optimized]
- library providing __atomic built-in functions. When an atomic call cannot
- be turned into lock-free instructions, GCC will make calls into this library.
- .
- This set of libraries is optimized to use a NEON coprocessor, and will
- be selected instead when running under systems which have one.
-')`'dnl libneonatomic
 ')`'dnl libatomic
 
 ifenabled(`libasan',`
@@ -2099,22 +2033,6 @@ Description: AddressSanitizer -- a fast memory error detector (soft float ABI de
  use-after-free and {heap,stack,global}-buffer overflow bugs in C/C++ programs.
 ')`'dnl libdbg
 ')`'dnl libsfasan
-
-ifenabled(`libneonasan',`
-Package: libasan`'ASAN_SO-neon`'LS
-TARGET_PACKAGE`'dnl
-Architecture: NEON_ARCHS
-Section: libs
-Priority: optional
-Depends: BASELDEP, libc6-neon`'LS, ${shlibs:Depends}, ${misc:Depends}
-BUILT_USING`'dnl
-Description: AddressSanitizer -- a fast memory error detector [neon optimized]
- AddressSanitizer (ASan) is a fast memory error detector.  It finds
- use-after-free and {heap,stack,global}-buffer overflow bugs in C/C++ programs.
- .
- This set of libraries is optimized to use a NEON coprocessor, and will
- be selected instead when running under systems which have one.
-')`'dnl libneonasan
 ')`'dnl libasan
 
 ifenabled(`liblsan',`
@@ -2301,22 +2219,6 @@ Description: LeakSanitizer -- a memory leak detector (soft float ABI debug symbo
  into AddressSanitizer.
 ')`'dnl libdbg
 ')`'dnl libsflsan
-
-ifenabled(`libneonlsan',`
-Package: liblsan`'LSAN_SO-neon`'LS
-TARGET_PACKAGE`'dnl
-Architecture: NEON_ARCHS
-Section: libs
-Priority: optional
-Depends: BASELDEP, libc6-neon`'LS, ${shlibs:Depends}, ${misc:Depends}
-BUILT_USING`'dnl
-Description: LeakSanitizer -- a memory leak detector [neon optimized]
- LeakSanitizer (Lsan) is a memory leak detector which is integrated
- into AddressSanitizer.
- .
- This set of libraries is optimized to use a NEON coprocessor, and will
- be selected instead when running under systems which have one.
-')`'dnl libneonlsan
 ')`'dnl liblsan
 
 ifenabled(`libtsan',`
@@ -2509,22 +2411,6 @@ Description: ThreadSanitizer -- a Valgrind-based detector of data races (soft fl
  The Linux and Mac versions are based on Valgrind. 
 ')`'dnl libdbg
 ')`'dnl libsftsan
-
-ifenabled(`libneontsan',`
-Package: libtsan`'TSAN_SO-neon`'LS
-TARGET_PACKAGE`'dnl
-Architecture: NEON_ARCHS
-Section: libs
-Priority: optional
-Depends: BASELDEP, libc6-neon`'LS, ${shlibs:Depends}, ${misc:Depends}
-BUILT_USING`'dnl
-Description: ThreadSanitizer -- a Valgrind-based detector of data races [neon optimized]
- ThreadSanitizer (Tsan) is a data race detector for C/C++ programs. 
- The Linux and Mac versions are based on Valgrind. 
- .
- This set of libraries is optimized to use a NEON coprocessor, and will
- be selected instead when running under systems which have one.
-')`'dnl libneontsan
 ')`'dnl libtsan
 
 ifenabled(`libubsan',`
@@ -2731,23 +2617,6 @@ Description: UBSan -- undefined behaviour sanitizer (soft float ABI debug symbol
  at runtime. Available for C and C++.
 ')`'dnl libdbg
 ')`'dnl libsfubsan
-
-ifenabled(`libneonubsan',`
-Package: libubsan`'UBSAN_SO-neon`'LS
-TARGET_PACKAGE`'dnl
-Architecture: NEON_ARCHS
-Section: libs
-Priority: optional
-Depends: BASELDEP, libc6-neon`'LS, ${shlibs:Depends}, ${misc:Depends}
-BUILT_USING`'dnl
-Description: UBSan -- undefined behaviour sanitizer [neon optimized]
- UndefinedBehaviorSanitizer can be enabled via -fsanitize=undefined.
- Various computations will be instrumented to detect undefined behavior
- at runtime. Available for C and C++.
- .
- This set of libraries is optimized to use a NEON coprocessor, and will
- be selected instead when running under systems which have one.
-')`'dnl libneonubsan
 ')`'dnl libubsan
 
 ifenabled(`libvtv',`
@@ -2966,24 +2835,6 @@ Description: GNU vtable verification library (soft float ABI debug symbols)
  not a valid vtable pointer for that call.
 ')`'dnl libdbg
 ')`'dnl libsfvtv
-
-ifenabled(`libneonvtv',`
-Package: libvtv`'VTV_SO-neon`'LS
-TARGET_PACKAGE`'dnl
-Architecture: NEON_ARCHS
-Section: libs
-Priority: optional
-Depends: BASELDEP, libc6-neon`'LS, ${shlibs:Depends}, ${misc:Depends}
-BUILT_USING`'dnl
-Description: GNU vtable verification library [neon optimized]
- Vtable verification is a new security hardening feature for GCC that
- is designed to detect and handle (during program execution) when a
- vtable pointer that is about to be used for a virtual function call is
- not a valid vtable pointer for that call.
- .
- This set of libraries is optimized to use a NEON coprocessor, and will
- be selected instead when running under systems which have one.
-')`'dnl libneonvtv
 ')`'dnl libvtv
 
 ifenabled(`libbacktrace',`
@@ -3172,24 +3023,7 @@ Description: stack backtrace library (soft float ABI debug symbols)
  and parses DWARF debug info to get file/line/function information.
 ')`'dnl libdbg
 ')`'dnl libsfbacktrace
-
-ifenabled(`libneonbacktrace',`
-Package: libbacktrace`'BTRACE_SO-neon`'LS
-TARGET_PACKAGE`'dnl
-Architecture: NEON_ARCHS
-Section: libs
-Priority: optional
-Depends: BASELDEP, libc6-neon`'LS, ${shlibs:Depends}, ${misc:Depends}
-BUILT_USING`'dnl
-Description: stack backtrace library [neon optimized]
- libbacktrace uses the GCC unwind interface to collect a stack trace,
- and parses DWARF debug info to get file/line/function information.
- .
- This set of libraries is optimized to use a NEON coprocessor, and will
- be selected instead when running under systems which have one.
-')`'dnl libneonbacktrace
 ')`'dnl libbacktrace
-
 
 ifenabled(`libqmath',`
 Package: libquadmath`'QMATH_SO`'LS
@@ -3789,21 +3623,6 @@ Description: Runtime library for GNU Objective-C applications (soft float ABI de
  Library needed for GNU ObjC applications linked against the shared library.
 ')`'dnl libdbg
 ')`'dnl libsfobjc
-
-ifenabled(`libneonobjc',`
-Package: libobjc`'OBJC_SO-neon`'LS
-TARGET_PACKAGE`'dnl
-Section: libs
-Architecture: NEON_ARCHS
-Priority: PRI(optional)
-Depends: BASELDEP, libc6-neon`'LS, ${shlibs:Depends}, ${misc:Depends}
-BUILT_USING`'dnl
-Description: Runtime library for GNU Objective-C applications  [NEON version]
- Library needed for GNU ObjC applications linked against the shared library.
- .
- This set of libraries is optimized to use a NEON coprocessor, and will
- be selected instead when running under systems which have one.
-')`'dnl libneonobjc
 ')`'dnl objc
 
 ifenabled(`fortran',`
@@ -4134,26 +3953,6 @@ Description: Runtime library for GNU Fortran applications (hard float ABI debug 
  shared library.
 ')`'dnl libdbg
 ')`'dnl libsfgfortran
-
-ifenabled(`libneongfortran',`
-Package: libgfortran`'FORTRAN_SO-neon`'LS
-TARGET_PACKAGE`'dnl
-Section: libs
-Architecture: NEON_ARCHS
-ifdef(`MULTIARCH', `Multi-Arch: same
-Pre-Depends: ${misc:Pre-Depends}
-Breaks: ${multiarch:breaks}
-')`'dnl
-Priority: optional
-Depends: BASELDEP, libgcc1-neon`'LS, ${shlibs:Depends}, ${misc:Depends}
-BUILT_USING`'dnl
-Description: Runtime library for GNU Fortran applications [NEON version]
- Library needed for GNU Fortran applications linked against the
- shared library.
- .
- This set of libraries is optimized to use a NEON coprocessor, and will
- be selected instead when running under systems which have one.
-')`'dnl libneongfortran
 ')`'dnl fortran
 
 ifenabled(`ggo',`
@@ -4606,22 +4405,6 @@ ifdef(`TARGET', `dnl
  environment.
 ')`'dnl
 ')`'dnl libsfcxx
-
-ifenabled(`libneoncxx',`
-Package: libstdc++CXX_SO-neon`'LS
-TARGET_PACKAGE`'dnl
-Architecture: NEON_ARCHS
-Section: libs
-Priority: optional
-Depends: BASELDEP, libc6-neon`'LS, libgcc1-neon`'LS, ${shlibs:Depends}, ${misc:Depends}
-BUILT_USING`'dnl
-Description: GNU Standard C++ Library v3 [NEON version]
- This package contains an additional runtime library for C++ programs
- built with the GNU compiler.
- .
- This set of libraries is optimized to use a NEON coprocessor, and will
- be selected instead when running under systems which have one.
-')`'dnl
 
 ifenabled(`c++dev',`
 Package: libstdc++`'PV-dev`'LS

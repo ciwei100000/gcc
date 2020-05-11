@@ -25,8 +25,8 @@ endif
 
 on_buildd := $(shell [ -f /CurrentlyBuilding -o "$$LOGNAME" = buildd ] && echo yes)
 
-# creates {srcdir,builddir}_{hppa64,neon}
-$(foreach x,srcdir builddir,$(foreach target,hppa64 neon,$(eval \
+# creates {srcdir,builddir}_hppa64
+$(foreach x,srcdir builddir,$(foreach target,hppa64,$(eval \
   $(x)_$(target) := $($(x))-$(target))))
 
 # for architecture dependent variables and changelog vars
@@ -1601,17 +1601,6 @@ else
     with_libubsan := disabled for rtlibs stage
     with_hppa64 := disabled for rtlibs stage
   endif
-
-  # neon build -------------------
-  # FIXME: build as a cross compiler to build on armv4 as well
-  ifneq (,$(findstring gcc-10, $(PKGSOURCE)))
-    ifeq ($(derivative),Ubuntu)
-#      neon_archs = armel armhf
-#      ifneq (, $(filter $(DEB_TARGET_ARCH),$(neon_archs)))
-#        with_neon = yes
-#      endif
-    endif
-  endif
 endif
 
 # run testsuite ---------------
@@ -2117,10 +2106,6 @@ configure_hppa64_stamp	:= $(stampdir)/04-configure-hppa64-stamp
 build_hppa64_stamp	:= $(stampdir)/05-build-hppa64-stamp
 install_hppa64_stamp	:= $(stampdir)/07-install-hppa64-stamp
 
-configure_neon_stamp	:= $(stampdir)/04-configure-neon-stamp
-build_neon_stamp	:= $(stampdir)/05-build-neon-stamp
-install_neon_stamp	:= $(stampdir)/07-install-neon-stamp
-
 control_dependencies	:= $(patch_stamp)
 
 ifeq ($(single_package),yes)
@@ -2158,11 +2143,6 @@ endif
 ifeq ($(with_offload_gcn),yes)
   build_dependencies += $(build_gcn_stamp)
   install_dependencies += $(install_gcn_stamp)
-endif
-
-ifeq ($(with_neon),yes)
-  build_dependencies += $(build_neon_stamp)
-  install_dependencies += $(install_neon_stamp)
 endif
 
 ifeq ($(with_hppa64),yes)

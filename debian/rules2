@@ -1590,44 +1590,6 @@ $(build_hppa64_stamp): $(configure_hppa64_stamp) \
 	fi
 	touch $(build_hppa64_stamp)
 
-$(configure_neon_stamp): $(build_stamp) \
-    $(if $(filter yes, $(with_jit)), $(build_jit_stamp))
-	dh_testdir
-	rm -f $(configure_neon_stamp) $(build_neon_stamp)
-	rm -rf $(builddir_neon)
-	mkdir $(builddir_neon)
-	: # configure neon
-	cd $(builddir_neon) && \
-	  $(SET_PATH) \
-	  $(SET_SHELL) \
-	  $(call pass_vars, $(flags_to_pass)) \
-	  CC="$(builddir)/gcc/xg++ -B$(builddir)/gcc/" \
-	     ../src/configure \
-		--disable-bootstrap \
-		--enable-languages=c,c++,objc,fortran \
-		--prefix=/$(PF) \
-		--libexecdir=/$(libexecdir) \
-		--program-suffix=-$(BASE_VERSION) \
-		--disable-nls \
-		--enable-plugin \
-		--with-arch=armv7-a --with-tune=cortex-a8 \
-		--with-float=$(float_abi) --with-fpu=neon \
-		--host=arm-linux-gnueabi \
-		--build=arm-linux-gnueabi \
-		--target=arm-linux-gnueabi
-	touch $(configure_neon_stamp)
-
-$(build_neon_stamp): $(configure_neon_stamp) \
-    $(if $(filter yes, $(with_jit)), $(build_jit_stamp))
-	  $(SET_PATH) \
-	  $(SET_SHELL) \
-	  $(SET_LOCPATH) \
-	    $(MAKE) -C $(builddir_neon) \
-		$(call pass_vars, BOOT_CFLAGS       BOOT_LDFLAGS \
-		                  CFLAGS_FOR_TARGET LDFLAGS_FOR_TARGET)
-	touch $(build_neon_stamp)
-
-
 ifeq ($(with_ada),yes)
   MANUALS = \
 	$(srcdir)/gcc/ada/gnat_ugn.texi \
@@ -2011,8 +1973,6 @@ d_doc	= debian/$(p_doc)
 d_lgcc	= debian/$(p_lgcc)
 d_hppa64= debian/$(p_hppa64)
 
-d_neon   = debian/tmp-neon
-
 common_substvars = \
 	$(shell awk "{printf \"'-V%s' \", \$$0}" debian/substvars.local)
 
@@ -2181,10 +2141,6 @@ endif
 
 ifeq ($(with_hppa64),yes)
   include debian/rules.d/binary-hppa64.mk
-endif
-
-ifeq ($(with_neon),yes)
-  include debian/rules.d/binary-neon.mk
 endif
 
 endif # with_base_only
@@ -2666,19 +2622,6 @@ endif
 	done
 
 	touch $(install_hppa64_stamp)
-
-$(install_neon_stamp): $(build_neon_stamp)
-	dh_testdir
-	dh_testroot
-	rm -rf $(d_neon)
-	mkdir -p $(d_neon)/$(PF)
-
-	$(SET_PATH) \
-	    $(MAKE) -C $(builddir_neon) \
-		$(call pass_vars, CC $(flags_to_pass)) \
-		DESTDIR=$(CURDIR)/$(d_neon) \
-		    install
-	touch $(install_neon_stamp)
 
 # ----------------------------------------------------------------------
 # Build architecture-dependent files here.
