@@ -88,12 +88,6 @@ ifeq ($(with_offload_nvptx),yes)
 	tar -c -C $(d)-nvptx -f - $(PF) \
 	    | tar x -C $(d_snap) -f -
 
-	dh_link -p$(p_snap) \
-	  /usr/bin/nvptx-none-ar     /$(gcc_lib_dir)/accel/nvptx-none/ar \
-	  /usr/bin/nvptx-none-as     /$(gcc_lib_dir)/accel/nvptx-none/as \
-	  /usr/bin/nvptx-none-ld     /$(gcc_lib_dir)/accel/nvptx-none/ld \
-	  /usr/bin/nvptx-none-ranlib /$(gcc_lib_dir)/accel/nvptx-none/ranlib
-
 	rm -f $(d_snap)/$(PF)/bin/*-lto-dump
 	rm -f $(d_snap)/$(PF)/share/man/man1/*-accel-nvptx-none-*.1
 endif
@@ -101,13 +95,6 @@ endif
 ifeq ($(with_offload_gcn),yes)
 	tar -c -C $(d)-gcn -f - $(PF) \
 	  | tar x -C $(d_snap) -f -
-
-	dh_link -p$(p_snap) \
-	  /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/llvm-ar /$(gcc_lib_dir)/accel/$(gcn_target_name)/ar \
-	  /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/llvm-mc /$(gcc_lib_dir)/accel/$(gcn_target_name)/as \
-	  /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/lld /$(gcc_lib_dir)/accel/$(gcn_target_name)/ld \
-	  /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/llvm-nm /$(gcc_lib_dir)/accel/$(gcn_target_name)/nm \
-	  /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/llvm-ranlib /$(gcc_lib_dir)/accel/$(gcn_target_name)/ranlib
 
 	: # FIXME: are these really needed?
 	dh_link -p$(p_snap) \
