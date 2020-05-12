@@ -2511,11 +2511,13 @@ $(install_nvptx_stamp): $(build_nvptx_stamp) $(install_stamp) \
 	-find $(d)-nvptx -type d -empty -delete
 
 	: # a complete compiler installation needed for running the tests
+ifneq ($(single_package),yes)
 	ln -sf lib $(d)-nvptx/$(PF)/libexec
-	ln -sf /usr/bin/nvptx-none-ar     $(d)-nvptx/$(gcc_lib_dir)/accel/nvptx-none/ar
-	ln -sf /usr/bin/nvptx-none-as     $(d)-nvptx/$(gcc_lib_dir)/accel/nvptx-none/as
-	ln -sf /usr/bin/nvptx-none-ld     $(d)-nvptx/$(gcc_lib_dir)/accel/nvptx-none/ld
-	ln -sf /usr/bin/nvptx-none-ranlib $(d)-nvptx/$(gcc_lib_dir)/accel/nvptx-none/ranlib
+endif
+	ln -sf /usr/bin/nvptx-none-ar     $(d)-nvptx/$(gcc_lexec_dir)/accel/nvptx-none/ar
+	ln -sf /usr/bin/nvptx-none-as     $(d)-nvptx/$(gcc_lexec_dir)/accel/nvptx-none/as
+	ln -sf /usr/bin/nvptx-none-ld     $(d)-nvptx/$(gcc_lexec_dir)/accel/nvptx-none/ld
+	ln -sf /usr/bin/nvptx-none-ranlib $(d)-nvptx/$(gcc_lexec_dir)/accel/nvptx-none/ranlib
 
 	@echo XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 	find $(d)-nvptx
@@ -2573,17 +2575,19 @@ $(install_gcn_stamp): $(build_gcn_stamp) $(install_stamp) \
 	rm -rf $(d)-gcn/$(PF)/lib/gcc/$(DEB_HOST_GNU_TYPE)/$(versiondir)/gfx900
 
 	: # a complete compiler installation needed for running the tests
+ifneq ($(single_package),yes)
 	ln -sf lib $(d)-gcn/$(PF)/libexec
+endif
 	ln -sf /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/llvm-ar \
-	  $(d)-gcn/$(gcc_lib_dir)/accel/$(gcn_target_name)/ar
+	  $(d)-gcn/$(gcc_lexec_dir)/accel/$(gcn_target_name)/ar
 	ln -sf /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/llvm-mc \
-	  $(d)-gcn/$(gcc_lib_dir)/accel/$(gcn_target_name)/as
+	  $(d)-gcn/$(gcc_lexec_dir)/accel/$(gcn_target_name)/as
 	ln -sf /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/lld \
-	  $(d)-gcn/$(gcc_lib_dir)/accel/$(gcn_target_name)/ld
+	  $(d)-gcn/$(gcc_lexec_dir)/accel/$(gcn_target_name)/ld
 	ln -sf /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/llvm-nm \
-	  $(d)-gcn/$(gcc_lib_dir)/accel/$(gcn_target_name)/nm
+	  $(d)-gcn/$(gcc_lexec_dir)/accel/$(gcn_target_name)/nm
 	ln -sf /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/llvm-ranlib \
-	  $(d)-gcn/$(gcc_lib_dir)/accel/$(gcn_target_name)/ranlib
+	  $(d)-gcn/$(gcc_lexec_dir)/accel/$(gcn_target_name)/ranlib
 
 	-find $(d)-gcn -type d -empty -delete
 	@echo XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
