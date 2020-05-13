@@ -134,16 +134,16 @@ endif
 ifeq ($(with_check),yes)
 	dh_installdocs -p$(p_snap) test-summary
 # more than one libgo.sum, avoid it 
-	mkdir -p $(d_snap)/$(docdir)/$(p_snap)/test-summaries
+	mkdir -p $(d_snap)/$(docdir)/$(p_snap)/test
 	cp -p $$(find $(builddir)/gcc/testsuite -maxdepth 2 \( -name '*.sum' -o -name '*.log' \)) \
 	      $$(find $(buildlibdir)/*/testsuite -maxdepth 1 \( -name '*.sum'  -o -name '*.log' \) ! -name 'libgo.*') \
-		$(d_snap)/$(docdir)/$(p_snap)/test-summaries/
+		$(d_snap)/$(docdir)/$(p_snap)/test/
   ifeq ($(with_go),yes)
 	cp -p $(buildlibdir)/libgo/libgo.sum \
-		$(d_snap)/$(docdir)/$(p_snap)/test-summaries/
+		$(d_snap)/$(docdir)/$(p_snap)/test/
   endif
 	if which xz 2>&1 >/dev/null; then \
-	  echo -n $(d_snap)/$(docdir)/$(p_snap)/test-summaries/* \
+	  echo -n $(d_snap)/$(docdir)/$(p_snap)/test/* \
 	    | xargs -d ' ' -L 1 -P $(USE_CPUS)	xz -7v; \
 	fi
 else
