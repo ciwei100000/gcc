@@ -145,6 +145,10 @@ gxx_baseline_dir = $(shell \
 gxx_baseline_file = $(gxx_baseline_dir)/baseline_symbols.txt
 
 debian/README.libstdc++-baseline:
+	: # save the results of the libstdc++ test run, overridden by check-abi
+	-tar cvf $(buildlibdir)/libstdc++-v3/testsuite/libstdc++.tar \
+	  $(buildlibdir)/libstdc++-v3/testsuite/libstdc++.{log,sum}
+
 	cat debian/README.libstdc++-baseline.in \
 		> debian/README.libstdc++-baseline
 
@@ -173,6 +177,9 @@ debian/README.libstdc++-baseline:
 	    cat $$(find $(buildlibdir)/libstdc++-v3 $(srcdir)/libstdc++-v3 -name '.new') || true; \
 	  fi >> debian/README.libstdc++-baseline; \
 	fi
+
+	: # restore the results of the libstdc++ test run
+	-tar xvf $(buildlibdir)/libstdc++-v3/testsuite/libstdc++.tar
 
 # ----------------------------------------------------------------------
 # FIXME: see #792204, libstdc++ symbols on sparc64, for now ignore errors
