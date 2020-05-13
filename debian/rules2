@@ -706,7 +706,7 @@ ifneq (,$(findstring mipsisa64r6el-linux-gnuabin32,$(DEB_TARGET_GNU_TYPE)))
     endif
   endif
 endif
- 
+
 ifneq (,$(findstring mipsisa64r6-linux-gnuabin32,$(DEB_TARGET_GNU_TYPE)))
   CONFARGS += --with-mips-plt
   ifeq ($(multilib),yes)
@@ -759,8 +759,14 @@ ifneq (,$(findstring hppa-linux,$(DEB_TARGET_GNU_TYPE)))
 endif
 
 ifneq (,$(offload_targets))
+  ifneq (,$(filter nvptx-none, $(offload_targets)))
+	offload_opt = nvptx-none=$(CURDIR)/$(d)-nvptx/$(PF)
+  endif
+  ifneq (,$(filter hsa, $(offload_targets)))
+	offload_opt += hsa
+  endif
   CONFARGS += \
-	--enable-offload-targets=$(subst $(SPACE),$(COMMA),$(offload_targets))
+	--enable-offload-targets=$(subst $(SPACE),$(COMMA),$(strip $(offload_opt)))
   ifeq ($(with_offload_nvptx),yes)
     CONFARGS += --without-cuda-driver
   endif
@@ -1655,7 +1661,9 @@ ifeq ($(DEB_HOST_GNU_SYSTEM),gnu)
 endif
 
 check: $(check_stamp)
-$(check_stamp): $(filter $(build_stamp) $(build_jit_stamp) $(build_hppa64_stamp) $(build_nvptx_stamp), $(build_dependencies))
+$(check_stamp): $(filter $(build_stamp) $(build_jit_stamp) $(build_hppa64_stamp) $(build_nvptx_stamp), $(build_dependencies)) \
+    $(if $(filter nvptx-none, $(offload_targets)), $(install_nvptx_stamp))
+
 	rm -f test-protocol
 	rm -f $(builddir)/runcheck*
 
@@ -2433,7 +2441,6 @@ $(install_nvptx_stamp): $(build_nvptx_stamp) $(install_stamp) \
     $(if $(filter yes, $(with_jit)), $(install_jit_stamp)) \
     $(if $(filter yes, $(with_hppa64)), $(install_hppa64_stamp))
 	dh_testdir
-	dh_testroot
 	ln -sf ../$(nl_nvptx_srcdir)/newlib $(srcdir)/newlib
 	rm -rf $(d)-nvptx
 	mkdir -p $(d)-nvptx/$(PF)
@@ -2467,6 +2474,16 @@ $(install_nvptx_stamp): $(build_nvptx_stamp) $(install_stamp) \
 	find $(d)-nvptx -name \*.la | xargs rm -f
 	rm -rf $(d)-nvptx/$(PF)/nvptx-none/include
 	-find $(d)-nvptx -type d -empty -delete
+
+	: # a complete compiler installation needed for running the tests
+ifneq ($(single_package),yes)
+	ln -sf lib $(d)-nvptx/$(PF)/libexec
+endif
+	ln -sf /usr/bin/nvptx-none-ar     $(d)-nvptx/$(gcc_lexec_dir)/accel/nvptx-none/ar
+	ln -sf /usr/bin/nvptx-none-as     $(d)-nvptx/$(gcc_lexec_dir)/accel/nvptx-none/as
+	ln -sf /usr/bin/nvptx-none-ld     $(d)-nvptx/$(gcc_lexec_dir)/accel/nvptx-none/ld
+	ln -sf /usr/bin/nvptx-none-ranlib $(d)-nvptx/$(gcc_lexec_dir)/accel/nvptx-none/ranlib
+
 	@echo XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 	find $(d)-nvptx
 	@echo XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
