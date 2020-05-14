@@ -1226,6 +1226,7 @@ ifeq ($(distribution)-$(DEB_HOST_ARCH),Ubuntu-armhf)
 endif
 
 $(build_stamp): $(configure_stamp) $(build_locale_stamp)
+	@echo === START $@ ===
 	dh_testdir
 	rm -f bootstrap-protocol*
 	@echo TTTTT $$(date -R)
@@ -1240,7 +1241,7 @@ ifeq ($(build_type),build-native)
 	  $(SET_PATH) \
 	  $(SET_SHELL) \
 	  $(SET_LOCPATH) \
-	    $(MAKE) -C $(builddir) $(bootstrap_target) \
+	    $(MAKE) $(NJOBS) -C $(builddir) $(bootstrap_target) \
 		$(call pass_vars, CC $(flags_to_pass) \
 		  STAGE1_CFLAGS                         STAGE1_LDFLAGS \
 		  BOOT_CFLAGS                           BOOT_LDFLAGS \
@@ -1260,7 +1261,7 @@ else ifneq (,$(filter $(build_type),build-cross cross-build-native cross-build-c
 	  set +e; \
 	  $(SET_PATH) \
 	  $(SET_LOCPATH) \
-	    $(MAKE) -C $(builddir) \
+	    $(MAKE) $(NJOBS) -C $(builddir) \
 		$(call pass_vars, BOOT_CFLAGS       BOOT_LDFLAGS \
 		                  CFLAGS_FOR_TARGET LDFLAGS_FOR_TARGET) \
 		; \
@@ -1286,7 +1287,7 @@ endif
 
 	if [ -f $(srcdir)/contrib/warn_summary ]; then \
 	  rm -f bootstrap-summary; \
-	  /bin/sh $(srcdir)/contrib/warn_summary bootstrap-protocol \
+	  /bin/sh $(srcdir)/contrib/warn_summary $$(ls bootstrap-protocol* | head -1) \
 	    > bootstrap-summary; \
 	fi
 
@@ -1322,6 +1323,7 @@ CONFARGS_JIT := \
 	--disable-bootstrap
 
 $(configure_jit_stamp): $(build_stamp)
+	@echo === START $@ ===
 	dh_testdir
 	rm -f $(configure_jit_stamp) $(build_jit_stamp)
 	rm -rf $(builddir_jit)
@@ -1337,6 +1339,8 @@ $(configure_jit_stamp): $(build_stamp)
 	touch $(configure_jit_stamp)
 
 $(build_jit_stamp): $(configure_jit_stamp)
+	@echo === START $@ ===
+	dh_testdir
 	( \
 	  set +e; \
 	  $(SET_PATH) \
@@ -1344,7 +1348,7 @@ $(build_jit_stamp): $(configure_jit_stamp)
 	  $(SET_LOCPATH) \
 	  LD_LIBRARY_PATH=$${LD_LIBRARY_PATH:+$$LD_LIBRARY_PATH:}$(builddir)/gcc \
 	  biarch_multidir_names=none \
-		$(MAKE) -C $(builddir_jit) \
+		$(MAKE) $(NJOBS) -C $(builddir_jit) \
 		$(call pass_vars, BOOT_CFLAGS       BOOT_LDFLAGS \
 		                  CFLAGS_FOR_TARGET LDFLAGS_FOR_TARGET) \
 		; \
@@ -1397,6 +1401,7 @@ endif
 $(configure_nvptx_stamp): $(build_stamp) \
     $(if $(filter yes, $(with_jit)), $(build_jit_stamp)) \
     $(if $(filter yes, $(with_hppa64)), $(build_hppa64_stamp))
+	@echo === START $@ ===
 	dh_testdir
 	rm -f $(configure_nvptx_stamp) $(build_nvptx_stamp)
 	rm -rf src-nvptx $(builddir_nvptx)
@@ -1417,8 +1422,8 @@ $(configure_nvptx_stamp): $(build_stamp) \
 $(build_nvptx_stamp): $(configure_nvptx_stamp) \
     $(if $(filter yes, $(with_jit)), $(build_jit_stamp)) \
     $(if $(filter yes, $(with_hppa64)), $(build_hppa64_stamp))
+	@echo === START $@ ===
 	ln -sf ../$(nl_nvptx_srcdir)/newlib $(srcdir)/newlib
-
 	( \
 	  set +e; \
 	  $(SET_PATH) \
@@ -1426,7 +1431,7 @@ $(build_nvptx_stamp): $(configure_nvptx_stamp) \
 	  $(SET_LOCPATH) \
 	  LD_LIBRARY_PATH=$${LD_LIBRARY_PATH:+$$LD_LIBRARY_PATH:}$(builddir)/gcc \
 	  biarch_multidir_names=none \
-		$(MAKE) -C $(builddir_nvptx) \
+		$(MAKE) $(NJOBS) -C $(builddir_nvptx) \
 		$(call pass_vars, BOOT_CFLAGS BOOT_LDFLAGS \
 		                  CFLAGS_FOR_TARGET) \
 		; \
@@ -1478,6 +1483,7 @@ $(configure_gcn_stamp): $(build_stamp) \
     $(if $(filter yes, $(with_jit)), $(build_jit_stamp)) \
     $(if $(filter yes, $(with_hppa64)), $(build_hppa64_stamp)) \
     $(if $(filter yes, $(with_offload_nvptx)), $(build_nvptx_stamp))
+	@echo === START $@ ===
 	dh_testdir
 
 	rm -rf bin-gcn
@@ -1508,8 +1514,8 @@ $(build_gcn_stamp): $(configure_gcn_stamp) \
     $(if $(filter yes, $(with_jit)), $(build_jit_stamp)) \
     $(if $(filter yes, $(with_hppa64)), $(build_hppa64_stamp)) \
     $(if $(filter yes, $(with_offload_nvptx)), $(build_nvptx_stamp))
+	@echo === START $@ ===
 	ln -sf ../$(nl_gcn_srcdir)/newlib $(srcdir)/newlib
-
 	( \
 	  set +e; \
 	  $(SET_PATH) \
@@ -1517,7 +1523,7 @@ $(build_gcn_stamp): $(configure_gcn_stamp) \
 	  $(SET_LOCPATH) \
 	  LD_LIBRARY_PATH=$${LD_LIBRARY_PATH:+$$LD_LIBRARY_PATH:}$(builddir)/gcc \
 	  biarch_multidir_names=none \
-		$(MAKE) -C $(builddir_gcn) \
+		$(MAKE) $(NJOBS) -C $(builddir_gcn) \
 		$(call pass_vars, BOOT_CFLAGS BOOT_LDFLAGS \
 		                  CFLAGS_FOR_TARGET) \
 		; \
@@ -1544,6 +1550,7 @@ endif
 
 $(configure_hppa64_stamp): $(build_stamp) \
     $(if $(filter yes, $(with_jit)), $(build_jit_stamp))
+	@echo === START $@ ===
 	dh_testdir
 	rm -f $(configure_hppa64_stamp) $(build_hppa64_stamp)
 	rm -rf $(builddir_hppa64)
@@ -1580,6 +1587,7 @@ $(configure_hppa64_stamp): $(build_stamp) \
 
 $(build_hppa64_stamp): $(configure_hppa64_stamp) \
     $(if $(filter yes, $(with_jit)), $(build_jit_stamp))
+	@echo === START $@ ===
 	if [ -f $(srcdir)/gcc/distro-defaults.h ]; then \
 	  if [ ! -f $(srcdir)/gcc/distro-defaults.h.saved ]; then \
 	    mv $(srcdir)/gcc/distro-defaults.h $(srcdir)/gcc/distro-defaults.h.saved; \
@@ -1591,7 +1599,7 @@ $(build_hppa64_stamp): $(configure_hppa64_stamp) \
 	  $(SET_SHELL) \
 	  $(SET_LOCPATH) \
 	  LD_LIBRARY_PATH=$${LD_LIBRARY_PATH:+$$LD_LIBRARY_PATH:}$(builddir)/gcc \
-	    $(MAKE) -C $(builddir_hppa64) \
+	    $(MAKE) $(NJOBS) -C $(builddir_hppa64) \
 		$(call pass_vars, \
 		  CFLAGS_FOR_TARGET CXXFLAGS_FOR_TARGET LDFLAGS_FOR_TARGET)
 	if [ -f $(srcdir)/gcc/distro-defaults.h.saved ]; then \
@@ -1682,7 +1690,7 @@ check: $(check_stamp)
 $(check_stamp): $(filter $(build_stamp) $(build_jit_stamp) $(build_hppa64_stamp) $(build_nvptx_stamp) $(build_gcn_stamp), $(build_dependencies)) \
     $(if $(filter nvptx-none, $(offload_targets)), $(install_nvptx_stamp)) \
     $(if $(filter $(gcn_target_name), $(offload_targets)), $(install_gcn_stamp))
-
+	@echo === START $@ ===
 	rm -f test-protocol
 	rm -f $(builddir)/runcheck*
 
@@ -1764,7 +1772,7 @@ endif
 	      EXTRA_TEST_PFLAGS=-g0 \
 	      DEJAGNU_TIMEOUT=$(DEJAGNU_TIMEOUT) \
 	      DEB_GCC_NO_O3=1 \
-		$(MAKE) -k -C $$d $(NJOBS) check $(RUNTESTFLAGS); \
+		$(MAKE) -k -C $$d $(NJOBS_TESTS) check $(RUNTESTFLAGS); \
 	    done 2>&1 | tee test-protocol
 
 	-ps aux | fgrep logwatch | fgrep -v fgrep
@@ -1834,6 +1842,7 @@ endif
 
 $(check_inst_stamp): $(check_stamp)
 	rm -f test-inst-protocol
+	@echo === START $@ ===
 
 ifeq ($(start_logwatch),yes)
 	: # start logwatch script for regular output during test runs
@@ -2163,9 +2172,11 @@ endif # ($(single_package),yes)
 install: $(install_dependencies)
 
 $(install_dummy_stamp): $(build_dummy_stamp)
+	@echo === START $@ ===
 	touch $(install_dummy_stamp)
 
 $(install_snap_stamp): $(build_dependencies)
+	@echo === START $@ ===
 	dh_testdir
 	dh_testroot
 	dh_prep
@@ -2256,6 +2267,7 @@ endif
 	touch $(install_snap_stamp)
 
 $(install_stamp): $(build_stamp)
+	@echo === START $@ ===
 	dh_testdir
 	dh_testroot
 	dh_prep $(if $(filter yes,$(with_hppa64)),-N$(p_hppa64))
@@ -2446,6 +2458,7 @@ endif
 	touch $(install_stamp)
 
 $(install_jit_stamp): $(build_jit_stamp) $(install_stamp)
+	@echo === START $@ ===
 	dh_testdir
 	dh_testroot
 	rm -rf $(d)-jit
@@ -2470,9 +2483,8 @@ $(install_jit_stamp): $(build_jit_stamp) $(install_stamp)
 	@echo XXXXX `date -R`
 	touch $(install_jit_stamp)
 
-$(install_nvptx_stamp): $(build_nvptx_stamp) $(install_stamp) \
-    $(if $(filter yes, $(with_jit)), $(install_jit_stamp)) \
-    $(if $(filter yes, $(with_hppa64)), $(install_hppa64_stamp))
+$(install_nvptx_stamp): $(build_nvptx_stamp)
+	@echo === START $@ ===
 	dh_testdir
 	ln -sf ../$(nl_nvptx_srcdir)/newlib $(srcdir)/newlib
 	rm -rf $(d)-nvptx
@@ -2526,10 +2538,8 @@ endif
 	@echo XXXXX `date -R`
 	touch $(install_nvptx_stamp)
 
-$(install_gcn_stamp): $(build_gcn_stamp) $(install_stamp) \
-    $(if $(filter yes, $(with_jit)), $(install_jit_stamp)) \
-    $(if $(filter yes, $(with_hppa64)), $(install_hppa64_stamp)) \
-    $(if $(filter yes, $(with_offload_nvptx)), $(install_nvptx_stamp))
+$(install_gcn_stamp): $(build_gcn_stamp)
+	@echo === START $@ ===
 	dh_testdir
 	ln -sf ../$(nl_gcn_srcdir)/newlib $(srcdir)/newlib
 	rm -rf $(d)-gcn
@@ -2597,6 +2607,7 @@ endif
 	touch $(install_gcn_stamp)
 
 $(install_hppa64_stamp): $(build_hppa64_stamp)
+	@echo === START $@ ===
 	dh_testdir
 	dh_testroot
 	rm -rf $(d_hppa64)
@@ -2668,7 +2679,7 @@ debian/arch_binaries.all: $(foreach i,$(arch_binaries),$(binary_stamp)-$(i))
 	cat debian/arch_binaries debian/arch_binaries.epoch > debian/arch_binaries.all
 
 # see #879054 for the "test ! -s" tests, needed for the rtlibs stage
-binary-arch: debian/arch_binaries.all
+binary-arch: $(foreach i,$(arch_binaries),$(binary_stamp)-$(i)) debian/arch_binaries.all
 	test ! -s debian/arch_binaries.all || \
 	  dh_compress $(foreach p,$(shell echo `cat debian/arch_binaries.all`),-p$(p)) \
 	    -X.log.xz -X.sum.xz -X.c -X.txt -X.tag -X.map -XREADME.Bugs
@@ -2684,6 +2695,10 @@ ifeq ($(i586_symlinks),yes)
 endif
 	test ! -s debian/arch_binaries.all || \
 	  dh_fixperms $(foreach p,$(shell echo `cat debian/arch_binaries.all`),-p$(p))
+ifeq ($(with_ada),yes)
+	find $$(ls -d $(d_gnat) $(d_gnatsjlj) $(d_snap) 2>/dev/null) \
+	  -name '*.ali' | xargs -r chmod 444
+endif
 	test ! -s debian/arch_binaries || \
 	  dh_gencontrol $(foreach p,$(shell echo `cat debian/arch_binaries`),-p$(p)) \
 	    -- -v$(DEB_VERSION) $(common_substvars)
@@ -2728,7 +2743,7 @@ debian/indep_binaries.all: $(foreach i,$(indep_binaries),$(binary_stamp)-$(i))
 	sed -i 's/ /\n/g' debian/indep_binaries.epoch || touch debian/indep_binaries.epoch
 	cat debian/indep_binaries debian/indep_binaries.epoch > debian/indep_binaries.all
 
-binary-indep: debian/indep_binaries.all
+binary-indep: $(foreach i,$(indep_binaries),$(binary_stamp)-$(i)) debian/indep_binaries.all
 	dh_compress $(foreach p,$(shell echo `cat debian/indep_binaries.all`),-p$(p)) \
 	  -X.log.xz -X.sum.xz -X.c -X.txt -X.tag -X.map -XREADME.Bugs
 	dh_fixperms $(foreach p,$(shell echo `cat debian/indep_binaries.all`),-p$(p))
@@ -2764,5 +2779,6 @@ source diff:
 	@echo >&2 'source and diff are obsolete - use dpkg-source -b'; false
 
 binary: binary-indep binary-arch
-.PHONY: build clean binary-indep binary-arch binary 
+.PHONY: build build-indep build-arch clean binary-indep binary-arch binary
 .PRECIOUS: $(stampdir)/%-stamp debian/indep_binaries.all debian/arch_binaries.all
+.NOTPARALLEL:
