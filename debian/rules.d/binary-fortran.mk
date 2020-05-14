@@ -190,8 +190,10 @@ ifeq ($(unprefixed_names),yes)
 endif
 
 	mkdir -p $(d_g95)/usr/share/lintian/overrides
-	echo '$(p_g95) binary: hardening-no-pie' \
-	  > $(d_g95)/usr/share/lintian/overrides/$(p_g95)
+	( \
+	  echo '$(p_g95) binary: hardening-no-pie' \
+	  echo '$(p_g95) binary: missing-prerequisite-for-gfortran-module' \
+	) > $(d_g95)/usr/share/lintian/overrides/$(p_g95)
 ifeq ($(GFDL_INVARIANT_FREE),yes)
 	echo '$(p_g95) binary: binary-without-manpage' \
 	  >> $(d_g95)/usr/share/lintian/overrides/$(p_g95)
