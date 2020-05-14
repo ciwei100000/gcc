@@ -21,6 +21,8 @@ ifeq ($(with_hppa64),yes)
   snapshot_depends = binutils-hppa64
 endif
 
+common_substvars += '-Vsnap:depends=$(snapshot_depends)' '-Vsnap:recommends=$(snapshot_recommends)'
+
 # ----------------------------------------------------------------------
 $(binary_stamp)-snapshot: $(install_snap_stamp)
 	dh_testdir
@@ -115,18 +117,13 @@ ifeq ($(DEB_TARGET_ARCH),hppa)
 #	dh_dwz -p$(p_snap) -Xdebug -X/cgo -Xbin/go -Xbin/gofmt \
 #	  $(if $(unstripped_exe),$(foreach i,cc1 cc1obj cc1objplus cc1plus cc1d f951 go1 jc1 lto1, -X/$(i)))
 	dh_strip -p$(p_snap) -Xdebug -X.o -X.a -X/cgo -Xbin/go -Xbin/gofmt \
+	  -Xnvptx-none -X$(gcn_target_name) \
 	  $(if $(unstripped_exe),$(foreach i,cc1 cc1obj cc1objplus cc1plus cc1d f951 go1 jc1 lto1, -X/$(i)))
 else
 #	dh_dwz -p$(p_snap) -Xdebug -X/cgo -Xbin/go -Xbin/gofmt \
 #	  $(if $(unstripped_exe),$(foreach i,cc1 cc1obj cc1objplus cc1plus cc1d f951 go1 jc1 lto1, -X/$(i)))
 	dh_strip -p$(p_snap) -Xdebug -X/cgo -Xbin/go -Xbin/gofmt \
 	  $(if $(unstripped_exe),$(foreach i,cc1 cc1obj cc1objplus cc1plus cc1d f951 go1 jc1 lto1, -X/$(i)))
-endif
-	dh_compress -p$(p_snap) -X README.Bugs -X.log.xz -X.sum.xz
-	-find $(d_snap) -type d ! -perm 755 -exec chmod 755 {} \;
-	dh_fixperms -p$(p_snap)
-ifeq ($(with_ada),yes)
-	find $(d_snap)/$(gcc_lib_dir) -name '*.ali' | xargs -r chmod 444
 endif
 
 	mkdir -p $(d_snap)/usr/share/lintian/overrides
@@ -155,11 +152,6 @@ ifeq ($(with_multiarch_lib),yes)
 	  mkdir -p $(d_snap)/usr/lib/$$ma; \
 	done
 endif
-
-	dh_gencontrol -p$(p_snap) -- $(common_substvars) \
-		'-Vsnap:depends=$(snapshot_depends)' '-Vsnap:recommends=$(snapshot_recommends)'
-	dh_installdeb -p$(p_snap)
-	dh_md5sums -p$(p_snap)
-	dh_builddeb -p$(p_snap)
+	 echo $(p_snap) >> debian/arch_binaries
 
 	trap '' 1 2 3 15; touch $@; mv $(install_snap_stamp)-tmp $(install_snap_stamp)
