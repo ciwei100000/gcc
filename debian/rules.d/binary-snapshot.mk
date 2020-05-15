@@ -198,6 +198,6 @@ ifeq ($(with_multiarch_lib),yes)
 	  mkdir -p $(d_snap)/usr/lib/$$ma; \
 	done
 endif
-	 echo $(p_snap) >> debian/arch_binaries
+	 echo $(p_snap) >> debian/arch_binaries.epoch
 
 	trap '' 1 2 3 15; touch $@; mv $(install_snap_stamp)-tmp $(install_snap_stamp)
