@@ -163,12 +163,12 @@ ifeq ($(DEB_TARGET_ARCH),hppa)
 #	dh_dwz -p$(p_snap) -Xdebug -X/cgo -Xbin/go -Xbin/gofmt \
 #	  $(if $(unstripped_exe),$(foreach i,cc1 cc1obj cc1objplus cc1plus cc1d f951 go1 jc1 lto1, -X/$(i)))
 	dh_strip -p$(p_snap) -Xdebug -X.o -X.a -X/cgo -Xbin/go -Xbin/gofmt \
-	  -Xnvptx-none -X$(gcn_target_name) \
 	  $(if $(unstripped_exe),$(foreach i,cc1 cc1obj cc1objplus cc1plus cc1d f951 go1 jc1 lto1, -X/$(i)))
 else
 #	dh_dwz -p$(p_snap) -Xdebug -X/cgo -Xbin/go -Xbin/gofmt \
 #	  $(if $(unstripped_exe),$(foreach i,cc1 cc1obj cc1objplus cc1plus cc1d f951 go1 jc1 lto1, -X/$(i)))
 	dh_strip -p$(p_snap) -Xdebug -X/cgo -Xbin/go -Xbin/gofmt \
+	  -X/lib{c,g,m,gcc,gomp,gcov,gfortran,caf_single,ssp,ssp_nonshared}.a \
 	  $(if $(unstripped_exe),$(foreach i,cc1 cc1obj cc1objplus cc1plus cc1d f951 go1 jc1 lto1, -X/$(i)))
 endif
 
