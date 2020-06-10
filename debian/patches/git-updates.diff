@@ -1,13 +1,17 @@
-# DP: updates from the 9 branch upto 20200518 (87891f424b2).
+# DP: updates from the 9 branch upto 20200610 (d76ee72858d).
 
 LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
-	4212a6a3e44f870412d9025eeb323fd4f50a61da 87891f424b2d167446d693103a09e3adbb083d84 \
+	4212a6a3e44f870412d9025eeb323fd4f50a61da d76ee72858dd373ea2bb4594623eb7590c925e68 \
 	| awk '/^diff .*\.texi/ {skip=1; next} /^diff / { skip=0 } skip==0' \
 	| grep -v -E '^(diff|index)'
 
 --- a/src/ChangeLog
 +++ b/src/ChangeLog
-@@ -1,3 +1,13 @@
+@@ -1,3 +1,17 @@
++2020-06-02  Martin Liska  <mliska@suse.cz>
++
++	* -: Remove.
++
 +2020-04-20  Martin Liska  <mliska@suse.cz>
 +
 +	Backport from mainline
@@ -21,9 +25,173 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  2020-03-12  Release Manager
  
  	* GCC 9.3.0 released.
+--- a/src/contrib/ChangeLog
++++ b/src/contrib/ChangeLog
+@@ -1,3 +1,14 @@
++2020-05-29  Martin Liska  <mliska@suse.cz>
++
++	* git-backport.py: The script did 'git co HEAD~' when
++	there was no modified ChangeLog file in a successful
++	git cherry pick.
++	Run cherry-pick --continue without editor.
++
++2020-05-27  Martin Liska  <mliska@suse.cz>
++
++	* git-backport.py: New file.
++
+ 2020-03-12  Release Manager
+ 
+ 	* GCC 9.3.0 released.
+new file mode 100755
+--- /dev/null
++++ b/src/contrib/git-backport.py
+@@ -0,0 +1,65 @@
++#!/usr/bin/env python3
++
++# Copyright (C) 2020 Free Software Foundation, Inc.
++#
++# This file is part of GCC.
++#
++# GCC is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 3, or (at your option)
++# any later version.
++#
++# GCC is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++#
++# You should have received a copy of the GNU General Public License
++# along with GCC; see the file COPYING.  If not, write to
++# the Free Software Foundation, 51 Franklin Street, Fifth Floor,
++# Boston, MA 02110-1301, USA.
++
++import argparse
++import subprocess
++
++if __name__ == '__main__':
++    parser = argparse.ArgumentParser(description='Backport a git revision and '
++                                     'stash all ChangeLog files.')
++    parser.add_argument('revision', help='Revision')
++    args = parser.parse_args()
++
++    r = subprocess.run('git cherry-pick -x %s' % args.revision, shell=True)
++    if r.returncode == 0:
++        cmd = 'git show --name-only --pretty="" -- "*ChangeLog"'
++        changelogs = subprocess.check_output(cmd, shell=True, encoding='utf8')
++        changelogs = changelogs.strip()
++        if changelogs:
++            for changelog in changelogs.split('\n'):
++                subprocess.check_output('git checkout HEAD~ %s' % changelog,
++                                        shell=True)
++        subprocess.check_output('git commit --amend --no-edit', shell=True)
++    else:
++        # 1) remove all ChangeLog files from conflicts
++        out = subprocess.check_output('git diff --name-only --diff-filter=U',
++                                      shell=True,
++                                      encoding='utf8')
++        conflicts = out.strip().split('\n')
++        changelogs = [c for c in conflicts if c.endswith('ChangeLog')]
++        if changelogs:
++            cmd = 'git checkout --theirs %s' % '\n'.join(changelogs)
++            subprocess.check_output(cmd, shell=True)
++        # 2) remove all ChangeLog files from index
++        cmd = 'git diff --name-only --diff-filter=M HEAD'
++        out = subprocess.check_output(cmd, shell=True, encoding='utf8')
++        out = out.strip().split('\n')
++        modified = [c for c in out if c.endswith('ChangeLog')]
++        for m in modified:
++            subprocess.check_output('git reset %s' % m, shell=True)
++            subprocess.check_output('git checkout %s' % m, shell=True)
++
++        # try to continue
++        if len(conflicts) == len(changelogs):
++            cmd = 'git -c core.editor=true cherry-pick --continue'
++            subprocess.check_output(cmd, shell=True)
++        else:
++            print('Please resolve all remaining file conflicts.')
+--- a/src/gcc/BASE-VER
++++ b/src/gcc/BASE-VER
+@@ -1 +1 @@
+-9.3.0
++9.3.1
 --- a/src/gcc/ChangeLog
 +++ b/src/gcc/ChangeLog
-@@ -1,3 +1,748 @@
+@@ -1,3 +1,825 @@
++2020-06-06  Carl Love  <cel@us.ibm.com>
++
++	PR target/94833
++	* config/rs6000/vsx.md (define_expand): Fix instruction generation for
++	first_match_index_<mode>.
++
++2020-06-05  H.J. Lu  <hjl.tools@gmail.com>
++
++	* config/i386/driver-i386.c (host_detect_local_cpu): Support
++	Intel Airmont, Tremont, Comet Lake, Ice Lake and Tiger Lake
++	processor families.
++
++2020-06-02  Kyrylo Tkachov  <kyrylo.tkachov@arm.com>
++
++	* config/aarch64/aarch64-cores.def (zeus): Define.
++	* config/aarch64/aarch64-tune.md: Regenerate.
++	* doc/invoke.texi (AArch64 Options): Document zeus -mcpu option.
++
++2020-05-31  Gerald Pfeifer  <gerald@pfeifer.com>
++
++	* config/i386/i386-c.c (ix86_target_macros): Define _ILP32 and
++	__ILP32__ for 32-bit targets.
++
++2020-05-29  Alex Coplan  <alex.coplan@arm.com>
++
++	PR target/94591
++	* config/aarch64/aarch64.c (aarch64_evpc_rev_local): Don't match
++	identity permutation.
++
++2020-05-29  Dong JianQiang  <dongjianqiang2@huawei.com>
++
++	PR gcov-profile/95332
++	* gcov-io.c (gcov_var::endian): Move field.
++	(from_file): Add IN_GCOV_TOOL check.
++	* gcov-io.h (gcov_magic): Ditto.
++
++2020-05-26  Alexandre Oliva  <oliva@adacore.com>
++
++	PR target/94812
++	* config/rs6000/rs6000.md (rs6000_mffsl): Copy result to
++	output operand in emulation.  Don't overwrite pseudos.
++
++2020-05-24  H.J. Lu  <hongjiu.lu@intel.com>
++
++	PR target/95258
++	* config/i386/driver-i386.c (host_detect_local_cpu): Detect
++	AVX512VPOPCNTDQ.
++
++2020-05-22  Bin Cheng  <bin.cheng@linux.alibaba.com>
++
++	Backport from master
++	PR tree-optimization/94969
++	2020-05-13  Bin Cheng  <bin.cheng@linux.alibaba.com>
++
++	* tree-data-ref.c (constant_access_functions): Rename to...
++	(invariant_access_functions): ...this.  Add parameter.  Check for
++	invariant access function, rather than constant.
++	(build_classic_dist_vector): Call above function.
++	* tree-loop-distribution.c (pg_add_dependence_edges): Add comment.
++
++2020-05-21  Martin Liska  <mliska@suse.cz>
++
++	* common/config/aarch64/aarch64-common.c (aarch64_handle_option):
++	Use MASK_OUTLINE_ATOMICS for x_target_flags.
++
++2020-05-21  Martin Liska  <mliska@suse.cz>
++
++	* common/config/aarch64/aarch64-common.c (aarch64_handle_option):
++	Handle OPT_moutline_atomics.
++	* config/aarch64/aarch64.c: Add outline-atomics to
++	aarch64_attributes.
++	* doc/extend.texi: Document the newly added target attribute.
++
 +2020-05-14  Szabolcs Nagy  <szabolcs.nagy@arm.com>
 +
 +	Backport from mainline.
@@ -769,6 +937,10 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
 +	Remove set of str_align_loops and str_align_jumps as these
 +	should be set in previous 2 conditions in the function.
 +
++2020-03-12  Jakub Jelinek  <jakub@redhat.com>
++
++	* BASE-VER: Set to 9.3.1.
++
  2020-03-12  Release Manager
  
  	* GCC 9.3.0 released.
@@ -776,7 +948,7 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
 +++ b/src/gcc/DATESTAMP
 @@ -1 +1 @@
 -20200312
-+20200518
++20200610
 --- a/src/gcc/ada/ChangeLog
 +++ b/src/gcc/ada/ChangeLog
 @@ -1,3 +1,8 @@
@@ -1293,7 +1465,21 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
      }
 --- a/src/gcc/common/config/aarch64/aarch64-common.c
 +++ b/src/gcc/common/config/aarch64/aarch64-common.c
-@@ -433,7 +433,22 @@ aarch64_get_extension_string_for_isa_flags (unsigned long isa_flags,
+@@ -161,6 +161,13 @@ aarch64_handle_option (struct gcc_options *opts,
+       opts->x_flag_omit_leaf_frame_pointer = val;
+       return true;
+ 
++    case OPT_moutline_atomics:
++      if (val)
++	opts->x_target_flags |= MASK_OUTLINE_ATOMICS;
++      else
++	opts->x_target_flags &= ~MASK_OUTLINE_ATOMICS;
++      return true;
++
+     default:
+       return true;
+     }
+@@ -433,7 +440,22 @@ aarch64_get_extension_string_for_isa_flags (unsigned long isa_flags,
  	/* We remove all the dependent bits, to prevent them from being turned
  	   on twice.  This only works because we assume that all there are
  	   individual options to set all bits standalone.  */
@@ -1382,6 +1568,18 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
    timevar_pop (TV_MACH_DEP);
    return 0;
  }
+--- a/src/gcc/config/aarch64/aarch64-cores.def
++++ b/src/gcc/config/aarch64/aarch64-cores.def
+@@ -109,6 +109,9 @@ AARCH64_CORE("tsv110",  tsv110, tsv110, 8_2A,  AARCH64_FL_FOR_ARCH8_2 | AARCH64_
+ 
+ /* ARMv8.4-A Architecture Processors.  */
+ 
++/* ARM ('A') cores. */
++AARCH64_CORE("zeus", zeus, cortexa57, 8_4A,  AARCH64_FL_FOR_ARCH8_4 | AARCH64_FL_SVE | AARCH64_FL_RCPC | AARCH64_FL_F16 | AARCH64_FL_PROFILE | AARCH64_FL_SSBS, neoversen1, 0x41, 0xd40, -1)
++
+ /* Qualcomm ('Q') cores. */
+ AARCH64_CORE("saphira",     saphira,    saphira,    8_4A,  AARCH64_FL_FOR_ARCH8_4 | AARCH64_FL_CRYPTO | AARCH64_FL_RCPC, saphira,   0x51, 0xC01, -1)
+ 
 --- a/src/gcc/config/aarch64/aarch64-protos.h
 +++ b/src/gcc/config/aarch64/aarch64-protos.h
 @@ -644,4 +644,17 @@ poly_uint64 aarch64_regmode_natural_size (machine_mode);
@@ -1558,6 +1756,15 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  })
  
  
+--- a/src/gcc/config/aarch64/aarch64-tune.md
++++ b/src/gcc/config/aarch64/aarch64-tune.md
+@@ -1,5 +1,5 @@
+ ;; -*- buffer-read-only: t -*-
+ ;; Generated automatically by gentune.sh from aarch64-cores.def
+ (define_attr "tune"
+-	"cortexa35,cortexa53,cortexa57,cortexa72,cortexa73,thunderx,thunderxt88p1,thunderxt88,octeontx,octeontxt81,octeontxt83,thunderxt81,thunderxt83,emag,xgene1,falkor,qdf24xx,exynosm1,phecda,thunderx2t99p1,vulcan,thunderx2t99,cortexa55,cortexa75,cortexa76,ares,neoversen1,neoversee1,tsv110,saphira,cortexa57cortexa53,cortexa72cortexa53,cortexa73cortexa35,cortexa73cortexa53,cortexa75cortexa55,cortexa76cortexa55"
++	"cortexa35,cortexa53,cortexa57,cortexa72,cortexa73,thunderx,thunderxt88p1,thunderxt88,octeontx,octeontxt81,octeontxt83,thunderxt81,thunderxt83,emag,xgene1,falkor,qdf24xx,exynosm1,phecda,thunderx2t99p1,vulcan,thunderx2t99,cortexa55,cortexa75,cortexa76,ares,neoversen1,neoversee1,tsv110,zeus,saphira,cortexa57cortexa53,cortexa72cortexa53,cortexa73cortexa35,cortexa73cortexa53,cortexa75cortexa55,cortexa76cortexa55"
+ 	(const (symbol_ref "((enum attr_tune) aarch64_tune)")))
 --- a/src/gcc/config/aarch64/aarch64.c
 +++ b/src/gcc/config/aarch64/aarch64.c
 @@ -1879,10 +1879,33 @@ emit_set_insn (rtx x, rtx y)
@@ -1657,7 +1864,16 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
        break;
  
      case 'X':
-@@ -15426,16 +15454,26 @@ static void
+@@ -12517,6 +12545,8 @@ static const struct aarch64_attribute_info aarch64_attributes[] =
+      aarch64_handle_attr_branch_protection, OPT_mbranch_protection_ },
+   { "sign-return-address", aarch64_attr_enum, false, NULL,
+      OPT_msign_return_address_ },
++  { "outline-atomics", aarch64_attr_bool, true, NULL,
++     OPT_moutline_atomics},
+   { NULL, aarch64_attr_custom, false, NULL, OPT____ }
+ };
+ 
+@@ -15426,16 +15456,26 @@ static void
  aarch64_emit_load_exclusive (machine_mode mode, rtx rval,
  			     rtx mem, rtx model_rtx)
  {
@@ -1687,7 +1903,7 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  }
  
  /* Mark the previous jump instruction as unlikely.  */
-@@ -15447,6 +15485,82 @@ aarch64_emit_unlikely_jump (rtx insn)
+@@ -15447,6 +15487,82 @@ aarch64_emit_unlikely_jump (rtx insn)
    add_reg_br_prob_note (jump, profile_probability::very_unlikely ());
  }
  
@@ -1770,7 +1986,7 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  /* Expand a compare and swap pattern.  */
  
  void
-@@ -15493,6 +15607,17 @@ aarch64_expand_compare_and_swap (rtx operands[])
+@@ -15493,6 +15609,17 @@ aarch64_expand_compare_and_swap (rtx operands[])
  						   newval, mod_s));
        cc_reg = aarch64_gen_compare_reg_maybe_ze (NE, rval, oldval, mode);
      }
@@ -1788,7 +2004,7 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
    else
      {
        /* The oldval predicate varies by mode.  Test it and force to reg.  */
-@@ -15538,13 +15663,11 @@ aarch64_split_compare_and_swap (rtx operands[])
+@@ -15538,13 +15665,11 @@ aarch64_split_compare_and_swap (rtx operands[])
    /* Split after prolog/epilog to avoid interactions with shrinkwrapping.  */
    gcc_assert (epilogue_completed);
  
@@ -1803,7 +2019,7 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  
    rval = operands[0];
    mem = operands[1];
-@@ -15565,7 +15688,8 @@ aarch64_split_compare_and_swap (rtx operands[])
+@@ -15565,7 +15690,8 @@ aarch64_split_compare_and_swap (rtx operands[])
  	CBNZ	scratch, .label1
      .label2:
  	CMP	rval, 0.  */
@@ -1813,7 +2029,7 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  
    label1 = NULL;
    if (!is_weak)
-@@ -15578,35 +15702,20 @@ aarch64_split_compare_and_swap (rtx operands[])
+@@ -15578,35 +15704,20 @@ aarch64_split_compare_and_swap (rtx operands[])
    /* The initial load can be relaxed for a __sync operation since a final
       barrier will be emitted to stop code hoisting.  */
    if (is_mm_sync (model))
@@ -1856,7 +2072,7 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  
    aarch64_emit_store_exclusive (mode, scratch, mem, newval, model_rtx);
  
-@@ -15627,22 +15736,16 @@ aarch64_split_compare_and_swap (rtx operands[])
+@@ -15627,22 +15738,16 @@ aarch64_split_compare_and_swap (rtx operands[])
        aarch64_emit_unlikely_jump (gen_rtx_SET (pc_rtx, x));
      }
    else
@@ -1883,6 +2099,16 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
    /* Emit any final barrier needed for a __sync operation.  */
    if (is_mm_sync (model))
      aarch64_emit_post_barrier (model);
+@@ -16415,7 +16520,8 @@ aarch64_evpc_rev_local (struct expand_vec_perm_d *d)
+ 
+   if (d->vec_flags == VEC_SVE_PRED
+       || !d->one_vector_p
+-      || !d->perm[0].is_constant (&diff))
++      || !d->perm[0].is_constant (&diff)
++      || !diff)
+     return false;
+ 
+   size = (diff + 1) * GET_MODE_UNIT_SIZE (d->vmode);
 --- a/src/gcc/config/aarch64/aarch64.opt
 +++ b/src/gcc/config/aarch64/aarch64.opt
 @@ -255,3 +255,6 @@ user-land code.
@@ -2290,6 +2516,104 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  /* Darwin profiling -- call mcount.  */
  #undef FUNCTION_PROFILER
  #define FUNCTION_PROFILER(FILE, LABELNO)				\
+--- a/src/gcc/config/i386/driver-i386.c
++++ b/src/gcc/config/i386/driver-i386.c
+@@ -420,6 +420,7 @@ const char *host_detect_local_cpu (int argc, const char **argv)
+   unsigned int has_avx5124fmaps = 0, has_avx5124vnniw = 0;
+   unsigned int has_gfni = 0, has_avx512vbmi2 = 0;
+   unsigned int has_avx512bitalg = 0;
++  unsigned int has_avx512vpopcntdq = 0;
+   unsigned int has_shstk = 0;
+   unsigned int has_avx512vnni = 0, has_vaes = 0;
+   unsigned int has_vpclmulqdq = 0;
+@@ -523,6 +524,7 @@ const char *host_detect_local_cpu (int argc, const char **argv)
+       has_vaes = ecx & bit_VAES;
+       has_vpclmulqdq = ecx & bit_VPCLMULQDQ;
+       has_avx512bitalg = ecx & bit_AVX512BITALG;
++      has_avx512vpopcntdq = ecx & bit_AVX512VPOPCNTDQ;
+       has_movdiri = ecx & bit_MOVDIRI;
+       has_movdir64b = ecx & bit_MOVDIR64B;
+       has_cldemote = ecx & bit_CLDEMOTE;
+@@ -765,9 +767,12 @@ const char *host_detect_local_cpu (int argc, const char **argv)
+ 	case 0x37:
+ 	case 0x4a:
+ 	case 0x4d:
+-	case 0x5a:
+ 	case 0x5d:
+ 	  /* Silvermont.  */
++	case 0x4c:
++	case 0x5a:
++	case 0x75:
++	  /* Airmont.  */
+ 	  cpu = "silvermont";
+ 	  break;
+ 	case 0x5c:
+@@ -779,6 +784,12 @@ const char *host_detect_local_cpu (int argc, const char **argv)
+ 	  /* Goldmont Plus.  */
+ 	  cpu = "goldmont-plus";
+ 	  break;
++	case 0x86:
++	case 0x96:
++	case 0x9c:
++	  /* Tremont.  */
++	  cpu = "tremont";
++	  break;
+ 	case 0x0f:
+ 	  /* Merom.  */
+ 	case 0x17:
+@@ -829,6 +840,9 @@ const char *host_detect_local_cpu (int argc, const char **argv)
+ 	case 0x8e:
+ 	case 0x9e:
+ 	  /* Kaby Lake.  */
++	case 0xa5:
++	case 0xa6:
++	  /* Comet Lake.  */
+ 	  cpu = "skylake";
+ 	  break;
+ 	case 0x55:
+@@ -839,6 +853,22 @@ const char *host_detect_local_cpu (int argc, const char **argv)
+ 	    /* Skylake with AVX-512.  */
+ 	    cpu = "skylake-avx512";
+ 	  break;
++	case 0x6a:
++	case 0x6c:
++	  /* Ice Lake server.  */
++	  cpu = "icelake-server";
++	  break;
++	case 0x7e:
++	case 0x7d:
++	case 0x9d:
++	  /* Ice Lake client.  */
++	  cpu = "icelake-client";
++	  break;
++	case 0x8c:
++	case 0x8d:
++	  /* Tiger Lake.  */
++	  cpu = "tigerlake";
++	  break;
+ 	case 0x57:
+ 	  /* Knights Landing.  */
+ 	  cpu = "knl";
+@@ -1138,6 +1168,7 @@ const char *host_detect_local_cpu (int argc, const char **argv)
+       const char *vaes = has_vaes ? " -mvaes" : " -mno-vaes";
+       const char *vpclmulqdq = has_vpclmulqdq ? " -mvpclmulqdq" : " -mno-vpclmulqdq";
+       const char *avx512bitalg = has_avx512bitalg ? " -mavx512bitalg" : " -mno-avx512bitalg";
++      const char *avx512vpopcntdq = has_avx512vpopcntdq ? " -mavx512vpopcntdq" : " -mno-avx512vpopcntdq";
+       const char *movdiri = has_movdiri ? " -mmovdiri" : " -mno-movdiri";
+       const char *movdir64b = has_movdir64b ? " -mmovdir64b" : " -mno-movdir64b";
+       const char *waitpkg = has_waitpkg ? " -mwaitpkg" : " -mno-waitpkg";
+@@ -1156,9 +1187,8 @@ const char *host_detect_local_cpu (int argc, const char **argv)
+ 			avx512ifma, avx512vbmi, avx5124fmaps, avx5124vnniw,
+ 			clwb, mwaitx, clzero, pku, rdpid, gfni, shstk,
+ 			avx512vbmi2, avx512vnni, vaes, vpclmulqdq,
+-			avx512bitalg, movdiri, movdir64b, waitpkg, cldemote,
+-			ptwrite,
+-			NULL);
++			avx512bitalg, avx512vpopcntdq, movdiri, movdir64b,
++			waitpkg, cldemote, ptwrite, NULL);
+     }
+ 
+ done:
 --- a/src/gcc/config/i386/i386-builtin.def
 +++ b/src/gcc/config/i386/i386-builtin.def
 @@ -799,7 +799,7 @@ BDESC (OPTION_MASK_ISA_SSE2, 0, CODE_FOR_sse2_pshufhw, "__builtin_ia32_pshufhw",
@@ -2301,6 +2625,17 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  
  /* SSE2 MMX */
  BDESC (OPTION_MASK_ISA_SSE2 | OPTION_MASK_ISA_MMX, 0, CODE_FOR_mmx_addv1di3, "__builtin_ia32_paddq", IX86_BUILTIN_PADDQ, UNKNOWN, (int) V1DI_FTYPE_V1DI_V1DI)
+--- a/src/gcc/config/i386/i386-c.c
++++ b/src/gcc/config/i386/i386-c.c
+@@ -675,6 +675,8 @@ ix86_target_macros (void)
+       cpp_assert (parse_in, "cpu=i386");
+       cpp_assert (parse_in, "machine=i386");
+       builtin_define_std ("i386");
++      cpp_define (parse_in, "_ILP32");
++      cpp_define (parse_in, "__ILP32__");
+     }
+ 
+   if (!TARGET_80387)
 --- a/src/gcc/config/i386/i386.c
 +++ b/src/gcc/config/i386/i386.c
 @@ -2535,7 +2535,12 @@ rest_of_insert_endbranch (void)
@@ -2987,6 +3322,36 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
    "TARGET_PLTSEQ"
  {
    return rs6000_pltseq_template (operands, 2);
+@@ -13430,18 +13430,19 @@
+ 
+   if (!TARGET_P9_MISC)
+     {
+-       rtx tmp_di = gen_reg_rtx (DImode);
+-       rtx tmp_df = gen_reg_rtx (DFmode);
++      rtx tmp1 = gen_reg_rtx (DFmode);
+ 
+-       /* The mffs instruction reads the entire FPSCR.  Emulate the mffsl
+-          instruction using the mffs instruction and masking off the bits
+-          the mmsl instruciton actually reads.  */
+-       emit_insn (gen_rs6000_mffs (tmp_df));
+-       tmp_di = simplify_gen_subreg (DImode, tmp_df, DFmode, 0);
+-       emit_insn (gen_anddi3 (tmp_di, tmp_di, GEN_INT (0x70007f0ffLL)));
++      /* The mffs instruction reads the entire FPSCR.  Emulate the mffsl
++	 instruction using the mffs instruction and masking the result.  */
++      emit_insn (gen_rs6000_mffs (tmp1));
+ 
+-       operands[0] = simplify_gen_subreg (DFmode, tmp_di, DImode, 0);
+-       DONE;
++      rtx tmp1di = simplify_gen_subreg (DImode, tmp1, DFmode, 0);
++      rtx tmp2 = gen_reg_rtx (DImode);
++      emit_insn (gen_anddi3 (tmp2, tmp1di, GEN_INT (0x70007f0ffLL)));
++
++      rtx tmp2df = simplify_gen_subreg (DFmode, tmp2, DImode, 0);
++      emit_move_insn (operands[0], tmp2df);
++      DONE;
+     }
+ 
+     emit_insn (gen_rs6000_mffsl_hw (operands[0]));
 --- a/src/gcc/config/rs6000/vsx.md
 +++ b/src/gcc/config/rs6000/vsx.md
 @@ -3292,14 +3292,14 @@
@@ -3126,6 +3491,17 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  (define_insn_and_split "*vsx_extract_<mode>_<VS_scalar>mode_var"
    [(set (match_operand:<VS_scalar> 0 "gpc_reg_operand" "=r,r,r")
  	(zero_extend:<VS_scalar>
+@@ -4794,8 +4846,8 @@
+   rtx cmp_result = gen_reg_rtx (<MODE>mode);
+   rtx not_result = gen_reg_rtx (<MODE>mode);
+ 
+-  emit_insn (gen_vcmpnez<VSX_EXTRACT_WIDTH> (cmp_result, operands[1],
+-					     operands[2]));
++  emit_insn (gen_vcmpne<VSX_EXTRACT_WIDTH> (cmp_result, operands[1],
++					    operands[2]));
+   emit_insn (gen_one_cmpl<mode>2 (not_result, cmp_result));
+ 
+   sh = GET_MODE_SIZE (GET_MODE_INNER (<MODE>mode)) / 2;
 --- a/src/gcc/config/s390/constraints.md
 +++ b/src/gcc/config/s390/constraints.md
 @@ -38,6 +38,8 @@
@@ -3536,7 +3912,30 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
    strcpy (da_file_name + prefix_len + len, GCOV_DATA_SUFFIX);
 --- a/src/gcc/cp/ChangeLog
 +++ b/src/gcc/cp/ChangeLog
-@@ -1,3 +1,132 @@
+@@ -1,3 +1,155 @@
++2020-05-25  Jason Merrill  <jason@redhat.com>
++
++	PR c++/90212
++	* constexpr.c (potential_constant_expression_1): In a lambda
++	function, consider a captured variable directly.
++
++2020-05-25  Jason Merrill  <jason@redhat.com>
++
++	PR c++/90479
++	* init.c (get_nsdmi): Don't push_to_top_level for a local class.
++
++2020-05-25  Jason Merrill  <jason@redhat.com>
++
++	PR c++/91529
++	* decl.c (cp_finish_decl): Also clear TREE_READONLY if
++	-fmerge-all-constants.
++
++2020-05-25  Jason Merrill  <jason@redhat.com>
++
++	PR c++/93822
++	* pt.c (tsubst_decl): Make sure DECL_VALUE_EXPR continues to have
++	the same type as the variable.
++
 +2020-05-06  Nathan Sidwell  <nathan@acm.org>
 +
 +	PR c++/94946
@@ -3680,6 +4079,26 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  	  protected_set_expr_location (r, EXPR_LOCATION (t));
  	}
        return r;
+@@ -6159,12 +6159,18 @@ potential_constant_expression_1 (tree t, bool want_rval, bool strict, bool now,
+ 		 variable with automatic storage duration defined outside that
+ 		 lambda-expression, where the reference would be an
+ 		 odr-use.  */
++
++	      if (want_rval)
++		/* Since we're doing an lvalue-rvalue conversion, this might
++		   not be an odr-use, so evaluate the variable directly. */
++		return RECUR (DECL_CAPTURED_VARIABLE (t), rval);
++
+ 	      if (flags & tf_error)
+ 		{
+ 		  tree cap = DECL_CAPTURED_VARIABLE (t);
+ 		  error ("lambda capture of %qE is not a constant expression",
+ 			 cap);
+-		  if (!want_rval && decl_constant_var_p (cap))
++		  if (decl_constant_var_p (cap))
+ 		    inform (input_location, "because it is used as a glvalue");
+ 		}
+ 	      return false;
 --- a/src/gcc/cp/cp-gimplify.c
 +++ b/src/gcc/cp/cp-gimplify.c
 @@ -2192,12 +2192,17 @@ cxx_omp_finish_clause (tree c, gimple_seq *)
@@ -3789,7 +4208,19 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
    return new_init;
  }
  
-@@ -11283,9 +11259,16 @@ grokdeclarator (const cp_declarator *declarator,
+@@ -7323,7 +7299,10 @@ cp_finish_decl (tree decl, tree init, bool init_const_expr_p,
+       /* This needs to happen after the linkage is set. */
+       determine_visibility (decl);
+ 
+-      if (var_definition_p && TREE_STATIC (decl))
++      if (var_definition_p
++	  /* With -fmerge-all-constants, gimplify_init_constructor
++	     might add TREE_STATIC to the variable.  */
++	  && (TREE_STATIC (decl) || flag_merge_constants >= 2))
+ 	{
+ 	  /* If a TREE_READONLY variable needs initialization
+ 	     at runtime, it is no longer readonly and we need to
+@@ -11283,9 +11262,16 @@ grokdeclarator (const cp_declarator *declarator,
  	    attr_flags |= (int) ATTR_FLAG_FUNCTION_NEXT;
  	  if (declarator->kind == cdk_array)
  	    attr_flags |= (int) ATTR_FLAG_ARRAY_NEXT;
@@ -3848,6 +4279,30 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  	  return expr;
  	}
        gcc_fallthrough();
+--- a/src/gcc/cp/init.c
++++ b/src/gcc/cp/init.c
+@@ -586,16 +586,18 @@ get_nsdmi (tree member, bool in_ctor, tsubst_flags_t complain)
+ 	  DECL_INSTANTIATING_NSDMI_P (member) = 1;
+ 
+ 	  bool pushed = false;
+-	  if (!currently_open_class (DECL_CONTEXT (member)))
++	  tree ctx = DECL_CONTEXT (member);
++	  if (!currently_open_class (ctx)
++	      && !LOCAL_CLASS_P (ctx))
+ 	    {
+ 	      push_to_top_level ();
+-	      push_nested_class (DECL_CONTEXT (member));
++	      push_nested_class (ctx);
+ 	      pushed = true;
+ 	    }
+ 
+ 	  gcc_checking_assert (!processing_template_decl);
+ 
+-	  inject_this_parameter (DECL_CONTEXT (member), TYPE_UNQUALIFIED);
++	  inject_this_parameter (ctx, TYPE_UNQUALIFIED);
+ 
+ 	  start_lambda_scope (member);
+ 
 --- a/src/gcc/cp/mangle.c
 +++ b/src/gcc/cp/mangle.c
 @@ -2856,6 +2856,7 @@ write_expression (tree expr)
@@ -4210,7 +4665,30 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
    switch (code)
      {
      case COMPOUND_EXPR:
-@@ -17838,8 +17912,10 @@ tsubst_expr (tree t, tree args, tsubst_flags_t complain, tree in_decl,
+@@ -13882,6 +13956,11 @@ tsubst_decl (tree t, tree args, tsubst_flags_t complain)
+ 	    if (DECL_HAS_VALUE_EXPR_P (t))
+ 	      {
+ 		tree ve = DECL_VALUE_EXPR (t);
++		/* If the DECL_VALUE_EXPR is converted to the declared type,
++		   preserve the identity so that gimplify_type_sizes works.  */
++		bool nop = (TREE_CODE (ve) == NOP_EXPR);
++		if (nop)
++		  ve = TREE_OPERAND (ve, 0);
+ 		ve = tsubst_expr (ve, args, complain, in_decl,
+ 				  /*constant_expression_p=*/false);
+ 		if (REFERENCE_REF_P (ve))
+@@ -13889,6 +13968,10 @@ tsubst_decl (tree t, tree args, tsubst_flags_t complain)
+ 		    gcc_assert (TYPE_REF_P (type));
+ 		    ve = TREE_OPERAND (ve, 0);
+ 		  }
++		if (nop)
++		  ve = build_nop (type, ve);
++		else
++		  gcc_checking_assert (TREE_TYPE (ve) == type);
+ 		SET_DECL_VALUE_EXPR (r, ve);
+ 	      }
+ 	    if (CP_DECL_THREAD_LOCAL_P (r)
+@@ -17838,8 +17921,10 @@ tsubst_expr (tree t, tree args, tsubst_flags_t complain, tree in_decl,
        add_stmt (t);
        break;
  
@@ -4222,7 +4700,7 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
        stmt = push_stmt_list ();
        RECUR (OMP_BODY (t));
        stmt = pop_stmt_list (stmt);
-@@ -27376,10 +27452,13 @@ build_deduction_guide (tree ctor, tree outer_args, tsubst_flags_t complain)
+@@ -27376,10 +27461,13 @@ build_deduction_guide (tree ctor, tree outer_args, tsubst_flags_t complain)
  				     complain, ctor);
  	  if (fparms == error_mark_node)
  	    ok = false;
@@ -4985,7 +5463,89 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  				    "division"),
 --- a/src/gcc/fortran/ChangeLog
 +++ b/src/gcc/fortran/ChangeLog
-@@ -1,3 +1,119 @@
+@@ -1,3 +1,201 @@
++2020-06-05  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/95373
++	* primary.c (is_inquiry_ref): Move validity check of inquiry
++	references against selected Fortran standard from here...
++	(gfc_match_varspec) ...to here.
++
++2020-06-05  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/95373
++	* primary.c (is_inquiry_ref): Check validity of inquiry
++	references against selected Fortran standard.
++
++2020-06-05  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/95106
++	* trans-common.c (gfc_sym_mangled_common_id): Enlarge temporaries
++	for name-mangling.
++
++2020-06-05  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/95530
++	PR fortran/95537
++	* decl.c (gfc_match_decl_type_spec): Enlarge buffer, and enhance
++	string copy to detect buffer overflow.
++	* gfortran.h (gfc_common_head): Enlarge buffer.
++	* trans-common.c (finish_equivalences): Enhance string copy to
++	detect buffer overflow.
++
++2020-06-05  Steven G. Kargl  <kargl@gcc.gnu.org>
++	    Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/95500
++	* trans-expr.c (gfc_conv_expr_reference): Do not dereference NULL
++	pointer.
++
++2020-06-01  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/94361
++	* class.c (finalize_component): Use expr->finalized instead of
++	comp->finalized.
++	* gfortran.h (gfc_component): Remove finalized member.
++	(gfc_expr): Add it here instead.
++
++2020-05-28  Steven G. Kargl  <kargl@gcc.gnu.org>
++	    Mark Eggleston  <markeggleston@gcc.gnu.org>
++	    Mark Eggleston  <markeggleston@gcc.gnu.org>
++
++	PR fortran/94397
++	* match.c (gfc_match_type_spec): New variable ok initialised
++	to true. Set ok with the return value of gfc_reduce_init_expr
++	called only if the expression is not EXPR_CONSTANT and is not
++	EXPR_VARIABLE. Add !ok to the check for type not being integer
++	or the rank being greater than zero.
++
++2020-05-28  Tobias Burnus  <tobias@codesourcery.com>
++	    Mark Eggleston  <markeggleston@gnu.gcc.org>
++
++	PR fortran/50392
++	* trans-decl.c (gfc_get_symbol_decl): Remove unnecessary block
++	delimiters.  Add auxiliary variables if a label is assigned to
++	a return variable. (gfc_gat_fake_result): If the symbol has an
++	assign attribute set declaration from the symbol's backend
++	declaration.
++
++2020-05-27  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR libfortran/95191
++	* libgfortran.h (libgfortran_error_codes): Add
++	LIBERROR_BAD_WAIT_ID.
++
++2020-05-20  Mark Eggleston  <markeggleston@gcc.gnu.org>
++
++	PR fortran/39695
++	* resolve.c (resolve_fl_procedure): Set name depending on
++	whether the result attribute is set.  For PROCEDURE/RESULT
++	conflict use the name in sym->ns->proc_name->name.
++	* symbol.c (gfc_add_type): Add check for function and result
++	attributes use sym->ns->proc_name->name if both are set.
++	Where the symbol cannot have a type use the name in
++	sym->ns->proc_name->name.
++
 +2020-05-13  Mark Eggleston  <markeggleston@gcc.gnu.org>
 +
 +	Backported from master
@@ -5131,6 +5691,34 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  	 
    d = ap->next->next->expr;
    m = ap->next->next->next->expr;
+--- a/src/gcc/fortran/class.c
++++ b/src/gcc/fortran/class.c
+@@ -911,7 +911,7 @@ finalize_component (gfc_expr *expr, gfc_symbol *derived, gfc_component *comp,
+   if (!comp_is_finalizable (comp))
+     return;
+ 
+-  if (comp->finalized)
++  if (expr->finalized)
+     return;
+ 
+   e = gfc_copy_expr (expr);
+@@ -1002,6 +1002,7 @@ finalize_component (gfc_expr *expr, gfc_symbol *derived, gfc_component *comp,
+ 	}
+       else
+ 	(*code) = cond;
++
+     }
+   else if (comp->ts.type == BT_DERIVED
+ 	    && comp->ts.u.derived->f2k_derived
+@@ -1041,7 +1042,7 @@ finalize_component (gfc_expr *expr, gfc_symbol *derived, gfc_component *comp,
+ 			    sub_ns);
+       gfc_free_expr (e);
+     }
+-  comp->finalized = true;
++  expr->finalized = 1;
+ }
+ 
+ 
 --- a/src/gcc/fortran/decl.c
 +++ b/src/gcc/fortran/decl.c
 @@ -668,6 +668,10 @@ gfc_match_data (void)
@@ -5156,7 +5744,30 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
    if ((*expr)->expr_type == EXPR_FUNCTION)
      {
        if ((*expr)->ts.type == BT_INTEGER
-@@ -5339,15 +5348,19 @@ match_attr_spec (void)
+@@ -3980,7 +3989,8 @@ error_return:
+ match
+ gfc_match_decl_type_spec (gfc_typespec *ts, int implicit_flag)
+ {
+-  char name[GFC_MAX_SYMBOL_LEN + 1];
++  /* Provide sufficient space to hold "pdtsymbol".  */
++  char name[GFC_MAX_SYMBOL_LEN + 1 + 3];
+   gfc_symbol *sym, *dt_sym;
+   match m;
+   char c;
+@@ -4182,7 +4192,11 @@ gfc_match_decl_type_spec (gfc_typespec *ts, int implicit_flag)
+ 	    return m;
+ 	  gcc_assert (!sym->attr.pdt_template && sym->attr.pdt_type);
+ 	  ts->u.derived = sym;
+-	  strcpy (name, gfc_dt_lower_string (sym->name));
++	  const char* lower = gfc_dt_lower_string (sym->name);
++	  size_t len = strnlen (lower, sizeof (name));
++	  gcc_assert (len < sizeof (name));
++	  memcpy (name, lower, len);
++	  name[len] = '\0';
+ 	}
+ 
+       if (sym && sym->attr.flavor == FL_STRUCT)
+@@ -5339,15 +5353,19 @@ match_attr_spec (void)
        if (d == DECL_STATIC && seen[DECL_SAVE])
  	continue;
  
@@ -5179,7 +5790,7 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  		{
  		  m = MATCH_ERROR;
  		  goto cleanup;
-@@ -5355,8 +5368,11 @@ match_attr_spec (void)
+@@ -5355,8 +5373,11 @@ match_attr_spec (void)
  	    }
  	  else if (d == DECL_KIND)
  	    {
@@ -5193,7 +5804,7 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  		{
  		  m = MATCH_ERROR;
  		  goto cleanup;
-@@ -5379,8 +5395,11 @@ match_attr_spec (void)
+@@ -5379,8 +5400,11 @@ match_attr_spec (void)
  	    }
  	  else if (d == DECL_LEN)
  	    {
@@ -5207,7 +5818,7 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  		{
  		  m = MATCH_ERROR;
  		  goto cleanup;
-@@ -5403,8 +5422,10 @@ match_attr_spec (void)
+@@ -5403,8 +5427,10 @@ match_attr_spec (void)
  	    }
  	  else
  	    {
@@ -5220,7 +5831,7 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  	      m = MATCH_ERROR;
  	      goto cleanup;
  	    }
-@@ -9602,13 +9623,20 @@ gfc_match_submod_proc (void)
+@@ -9602,13 +9628,20 @@ gfc_match_submod_proc (void)
    if (get_proc_name (name, &sym, false))
      return MATCH_ERROR;
  
@@ -5248,7 +5859,15 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
      }
 --- a/src/gcc/fortran/gfortran.h
 +++ b/src/gcc/fortran/gfortran.h
-@@ -1602,7 +1602,10 @@ typedef struct gfc_symbol
+@@ -1094,7 +1094,6 @@ typedef struct gfc_component
+   struct gfc_typebound_proc *tb;
+   /* When allocatable/pointer and in a coarray the associated token.  */
+   tree caf_token;
+-  bool finalized;
+ }
+ gfc_component;
+ 
+@@ -1602,7 +1601,10 @@ typedef struct gfc_symbol
    /* Set if the symbol is used in a function result specification .  */
    unsigned fn_result_spec:1;
    /* Used to avoid multiple resolutions of a single symbol.  */
@@ -5260,6 +5879,27 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
    /* Set if this is a module function or subroutine with the
       abreviated declaration in a submodule.  */
    unsigned abr_modproc_decl:1;
+@@ -1650,7 +1652,8 @@ typedef struct gfc_common_head
+   char use_assoc, saved, threadprivate;
+   unsigned char omp_declare_target : 1;
+   unsigned char omp_declare_target_link : 1;
+-  char name[GFC_MAX_SYMBOL_LEN + 1];
++  /* Provide sufficient space to hold "symbol.eq.1234567890".  */
++  char name[GFC_MAX_SYMBOL_LEN + 1 + 14];
+   struct gfc_symbol *head;
+   const char* binding_label;
+   int is_bind_c;
+@@ -2187,6 +2190,10 @@ typedef struct gfc_expr
+   /* Set this if no warning should be given somewhere in a lower level.  */
+ 
+   unsigned int do_not_warn : 1;
++
++  /* Set this if the expression has already been finalized.  */
++  unsigned int finalized : 1;
++
+   /* If an expression comes from a Hollerith constant or compile-time
+      evaluation of a transfer statement, it may have a prescribed target-
+      memory representation, and these cannot always be backformed from
 --- a/src/gcc/fortran/interface.c
 +++ b/src/gcc/fortran/interface.c
 @@ -4979,7 +4979,8 @@ gfc_find_typebound_dtio_proc (gfc_symbol *derived, bool write, bool formatted)
@@ -5272,6 +5912,16 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
      return NULL;
  
    /* Try to find a typebound DTIO binding.  */
+--- a/src/gcc/fortran/libgfortran.h
++++ b/src/gcc/fortran/libgfortran.h
+@@ -122,6 +122,7 @@ typedef enum
+   LIBERROR_SHORT_RECORD,
+   LIBERROR_CORRUPT_FILE,
+   LIBERROR_INQUIRE_INTERNAL_UNIT, /* Must be different from STAT_STOPPED_IMAGE.  */
++  LIBERROR_BAD_WAIT_ID,
+   LIBERROR_LAST			/* Not a real error, the last error # + 1.  */
+ }
+ libgfortran_error_codes;
 --- a/src/gcc/fortran/match.c
 +++ b/src/gcc/fortran/match.c
 @@ -2200,9 +2200,9 @@ gfc_match_type_spec (gfc_typespec *ts)
@@ -5286,6 +5936,48 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  
        /* If a comma appears, it is an intrinsic subprogram. */
        gfc_gobble_whitespace ();
+@@ -2217,7 +2217,10 @@ found:
+ 	 a scalar integer initialization-expr and valid kind parameter. */
+       if (c == ')')
+ 	{
+-	  if (e->ts.type != BT_INTEGER || e->rank > 0)
++	  bool ok = true;
++	  if (e->expr_type != EXPR_CONSTANT && e->expr_type != EXPR_VARIABLE)
++	    ok = gfc_reduce_init_expr (e);
++	  if (!ok || e->ts.type != BT_INTEGER || e->rank > 0)
+ 	    {
+ 	      gfc_free_expr (e);
+ 	      return MATCH_NO;
+--- a/src/gcc/fortran/primary.c
++++ b/src/gcc/fortran/primary.c
+@@ -2206,6 +2206,27 @@ gfc_match_varspec (gfc_expr *primary, int equiv_flag, bool sub_flag,
+ 	    {
+ 	      if (tmp)
+ 		{
++		  switch (tmp->u.i)
++		    {
++		    case INQUIRY_RE:
++		    case INQUIRY_IM:
++		      if (!gfc_notify_std (GFC_STD_F2008,
++					   "RE or IM part_ref at %C"))
++			return MATCH_ERROR;
++		      break;
++
++		    case INQUIRY_KIND:
++		      if (!gfc_notify_std (GFC_STD_F2003,
++					   "KIND part_ref at %C"))
++			return MATCH_ERROR;
++		      break;
++
++		    case INQUIRY_LEN:
++		      if (!gfc_notify_std (GFC_STD_F2003, "LEN part_ref at %C"))
++			return MATCH_ERROR;
++		      break;
++		    }
++
+ 		  if ((tmp->u.i == INQUIRY_RE || tmp->u.i == INQUIRY_IM)
+ 		      && primary->ts.type != BT_COMPLEX)
+ 		    {
 --- a/src/gcc/fortran/resolve.c
 +++ b/src/gcc/fortran/resolve.c
 @@ -1754,9 +1754,11 @@ gfc_resolve_intrinsic (gfc_symbol *sym, locus *loc)
@@ -5378,7 +6070,28 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  	{
  	  gfc_error ("Scalar INTEGER expression expected at %L",
  		     &cl->length->where);
-@@ -13541,7 +13572,7 @@ resolve_typebound_procedure (gfc_symtree* stree)
+@@ -12755,8 +12786,10 @@ resolve_fl_procedure (gfc_symbol *sym, int mp_flag)
+     {
+       if (sym->attr.proc_pointer)
+ 	{
++	  const char* name = (sym->attr.result ? sym->ns->proc_name->name
++					       : sym->name);
+ 	  gfc_error ("Procedure pointer %qs at %L shall not be elemental",
+-		     sym->name, &sym->declared_at);
++		     name, &sym->declared_at);
+ 	  return false;
+ 	}
+       if (sym->attr.dummy)
+@@ -12843,7 +12876,7 @@ resolve_fl_procedure (gfc_symbol *sym, int mp_flag)
+       if (sym->attr.subroutine && sym->attr.result)
+ 	{
+ 	  gfc_error ("PROCEDURE attribute conflicts with RESULT attribute "
+-		     "in %qs at %L", sym->name, &sym->declared_at);
++		     "in %qs at %L", sym->ns->proc_name->name, &sym->declared_at);
+ 	  return false;
+ 	}
+       if (sym->attr.external && sym->attr.function && !sym->attr.module_procedure
+@@ -13541,7 +13574,7 @@ resolve_typebound_procedure (gfc_symtree* stree)
      {
        /* If proc has not been resolved at this point, proc->name may
  	 actually be a USE associated entity. See PR fortran/89647. */
@@ -5387,7 +6100,7 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  	  && proc->attr.function == 0 && proc->attr.subroutine == 0)
  	{
  	  gfc_symbol *tmp;
-@@ -14791,9 +14822,9 @@ resolve_symbol (gfc_symbol *sym)
+@@ -14791,9 +14824,9 @@ resolve_symbol (gfc_symbol *sym)
    gfc_array_spec *as;
    bool saved_specification_expr;
  
@@ -5399,7 +6112,7 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  
    /* No symbol will ever have union type; only components can be unions.
       Union type declaration symbols have type BT_UNKNOWN but flavor FL_UNION
-@@ -16510,7 +16541,8 @@ resolve_equivalence (gfc_equiv *eq)
+@@ -16510,7 +16543,8 @@ resolve_equivalence (gfc_equiv *eq)
  	  && !gfc_notify_std (GFC_STD_GNU, msg, sym->name, &e->where))
  		continue;
  
@@ -5409,7 +6122,7 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
        last_ts =&sym->ts;
        last_where = &e->where;
  
-@@ -16518,8 +16550,7 @@ resolve_equivalence (gfc_equiv *eq)
+@@ -16518,8 +16552,7 @@ resolve_equivalence (gfc_equiv *eq)
  	continue;
  
        /* Shall not be an automatic array.  */
@@ -5419,6 +6132,31 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  	{
  	  gfc_error ("Array %qs at %L with non-constant bounds cannot be "
  		     "an EQUIVALENCE object", sym->name, &e->where);
+--- a/src/gcc/fortran/symbol.c
++++ b/src/gcc/fortran/symbol.c
+@@ -2004,9 +2004,12 @@ gfc_add_type (gfc_symbol *sym, gfc_typespec *ts, locus *where)
+ 	gfc_error ("Symbol %qs at %L conflicts with symbol from module %qs, "
+ 		   "use-associated at %L", sym->name, where, sym->module,
+ 		   &sym->declared_at);
++      else if (sym->attr.function && sym->attr.result)
++	gfc_error ("Symbol %qs at %L already has basic type of %s",
++		   sym->ns->proc_name->name, where, gfc_basic_typename (type));
+       else
+ 	gfc_error ("Symbol %qs at %L already has basic type of %s", sym->name,
+-		 where, gfc_basic_typename (type));
++		   where, gfc_basic_typename (type));
+       return false;
+     }
+ 
+@@ -2024,7 +2027,7 @@ gfc_add_type (gfc_symbol *sym, gfc_typespec *ts, locus *where)
+       || (flavor == FL_PROCEDURE && sym->attr.subroutine)
+       || flavor == FL_DERIVED || flavor == FL_NAMELIST)
+     {
+-      gfc_error ("Symbol %qs at %L cannot have a type", sym->name, where);
++      gfc_error ("Symbol %qs at %L cannot have a type", sym->ns->proc_name->name, where);
+       return false;
+     }
+ 
 --- a/src/gcc/fortran/trans-array.c
 +++ b/src/gcc/fortran/trans-array.c
 @@ -6945,6 +6945,24 @@ gfc_get_dataptr_offset (stmtblock_t *block, tree parm, tree desc, tree offset,
@@ -5446,9 +6184,68 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  	    default:
  	      gcc_unreachable ();
  	      break;
+--- a/src/gcc/fortran/trans-common.c
++++ b/src/gcc/fortran/trans-common.c
+@@ -242,8 +242,9 @@ static tree
+ gfc_sym_mangled_common_id (gfc_common_head *com)
+ {
+   int has_underscore;
+-  char mangled_name[GFC_MAX_MANGLED_SYMBOL_LEN + 1];
+-  char name[GFC_MAX_SYMBOL_LEN + 1];
++  /* Provide sufficient space to hold "symbol.eq.1234567890__".  */
++  char mangled_name[GFC_MAX_MANGLED_SYMBOL_LEN + 1 + 16];
++  char name[GFC_MAX_SYMBOL_LEN + 1 + 16];
+ 
+   /* Get the name out of the common block pointer.  */
+   strcpy (name, com->name);
+@@ -1252,7 +1253,11 @@ finish_equivalences (gfc_namespace *ns)
+ 	      c->where = ns->proc_name->declared_at;
+ 	    else if (ns->is_block_data)
+ 	      c->where = ns->sym_root->n.sym->declared_at;
+-	    strcpy (c->name, z->module);
++
++	    size_t len = strlen (z->module);
++	    gcc_assert (len < sizeof (c->name));
++	    memcpy (c->name, z->module, len);
++	    c->name[len] = '\0';
+ 	  }
+ 	else
+ 	  c = NULL;
 --- a/src/gcc/fortran/trans-decl.c
 +++ b/src/gcc/fortran/trans-decl.c
-@@ -6011,7 +6011,7 @@ generate_local_decl (gfc_symbol * sym)
+@@ -1658,9 +1658,7 @@ gfc_get_symbol_decl (gfc_symbol * sym)
+ 
+       TREE_USED (sym->backend_decl) = 1;
+       if (sym->attr.assign && GFC_DECL_ASSIGN (sym->backend_decl) == 0)
+-	{
+-	  gfc_add_assign_aux_vars (sym);
+-	}
++	gfc_add_assign_aux_vars (sym);
+ 
+       if (sym->ts.type == BT_CLASS && sym->backend_decl)
+ 	GFC_DECL_CLASS(sym->backend_decl) = 1;
+@@ -1668,6 +1666,10 @@ gfc_get_symbol_decl (gfc_symbol * sym)
+      return sym->backend_decl;
+     }
+ 
++  if (sym->result == sym && sym->attr.assign
++      && GFC_DECL_ASSIGN (sym->backend_decl) == 0)
++    gfc_add_assign_aux_vars (sym);
++
+   if (sym->backend_decl)
+     return sym->backend_decl;
+ 
+@@ -3142,6 +3144,9 @@ gfc_get_fake_result_decl (gfc_symbol * sym, int parent_flag)
+   else
+     current_fake_result_decl = build_tree_list (NULL, decl);
+ 
++  if (sym->attr.assign)
++    DECL_LANG_SPECIFIC (decl) = DECL_LANG_SPECIFIC (sym->backend_decl);
++
+   return decl;
+ }
+ 
+@@ -6011,7 +6016,7 @@ generate_local_decl (gfc_symbol * sym)
        /* Unused procedure passed as dummy argument.  */
        if (sym->attr.flavor == FL_PROCEDURE)
  	{
@@ -5457,6 +6254,64 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  	    {
  	      if (warn_unused_dummy_argument)
  		gfc_warning (OPT_Wunused_dummy_argument,
+--- a/src/gcc/fortran/trans-expr.c
++++ b/src/gcc/fortran/trans-expr.c
+@@ -8558,6 +8558,7 @@ gfc_conv_expr_reference (gfc_se * se, gfc_expr * expr, bool add_clobber)
+ 
+   if (expr->expr_type == EXPR_FUNCTION
+       && ((expr->value.function.esym
++	   && expr->value.function.esym->result
+ 	   && expr->value.function.esym->result->attr.pointer
+ 	   && !expr->value.function.esym->result->attr.dimension)
+ 	  || (!expr->value.function.esym && !expr->ref
+--- a/src/gcc/gcov-io.c
++++ b/src/gcc/gcov-io.c
+@@ -48,6 +48,7 @@ struct gcov_var
+   unsigned overread;		/* Number of words overread.  */
+   int error;			/* < 0 overflow, > 0 disk error.  */
+   int mode;	                /* < 0 writing, > 0 reading */
++  int endian;			/* Swap endianness.  */
+ #if IN_LIBGCOV
+   /* Holds one block plus 4 bytes, thus all coverage reads & writes
+      fit within this buffer and we always can transfer GCOV_BLOCK_SIZE
+@@ -55,7 +56,6 @@ struct gcov_var
+      or 8 byte objects.  */
+   gcov_unsigned_t buffer[GCOV_BLOCK_SIZE + 1];
+ #else
+-  int endian;			/* Swap endianness.  */
+   /* Holds a variable length block, as the compiler can write
+      strings and needs to backtrack.  */
+   size_t alloc;
+@@ -100,7 +100,7 @@ gcov_rewrite (void)
+ 
+ static inline gcov_unsigned_t from_file (gcov_unsigned_t value)
+ {
+-#if !IN_LIBGCOV
++#if !IN_LIBGCOV || defined (IN_GCOV_TOOL)
+   if (gcov_var.endian)
+     {
+       value = (value >> 16) | (value << 16);
+@@ -222,7 +222,7 @@ gcov_close (void)
+   return gcov_var.error;
+ }
+ 
+-#if !IN_LIBGCOV
++#if !IN_LIBGCOV || defined (IN_GCOV_TOOL)
+ /* Check if MAGIC is EXPECTED. Use it to determine endianness of the
+    file. Returns +1 for same endian, -1 for other endian and zero for
+    not EXPECTED.  */
+--- a/src/gcc/gcov-io.h
++++ b/src/gcc/gcov-io.h
+@@ -326,6 +326,9 @@ struct gcov_summary
+ 
+ #if !IN_LIBGCOV
+ GCOV_LINKAGE int gcov_open (const char */*name*/, int /*direction*/);
++#endif
++
++#if !IN_LIBGCOV || defined (IN_GCOV_TOOL)
+ GCOV_LINKAGE int gcov_magic (gcov_unsigned_t, gcov_unsigned_t);
+ #endif
+ 
 --- a/src/gcc/gimple-fold.c
 +++ b/src/gcc/gimple-fold.c
 @@ -1242,12 +1242,18 @@ gimple_fold_builtin_memset (gimple_stmt_iterator *gsi, tree c, tree len)
@@ -5639,7 +6494,102 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  extern void init_resource_info (rtx_insn *);
 --- a/src/gcc/testsuite/ChangeLog
 +++ b/src/gcc/testsuite/ChangeLog
-@@ -1,3 +1,614 @@
+@@ -1,3 +1,709 @@
++2020-06-06  Carl Love  <cel@us.ibm.com>
++
++	PR target/94833
++	* gcc.target/powerpc/builtins-8-p9-runnable.c (main): Add
++	additional test cases with zero vector elements.
++
++2020-06-05  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/95373
++	* gfortran.dg/pr95373_1.f90: Adjust error messages.
++	* gfortran.dg/pr95373_2.f90: Adjust error message.
++
++2020-06-05  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/95373
++	* gfortran.dg/pr95373_1.f90: New test.
++	* gfortran.dg/pr95373_2.f90: New test.
++
++2020-06-05  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/95106
++	* gfortran.dg/equiv_11.f90: New test.
++
++2020-06-05  Steven G. Kargl  <kargl@gcc.gnu.org>
++	    Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/95500
++	* gfortran.dg/pr95500.f90: New test.
++
++2020-06-01  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/94361
++	* gfortran.dg/finalize_28.f90: Adjusted free counts.
++	* gfortran.dg/finalize_33.f90: Likewise.
++	* gfortran.dg/finalize_34.f90: Likewise.
++	* gfortran.dg/finalize_35.f90: New test.
++
++2020-05-29  Alex Coplan  <alex.coplan@arm.com>
++
++	PR target/94591
++	* gcc.c-torture/execute/pr94591.c: New test.
++
++2020-05-28  Steven G. Kargl  <kargl@gcc.gnu.org>
++	    Mark Eggleston  <markeggleston@gcc.gnu.org>
++
++	PR fortran/94397
++	* gfortran.dg/pr94397.F90: New test.
++
++2020-05-28  Tobias Burnus  <tobias@codesourcery.com>
++
++	PR fortran/50392
++	* gfortran.dg/pr50392.f: New test.
++
++2020-05-27  Harald Anlauf  <anlauf@gmx.de>
++	    Steven G. Kargl   <kargl@gcc.gnu.org>
++
++	PR libfortran/95104
++	* gfortran.dg/pr95104.f90: New test.
++
++2020-05-26  Alexandre Oliva  <oliva@adacore.com>
++
++	PR target/94812
++	* gcc.target/powerpc/test_mffsl.c: Call mffsl only once.
++	Reinterpret the doubles as long longs for compares.  Mask out
++	mffs bits that are not expected from mffsl.
++
++2020-05-22  Bin Cheng  <bin.cheng@linux.alibaba.com>
++
++	Backport from master
++	PR tree-optimization/95110
++	2020-05-13  Jakub Jelinek  <jakub@redhat.com>
++
++	* gcc.dg/tree-ssa/pr94969.c: Swap scan-tree-dump-not arguments.
++
++2020-05-22  Bin Cheng  <bin.cheng@linux.alibaba.com>
++
++	Backport from master
++	PR tree-optimization/94969
++	2020-05-13  Bin Cheng  <bin.cheng@linux.alibaba.com>
++
++	* gcc.dg/tree-ssa/pr94969.c: New test.
++
++2020-05-21  Martin Liska  <mliska@suse.cz>
++
++	* gcc.target/aarch64/target_attr_20.c: New test.
++	* gcc.target/aarch64/target_attr_21.c: New test.
++
++2020-05-20  Mark Eggleston  <markeggleston@gcc.gnu.org>
++
++	PR fortran/39695
++	* gfortran.dg/pr39695_1.f90: New test.
++	* gfortran.dg/pr39695_2.f90: New test.
++	* gfortran.dg/pr39695_3.f90: New test.
++	* gfortran.dg/pr39695_4.f90: New test.
++
 +2020-05-18  Doug Rupp  <rupp@adacore.com>
 +
 +	* gcc.target/powerpc/pr71763.c: Require powerpc_vsx_ok.
@@ -6436,6 +7386,23 @@ new file mode 100644
 +}
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/g++.dg/cpp0x/lambda/lambda-constexpr2.C
+@@ -0,0 +1,13 @@
++// PR c++/90212
++// { dg-do compile { target c++11 } }
++
++template<typename T> struct tuple {
++    constexpr tuple(T&& t) : t(t) { }
++    int t;
++};
++
++void foo() {
++    constexpr tuple<int> v1{1};
++    constexpr auto v2 = v1;
++    [&]{ constexpr auto v2 = v1; };
++}
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/g++.dg/cpp0x/lambda/lambda-variadic10.C
 @@ -0,0 +1,12 @@
 +// PR c++/92909
@@ -6450,6 +7417,23 @@ new file mode 100644
 +    }();			// { dg-error "not expanded" }
 +}
 +template void foo<>();
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/g++.dg/cpp0x/nsdmi-template20.C
+@@ -0,0 +1,13 @@
++// PR c++/90479
++// { dg-do compile { target c++11 } }
++
++template <int n>
++void foo ()
++{
++  static int i {100};
++  struct { int a {i++}; } b {};
++}
++int main ()
++{
++  foo<0> ();
++}
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/g++.dg/cpp0x/variadic-alias2.C
@@ -7007,6 +7991,24 @@ new file mode 100644
 +MemFuncPtr mfp5[3] = { 0, S () };         // { dg-error "cannot convert 'S' to 'MemFuncPtr' " }
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/g++.dg/init/const14.C
+@@ -0,0 +1,14 @@
++// PR c++/91529
++// { dg-do run }
++// { dg-additional-options -fmerge-all-constants }
++
++struct A
++{
++  int i[2];
++  ~A() { i[0] = 0; }
++};
++
++int main()
++{
++  const A a = { 1,2 };
++}
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/g++.dg/lookup/pr84733.C
 @@ -0,0 +1,21 @@
 +// { dg-do compile { target c++11 } }
@@ -7549,6 +8551,42 @@ new file mode 100644
 +  if (c[0] != -1U / 11 || c[1] != 0 || d[0] != 0 || d[1] != -18U / -__INT_MAX__)
 +    __builtin_abort ();
 +  return 0;
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.c-torture/execute/pr94591.c
+@@ -0,0 +1,32 @@
++typedef unsigned __attribute__((__vector_size__(8))) V2SI_u;
++typedef int __attribute__((__vector_size__(8))) V2SI_d;
++
++typedef unsigned long __attribute__((__vector_size__(16))) V2DI_u;
++typedef long __attribute__((__vector_size__(16))) V2DI_d;
++
++void id_V2SI(V2SI_d *v)
++{
++  *v = __builtin_shuffle(*v, (V2SI_d)(V2SI_u) { 0, 1 });
++}
++
++void id_V2DI(V2DI_d *v)
++{
++  *v = __builtin_shuffle(*v, (V2DI_d)(V2DI_u) { 0, 1 });
++}
++
++extern void abort(void);
++
++int main(void)
++{
++  V2SI_d si = { 35, 42 };
++  id_V2SI(&si);
++
++  if (si[0] != 35 || si[1] != 42)
++    abort();
++
++  V2DI_d di = { 63, 38 };
++  id_V2DI(&di);
++
++  if (di[0] != 63 || di[1] != 38)
++    abort();
 +}
 new file mode 100644
 --- /dev/null
@@ -8149,6 +9187,38 @@ new file mode 100644
 +
 +  return 0;
 +}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.dg/tree-ssa/pr94969.c
+@@ -0,0 +1,28 @@
++/* PR tree-optimization/52267 */
++/* { dg-do run } */
++/* { dg-options "-O3 -fdump-tree-ldist-details" } */
++
++int a = 0, b = 0, c = 0;
++struct S {
++  signed m : 7;
++  signed e : 2;
++};
++struct S f[2] = {{0, 0}, {0, 0}};
++struct S g = {0, 0};
++
++void __attribute__((noinline))
++k()
++{
++  for (; c <= 1; c++) {
++    f[b] = g;
++    f[b].e ^= 1;
++  }
++}
++int main()
++{
++  k();
++  if (f[b].e != 1)
++    __builtin_abort ();
++}
++
++/* { dg-final { scan-tree-dump-not "Loop 1 distributed: split to 3 loops" "ldist" } } */
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/gcc.dg/ubsan/pr94423.c
@@ -8780,6 +9850,68 @@ new file mode 100644
  
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/gcc.target/aarch64/target_attr_20.c
+@@ -0,0 +1,27 @@
++/* { dg-do compile } */
++/* { dg-options "-march=armv8-a+nolse -moutline-atomics" } */
++
++int b, c, d, e, f, h;
++short g;
++int foo (int) __attribute__ ((__const__));
++
++__attribute__ ((target ("no-outline-atomics")))
++void
++bar (void)
++{
++  while (1)
++    {
++      while (1)
++	{
++	  __atomic_load_n (&e, 0);
++	  if (foo (2))
++	    __sync_val_compare_and_swap (&c, 0, f);
++	  b = 1;
++	  if (h == e)
++	    break;
++	}
++      __sync_val_compare_and_swap (&g, -1, f);
++    }
++}
++
++/* { dg-final { scan-assembler-not "bl.*__aarch64_cas2_acq_rel" } } */
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.target/aarch64/target_attr_21.c
+@@ -0,0 +1,27 @@
++/* { dg-do compile } */
++/* { dg-options "-march=armv8-a+nolse -mno-outline-atomics" } */
++
++int b, c, d, e, f, h;
++short g;
++int foo (int) __attribute__ ((__const__));
++
++__attribute__ ((target ("outline-atomics")))
++void
++bar (void)
++{
++  while (1)
++    {
++      while (1)
++	{
++	  __atomic_load_n (&e, 0);
++	  if (foo (2))
++	    __sync_val_compare_and_swap (&c, 0, f);
++	  b = 1;
++	  if (h == e)
++	    break;
++	}
++      __sync_val_compare_and_swap (&g, -1, f);
++    }
++}
++
++/* { dg-final { scan-assembler-times "bl.*__aarch64_cas2_acq_rel" 1 } } */
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/gcc.target/i386/avx2-pr94460.c
 @@ -0,0 +1,31 @@
 +/* PR target/94460 */
@@ -9094,6 +10226,154 @@ new file mode 100644
 +{
 +  return __builtin_ia32_movq128 (v);  /* { dg-error "" } */
 +}
+--- a/src/gcc/testsuite/gcc.target/powerpc/builtins-8-p9-runnable.c
++++ b/src/gcc/testsuite/gcc.target/powerpc/builtins-8-p9-runnable.c
+@@ -103,6 +103,31 @@ int main() {
+      The element index in natural element order is returned for the
+      first match or the number of elements if there is no match.  */
+   /* char */
++  char_src1 = (vector signed char) { 0x40, 0, 0x40, 0x40,
++				     0x40, 0x40, 0x40, 0x40,
++				     0x40, 0x40, 0x40, 0x40,
++				     0x40, 0x40, 0x40, 0x40 };
++				    
++  char_src2 = (vector signed char) {0, 0, 0, 0, 0, 0, 0, 0,
++				    0, 0, 0, 0, 0, 0, 0, 0};
++  expected_result = 1;
++
++  result = vec_first_match_index (char_src1, char_src2);
++
++#ifdef DEBUG2
++  print_signed_char("src1", char_src1);
++  print_signed_char("src2", char_src2);
++  printf(" vec_first_match_index = %d\n\n", result);
++#endif
++
++  if (result != expected_result)
++#ifdef DEBUG
++    printf("Error: char first match result (%d) does not match expected result (%d)\n",
++	   result, expected_result);
++#else
++    abort();
++#endif
++
+   char_src1 = (vector signed char) {-1, 2, 3, 4, -5, 6, 7, 8,
+ 				    9, 10, 11, 12, 13, 14, 15, 16};
+   char_src2 = (vector signed char) {-1, 2, 3, 20, -5, 6, 7, 8,
+@@ -367,6 +392,50 @@ int main() {
+      The element index in BE order is returned for the first mismatch
+      or the number of elements if there is no match.   */
+   /* char */
++  char_src1 = (vector signed char) {1, 2, 0, 4, -5, 6, 7, 8,
++				    9, 10, 11, 12, 13, 14, 15, 16};
++  char_src2 = (vector signed char) {1, 2, 0, 20, -5, 6, 7, 8,
++				    9, 10, 11, 12, 13, 14, 15, 16};
++  expected_result = 3;
++
++  result = vec_first_mismatch_index (char_src1, char_src2);
++
++#ifdef DEBUG2
++  print_signed_char("src1", char_src1);
++  print_signed_char("src2", char_src2);
++  printf("vec_first_mismatch_index = %d\n\n", result);
++#endif
++
++  if (result != expected_result)
++#ifdef DEBUG
++    printf("Error: char first mismatch result (%d) does not match expected result (%d)\n",
++	   result, expected_result);
++#else
++    abort();
++#endif
++
++  char_src1 = (vector signed char) {0, 2, 3, 4, -5, 6, 7, 8,
++				    9, 10, 11, 12, 13, 14, 15, 16};
++  char_src2 = (vector signed char) {0, 2, 3, 20, -5, 6, 7, 8,
++				    9, 10, 11, 12, 13, 14, 15, 16};
++  expected_result = 3;
++
++  result = vec_first_mismatch_index (char_src1, char_src2);
++
++#ifdef DEBUG2
++  print_signed_char("src1", char_src1);
++  print_signed_char("src2", char_src2);
++  printf("vec_first_mismatch_index = %d\n\n", result);
++#endif
++
++  if (result != expected_result)
++#ifdef DEBUG
++    printf("Error: char first mismatch result (%d) does not match expected result (%d)\n",
++	   result, expected_result);
++#else
++    abort();
++#endif
++
+   char_src1 = (vector signed char) {-1, 2, 3, 4, -5, 6, 7, 8,
+ 				    9, 10, 11, 12, 13, 14, 15, 16};
+   char_src2 = (vector signed char) {-1, 2, 3, 20, -5, 6, 7, 8,
+@@ -673,6 +742,33 @@ int main() {
+      The element index in BE order is returned for the first match
+      or the number of elements if there is no match.  */
+   /* char */
++  char_src1 = (vector signed char) { 0x40, 0, 0x40, 0x40,
++				     0x40, 0x40, 0x40, 0x40,
++				     0x40, 0x40, 0x40, 0x40,
++				     0x40, 0x40, 0x40, 0x40 };
++				    
++  char_src2 = (vector signed char) { 0x41, 0, 0x43, 0x44,
++				     0x45, 0x46, 0x47, 0x40,
++				     0x40, 0x40, 0x40, 0x40,
++				     0x40, 0x40, 0x40, 0x40 };
++  expected_result = 1;
++
++  result = vec_first_match_or_eos_index (char_src1, char_src2);
++
++#ifdef DEBUG2
++  print_signed_char("src1", char_src1);
++  print_signed_char("src2", char_src2);
++  printf("vec_first_match_or_eos_index = %d\n\n", result);
++#endif
++
++  if (result != expected_result)
++#ifdef DEBUG
++    printf("Error: char first match result (%d) does not match expected result (%d)\n",
++	   result, expected_result);
++#else
++    abort();
++#endif
++
+   char_src1 = (vector signed char) {-1, 2, 3, 4, -5, 6, 7, 8,
+ 				    9, 10, 11, 12, 13, 14, 15, 16};
+   char_src2 = (vector signed char) {-1, 2, 3, 20, -5, 6, 7, 8,
+@@ -1065,6 +1161,28 @@ int main() {
+      The element index in BE order is returned for the first mismatch
+      or the number of elements if there is no match.   */
+   /* char */
++  char_src1 = (vector signed char) {1, 2, 0, 4, -5, 6, 7, 8,
++				    9, 10, 11, 12, 13, 14, 15, 16};
++  char_src2 = (vector signed char) {1, 2, 0, 20, -5, 6, 7, 8,
++				    9, 10, 11, 12, 13, 14, 15, 16};
++  expected_result = 2;
++
++  result = vec_first_mismatch_or_eos_index (char_src1, char_src2);
++
++#ifdef DEBUG2
++  print_signed_char("src1", char_src1);
++  print_signed_char("src2", char_src2);
++  printf("vec_first_mismatch_or_eos_index = %d\n\n", result);
++#endif
++
++  if (result != expected_result)
++#ifdef DEBUG
++    printf("Error: char first mismatch or EOS result (%d) does not match expected result (%d)\n",
++	   result, expected_result);
++#else
++    abort();
++#endif
++
+   char_src1 = (vector signed char) {-1, 2, 3, 4, -5, 6, 7, 8,
+ 				    9, 10, 11, 12, 13, 14, 15, 16};
+   char_src2 = (vector signed char) {-1, 2, 3, 20, -5, 6, 7, 8,
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/gcc.target/powerpc/p9-minmax-3.c
@@ -9465,6 +10745,34 @@ new file mode 100644
 +#error Failed to set cpu=power9 pragma target.
 +#endif
 +
+--- a/src/gcc/testsuite/gcc.target/powerpc/test_mffsl.c
++++ b/src/gcc/testsuite/gcc.target/powerpc/test_mffsl.c
+@@ -14,17 +14,21 @@ int main ()
+   union blah {
+     double d;
+     unsigned long long ll;
+-  } conv_val;
++  } mffs_val, mffsl_val;
+ 
+   /* Test reading the FPSCR register.  */
+   __asm __volatile ("mffs %0" : "=f"(f14));
+-  conv_val.d = f14;
++  mffs_val.d = f14;
++  /* Select the same bits as mffsl.  */
++  mffs_val.ll &= 0x70007f0ffLL;
+ 
+-  if (conv_val.d != __builtin_mffsl())
++  mffsl_val.d = __builtin_mffsl ();
++
++  if (mffs_val.ll != mffsl_val.ll)
+     {
+ #ifdef DEBUG
+       printf("ERROR, __builtin_mffsl() returned 0x%llx, not the expecected value 0x%llx\n",
+-	     __builtin_mffsl(), conv_val.d);
++	     mffsl_val.ll, mffs_val.ll);
+ #else
+       abort();
+ #endif
 --- a/src/gcc/testsuite/gcc.target/powerpc/vsu/vec-all-nez-7.c
 +++ b/src/gcc/testsuite/gcc.target/powerpc/vsu/vec-all-nez-7.c
 @@ -11,5 +11,6 @@ test_all_not_equal_and_not_zero (vector unsigned short *arg1_p,
@@ -10185,6 +11493,98 @@ new file mode 100644
 +end
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/equiv_11.f90
+@@ -0,0 +1,12 @@
++! { dg-do compile }
++! { dg-options "-fsecond-underscore" }
++! PR fortran/95106
++
++module m2345678901234567890123456789012345678901234567890123456789_123
++  implicit none
++  real :: a(4), u(3,2)
++  real :: b(4), v(4,2)
++  equivalence (a(1),u(1,1)), (b(1),v(1,1))
++end
++! { dg-final { scan-assembler {m2345678901234567890123456789012345678901234567890123456789_123.eq.0__} } }
++! { dg-final { scan-assembler {m2345678901234567890123456789012345678901234567890123456789_123.eq.1__} } }
+--- a/src/gcc/testsuite/gfortran.dg/finalize_28.f90
++++ b/src/gcc/testsuite/gfortran.dg/finalize_28.f90
+@@ -21,4 +21,4 @@ contains
+     integer, intent(out) :: edges(:,:)
+   end subroutine coo_dump_edges
+ end module coo_graphs
+-! { dg-final { scan-tree-dump-times "__builtin_free" 5 "original" } }
++! { dg-final { scan-tree-dump-times "__builtin_free" 6 "original" } }
+--- a/src/gcc/testsuite/gfortran.dg/finalize_33.f90
++++ b/src/gcc/testsuite/gfortran.dg/finalize_33.f90
+@@ -116,4 +116,4 @@ contains
+                                                ! (iii) mci_template
+ end program main_ut
+ ! { dg-final { scan-tree-dump-times "__builtin_malloc" 17 "original" } }
+-! { dg-final { scan-tree-dump-times "__builtin_free" 19 "original" } }
++! { dg-final { scan-tree-dump-times "__builtin_free" 20 "original" } }
+--- a/src/gcc/testsuite/gfortran.dg/finalize_34.f90
++++ b/src/gcc/testsuite/gfortran.dg/finalize_34.f90
+@@ -22,4 +22,4 @@ program main
+   use testmodule
+   type(evtlist_type), dimension(10) :: a
+ end program main
+-! { dg-final  { scan-tree-dump-times "__builtin_free" 8 "original" } }
++! { dg-final  { scan-tree-dump-times "__builtin_free" 12 "original" } }
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/finalize_35.f90
+@@ -0,0 +1,48 @@
++! { dg-do compile }
++! { dg-additional-options "-fdump-tree-original" }
++! PR 94361 - this left open some memory leaks.  Original test case by
++! Antony Lewis.
++
++module debug
++  private
++
++  Type TypeWithFinal
++   contains
++     FINAL :: finalizer  !No leak if this line is commented
++  end type TypeWithFinal
++
++  Type Tester
++     real, dimension(:), allocatable :: Dat
++     Type(TypeWithFinal) :: X
++  end Type Tester
++
++  Type :: TestType2
++     Type(Tester) :: T
++  end type TestType2
++  public Leaker
++contains
++
++  subroutine Leaker
++    type(TestType2) :: Test
++
++    allocate(Test%T%Dat(1000))
++  end subroutine Leaker
++
++  subroutine finalizer(this)
++    Type(TypeWithFinal) :: this
++  end subroutine finalizer
++
++end module debug
++
++
++program run
++  use debug
++  implicit none
++  integer i
++
++  do i=1, 1000
++     call Leaker()
++  end do
++
++end program run
++! { dg-final  { scan-tree-dump-times "__builtin_free\\ \\(ptr2" 2 "original" } }
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/gfortran.dg/graphite/vect-pr94043.f90
 @@ -0,0 +1,18 @@
 +! { dg-do compile }
@@ -10264,6 +11664,83 @@ new file mode 100644
 +  implicit none
 +  if (foo() /= 5) stop 1
 +end program main
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/pr39695_1.f90
+@@ -0,0 +1,8 @@
++! { dg-do compile }
++!
++
++function f()
++  intrinsic :: sin
++  procedure(sin), pointer :: f ! { dg-error "Procedure pointer 'f'" }
++  f => sin
++end function f
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/pr39695_2.f90
+@@ -0,0 +1,12 @@
++! { dg-do compile }
++!
++
++function g()
++ interface
++    subroutine g()
++    end subroutine g
++  end interface
++  pointer g
++  real g   ! { dg-error "Symbol 'g' at .1. cannot have a type" }
++end function
++
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/pr39695_3.f90
+@@ -0,0 +1,11 @@
++! { dg-do compile }
++!
++
++function g()
++ interface
++    subroutine g()   ! { dg-error "RESULT attribute in 'g'" }
++    end subroutine g
++  end interface
++  real g             ! { dg-error "Symbol 'g' at .1. cannot have a type" }
++end function
++
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/pr39695_4.f90
+@@ -0,0 +1,14 @@
++! { dg-do compile }
++!
++
++function g()
++  implicit none
++  interface
++    function g()
++      integer g
++    end function g
++  end interface
++  pointer g
++  real g   ! { dg-error "Symbol 'g' at .1. already has basic type of INTEGER" }
++end function
++
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/pr50392.f
+@@ -0,0 +1,12 @@
++! { dg-do compile }
++! 
++      function kf()
++      integer kf
++      assign 1 to kf ! { dg-warning "Deleted feature: ASSIGN statement at" }
++      kf = 2
++      goto kf ! { dg-warning "Deleted feature: Assigned GOTO statement at" }
++      kf = 1
++ 1    continue
++      kf = 0
++      end
++
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/gfortran.dg/pr59107.f90
@@ -10525,6 +12002,105 @@ new file mode 100644
 +end
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/pr94397.F90
+@@ -0,0 +1,26 @@
++! { dg-do run }
++!
++
++module m
++  implicit none
++contains
++  function is_real8(a)
++    class(*) :: a
++    logical :: is_real8
++    is_real8 = .false.
++    select type(a)
++      type is(real(kind(1.0_8)))
++        is_real8 = .true. 
++    end select
++  end function is_real8
++end module m
++
++program test
++  use m
++
++  if (is_real8(1.0_4)) stop 1
++  if (.not. is_real8(1.0_8)) stop 2
++#ifdef __GFC_REAL_16__
++  if (is_real8(1.0_16)) stop 3
++#endif
++end program
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/pr95104.f90
+@@ -0,0 +1,8 @@
++! { dg-do run }
++! PR libfortran/95104 - Segfault on a legal WAIT statement
++
++program test
++  wait (10, iostat=ios)
++  if (ios /= 0) stop 1
++  close (10)
++end program test
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/pr95373_1.f90
+@@ -0,0 +1,15 @@
++! { dg-do compile }
++! { dg-options "-std=f95" }
++! PR fortran/95373 - ICE in build_reference_type, at tree.c:7942
++
++subroutine s (x)
++  complex, parameter :: z = 3
++  real(z% kind)      :: x       ! { dg-error "Fortran 2003: KIND part_ref" }
++  type t
++     real    :: kind
++     logical :: re
++  end type t
++  type(t) :: b
++  print *, b% kind, b% re
++  print *, z% re                ! { dg-error "Fortran 2008: RE or IM part_ref" }
++end
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/pr95373_2.f90
+@@ -0,0 +1,15 @@
++! { dg-do compile }
++! { dg-options "-std=f2003" }
++! PR fortran/95373 - ICE in build_reference_type, at tree.c:7942
++
++subroutine s (x)
++  complex, parameter :: z = 3
++  real(z% kind)      :: x
++  type t
++     real    :: kind
++     logical :: re
++  end type t
++  type(t) :: b
++  print *, b% kind, b% re
++  print *, z% re                ! { dg-error "Fortran 2008: RE or IM part_ref" }
++end
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/pr95500.f90
+@@ -0,0 +1,15 @@
++! { dg-do compile }
++! PR fortran/95500 - ICE compiling extra interface on intrinsic
++
++program test_intrinsic
++  implicit none
++  intrinsic :: alog
++  intrinsic :: dlog
++  real (4), parameter :: one = 1
++
++  interface ln
++     procedure :: alog, dlog
++  end interface ln
++
++  write (*,*) 'ln  1', ln (one)
++end program test_intrinsic
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/gfortran.dg/warn_unused_dummy_argument_6.f90
 @@ -0,0 +1,13 @@
 +! { dg-do compile }
@@ -10540,6 +12116,41 @@ new file mode 100644
 +    call meh(bar)
 +  end subroutine foo_internal
 +end subroutine foo
+--- a/src/gcc/tree-data-ref.c
++++ b/src/gcc/tree-data-ref.c
+@@ -4369,17 +4369,19 @@ build_classic_dist_vector_1 (struct data_dependence_relation *ddr,
+   return true;
+ }
+ 
+-/* Return true when the DDR contains only constant access functions.  */
++/* Return true when the DDR contains only invariant access functions wrto. loop
++   number LNUM.  */
+ 
+ static bool
+-constant_access_functions (const struct data_dependence_relation *ddr)
++invariant_access_functions (const struct data_dependence_relation *ddr,
++			    int lnum)
+ {
+   unsigned i;
+   subscript *sub;
+ 
+   FOR_EACH_VEC_ELT (DDR_SUBSCRIPTS (ddr), i, sub)
+-    if (!evolution_function_is_constant_p (SUB_ACCESS_FN (sub, 0))
+-	|| !evolution_function_is_constant_p (SUB_ACCESS_FN (sub, 1)))
++    if (!evolution_function_is_invariant_p (SUB_ACCESS_FN (sub, 0), lnum)
++	|| !evolution_function_is_invariant_p (SUB_ACCESS_FN (sub, 1), lnum))
+       return false;
+ 
+   return true;
+@@ -4578,7 +4580,7 @@ build_classic_dist_vector (struct data_dependence_relation *ddr,
+       dist_v = lambda_vector_new (DDR_NB_LOOPS (ddr));
+       save_dist_v (ddr, dist_v);
+ 
+-      if (constant_access_functions (ddr))
++      if (invariant_access_functions (ddr, loop_nest->num))
+ 	add_distance_for_zero_overlaps (ddr);
+ 
+       if (DDR_NB_LOOPS (ddr) > 1)
 --- a/src/gcc/tree-if-conv.c
 +++ b/src/gcc/tree-if-conv.c
 @@ -2913,9 +2913,12 @@ ifcvt_local_dce (basic_block bb)
@@ -10647,7 +12258,17 @@ new file mode 100644
    if (partition->kind == PKIND_MEMCPY
        || ! ptr_derefs_may_alias_p (dest, src))
      kind = BUILT_IN_MEMCPY;
-@@ -2364,14 +2364,11 @@ break_alias_scc_partitions (struct graph *rdg,
+@@ -1949,7 +1949,8 @@ pg_add_dependence_edges (struct graph *rdg, int dir,
+ 		this_dir = -this_dir;
+ 
+ 	      /* Known dependences can still be unordered througout the
+-		 iteration space, see gcc.dg/tree-ssa/ldist-16.c.  */
++		 iteration space, see gcc.dg/tree-ssa/ldist-16.c and
++		 gcc.dg/tree-ssa/pr94969.c.  */
+ 	      if (DDR_NUM_DIST_VECTS (ddr) != 1)
+ 		this_dir = 2;
+ 	      /* If the overlap is exact preserve stmt order.  */
+@@ -2364,14 +2365,11 @@ break_alias_scc_partitions (struct graph *rdg,
  	      if (cbdata.vertices_component[k] != i)
  		continue;
  
@@ -11375,7 +12996,39 @@ new file mode 100644
        /* No need for fwait, exception is triggered by emitted fstp.  */
 --- a/src/libgcc/ChangeLog
 +++ b/src/libgcc/ChangeLog
-@@ -1,3 +1,64 @@
+@@ -1,3 +1,96 @@
++2020-05-29  Kyrylo Tkachov  <kyrylo.tkachov@arm.com>
++
++	* config/aarch64/lse-init.c (init_have_lse_atomics): Use __getauxval
++	instead of getauxval.
++	(AT_HWCAP): Define.
++	(HWCAP_ATOMICS): Define.
++	Guard detection on __gnu_linux__.
++
++2020-05-29  Dong JianQiang  <dongjianqiang2@huawei.com>
++
++	PR gcov-profile/95332
++	* libgcov-util.c (read_gcda_file): Call gcov_magic.
++	* libgcov.h (gcov_magic): Disable GCC poison.
++
++2020-05-20  H.J. Lu  <hongjiu.lu@intel.com>
++
++	Backport from master
++	2020-05-20  H.J. Lu  <hongjiu.lu@intel.com>
++
++	PR target/91695
++	* config/i386/cpuinfo.c (get_available_features): Fix VPCLMULQDQ
++	check.
++
++2020-05-19  H.J. Lu  <hongjiu.lu@intel.com>
++
++	Backport from master
++	2020-05-19  H.J. Lu  <hongjiu.lu@intel.com>
++
++	PR target/95220
++	* config/i386/cpuinfo.c (get_available_features): Fix
++	FEATURE_GFNI check.
++
 +2020-05-14  Szabolcs Nagy  <szabolcs.nagy@arm.com>
 +
 +	Backport from mainline.
@@ -11518,7 +13171,7 @@ new file mode 100644
 new file mode 100644
 --- /dev/null
 +++ b/src/libgcc/config/aarch64/lse-init.c
-@@ -0,0 +1,47 @@
+@@ -0,0 +1,48 @@
 +/* Out-of-line LSE atomics for AArch64 architecture, Init.
 +   Copyright (C) 2019 Free Software Foundation, Inc.
 +   Contributed by Linaro Ltd.
@@ -11550,22 +13203,23 @@ new file mode 100644
 +_Bool __aarch64_have_lse_atomics
 +  __attribute__((visibility("hidden"), nocommon));
 +
-+/* Disable initialization of __aarch64_have_lse_atomics during bootstrap.  */
-+#if !defined(inhibit_libc) && defined(HAVE_SYS_AUXV_H)
-+# include <sys/auxv.h>
++/* Gate availability of __getauxval on glibc.  All AArch64-supporting glibc
++   versions support it.  */
++#ifdef __gnu_linux__
 +
-+/* Disable initialization if the system headers are too old.  */
-+# if defined(AT_HWCAP) && defined(HWCAP_ATOMICS)
++# define AT_HWCAP	16
++# define HWCAP_ATOMICS	(1 << 8)
++
++unsigned long int __getauxval (unsigned long int);
 +
 +static void __attribute__((constructor))
 +init_have_lse_atomics (void)
 +{
-+  unsigned long hwcap = getauxval (AT_HWCAP);
++  unsigned long hwcap = __getauxval (AT_HWCAP);
 +  __aarch64_have_lse_atomics = (hwcap & HWCAP_ATOMICS) != 0;
 +}
 +
-+# endif /* HWCAP */
-+#endif /* inhibit_libc */
++#endif /* __gnu_linux__  */
 new file mode 100644
 --- /dev/null
 +++ b/src/libgcc/config/aarch64/lse.S
@@ -11894,6 +13548,33 @@ new file mode 100644
 +
 +$(LSE_OBJS): $(srcdir)/config/aarch64/lse.S
 +	$(gcc_compile) -DL_$(PAT_BASE) -DSIZE=$(PAT_N) -DMODEL=$(PAT_M) -c $<
+--- a/src/libgcc/config/i386/cpuinfo.c
++++ b/src/libgcc/config/i386/cpuinfo.c
+@@ -346,9 +346,13 @@ get_available_features (unsigned int ecx, unsigned int edx,
+ 	{
+ 	  if (ebx & bit_AVX2)
+ 	    set_feature (FEATURE_AVX2);
++	  if (ecx & bit_VPCLMULQDQ)
++	    set_feature (FEATURE_VPCLMULQDQ);
+ 	}
+       if (ebx & bit_BMI2)
+ 	set_feature (FEATURE_BMI2);
++      if (ecx & bit_GFNI)
++	set_feature (FEATURE_GFNI);
+       if (avx512_usable)
+ 	{
+ 	  if (ebx & bit_AVX512F)
+@@ -371,10 +375,6 @@ get_available_features (unsigned int ecx, unsigned int edx,
+ 	    set_feature (FEATURE_AVX512VBMI);
+ 	  if (ecx & bit_AVX512VBMI2)
+ 	    set_feature (FEATURE_AVX512VBMI2);
+-	  if (ecx & bit_GFNI)
+-	    set_feature (FEATURE_GFNI);
+-	  if (ecx & bit_VPCLMULQDQ)
+-	    set_feature (FEATURE_VPCLMULQDQ);
+ 	  if (ecx & bit_AVX512VNNI)
+ 	    set_feature (FEATURE_AVX512VNNI);
+ 	  if (ecx & bit_AVX512BITALG)
 --- a/src/libgcc/config/i386/sfp-exceptions.c
 +++ b/src/libgcc/config/i386/sfp-exceptions.c
 @@ -48,9 +48,7 @@ __sfp_handle_exceptions (int _fex)
@@ -12117,9 +13798,65 @@ new mode 100755
  dnl Check if as supports RTM instructions.
  AC_CACHE_CHECK(for init priority support, libgcc_cv_init_priority, [
  AC_COMPILE_IFELSE([AC_LANG_PROGRAM(,
+--- a/src/libgcc/libgcov-util.c
++++ b/src/libgcc/libgcov-util.c
+@@ -261,7 +261,7 @@ read_gcda_file (const char *filename)
+ {
+   unsigned tags[4];
+   unsigned depth = 0;
+-  unsigned magic, version;
++  unsigned version;
+   struct gcov_info *obj_info;
+   int i;
+ 
+@@ -276,8 +276,7 @@ read_gcda_file (const char *filename)
+     }
+ 
+   /* Read magic.  */
+-  magic = gcov_read_unsigned ();
+-  if (magic != GCOV_DATA_MAGIC)
++  if (!gcov_magic (gcov_read_unsigned (), GCOV_DATA_MAGIC))
+     {
+       fnotice (stderr, "%s:not a gcov data file\n", filename);
+       gcov_close ();
+--- a/src/libgcc/libgcov.h
++++ b/src/libgcc/libgcov.h
+@@ -149,7 +149,7 @@ extern struct gcov_info *gcov_list;
+ 
+ /* Poison these, so they don't accidentally slip in.  */
+ #pragma GCC poison gcov_write_string gcov_write_tag gcov_write_length
+-#pragma GCC poison gcov_time gcov_magic
++#pragma GCC poison gcov_time
+ 
+ #ifdef HAVE_GAS_HIDDEN
+ #define ATTRIBUTE_HIDDEN  __attribute__ ((__visibility__ ("hidden")))
 --- a/src/libgfortran/ChangeLog
 +++ b/src/libgfortran/ChangeLog
-@@ -1,3 +1,8 @@
+@@ -1,3 +1,32 @@
++2020-05-28  Harald Anlauf  <anlauf@gmx.de>
++
++	PR libfortran/95104
++	* io/unit.c (unlock_unit): Guard by check for NULL pointer.
++
++2020-05-27  Harald Anlauf  <anlauf@gmx.de>
++	    Steven G. Kargl   <kargl@gcc.gnu.org>
++
++	PR libfortran/95104
++	* io/transfer.c (st_wait_async): Do not dereference NULL pointer.
++
++2020-05-27  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR libfortran/95191
++	* io/async.c (async_wait_id): Generate error if ID is higher
++	than the highest current ID.
++	* runtime/error.c (translate_error): Handle LIBERROR_BAD_WAIT_ID.
++
++2020-05-22  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR libfortran/95119
++	* io/close.c (close_status): Add CLOSE_INVALID.
++	(st_close): Return early on invalid STATUS parameter.
++
 +2020-04-19  Uroš Bizjak  <ubizjak@gmail.com>
 +
 +	* config/fpu-387.h (local_feraiseexcept) [__SSE_MATH__]:
@@ -12160,9 +13897,111 @@ new mode 100755
  #else
        __asm__ __volatile__ ("fdivs\t%1" : "+t" (f) : "m" (g));
        /* No need for fwait, exception is triggered by emitted fstp.  */
+--- a/src/libgfortran/io/async.c
++++ b/src/libgfortran/io/async.c
+@@ -424,6 +424,13 @@ async_wait_id (st_parameter_common *cmp, async_unit *au, int i)
+     }
+ 
+   LOCK (&au->lock);
++  if (i > au->id.high)
++    {
++      generate_error_common (cmp, LIBERROR_BAD_WAIT_ID, NULL);
++      UNLOCK (&au->lock);
++      return true;
++    }
++
+   NOTE ("Waiting for id %d", i);
+   if (au->id.waiting < i)
+     au->id.waiting = i;
+--- a/src/libgfortran/io/close.c
++++ b/src/libgfortran/io/close.c
+@@ -31,7 +31,7 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+ #endif
+ 
+ typedef enum
+-{ CLOSE_DELETE, CLOSE_KEEP, CLOSE_UNSPECIFIED }
++{ CLOSE_INVALID = - 1, CLOSE_DELETE, CLOSE_KEEP, CLOSE_UNSPECIFIED }
+ close_status;
+ 
+ static const st_option status_opt[] = {
+@@ -61,6 +61,12 @@ st_close (st_parameter_close *clp)
+     find_option (&clp->common, clp->status, clp->status_len,
+ 		 status_opt, "Bad STATUS parameter in CLOSE statement");
+ 
++  if (status == CLOSE_INVALID)
++    {
++      library_end ();
++      return;
++    }
++
+   u = find_unit (clp->common.unit);
+ 
+   if (ASYNC_IO && u && u->au)
+--- a/src/libgfortran/io/transfer.c
++++ b/src/libgfortran/io/transfer.c
+@@ -4473,7 +4473,7 @@ void
+ st_wait_async (st_parameter_wait *wtp)
+ {
+   gfc_unit *u = find_unit (wtp->common.unit);
+-  if (ASYNC_IO && u->au)
++  if (ASYNC_IO && u && u->au)
+     {
+       if (wtp->common.flags & IOPARM_WAIT_HAS_ID)
+ 	async_wait_id (&(wtp->common), u->au, *wtp->id);
+--- a/src/libgfortran/io/unit.c
++++ b/src/libgfortran/io/unit.c
+@@ -767,9 +767,12 @@ close_unit_1 (gfc_unit *u, int locked)
+ void
+ unlock_unit (gfc_unit *u)
+ {
+-  NOTE ("unlock_unit = %d", u->unit_number);
+-  UNLOCK (&u->lock);
+-  NOTE ("unlock_unit done");
++  if (u)
++    {
++      NOTE ("unlock_unit = %d", u->unit_number);
++      UNLOCK (&u->lock);
++      NOTE ("unlock_unit done");
++    }
+ }
+ 
+ /* close_unit()-- Close a unit.  The stream is closed, and any memory
+--- a/src/libgfortran/runtime/error.c
++++ b/src/libgfortran/runtime/error.c
+@@ -616,6 +616,10 @@ translate_error (int code)
+       p = "Inquire statement identifies an internal file";
+       break;
+ 
++    case LIBERROR_BAD_WAIT_ID:
++      p = "Bad ID in WAIT statement";
++      break;
++
+     default:
+       p = "Unknown error code";
+       break;
 --- a/src/libgomp/ChangeLog
 +++ b/src/libgomp/ChangeLog
-@@ -1,3 +1,124 @@
+@@ -1,3 +1,144 @@
++2020-06-04  Thomas Schwinge  <thomas@codesourcery.com>
++
++	* testsuite/libgomp.oacc-fortran/error_stop-1.f: Initialize before
++	the checkpoint.
++	* testsuite/libgomp.oacc-fortran/error_stop-2.f: Likewise.
++	* testsuite/libgomp.oacc-fortran/error_stop-3.f: Likewise.
++	* testsuite/libgomp.oacc-fortran/stop-1.f: Likewise.
++	* testsuite/libgomp.oacc-fortran/stop-2.f: Likewise.
++	* testsuite/libgomp.oacc-fortran/stop-3.f: Likewise.
++
++2020-05-27  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR libfortran/95191
++	* testsuite/libgomp.fortran/async_io_9.f90: New test.
++
++2020-05-22  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR libfortran/95119
++	* testsuite/libgomp.fortran/close_errors_1.f90: New test.
++
 +2020-04-13  Thomas Schwinge  <thomas@codesourcery.com>
 +
 +	PR libgomp/92843
@@ -12528,6 +14367,53 @@ new file mode 100644
 +  corge ();
 +  return 0;
 +}
+new file mode 100644
+--- /dev/null
++++ b/src/libgomp/testsuite/libgomp.fortran/async_io_9.f90
+@@ -0,0 +1,20 @@
++! { dg-do run }
++! PR 95191 - this used to hang.
++! Original test case by Bill Long.
++program test
++  real a(10000)
++  integer my_id
++  integer bad_id
++  integer :: iostat
++  character (len=100) :: iomsg
++  data my_id /1/
++  data bad_id /2/
++  a = 1.
++  open (unit=10, file='test.dat', form='unformatted', &
++       &                asynchronous='yes')
++  write (unit=10, asynchronous='yes', id=my_id) a
++  iomsg = ""
++  wait (unit=10, id=bad_id, iostat=iostat, iomsg=iomsg)
++  if (iostat == 0 .or. iomsg /= "Bad ID in WAIT statement") stop 1
++  close (unit=10, status='delete')
++end program test
+new file mode 100644
+--- /dev/null
++++ b/src/libgomp/testsuite/libgomp.fortran/close_errors_1.f90
+@@ -0,0 +1,19 @@
++! { dg-do run }
++! PR 95115 - this used to hang with -pthread.  Original test case by
++! Bill Long.
++
++program test
++  character(len=16) my_status
++  character(len=1000) :: iomsg
++  open (unit=10, file='test.dat')
++  print *,42
++  write (10, *) 'weird'
++  rewind (10)
++  read (10, *) my_status
++  close (10)
++  open (unit=10, file='test.dat')
++  close (unit=10, status=my_status, iostat=ios, iomsg=iomsg)
++  if (ios == 0) stop 1
++  if (iomsg /= "Bad STATUS parameter in CLOSE statement") stop 2
++  close (10, status='delete')
++end program test
 new file mode 100644
 --- /dev/null
 +++ b/src/libgomp/testsuite/libgomp.oacc-c-c++-common/structured-dynamic-lifetimes-1-lib.c
@@ -13380,6 +15266,84 @@ new file mode 100644
 +
 +  return 0;
 +}
+--- a/src/libgomp/testsuite/libgomp.oacc-fortran/error_stop-1.f
++++ b/src/libgomp/testsuite/libgomp.oacc-fortran/error_stop-1.f
+@@ -3,6 +3,10 @@
+       PROGRAM MAIN
+       IMPLICIT NONE
+ 
++! Initialize before the checkpoint, in case this produces any output.
++!$ACC PARALLEL
++!$ACC END PARALLEL
++
+       PRINT *, "CheCKpOInT"
+ !$ACC PARALLEL
+       ERROR STOP
+--- a/src/libgomp/testsuite/libgomp.oacc-fortran/error_stop-2.f
++++ b/src/libgomp/testsuite/libgomp.oacc-fortran/error_stop-2.f
+@@ -3,6 +3,10 @@
+       PROGRAM MAIN
+       IMPLICIT NONE
+ 
++! Initialize before the checkpoint, in case this produces any output.
++!$ACC PARALLEL
++!$ACC END PARALLEL
++
+       PRINT *, "CheCKpOInT"
+ !$ACC PARALLEL
+       ERROR STOP 35
+--- a/src/libgomp/testsuite/libgomp.oacc-fortran/error_stop-3.f
++++ b/src/libgomp/testsuite/libgomp.oacc-fortran/error_stop-3.f
+@@ -3,6 +3,10 @@
+       PROGRAM MAIN
+       IMPLICIT NONE
+ 
++! Initialize before the checkpoint, in case this produces any output.
++!$ACC PARALLEL
++!$ACC END PARALLEL
++
+       PRINT *, "CheCKpOInT"
+ !$ACC PARALLEL
+       ERROR STOP "SiGN"
+--- a/src/libgomp/testsuite/libgomp.oacc-fortran/stop-1.f
++++ b/src/libgomp/testsuite/libgomp.oacc-fortran/stop-1.f
+@@ -3,6 +3,10 @@
+       PROGRAM MAIN
+       IMPLICIT NONE
+ 
++! Initialize before the checkpoint, in case this produces any output.
++!$ACC PARALLEL
++!$ACC END PARALLEL
++
+       PRINT *, "CheCKpOInT"
+ !$ACC PARALLEL
+       STOP
+--- a/src/libgomp/testsuite/libgomp.oacc-fortran/stop-2.f
++++ b/src/libgomp/testsuite/libgomp.oacc-fortran/stop-2.f
+@@ -3,6 +3,10 @@
+       PROGRAM MAIN
+       IMPLICIT NONE
+ 
++! Initialize before the checkpoint, in case this produces any output.
++!$ACC PARALLEL
++!$ACC END PARALLEL
++
+       PRINT *, "CheCKpOInT"
+ !$ACC PARALLEL
+       STOP 35
+--- a/src/libgomp/testsuite/libgomp.oacc-fortran/stop-3.f
++++ b/src/libgomp/testsuite/libgomp.oacc-fortran/stop-3.f
+@@ -3,6 +3,10 @@
+       PROGRAM MAIN
+       IMPLICIT NONE
+ 
++! Initialize before the checkpoint, in case this produces any output.
++!$ACC PARALLEL
++!$ACC END PARALLEL
++
+       PRINT *, "CheCKpOInT"
+ !$ACC PARALLEL
+       STOP "SiGN"
 --- a/src/libphobos/ChangeLog
 +++ b/src/libphobos/ChangeLog
 @@ -1,3 +1,21 @@
