@@ -76,6 +76,7 @@ debian_patches += \
 	libgomp-no-werror \
 	gdc-cross-build \
 	pr94253 \
+	pr95604 \
 
 ifneq (,$(filter $(distrelease),wheezy jessie stretch buster lucid precise trusty xenial bionic cosmic disco eoan))
   debian_patches += pr85678-revert
@@ -97,9 +98,7 @@ hardening_patches =
 ifneq (,$(filter $(derivative),Ubuntu))
   ifneq (,$(findstring gcc-10, $(PKGSOURCE)))
     hardening_patches += \
-	gcc-distro-specs-doc \
-	gcc-default-fortify-source \
-	gcc-default-relro \
+	gcc-distro-specs-ubuntu-doc \
 	testsuite-hardening-format \
 	testsuite-hardening-printf-types \
 	testsuite-hardening-updates \
@@ -344,6 +343,10 @@ ifeq ($(with_ssp)-$(with_ssp_default),yes-yes)
 	     >> $(srcdir)/gcc/distro-defaults.h
 endif
 ifneq (,$(filter $(derivative),Ubuntu))
+	echo '#define DIST_DEFAULT_FORTIFY_SOURCE 1' \
+	     >> $(srcdir)/gcc/distro-defaults.h
+	echo '#define DIST_DEFAULT_RELRO 1' \
+	     >> $(srcdir)/gcc/distro-defaults.h
   ifneq (,$(findstring gcc-10, $(PKGSOURCE)))
 # FIXME: this is directly patched
 #	echo '#define DIST_DEFAULT_FORTIFY_SOURCE 1' \
