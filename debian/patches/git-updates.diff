@@ -1,7 +1,7 @@
-# DP: updates from the 9 branch upto 20200610 (d76ee72858d).
+# DP: updates from the 9 branch upto 20200615 (a251bf8229e).
 
 LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
-	4212a6a3e44f870412d9025eeb323fd4f50a61da d76ee72858dd373ea2bb4594623eb7590c925e68 \
+	4212a6a3e44f870412d9025eeb323fd4f50a61da a251bf8229e3fca1adaddd822e2bab12a43d8ea6 \
 	| awk '/^diff .*\.texi/ {skip=1; next} /^diff / { skip=0 } skip==0' \
 	| grep -v -E '^(diff|index)'
 
@@ -111,14 +111,23 @@ new file mode 100755
 +            subprocess.check_output(cmd, shell=True)
 +        else:
 +            print('Please resolve all remaining file conflicts.')
---- a/src/gcc/BASE-VER
-+++ b/src/gcc/BASE-VER
-@@ -1 +1 @@
--9.3.0
-+9.3.1
 --- a/src/gcc/ChangeLog
 +++ b/src/gcc/ChangeLog
-@@ -1,3 +1,825 @@
+@@ -1,3 +1,835 @@
++2020-06-12  Martin Liska  <mliska@suse.cz>
++	    Jakub Jelinek  <jakub@redhat.com>
++
++	PR sanitizer/95634
++	* asan.c (asan_emit_stack_protection): Fix emission for ilp32
++	by using Pmode instead of ptr_mode.
++
++2020-06-12  Martin Liska  <mliska@suse.cz>
++
++	PR sanitizer/94910
++	* asan.c (asan_emit_stack_protection): Emit
++	also **SavedFlagPtr(FakeStack, class_id) = 0 in order to release
++	a stack frame.
++
 +2020-06-06  Carl Love  <cel@us.ibm.com>
 +
 +	PR target/94833
@@ -937,10 +946,6 @@ new file mode 100755
 +	Remove set of str_align_loops and str_align_jumps as these
 +	should be set in previous 2 conditions in the function.
 +
-+2020-03-12  Jakub Jelinek  <jakub@redhat.com>
-+
-+	* BASE-VER: Set to 9.3.1.
-+
  2020-03-12  Release Manager
  
  	* GCC 9.3.0 released.
@@ -948,7 +953,7 @@ new file mode 100755
 +++ b/src/gcc/DATESTAMP
 @@ -1 +1 @@
 -20200312
-+20200610
++20200615
 --- a/src/gcc/ada/ChangeLog
 +++ b/src/gcc/ada/ChangeLog
 @@ -1,3 +1,8 @@
@@ -970,6 +975,36 @@ new file mode 100755
  #endif
  #include <windows.h>
  
+--- a/src/gcc/asan.c
++++ b/src/gcc/asan.c
+@@ -1597,8 +1597,25 @@ asan_emit_stack_protection (rtx base, rtx pbase, unsigned int alignb,
+       if (use_after_return_class < 5
+ 	  && can_store_by_pieces (sz, builtin_memset_read_str, &c,
+ 				  BITS_PER_UNIT, true))
+-	store_by_pieces (shadow_mem, sz, builtin_memset_read_str, &c,
+-			 BITS_PER_UNIT, true, RETURN_BEGIN);
++	{
++	  /* Emit:
++	       memset(ShadowBase, kAsanStackAfterReturnMagic, ShadowSize);
++	       **SavedFlagPtr(FakeStack, class_id) = 0
++	  */
++	  store_by_pieces (shadow_mem, sz, builtin_memset_read_str, &c,
++			   BITS_PER_UNIT, true, RETURN_BEGIN);
++
++	  unsigned HOST_WIDE_INT offset
++	    = (1 << (use_after_return_class + 6));
++	  offset -= GET_MODE_SIZE (ptr_mode);
++	  mem = gen_rtx_MEM (ptr_mode, base);
++	  mem = adjust_address (mem, ptr_mode, offset);
++	  rtx addr = gen_reg_rtx (ptr_mode);
++	  emit_move_insn (addr, mem);
++	  addr = convert_memory_address (Pmode, addr);
++	  mem = gen_rtx_MEM (QImode, addr);
++	  emit_move_insn (mem, const0_rtx);
++	}
+       else if (use_after_return_class >= 5
+ 	       || !set_storage_via_setmem (shadow_mem,
+ 					   GEN_INT (sz),
 --- a/src/gcc/builtins.c
 +++ b/src/gcc/builtins.c
 @@ -3112,27 +3112,25 @@ expand_builtin_strnlen (tree exp, rtx target, machine_mode target_mode)
@@ -3912,7 +3947,20 @@ new file mode 100755
    strcpy (da_file_name + prefix_len + len, GCOV_DATA_SUFFIX);
 --- a/src/gcc/cp/ChangeLog
 +++ b/src/gcc/cp/ChangeLog
-@@ -1,3 +1,155 @@
+@@ -1,3 +1,168 @@
++2020-06-11  Marek Polacek  <polacek@redhat.com>
++
++	PR c++/95344
++	* cp-gimplify.c (cp_fold) <case MODIFY_EXPR>: Don't set
++	TREE_THIS_VOLATILE here.
++	(cp_fold): Set it here along with TREE_NO_WARNING.
++
++2020-06-11  Marek Polacek  <polacek@redhat.com>
++
++	PR c++/95560
++	* name-lookup.c (check_local_shadow): Check if types are
++	non-null before calling same_type_p.
++
 +2020-05-25  Jason Merrill  <jason@redhat.com>
 +
 +	PR c++/90212
@@ -4125,6 +4173,19 @@ new file mode 100755
  }
  
  /* Fold expression X which is used as an rvalue if RVAL is true.  */
+@@ -2806,6 +2811,12 @@ cp_fold (tree x)
+       return org_x;
+     }
+ 
++  if (EXPR_P (x) && TREE_CODE (x) == code)
++    {
++      TREE_THIS_VOLATILE (x) = TREE_THIS_VOLATILE (org_x);
++      TREE_NO_WARNING (x) = TREE_NO_WARNING (org_x);
++    }
++
+   fold_cache->put (org_x, x);
+   /* Prevent that we try to fold an already folded result again.  */
+   if (x != org_x)
 --- a/src/gcc/cp/cp-tree.h
 +++ b/src/gcc/cp/cp-tree.h
 @@ -6492,6 +6492,7 @@ extern tree grokfield (const cp_declarator *, cp_decl_specifier_seq *,
@@ -4367,7 +4428,18 @@ new file mode 100755
    if (TREE_CODE (node) == IMPLICIT_CONV_EXPR)
 --- a/src/gcc/cp/name-lookup.c
 +++ b/src/gcc/cp/name-lookup.c
-@@ -2988,7 +2988,8 @@ do_pushdecl (tree decl, bool is_friend)
+@@ -2751,7 +2751,9 @@ check_local_shadow (tree decl)
+       else if (warn_shadow_local)
+ 	warning_code = OPT_Wshadow_local;
+       else if (warn_shadow_compatible_local
+-	       && (same_type_p (TREE_TYPE (old), TREE_TYPE (decl))
++	       && ((TREE_TYPE (old)
++		    && TREE_TYPE (decl)
++		    && same_type_p (TREE_TYPE (old), TREE_TYPE (decl)))
+ 		   || (!dependent_type_p (TREE_TYPE (decl))
+ 		       && !dependent_type_p (TREE_TYPE (old))
+ 		       /* If the new decl uses auto, we don't yet know
+@@ -2988,7 +2990,8 @@ do_pushdecl (tree decl, bool is_friend)
    /* The binding level we will be pushing into.  During local class
       pushing, we want to push to the containing scope.  */
    cp_binding_level *level = current_binding_level;
@@ -4377,7 +4449,7 @@ new file mode 100755
      level = level->level_chain;
  
    /* An anonymous namespace has a NULL DECL_NAME, but we still want to
-@@ -7626,10 +7627,10 @@ maybe_save_operator_binding (tree e)
+@@ -7626,10 +7629,10 @@ maybe_save_operator_binding (tree e)
  
    if (!fns && (fns = op_unqualified_lookup (fnname)))
      {
@@ -5463,7 +5535,41 @@ new file mode 100755
  				    "division"),
 --- a/src/gcc/fortran/ChangeLog
 +++ b/src/gcc/fortran/ChangeLog
-@@ -1,3 +1,201 @@
+@@ -1,3 +1,235 @@
++2020-06-14  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/95503
++	* expr.c (gfc_check_pointer_assign): Skip contiguity check of rhs
++	of pointer assignment if lhs cannot be simply contiguous.
++
++2020-06-14  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/94109
++	* class.c (finalize_component): Return early if finalization has
++	already happened for expression and component within namespace.
++	* gfortran.h (gfc_was_finalized): New type.
++	(gfc_namespace): Add member was_finalzed.
++	(gfc_expr): Remove finalized.
++	* symbol.c (gfc_free_namespace): Free was_finalized.
++
++2020-06-11  Harald Anlauf  <anlauf@gmx.de>
++	    Steven G. Kargl   <kargl@gcc.gnu.org>
++
++	PR fortran/95611
++	* decl.c (access_attr_decl): Use correct symbol in error message.
++
++2020-06-11  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/95091
++	* class.c (gfc_hash_value): Add cast.
++
++2020-06-11  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/95091
++	* class.c (get_unique_type_string, gfc_hash_value): Enlarge
++	buffers, and check whether the strings returned by
++	get_unique_type_string() fit.
++
 +2020-06-05  Harald Anlauf  <anlauf@gmx.de>
 +
 +	PR fortran/95373
@@ -5693,16 +5799,57 @@ new file mode 100755
    m = ap->next->next->next->expr;
 --- a/src/gcc/fortran/class.c
 +++ b/src/gcc/fortran/class.c
-@@ -911,7 +911,7 @@ finalize_component (gfc_expr *expr, gfc_symbol *derived, gfc_component *comp,
+@@ -501,8 +501,11 @@ get_unique_type_string (char *string, gfc_symbol *derived)
+ static void
+ get_unique_hashed_string (char *string, gfc_symbol *derived)
+ {
+-  char tmp[2*GFC_MAX_SYMBOL_LEN+2];
++  /* Provide sufficient space to hold "symbol.symbol_symbol".  */
++  char tmp[3*GFC_MAX_SYMBOL_LEN+3];
+   get_unique_type_string (&tmp[0], derived);
++  size_t len = strnlen (tmp, sizeof (tmp));
++  gcc_assert (len < sizeof (tmp));
+   /* If string is too long, use hash value in hex representation (allow for
+      extra decoration, cf. gfc_build_class_symbol & gfc_find_derived_vtab).
+      We need space to for 15 characters "__class_" + symbol name + "_%d_%da",
+@@ -523,11 +526,13 @@ unsigned int
+ gfc_hash_value (gfc_symbol *sym)
+ {
+   unsigned int hash = 0;
+-  char c[2*(GFC_MAX_SYMBOL_LEN+1)];
++  /* Provide sufficient space to hold "symbol.symbol_symbol".  */
++  char c[3*GFC_MAX_SYMBOL_LEN+3];
+   int i, len;
+ 
+   get_unique_type_string (&c[0], sym);
+-  len = strlen (c);
++  len = strnlen (c, sizeof (c));
++  gcc_assert ((size_t) len < sizeof (c));
+ 
+   for (i = 0; i < len; i++)
+     hash = (hash << 6) + (hash << 16) - hash + c[i];
+@@ -907,12 +912,18 @@ finalize_component (gfc_expr *expr, gfc_symbol *derived, gfc_component *comp,
+ {
+   gfc_expr *e;
+   gfc_ref *ref;
++  gfc_was_finalized *f;
+ 
    if (!comp_is_finalizable (comp))
      return;
  
 -  if (comp->finalized)
-+  if (expr->finalized)
-     return;
+-    return;
++  /* If this expression with this component has been finalized
++     already in this namespace, there is nothing to do.  */
++  for (f = sub_ns->was_finalized; f; f = f->next)
++    {
++      if (f->e == expr && f->c == comp)
++	return;
++    }
  
    e = gfc_copy_expr (expr);
-@@ -1002,6 +1002,7 @@ finalize_component (gfc_expr *expr, gfc_symbol *derived, gfc_component *comp,
+   if (!e->ref)
+@@ -1002,6 +1013,7 @@ finalize_component (gfc_expr *expr, gfc_symbol *derived, gfc_component *comp,
  	}
        else
  	(*code) = cond;
@@ -5710,12 +5857,18 @@ new file mode 100755
      }
    else if (comp->ts.type == BT_DERIVED
  	    && comp->ts.u.derived->f2k_derived
-@@ -1041,7 +1042,7 @@ finalize_component (gfc_expr *expr, gfc_symbol *derived, gfc_component *comp,
+@@ -1041,7 +1053,13 @@ finalize_component (gfc_expr *expr, gfc_symbol *derived, gfc_component *comp,
  			    sub_ns);
        gfc_free_expr (e);
      }
 -  comp->finalized = true;
-+  expr->finalized = 1;
++
++  /* Record that this was finalized already in this namespace.  */
++  f = sub_ns->was_finalized;
++  sub_ns->was_finalized = XCNEW (gfc_was_finalized);
++  sub_ns->was_finalized->e = expr;
++  sub_ns->was_finalized->c = comp;
++  sub_ns->was_finalized->next = f;
  }
  
  
@@ -5831,6 +5984,15 @@ new file mode 100755
  	      m = MATCH_ERROR;
  	      goto cleanup;
  	    }
+@@ -8962,7 +8988,7 @@ access_attr_decl (gfc_statement st)
+ 	  else
+ 	    {
+ 	      gfc_error ("Access specification of the .%s. operator at %C "
+-			 "has already been specified", sym->name);
++			 "has already been specified", uop->name);
+ 	      goto done;
+ 	    }
+ 
 @@ -9602,13 +9628,20 @@ gfc_match_submod_proc (void)
    if (get_proc_name (name, &sym, false))
      return MATCH_ERROR;
@@ -5857,6 +6019,19 @@ new file mode 100755
        else
  	sym->result = sym;
      }
+--- a/src/gcc/fortran/expr.c
++++ b/src/gcc/fortran/expr.c
+@@ -4300,7 +4300,9 @@ gfc_check_pointer_assign (gfc_expr *lvalue, gfc_expr *rvalue,
+      contiguous.  Be lenient in the definition of what counts as
+      contiguous.  */
+ 
+-  if (lhs_attr.contiguous && !gfc_is_simply_contiguous (rvalue, false, true))
++  if (lhs_attr.contiguous
++      && lhs_attr.dimension > 0
++      && !gfc_is_simply_contiguous (rvalue, false, true))
+     gfc_warning (OPT_Wextra, "Assignment to contiguous pointer from "
+ 		 "non-contiguous target at %L", &rvalue->where);
+ 
 --- a/src/gcc/fortran/gfortran.h
 +++ b/src/gcc/fortran/gfortran.h
 @@ -1094,7 +1094,6 @@ typedef struct gfc_component
@@ -5889,13 +6064,39 @@ new file mode 100755
    struct gfc_symbol *head;
    const char* binding_label;
    int is_bind_c;
-@@ -2187,6 +2190,10 @@ typedef struct gfc_expr
+@@ -1746,6 +1749,16 @@ gfc_oacc_routine_name;
+ 
+ #define gfc_get_oacc_routine_name() XCNEW (gfc_oacc_routine_name)
+ 
++/* Node in linked list to see what has already been finalized
++   earlier.  */
++
++typedef struct gfc_was_finalized {
++  gfc_expr *e;
++  gfc_component *c;
++  struct gfc_was_finalized *next;
++}
++gfc_was_finalized;
++
+ /* A namespace describes the contents of procedure, module, interface block
+    or BLOCK construct.  */
+ /* ??? Anything else use these?  */
+@@ -1838,6 +1851,11 @@ typedef struct gfc_namespace
+   /* Linked list of !$omp declare simd constructs.  */
+   struct gfc_omp_declare_simd *omp_declare_simd;
+ 
++  /* A hash set for the the gfc expressions that have already
++     been finalized in this namespace.  */
++
++  gfc_was_finalized *was_finalized;
++
+   /* Set to 1 if namespace is a BLOCK DATA program unit.  */
+   unsigned is_block_data:1;
+ 
+@@ -2187,6 +2205,7 @@ typedef struct gfc_expr
    /* Set this if no warning should be given somewhere in a lower level.  */
  
    unsigned int do_not_warn : 1;
-+
-+  /* Set this if the expression has already been finalized.  */
-+  unsigned int finalized : 1;
 +
    /* If an expression comes from a Hollerith constant or compile-time
       evaluation of a transfer statement, it may have a prescribed target-
@@ -6156,6 +6357,32 @@ new file mode 100755
 +      gfc_error ("Symbol %qs at %L cannot have a type", sym->ns->proc_name->name, where);
        return false;
      }
+ 
+@@ -4030,6 +4033,7 @@ gfc_free_namespace (gfc_namespace *ns)
+ {
+   gfc_namespace *p, *q;
+   int i;
++  gfc_was_finalized *f;
+ 
+   if (ns == NULL)
+     return;
+@@ -4062,6 +4066,17 @@ gfc_free_namespace (gfc_namespace *ns)
+     gfc_free_interface (ns->op[i]);
+ 
+   gfc_free_data (ns->data);
++
++  /* Free all the expr + component combinations that have been
++     finalized.  */
++  f = ns->was_finalized;
++  while (f)
++    {
++      gfc_was_finalized* current = f;
++      f = f->next;
++      free (current);
++    }
++
+   p = ns->contained;
+   free (ns);
  
 --- a/src/gcc/fortran/trans-array.c
 +++ b/src/gcc/fortran/trans-array.c
@@ -6494,7 +6721,39 @@ new file mode 100755
  extern void init_resource_info (rtx_insn *);
 --- a/src/gcc/testsuite/ChangeLog
 +++ b/src/gcc/testsuite/ChangeLog
-@@ -1,3 +1,709 @@
+@@ -1,3 +1,741 @@
++2020-06-14  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/95503
++	* gfortran.dg/pr95503.f90: New test.
++
++2020-06-14  Thomas Koenig  <tkoenig@gcc.gnu.org>
++
++	PR fortran/94109
++	* gfortran.dg/finalize_34.f90: Adjust free counts.
++	* gfortran.dg/finalize_36.f90: New test.
++
++2020-06-11  Marek Polacek  <polacek@redhat.com>
++
++	PR c++/95344
++	* c-c++-common/Wparentheses-2.c: New test.
++
++2020-06-11  Marek Polacek  <polacek@redhat.com>
++
++	PR c++/95560
++	* g++.dg/warn/Wshadow-compatible-local-3.C: New test.
++
++2020-06-11  Harald Anlauf  <anlauf@gmx.de>
++	    Steven G. Kargl   <kargl@gcc.gnu.org>
++
++	PR fortran/95611
++	* gfortran.dg/pr95611.f90: New file.
++
++2020-06-11  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/95091
++	* gfortran.dg/pr95091.f90: New file.
++
 +2020-06-06  Carl Love  <cel@us.ibm.com>
 +
 +	PR target/94833
@@ -7204,6 +7463,28 @@ new file mode 100755
  2020-03-12  Release Manager
  
  	* GCC 9.3.0 released.
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/c-c++-common/Wparentheses-2.c
+@@ -0,0 +1,18 @@
++// PR c++/95344 - bogus -Wparentheses warning.
++// { dg-do compile }
++// { dg-options "-Wparentheses" }
++
++#ifndef __cplusplus
++# define bool _Bool
++# define true 1
++# define false 0
++#endif
++
++void
++f (int i)
++{
++  bool b = false;
++  if (i == 99 ? (b = true) : false) // { dg-bogus "suggest parentheses" }
++    {
++    }
++}
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/c-c++-common/pr94385.c
@@ -8138,6 +8419,18 @@ new file mode 100644
 +main ()
 +{
 +  a[2].foo ();
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/g++.dg/warn/Wshadow-compatible-local-3.C
+@@ -0,0 +1,8 @@
++// PR c++/95560
++// { dg-do compile { target c++11 } }
++// { dg-options "-Wshadow=compatible-local" }
++
++template <typename> void fn1() {
++  bool ready;
++  enum class State { ready };
 +}
 --- a/src/gcc/testsuite/g++.dg/warn/Wunused-var-26.C
 +++ b/src/gcc/testsuite/g++.dg/warn/Wunused-var-26.C
@@ -11530,7 +11823,7 @@ new file mode 100644
    type(evtlist_type), dimension(10) :: a
  end program main
 -! { dg-final  { scan-tree-dump-times "__builtin_free" 8 "original" } }
-+! { dg-final  { scan-tree-dump-times "__builtin_free" 12 "original" } }
++! { dg-final  { scan-tree-dump-times "__builtin_free" 24 "original" } }
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/gfortran.dg/finalize_35.f90
@@ -11583,6 +11876,49 @@ new file mode 100644
 +
 +end program run
 +! { dg-final  { scan-tree-dump-times "__builtin_free\\ \\(ptr2" 2 "original" } }
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/finalize_36.f90
+@@ -0,0 +1,39 @@
++! { dg-do run }
++! { dg-additional-options "-fdump-tree-original" }
++! PR 94109
++! This used to leak memory.  Test case by Antony Lewis.
++    module debug
++    implicit none
++
++    Type Tester
++        real, dimension(:), allocatable :: Dat, Dat2
++    end Type
++
++    Type TestType2
++        Type(Tester) :: T
++    end type TestType2
++
++    contains
++
++    subroutine Leaker
++    class(TestType2), pointer :: ActiveState
++    Type(Tester) :: Temp
++
++    allocate(Temp%Dat2(10000))
++
++    allocate(TestType2::ActiveState)
++    ActiveState%T = Temp
++    deallocate(ActiveState)
++
++    end subroutine
++
++    end module
++
++
++    program run
++    use debug
++
++    call Leaker()
++
++    end program
++! { dg-final { scan-tree-dump-times "__builtin_free\\ \\(ptr2" 4 "original" } }
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/gfortran.dg/graphite/vect-pr94043.f90
@@ -12032,6 +12368,29 @@ new file mode 100644
 +end program
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/pr95091.f90
+@@ -0,0 +1,19 @@
++! { dg-do compile }
++! { dg-options "-fsecond-underscore" }
++! PR fortran/95091 - ICE in gfc_hash_value
++
++module m2345678901234567890123456789012345678901234567890123456789_123
++  type t2345678901234567890123456789012345678901234567890123456789_123
++  end type t2345678901234567890123456789012345678901234567890123456789_123
++  interface
++     module subroutine s2345678901234567890123456789012345678901234567890123456789_123 &
++          (x2345678901234567890123456789012345678901234567890123456789_123)
++    end
++  end interface
++end
++submodule(m2345678901234567890123456789012345678901234567890123456789_123) &
++     n2345678901234567890123456789012345678901234567890123456789_123
++  type, extends(t2345678901234567890123456789012345678901234567890123456789_123) :: &
++    u2345678901234567890123456789012345678901234567890123456789_123
++  end type
++end
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/gfortran.dg/pr95104.f90
 @@ -0,0 +1,8 @@
 +! { dg-do run }
@@ -12101,6 +12460,28 @@ new file mode 100644
 +end program test_intrinsic
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/pr95503.f90
+@@ -0,0 +1,7 @@
++! { dg-do compile }
++! PR fortran/95503 - ICE in gfc_is_simply_contiguous
++
++program p
++  complex, target :: a
++  real, pointer, contiguous :: b => a%re ! { dg-error "not an array pointer" }
++end
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/pr95611.f90
+@@ -0,0 +1,7 @@
++! { dg-do compile }
++! PR fortran/95611 - ICE in access_attr_decl, at fortran/decl.c:9075
++
++module m
++  public operator (.a.)
++  public operator (.a.) ! { dg-error "has already been specified" }
++end
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/gfortran.dg/warn_unused_dummy_argument_6.f90
 @@ -0,0 +1,13 @@
 +! { dg-do compile }
@@ -12116,6 +12497,21 @@ new file mode 100644
 +    call meh(bar)
 +  end subroutine foo_internal
 +end subroutine foo
+--- a/src/gcc/testsuite/go.test/test/fixedbugs/issue4085b.go
++++ b/src/gcc/testsuite/go.test/test/fixedbugs/issue4085b.go
+@@ -21,9 +21,11 @@ func main() {
+ 	shouldPanic("cap out of range", func() { _ = make(T, 0, int64(n)) })
+ 	var t *byte
+ 	if unsafe.Sizeof(t) == 8 {
+-		var n2 int64 = 1 << 50
++		// Test mem > maxAlloc
++		var n2 int64 = 1 << 59
+ 		shouldPanic("len out of range", func() { _ = make(T, int(n2)) })
+ 		shouldPanic("cap out of range", func() { _ = make(T, 0, int(n2)) })
++		// Test elem.size*cap overflow
+ 		n2 = 1<<63 - 1
+ 		shouldPanic("len out of range", func() { _ = make(T, int(n2)) })
+ 		shouldPanic("cap out of range", func() { _ = make(T, 0, int(n2)) })
 --- a/src/gcc/tree-data-ref.c
 +++ b/src/gcc/tree-data-ref.c
 @@ -4369,17 +4369,19 @@ build_classic_dist_vector_1 (struct data_dependence_relation *ddr,
