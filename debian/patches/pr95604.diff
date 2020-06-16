@@ -1,0 +1,61 @@
+# DP: Fix PR lto/95604, proposed patch
+
+	PR lto/95604
+	* lto-wrapper.c (merge_and_complain): Warn about different
+	values for -fcf-protection.
+	(append_compiler_options): Pass -fcf-protection option.
+	* lto-opts.c (lto_write_options): Pass -fcf-protection option.
+
+--- a/src/gcc/lto-opts.c
++++ b/src/gcc/lto-opts.c
+@@ -94,6 +94,21 @@ lto_write_options (void)
+ 				      : "-fno-pie");
+     }
+ 
++  if (!global_options_set.x_flag_cf_protection)
++    {
++      append_to_collect_gcc_options (
++        &temporary_obstack, &first_p,
++	global_options.x_flag_cf_protection == CF_NONE
++	? "-fcf-protection=none"
++	: global_options.x_flag_cf_protection == CF_FULL
++	? "-fcf-protection=full"
++	: global_options.x_flag_cf_protection == CF_BRANCH
++	? "-fcf-protection=branch"
++	: global_options.x_flag_cf_protection == CF_RETURN
++	? "-fcf-protection=RETURN"
++	: "");
++    }
++
+   /* If debug info is enabled append -g.  */
+   if (debug_info_level > DINFO_LEVEL_NONE)
+     append_to_collect_gcc_options (&temporary_obstack, &first_p, "-g");
+--- a/src/gcc/lto-wrapper.c
++++ b/src/gcc/lto-wrapper.c
+@@ -287,6 +287,18 @@
+ 			 foption->orig_option_with_args_text);
+ 	  break;
+ 
++	case OPT_fcf_protection_:
++	  /* Append or check identical.  */
++	  for (j = 0; j < *decoded_options_count; ++j)
++	    if ((*decoded_options)[j].opt_index == foption->opt_index)
++	      break;
++	  if (j == *decoded_options_count)
++	    append_option (decoded_options, decoded_options_count, foption);
++	  else if (strcmp ((*decoded_options)[j].arg, foption->arg))
++	    warning (input_location, "option %s with different values",
++		     foption->orig_option_with_args_text);
++	  break;
++
+ 	case OPT_O:
+ 	case OPT_Ofast:
+ 	case OPT_Og:
+@@ -645,6 +677,7 @@
+ 	case OPT_fopenacc:
+ 	case OPT_fopenacc_dim_:
+ 	case OPT_foffload_abi_:
++	case OPT_fcf_protection_:
+ 	case OPT_g:
+ 	case OPT_O:
+ 	case OPT_Ofast:

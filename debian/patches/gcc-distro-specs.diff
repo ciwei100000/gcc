@@ -14,7 +14,7 @@
  #include "config.h"
  #include "system.h"
  #include "coretypes.h"
-@@ -875,6 +880,69 @@ proper position among the other output f
+@@ -875,6 +880,82 @@ proper position among the other output f
  #define LINK_GCC_C_SEQUENCE_SPEC "%G %{!nolibc:%L %G}"
  #endif
  
@@ -72,6 +72,14 @@
 +# endif
 +#endif
 +
++#ifndef RELRO_SPEC
++# ifdef DIST_DEFAULT_RELRO
++#  define RELRO_SPEC " -z relro "
++# else
++#  define RELRO_SPEC ""
++# endif
++#endif
++
 +/* Don't enable any of those for the offload compilers,
 +   unsupported.  */
 +#if !defined(DISTRO_DEFAULT_SPEC) && !defined(ACCEL_COMPILER)
@@ -80,19 +88,24 @@
 +#else
 +# define DISTRO_DEFAULT_SPEC ""
 +#endif
++#if !defined(DISTRO_DEFAULT_LINK_SPEC) && !defined(ACCEL_COMPILER)
++# define DISTRO_DEFAULT_LINK_SPEC RELRO_SPEC
++#else
++# define DISTRO_DEFAULT_LINK_SPEC ""
++#endif
 +
  #ifndef LINK_SSP_SPEC
  #ifdef TARGET_LIBC_PROVIDES_SSP
  #define LINK_SSP_SPEC "%{fstack-protector|fstack-protector-all" \
-@@ -1040,6 +1108,7 @@ proper position among the other output f
+@@ -1040,6 +1121,7 @@ proper position among the other output f
     "%{flto|flto=*:%<fcompare-debug*} \
      %{flto} %{fno-lto} %{flto=*} %l " LINK_PIE_SPEC \
     "%{fuse-ld=*:-fuse-ld=%*} " LINK_COMPRESS_DEBUG_SPEC \
-+   CF_PROTECTION_SPEC \
++    DISTRO_DEFAULT_LINK_SPEC \
     "%X %{o*} %{e*} %{N} %{n} %{r}\
      %{s} %{t} %{u*} %{z} %{Z} %{!nostdlib:%{!r:%{!nostartfiles:%S}}} \
      %{static|no-pie|static-pie:} %@{L*} %(mfwrap) %(link_libgcc) " \
-@@ -1079,6 +1148,7 @@ static const char *cpp_spec = CPP_SPEC;
+@@ -1079,6 +1161,7 @@ static const char *cpp_spec = CPP_SPEC;
  static const char *cc1_spec = CC1_SPEC;
  static const char *cc1plus_spec = CC1PLUS_SPEC;
  static const char *link_gcc_c_sequence_spec = LINK_GCC_C_SEQUENCE_SPEC;
@@ -100,7 +113,7 @@
  static const char *link_ssp_spec = LINK_SSP_SPEC;
  static const char *asm_spec = ASM_SPEC;
  static const char *asm_final_spec = ASM_FINAL_SPEC;
-@@ -1136,7 +1206,7 @@ static const char *cpp_options =
+@@ -1136,7 +1219,7 @@ static const char *cpp_options =
  "%(cpp_unique_options) %1 %{m*} %{std*&ansi&trigraphs} %{W*&pedantic*} %{w}\
   %{f*} %{g*:%{%:debug-level-gt(0):%{g*}\
   %{!fno-working-directory:-fworking-directory}}} %{O*}\
@@ -109,7 +122,7 @@
  
  /* This contains cpp options which are not passed when the preprocessor
     output will be used by another program.  */
-@@ -1319,9 +1389,9 @@ static const struct compiler default_com
+@@ -1319,9 +1402,9 @@ static const struct compiler default_com
        %{save-temps*|traditional-cpp|no-integrated-cpp:%(trad_capable_cpp) \
  	  %(cpp_options) -o %{save-temps*:%b.i} %{!save-temps*:%g.i} \n\
  	    cc1 -fpreprocessed %{save-temps*:%b.i} %{!save-temps*:%g.i} \
@@ -121,7 +134,7 @@
        %{!fsyntax-only:%(invoke_as)}}}}", 0, 0, 1},
    {"-",
     "%{!E:%e-E or -x required when input is from standard input}\
-@@ -1335,18 +1405,18 @@ static const struct compiler default_com
+@@ -1335,18 +1418,18 @@ static const struct compiler default_com
  	  %{save-temps*|traditional-cpp|no-integrated-cpp:%(trad_capable_cpp) \
  		%(cpp_options) -o %{save-temps*:%b.i} %{!save-temps*:%g.i} \n\
  		    cc1 -fpreprocessed %{save-temps*:%b.i} %{!save-temps*:%g.i} \
@@ -143,7 +156,7 @@
    {".s", "@assembler", 0, 0, 0},
    {"@assembler",
     "%{!M:%{!MM:%{!E:%{!S:as %(asm_debug) %(asm_options) %i %A }}}}", 0, 0, 0},
-@@ -1577,6 +1647,7 @@ static struct spec_list static_specs[] =
+@@ -1577,6 +1660,7 @@ static struct spec_list static_specs[] =
    INIT_STATIC_SPEC ("cc1_options",		&cc1_options),
    INIT_STATIC_SPEC ("cc1plus",			&cc1plus_spec),
    INIT_STATIC_SPEC ("link_gcc_c_sequence",	&link_gcc_c_sequence_spec),
@@ -242,3 +255,30 @@
 -    cc1objplus -fpreprocessed %i %(cc1_options) %2\
 +    cc1objplus -fpreprocessed %i %(cc1_options) %(distro_defaults) %2\
      %{!fsyntax-only:%(invoke_as)}}}}", 0, 0, 0},
+--- a/src/gcc/c-family/c-cppbuiltin.c
++++ b/src/gcc/c-family/c-cppbuiltin.c
+@@ -17,6 +17,11 @@ You should have received a copy of the G
+ along with GCC; see the file COPYING3.  If not see
+ <http://www.gnu.org/licenses/>.  */
+ 
++/* Inject some default compilation flags which are used as the default.
++   Done by the packaging build system.  Should that be done in the headers
++   gcc/config/<arch>/*.h instead?  */
++#include "distro-defaults.h"
++
+ #include "config.h"
+ #include "system.h"
+ #include "coretypes.h"
+@@ -1357,6 +1362,12 @@ c_cpp_builtins (cpp_reader *pfile)
+   builtin_define_with_value ("__REGISTER_PREFIX__", REGISTER_PREFIX, 0);
+   builtin_define_with_value ("__USER_LABEL_PREFIX__", user_label_prefix, 0);
+ 
++#ifdef DIST_DEFAULT_FORTIFY_SOURCE
++  /* Fortify Source enabled by default for optimization levels > 0 */
++  if (optimize)
++    builtin_define_with_int_value ("_FORTIFY_SOURCE", 2);
++#endif
++
+   /* Misc.  */
+   if (flag_gnu89_inline)
+     cpp_define (pfile, "__GNUC_GNU_INLINE__");
