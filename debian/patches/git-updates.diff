@@ -1,7 +1,7 @@
-# DP: updates from the 9 branch upto 20200615 (a251bf8229e).
+# DP: updates from the 9 branch upto 20200617 (d2132067ab2).
 
 LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
-	4212a6a3e44f870412d9025eeb323fd4f50a61da a251bf8229e3fca1adaddd822e2bab12a43d8ea6 \
+	4212a6a3e44f870412d9025eeb323fd4f50a61da d2132067ab23f9ab135f81fba816e39e5940c098 \
 	| awk '/^diff .*\.texi/ {skip=1; next} /^diff / { skip=0 } skip==0' \
 	| grep -v -E '^(diff|index)'
 
@@ -953,7 +953,7 @@ new file mode 100755
 +++ b/src/gcc/DATESTAMP
 @@ -1 +1 @@
 -20200312
-+20200615
++20200617
 --- a/src/gcc/ada/ChangeLog
 +++ b/src/gcc/ada/ChangeLog
 @@ -1,3 +1,8 @@
@@ -3947,7 +3947,13 @@ new file mode 100755
    strcpy (da_file_name + prefix_len + len, GCOV_DATA_SUFFIX);
 --- a/src/gcc/cp/ChangeLog
 +++ b/src/gcc/cp/ChangeLog
-@@ -1,3 +1,168 @@
+@@ -1,3 +1,174 @@
++2020-06-16  Patrick Palka  <ppalka@redhat.com>
++
++	PR c++/95678
++	* tree.c (zero_init_expr_p): Use uses_template_parms instead of
++	dependent_type_p.
++
 +2020-06-11  Marek Polacek  <polacek@redhat.com>
 +
 +	PR c++/95344
@@ -4848,7 +4854,7 @@ new file mode 100755
 +zero_init_expr_p (tree t)
 +{
 +  tree type = TREE_TYPE (t);
-+  if (!type || dependent_type_p (type))
++  if (!type || uses_template_parms (type))
 +    return false;
 +  if (zero_init_p (type))
 +    return initializer_zerop (t);
@@ -6721,7 +6727,12 @@ new file mode 100755
  extern void init_resource_info (rtx_insn *);
 --- a/src/gcc/testsuite/ChangeLog
 +++ b/src/gcc/testsuite/ChangeLog
-@@ -1,3 +1,741 @@
+@@ -1,3 +1,746 @@
++2020-06-16  Patrick Palka  <ppalka@redhat.com>
++
++	PR c++/95678
++	* g++.dg/cpp0x/dependent3.C: New test.
++
 +2020-06-14  Harald Anlauf  <anlauf@gmx.de>
 +
 +	PR fortran/95503
@@ -7591,6 +7602,38 @@ new file mode 100644
 +void af() { v<f>(); }
 +
 +// { dg-final { scan-assembler "_Z1vI1fE1xIXplLi0EsrT_1dEEv" } }
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/g++.dg/cpp0x/dependent3.C
+@@ -0,0 +1,28 @@
++// { dg-do compile { target c++11 } }
++
++template<typename c>
++struct d
++{
++  using e = c;
++};
++
++template<class f>
++struct g
++{
++  using h = typename d<f>::e;
++
++  template<class i, class j>
++  auto operator()(i, j k) -> decltype(h{k});
++};
++
++template<class l>
++void m()
++{
++  int a[1];
++  l{}(a, a);
++}
++
++int main()
++{
++  m<g<int *>>();
++}
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/g++.dg/cpp0x/enum40.C
