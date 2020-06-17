@@ -319,8 +319,11 @@ $(patch_stamp): $(unpack_stamp) $(series_stamp)
 
 	: # generate the distro-defaults.h header
 	rm -f $(srcdir)/gcc/distro-defaults.h
-	echo '/* distro specific configuration injected by the distro build.  */' \
-	     >> $(srcdir)/gcc/distro-defaults.h
+	( \
+	  echo '/* distro specific configuration injected by the distro build.  */'; \
+	  echo ''; \
+	  echo '#ifndef ACCEL_COMPILER' \
+	) >> $(srcdir)/gcc/distro-defaults.h
 ifeq ($(with_async_unwind),yes)
 	echo '#define DIST_DEFAULT_ASYNC_UNWIND 1' \
 	     >> $(srcdir)/gcc/distro-defaults.h
@@ -359,6 +362,8 @@ else ifneq (,$(filter $(derivative),Debian))
   ifneq (,$(findstring gcc-10, $(PKGSOURCE)))
   endif
 endif
+	  echo '#endif' \
+	     >> $(srcdir)/gcc/distro-defaults.h
 
 	mv pxxx $@
 
