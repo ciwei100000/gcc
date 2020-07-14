@@ -6088,7 +6088,7 @@ Description: Documentation for the GNU compilers (gcc, gobjc, g++)
 
 ifenabled(`olnvptx',`
 Package: gcc`'PV-offload-nvptx
-Architecture: amd64 ppc64el
+Architecture: amd64 arm64 ppc64el
 ifdef(`TARGET',`Multi-Arch: foreign
 ')dnl
 Priority: optional
@@ -6103,7 +6103,7 @@ Description: GCC offloading compiler to NVPTX
 
 ifenabled(`gompnvptx',`
 Package: libgomp-plugin-nvptx`'GOMP_SO
-Architecture: amd64 ppc64el
+Architecture: amd64 arm64 ppc64el
 Multi-Arch: same
 Section: libs
 Depends: BASEDEP, libgomp`'GOMP_SO`'LS, ${shlibs:Depends}, ${misc:Depends}
@@ -6154,8 +6154,8 @@ Depends: BASEDEP, libgomp`'GOMP_SO`'LS, ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
 Description: GCC OpenMP v4.5 plugin for offloading to HSA
  This package contains libgomp plugin for offloading to HSA.
-')`'dnl gompnvptx
-')`'dnl olnvptx
+')`'dnl gomphsa
+')`'dnl olhsa
 
 ifdef(`TARGET',`',`dnl
 ifenabled(`libnof',`
