@@ -6088,7 +6088,7 @@ Description: Documentation for the GNU compilers (gcc, gobjc, g++)
 
 ifenabled(`olnvptx',`
 Package: gcc`'PV-offload-nvptx
-Architecture: amd64 arm64 ppc64el
+Architecture: nvptx_archs
 ifdef(`TARGET',`Multi-Arch: foreign
 ')dnl
 Priority: optional
@@ -6103,7 +6103,7 @@ Description: GCC offloading compiler to NVPTX
 
 ifenabled(`gompnvptx',`
 Package: libgomp-plugin-nvptx`'GOMP_SO
-Architecture: amd64 arm64 ppc64el
+Architecture: nvptx_archs
 Multi-Arch: same
 Section: libs
 Depends: BASEDEP, libgomp`'GOMP_SO`'LS, ${shlibs:Depends}, ${misc:Depends}
@@ -6118,7 +6118,7 @@ Description: GCC OpenMP v4.5 plugin for offloading to NVPTX
 
 ifenabled(`olgcn',`
 Package: gcc`'PV-offload-amdgcn
-Architecture: amd64
+Architecture: gcn_archs
 ifdef(`TARGET',`Multi-Arch: foreign
 ')dnl
 Priority: optional
@@ -6134,7 +6134,7 @@ Description: GCC offloading compiler to GCN
 
 ifenabled(`gompgcn',`
 Package: libgomp-plugin-amdgcn`'GOMP_SO
-Architecture: amd64
+Architecture: gcn_archs
 Multi-Arch: same
 Section: libs
 Depends: BASEDEP, libgomp`'GOMP_SO`'LS, ${shlibs:Depends}, ${misc:Depends}
