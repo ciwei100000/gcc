@@ -1,0 +1,160 @@
+# DP: LTO: Add -fcf-protection=check
+
+Mixing -fcf-protection and -fcf-protection=none objects are allowed.
+Linker just merges -fcf-protection values from all input objects.
+
+Add -fcf-protection=check for the final link with LTO.  An error is
+issued if LTO object files are compiled with different -fcf-protection
+values.  Otherwise, -fcf-protection=check is ignored at the compile
+time.  Without explicit -fcf-protection at link time, -fcf-protection
+values from LTO object files are merged at the final link.
+
+gcc/
+
+	PR bootstrap/96203
+	* common.opt: Add -fcf-protection=check.
+	* flag-types.h (cf_protection_level): Add CF_CHECK.
+	* lto-wrapper.c (merge_and_complain): Issue an error for
+	mismatching -fcf-protection values with -fcf-protection=check.
+	Otherwise, merge -fcf-protection values.
+	* doc/invoke.texi: Document -fcf-protection=check.
+
+gcc/testsuite/
+
+	PR bootstrap/96203
+	* gcc.target/i386/pr96203-1.c: New test.
+	* gcc.target/i386/pr96203-2.c: Likewise.
+---
+ gcc/common.opt                            |  5 ++-
+ gcc/doc/invoke.texi                       |  9 ++++--
+ gcc/flag-types.h                          |  3 +-
+ gcc/lto-wrapper.c                         | 39 +++++++++++++++++++----
+ gcc/testsuite/gcc.target/i386/pr96203-1.c | 18 +++++++++++
+ gcc/testsuite/gcc.target/i386/pr96203-2.c | 11 +++++++
+ 6 files changed, 74 insertions(+), 11 deletions(-)
+ create mode 100644 gcc/testsuite/gcc.target/i386/pr96203-1.c
+ create mode 100644 gcc/testsuite/gcc.target/i386/pr96203-2.c
+
+--- a/src/gcc/common.opt
++++ b/src/gcc/common.opt
+@@ -1743,7 +1743,7 @@ Common RejectNegative Alias(fcf-protecti
+ 
+ fcf-protection=
+ Common Report Joined RejectNegative Enum(cf_protection_level) Var(flag_cf_protection) Init(CF_NONE)
+--fcf-protection=[full|branch|return|none]	Instrument functions with checks to verify jump/call/return control-flow transfer
++-fcf-protection=[full|branch|return|none|check]	Instrument functions with checks to verify jump/call/return control-flow transfer
+ instructions have valid targets.
+ 
+ Enum
+@@ -1759,6 +1759,9 @@ EnumValue
+ Enum(cf_protection_level) String(return) Value(CF_RETURN)
+ 
+ EnumValue
++Enum(cf_protection_level) String(check) Value(CF_CHECK)
++
++EnumValue
+ Enum(cf_protection_level) String(none) Value(CF_NONE)
+ 
+ finstrument-functions
+--- a/src/gcc/flag-types.h
++++ b/src/gcc/flag-types.h
+@@ -368,7 +368,8 @@ enum cf_protection_level
+   CF_BRANCH = 1 << 0,
+   CF_RETURN = 1 << 1,
+   CF_FULL = CF_BRANCH | CF_RETURN,
+-  CF_SET = 1 << 2
++  CF_SET = 1 << 2,
++  CF_CHECK = 1 << 3
+ };
+ 
+ /* Parloops schedule type.  */
+--- a/src/gcc/lto-wrapper.c
++++ b/src/gcc/lto-wrapper.c
+@@ -303,20 +303,45 @@ merge_and_complain (struct cl_decoded_op
+ 
+ 	case OPT_fcf_protection_:
+ 	  /* Default to link-time option, else append or check identical.  */
+-	  if (!cf_protection_option)
++	  if (!cf_protection_option
++	      || cf_protection_option->value == CF_CHECK)
+ 	    {
+ 	      for (j = 0; j < *decoded_options_count; ++j)
+ 		if ((*decoded_options)[j].opt_index == foption->opt_index)
+ 		  break;
+ 	      if (j == *decoded_options_count)
+ 		append_option (decoded_options, decoded_options_count, foption);
+-	      else if (strcmp ((*decoded_options)[j].arg, foption->arg))
+-		fatal_error (input_location,
+-			     "option -fcf-protection with mismatching values"
+-			     " (%s, %s)",
+-			     (*decoded_options)[j].arg, foption->arg);
++	      else if ((*decoded_options)[j].value != foption->value)
++		{
++		  if (cf_protection_option
++		      && cf_protection_option->value == CF_CHECK)
++		    fatal_error (input_location,
++				 "option -fcf-protection with mismatching values"
++				 " (%s, %s)",
++				 (*decoded_options)[j].arg, foption->arg);
++		  else
++		    {
++		      /* Merge and update the -fcf-protection option.  */
++		      (*decoded_options)[j].value &= (foption->value
++						      & CF_FULL);
++		      switch ((*decoded_options)[j].value)
++			{
++			case CF_NONE:
++			  (*decoded_options)[j].arg = "none";
++			  break;
++			case CF_BRANCH:
++			  (*decoded_options)[j].arg = "branch";
++			  break;
++			case CF_RETURN:
++			  (*decoded_options)[j].arg = "return";
++			  break;
++			default:
++			  gcc_unreachable ();
++			}
++		    }
++		}
+ 	    }
+-	    break;
++	  break;
+ 
+ 	case OPT_O:
+ 	case OPT_Ofast:
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.target/i386/pr96203-1.c
+@@ -0,0 +1,18 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -fcf-protection=check" } */
++/* { dg-final { scan-assembler-not "endbr" } } */
++
++extern int x;
++
++static void
++__attribute__ ((noinline, noclone))
++test (int i)
++{
++  x = i;
++}
++
++void
++bar (int i)
++{
++  test (i);
++}
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.target/i386/pr96203-2.c
+@@ -0,0 +1,11 @@
++/* { dg-do compile } */
++/* { dg-options "-O2 -fcf-protection=check -mmanual-endbr" } */
++/* { dg-final { scan-assembler-not "endbr" } } */
++
++extern void bar (void) __attribute__((__cf_check__));
++
++void
++foo (void)
++{
++  bar ();
++}
