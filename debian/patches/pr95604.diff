@@ -35,7 +35,7 @@
      append_to_collect_gcc_options (&temporary_obstack, &first_p, "-g");
 --- a/src/gcc/lto-wrapper.c
 +++ b/src/gcc/lto-wrapper.c
-@@ -192,11 +192,14 @@ static void
+@@ -219,11 +219,14 @@ static void
  merge_and_complain (struct cl_decoded_option **decoded_options,
  		    unsigned int *decoded_options_count,
  		    struct cl_decoded_option *fdecoded_options,
@@ -51,7 +51,7 @@
  
    /* ???  Merge options from files.  Most cases can be
       handled by either unioning or intersecting
-@@ -211,6 +214,17 @@ merge_and_complain (struct cl_decoded_op
+@@ -238,6 +241,17 @@ merge_and_complain (struct cl_decoded_op
       In absence of that it's unclear what a good default is.
       It's also difficult to get positional handling correct.  */
  
@@ -69,7 +69,7 @@
    /* The following does what the old LTO option code did,
       union all target and a selected set of common options.  */
    for (i = 0; i < fdecoded_options_count; ++i)
-@@ -287,6 +301,23 @@ merge_and_complain (struct cl_decoded_op
+@@ -314,6 +328,23 @@ merge_and_complain (struct cl_decoded_op
  			 foption->orig_option_with_args_text);
  	  break;
  
@@ -93,7 +93,7 @@
  	case OPT_O:
  	case OPT_Ofast:
  	case OPT_Og:
-@@ -631,6 +662,7 @@ append_compiler_options (obstack *argv_o
+@@ -618,6 +649,7 @@ append_compiler_options (obstack *argv_o
  	case OPT_fopenacc:
  	case OPT_fopenacc_dim_:
  	case OPT_foffload_abi_:
@@ -101,7 +101,7 @@
  	case OPT_g:
  	case OPT_O:
  	case OPT_Ofast:
-@@ -988,12 +1020,14 @@ find_crtoffloadtable (void)
+@@ -984,12 +1016,14 @@ find_crtoffloadtable (void)
  
  /* A subroutine of run_gcc.  Examine the open file FD for lto sections with
     name prefix PREFIX, at FILE_OFFSET, and store any options we find in OPTS
@@ -117,7 +117,7 @@
  			struct cl_decoded_option **opts,
  			unsigned int *opt_count, const char *collect_gcc)
  {
-@@ -1040,7 +1074,9 @@ find_and_merge_options (int fd, off_t fi
+@@ -1036,7 +1070,9 @@ find_and_merge_options (int fd, off_t fi
        else
  	merge_and_complain (&fdecoded_options,
  			    &fdecoded_options_count,
@@ -128,7 +128,7 @@
  
        fopts += strlen (fopts) + 1;
      }
-@@ -1373,6 +1409,7 @@ run_gcc (unsigned argc, char *argv[])
+@@ -1348,6 +1384,7 @@ run_gcc (unsigned argc, char *argv[])
  	}
  
        if (find_and_merge_options (fd, file_offset, LTO_SECTION_NAME_PREFIX,
@@ -136,7 +136,7 @@
  				  &fdecoded_options, &fdecoded_options_count,
  				  collect_gcc))
  	{
-@@ -1576,6 +1613,7 @@ cont1:
+@@ -1551,6 +1588,7 @@ cont1:
  	    fatal_error (input_location, "cannot open %s: %m", filename);
  	  if (!find_and_merge_options (fd, file_offset,
  				       OFFLOAD_SECTION_NAME_PREFIX,
