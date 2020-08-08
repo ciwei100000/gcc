@@ -1,13 +1,170 @@
-# DP: updates from the 9 branch upto 20200320 (documentation).
+# DP: updates from the 9 branch upto 20200808 (documentation).
 
 LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
-        4212a6a3e44f870412d9025eeb323fd4f50a61da bf061b9a5f77bfda10bd5a82eb6db2cc5a71d271 \
+        4212a6a3e44f870412d9025eeb323fd4f50a61da 4ad02cfb768b86c1d501469dd45c38ab8425e87a \
 	| awk '/^diff .*\.texi/ {skip=0; print; next} /^diff / {skip=1; next} skip==0' \
         | grep -v -E '^(diff|index)'
 
+--- a/src/gcc/doc/cpp.texi
++++ b/src/gcc/doc/cpp.texi
+@@ -1632,7 +1632,7 @@ a function can.  The syntax for defining the macro is similar to that of
+ a function.  Here is an example:
+ 
+ @smallexample
+-#define eprintf(@dots{}) fprintf (stderr, __VA_ARGS__)
++#define eprintf(...) fprintf (stderr, __VA_ARGS__)
+ @end smallexample
+ 
+ This kind of macro is called @dfn{variadic}.  When the macro is invoked,
+@@ -1656,11 +1656,11 @@ below for an important special case for @samp{##}.)
+ If your macro is complicated, you may want a more descriptive name for
+ the variable argument than @code{@w{__VA_ARGS__}}.  CPP permits
+ this, as an extension.  You may write an argument name immediately
+-before the @samp{@dots{}}; that name is used for the variable argument.
++before the @samp{...}; that name is used for the variable argument.
+ The @code{eprintf} macro above could be written
+ 
+ @smallexample
+-#define eprintf(args@dots{}) fprintf (stderr, args)
++#define eprintf(args...) fprintf (stderr, args)
+ @end smallexample
+ 
+ @noindent
+@@ -1671,7 +1671,7 @@ You can have named arguments as well as variable arguments in a variadic
+ macro.  We could define @code{eprintf} like this, instead:
+ 
+ @smallexample
+-#define eprintf(format, @dots{}) fprintf (stderr, format, __VA_ARGS__)
++#define eprintf(format, ...) fprintf (stderr, format, __VA_ARGS__)
+ @end smallexample
+ 
+ @noindent
+@@ -1710,7 +1710,7 @@ invocation expands to its argument; but if the variable argument does
+ not have any tokens, the @code{@w{__VA_OPT__}} expands to nothing:
+ 
+ @smallexample
+-#define eprintf(format, @dots{}) \
++#define eprintf(format, ...) \
+   fprintf (stderr, format __VA_OPT__(,) __VA_ARGS__)
+ @end smallexample
+ 
+@@ -1723,7 +1723,7 @@ the introduction of @code{@w{__VA_OPT__}}, this extension remains
+ supported in GNU CPP, for backward compatibility.  If you write
+ 
+ @smallexample
+-#define eprintf(format, @dots{}) fprintf (stderr, format, ##__VA_ARGS__)
++#define eprintf(format, ...) fprintf (stderr, format, ##__VA_ARGS__)
+ @end smallexample
+ 
+ @noindent
+@@ -1759,7 +1759,7 @@ replacement list of a variadic macro.
+ Variadic macros became a standard part of the C language with C99.  
+ GNU CPP previously supported them
+ with a named variable argument
+-(@samp{args@dots{}}, not @samp{@dots{}} and @code{@w{__VA_ARGS__}}), which
++(@samp{args...}, not @samp{...} and @code{@w{__VA_ARGS__}}), which
+ is still supported for backward compatibility.
+ 
+ @node Predefined Macros
+--- a/src/gcc/doc/extend.texi
++++ b/src/gcc/doc/extend.texi
+@@ -2760,7 +2760,7 @@ the same type as the target function.  As a result of the @code{copy}
+ attribute the alias also shares the same attributes as the target.
+ 
+ @smallexample
+-#define StrongAlias(TagetFunc, AliasDecl)   \
++#define StrongAlias(TargetFunc, AliasDecl)  \
+   extern __typeof__ (TargetFunc) AliasDecl  \
+     __attribute__ ((alias (#TargetFunc), copy (TargetFunc)));
+ 
+@@ -3957,6 +3957,12 @@ Select the function scope on which branch protection will be applied.  The
+ behavior and permissible arguments are the same as for the command-line option
+ @option{-mbranch-protection=}.  The default value is @code{none}.
+ 
++@item outline-atomics
++@cindex @code{outline-atomics} function attribute, AArch64
++Enable or disable calls to out-of-line helpers to implement atomic operations.
++This corresponds to the behavior of the command line options
++@option{-moutline-atomics} and @option{-mno-outline-atomics}.
++
+ @end table
+ 
+ The above target attributes can be specified as follows:
+@@ -10914,18 +10920,31 @@ The @var{level} argument must be a constant integer.
+ 
+ On some machines it may be impossible to determine the return address of
+ any function other than the current one; in such cases, or when the top
+-of the stack has been reached, this function returns @code{0} or a
+-random value.  In addition, @code{__builtin_frame_address} may be used
++of the stack has been reached, this function returns an unspecified
++value.  In addition, @code{__builtin_frame_address} may be used
+ to determine if the top of the stack has been reached.
+ 
+ Additional post-processing of the returned value may be needed, see
+ @code{__builtin_extract_return_addr}.
+ 
++The stored representation of the return address in memory may be different
++from the address returned by @code{__builtin_return_address}.  For example,
++on AArch64 the stored address may be mangled with return address signing
++whereas the address returned by @code{__builtin_return_address} is not.
++
+ Calling this function with a nonzero argument can have unpredictable
+ effects, including crashing the calling program.  As a result, calls
+ that are considered unsafe are diagnosed when the @option{-Wframe-address}
+ option is in effect.  Such calls should only be made in debugging
+ situations.
++
++On targets where code addresses are representable as @code{void *},
++@smallexample
++void *addr = __builtin_extract_return_addr (__builtin_return_address (0));
++@end smallexample
++gives the code address where the current function would return.  For example,
++such an address may be used with @code{dladdr} or other interfaces that work
++with code addresses.
+ @end deftypefn
+ 
+ @deftypefn {Built-in Function} {void *} __builtin_extract_return_addr (void *@var{addr})
+@@ -19722,6 +19741,13 @@ bool scalar_test_data_class (__ieee128 source, const int condition);
+ bool scalar_test_neg (float source);
+ bool scalar_test_neg (double source);
+ bool scalar_test_neg (__ieee128 source);
++
++vector _uint128_t vec_msum (vector unsigned long long,
++			    vector unsigned long long,
++			    vector _uint128_t);
++vector _int128_t vec_msum (vector signed long long,
++			   vector signed long long,
++			   vector _int128_t);
+ @end smallexample
+ 
+ The @code{scalar_extract_exp} and @code{scalar_extract_sig}
+@@ -19741,6 +19767,9 @@ Note that the sign of the significand is not represented in the result
+ returned from the @code{scalar_extract_sig} function.  Use the
+ @code{scalar_test_neg} function to test the sign of its @code{double}
+ argument.
++The @code{vec_msum} functions perform a vector multiply-sum, returning
++the result of arg1*arg2+arg3.  ISA 3.0 adds support for vec_msum returning
++a vector int128 result.
+ 
+ The @code{scalar_insert_exp}
+ functions require a 64-bit environment supporting ISA 3.0 or later.
 --- a/src/gcc/doc/invoke.texi
 +++ b/src/gcc/doc/invoke.texi
-@@ -4313,6 +4313,11 @@ are being produced.  This allows the use of new @option{-Wno-} options
+@@ -634,10 +634,12 @@ Objective-C and Objective-C++ Dialects}.
+ -mpc-relative-literal-loads @gol
+ -msign-return-address=@var{scope} @gol
+ -mbranch-protection=@var{none}|@var{standard}|@var{pac-ret}[+@var{leaf}]|@var{bti} @gol
++-mharden-sls=@var{opts} @gol
+ -march=@var{name}  -mcpu=@var{name}  -mtune=@var{name}  @gol
+ -moverride=@var{string}  -mverbose-cost-dump @gol
+ -mstack-protector-guard=@var{guard} -mstack-protector-guard-reg=@var{sysreg} @gol
+--mstack-protector-guard-offset=@var{offset} -mtrack-speculation }
++-mstack-protector-guard-offset=@var{offset} -mtrack-speculation @gol
++-moutline-atomics }
+ 
+ @emph{Adapteva Epiphany Options}
+ @gccoptlist{-mhalf-reg-file  -mprefer-short-insn-regs @gol
+@@ -4313,6 +4315,11 @@ are being produced.  This allows the use of new @option{-Wno-} options
  with old compilers, but if something goes wrong, the compiler
  warns that an unrecognized option is present.
  
@@ -19,6 +176,94 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  @table @gcctabopt
  @item -Wpedantic
  @itemx -pedantic
+@@ -11792,6 +11799,11 @@ speed
+ (@option{sra-max-scalarization-size-Ospeed}) or size
+ (@option{sra-max-scalarization-size-Osize}) respectively.
+ 
++@item sra-max-propagations
++The maximum number of artificial accesses that Scalar Replacement of
++Aggregates (SRA) will track, per one local variable, in order to
++facilitate copy propagation.
++
+ @item tm-max-aggregate-size
+ When making copies of thread-local variables in a transaction, this
+ parameter specifies the size in bytes after which variables are
+@@ -15777,6 +15789,19 @@ be used by the compiler when expanding calls to
+ @code{__builtin_speculation_safe_copy} to permit a more efficient code
+ sequence to be generated.
+ 
++@item -moutline-atomics
++@itemx -mno-outline-atomics
++Enable or disable calls to out-of-line helpers to implement atomic operations.
++These helpers will, at runtime, determine if the LSE instructions from
++ARMv8.1-A can be used; if not, they will use the load/store-exclusive
++instructions that are present in the base ARMv8.0 ISA.
++
++This option is only applicable when compiling for the base ARMv8.0
++instruction set.  If using a later revision, e.g. @option{-march=armv8.1-a}
++or @option{-march=armv8-a+lse}, the ARMv8.1-Atomics instructions will be
++used directly.  The same applies when using @option{-mcpu=} when the
++selected cpu supports the @samp{lse} feature.
++
+ @item -march=@var{name}
+ @opindex march
+ Specify the name of the target architecture and, optionally, one or
+@@ -15828,9 +15853,11 @@ performance of the code.  Permissible values for this option are:
+ @samp{cortex-a76}, @samp{ares}, @samp{exynos-m1}, @samp{emag}, @samp{falkor},
+ @samp{neoverse-e1},@samp{neoverse-n1},@samp{qdf24xx}, @samp{saphira},
+ @samp{phecda}, @samp{xgene1}, @samp{vulcan}, @samp{octeontx},
+-@samp{octeontx81},  @samp{octeontx83}, @samp{thunderx}, @samp{thunderxt88},
++@samp{octeontx81},  @samp{octeontx83},
++@samp{a64fx},
++@samp{thunderx}, @samp{thunderxt88},
+ @samp{thunderxt88p1}, @samp{thunderxt81}, @samp{tsv110},
+-@samp{thunderxt83}, @samp{thunderx2t99},
++@samp{thunderxt83}, @samp{thunderx2t99}, @samp{zeus},
+ @samp{cortex-a57.cortex-a53}, @samp{cortex-a72.cortex-a53},
+ @samp{cortex-a73.cortex-a35}, @samp{cortex-a73.cortex-a53},
+ @samp{cortex-a75.cortex-a55}, @samp{cortex-a76.cortex-a55}
+@@ -15916,6 +15943,17 @@ argument @samp{leaf} can be used to extend the signing to include leaf
+ functions.
+ @samp{bti} turns on branch target identification mechanism.
+ 
++@item -mharden-sls=@var{opts}
++@opindex mharden-sls
++Enable compiler hardening against straight line speculation (SLS).
++@var{opts} is a comma-separated list of the following options:
++@table @samp
++@item retbr
++@item blr
++@end table
++In addition, @samp{-mharden-sls=all} enables all SLS hardening while
++@samp{-mharden-sls=none} disables all SLS hardening.
++
+ @item -msve-vector-bits=@var{bits}
+ @opindex msve-vector-bits
+ Specify the number of bits in an SVE vector register.  This option only has
+@@ -28711,9 +28749,9 @@ Note that @option{-mcmodel=large} is incompatible with
+ @option{-mindirect-branch=thunk-extern} since the thunk function may
+ not be reachable in the large code model.
+ 
+-Note that @option{-mindirect-branch=thunk-extern} is incompatible with
+-@option{-fcf-protection=branch} since the external thunk cannot be modified
+-to disable control-flow check.
++Note that @option{-mindirect-branch=thunk-extern} is compatible with
++@option{-fcf-protection=branch} since the external thunk can be made
++to enable control-flow check.
+ 
+ @item -mfunction-return=@var{choice}
+ @opindex mfunction-return
+@@ -28726,6 +28764,10 @@ object file.  You can control this behavior for a specific function by
+ using the function attribute @code{function_return}.
+ @xref{Function Attributes}.
+ 
++Note that @option{-mindirect-return=thunk-extern} is compatible with
++@option{-fcf-protection=branch} since the external thunk can be made
++to enable control-flow check.
++
+ Note that @option{-mcmodel=large} is incompatible with
+ @option{-mfunction-return=thunk} and
+ @option{-mfunction-return=thunk-extern} since the thunk function may
 --- a/src/gcc/doc/tm.texi
 +++ b/src/gcc/doc/tm.texi
 @@ -8330,11 +8330,11 @@ as the number of bits.
