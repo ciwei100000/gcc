@@ -1,7 +1,7 @@
 # DP: updates from the 10 branch upto 20200808 (documentation).
 
 LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
-        6e6e3f144a33ae504149dc992453b4f6dea12fdb 931fe8394c6d6bdb6aa957b760767d7928ffaa15 \
+        ee5c3db6c5b2c3332912fb4c9cfa2864569ebd9a 931fe8394c6d6bdb6aa957b760767d7928ffaa15 \
 	| awk '/^diff .*\.texi/ {skip=0; print; next} /^diff / {skip=1; next} skip==0' \
         | grep -v -E '^(diff|index)'
 
@@ -76,213 +76,6 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  On ELF targets this attribute creates a symbol version.  The @var{name2} part
  of the parameter is the actual name of the symbol by which it will be
  externally referenced.  The @code{nodename} portion should be the name of a
-@@ -4066,6 +4067,12 @@ Select the function scope on which branch protection will be applied.  The
- behavior and permissible arguments are the same as for the command-line option
- @option{-mbranch-protection=}.  The default value is @code{none}.
- 
-+@item outline-atomics
-+@cindex @code{outline-atomics} function attribute, AArch64
-+Enable or disable calls to out-of-line helpers to implement atomic operations.
-+This corresponds to the behavior of the command line options
-+@option{-moutline-atomics} and @option{-mno-outline-atomics}.
-+
- @end table
- 
- The above target attributes can be specified as follows:
-@@ -11055,18 +11062,31 @@ The @var{level} argument must be a constant integer.
- 
- On some machines it may be impossible to determine the return address of
- any function other than the current one; in such cases, or when the top
--of the stack has been reached, this function returns @code{0} or a
--random value.  In addition, @code{__builtin_frame_address} may be used
-+of the stack has been reached, this function returns an unspecified
-+value.  In addition, @code{__builtin_frame_address} may be used
- to determine if the top of the stack has been reached.
- 
- Additional post-processing of the returned value may be needed, see
- @code{__builtin_extract_return_addr}.
- 
-+The stored representation of the return address in memory may be different
-+from the address returned by @code{__builtin_return_address}.  For example,
-+on AArch64 the stored address may be mangled with return address signing
-+whereas the address returned by @code{__builtin_return_address} is not.
-+
- Calling this function with a nonzero argument can have unpredictable
- effects, including crashing the calling program.  As a result, calls
- that are considered unsafe are diagnosed when the @option{-Wframe-address}
- option is in effect.  Such calls should only be made in debugging
- situations.
-+
-+On targets where code addresses are representable as @code{void *},
-+@smallexample
-+void *addr = __builtin_extract_return_addr (__builtin_return_address (0));
-+@end smallexample
-+gives the code address where the current function would return.  For example,
-+such an address may be used with @code{dladdr} or other interfaces that work
-+with code addresses.
- @end deftypefn
- 
- @deftypefn {Built-in Function} {void *} __builtin_extract_return_addr (void *@var{addr})
-@@ -13748,6 +13768,7 @@ instructions, but allow the compiler to schedule those calls.
- * PowerPC AltiVec/VSX Built-in Functions::
- * PowerPC Hardware Transactional Memory Built-in Functions::
- * PowerPC Atomic Memory Operation Functions::
-+* PowerPC Matrix-Multiply Assist Built-in Functions::
- * RX Built-in Functions::
- * S/390 System z Built-in Functions::
- * SH Built-in Functions::
-@@ -17011,6 +17032,8 @@ issues a warning.
- The following CPU names can be detected:
- 
- @table @samp
-+@item power10
-+IBM POWER10 Server CPU.
- @item power9
- IBM POWER9 Server CPU.
- @item power8
-@@ -17087,6 +17110,8 @@ CPU supports ISA 2.06 (eg, POWER7)
- CPU supports ISA 2.07 (eg, POWER8)
- @item arch_3_00
- CPU supports ISA 3.0 (eg, POWER9)
-+@item arch_3_1
-+CPU supports ISA 3.1 (eg, POWER10)
- @item archpmu
- CPU supports the set of compatible performance monitoring events.
- @item booke
-@@ -17120,6 +17145,8 @@ CPU supports icache snooping capabilities.
- CPU supports 128-bit IEEE binary floating point instructions.
- @item isel
- CPU supports the integer select instruction.
-+@item mma
-+CPU supports the matrix-multiply assist instructions.
- @item mmu
- CPU has a memory management unit.
- @item notb
-@@ -20043,6 +20070,13 @@ bool scalar_test_data_class (__ieee128 source, const int condition);
- bool scalar_test_neg (float source);
- bool scalar_test_neg (double source);
- bool scalar_test_neg (__ieee128 source);
-+
-+vector _uint128_t vec_msum (vector unsigned long long,
-+			    vector unsigned long long,
-+			    vector _uint128_t);
-+vector _int128_t vec_msum (vector signed long long,
-+			   vector signed long long,
-+			   vector _int128_t);
- @end smallexample
- 
- The @code{scalar_extract_exp} and @code{scalar_extract_sig}
-@@ -20062,6 +20096,9 @@ Note that the sign of the significand is not represented in the result
- returned from the @code{scalar_extract_sig} function.  Use the
- @code{scalar_test_neg} function to test the sign of its @code{double}
- argument.
-+The @code{vec_msum} functions perform a vector multiply-sum, returning
-+the result of arg1*arg2+arg3.  ISA 3.0 adds support for vec_msum returning
-+a vector int128 result.
- 
- The @code{scalar_insert_exp}
- functions require a 64-bit environment supporting ISA 3.0 or later.
-@@ -20965,6 +21002,100 @@ void amo_stdat_smax (int64_t *, int64_t);
- void amo_stdat_smin (int64_t *, int64_t);
- @end smallexample
- 
-+@node PowerPC Matrix-Multiply Assist Built-in Functions
-+@subsection PowerPC Matrix-Multiply Assist Built-in Functions
-+ISA 3.1 of the PowerPC added new Matrix-Multiply Assist (MMA) instructions.
-+GCC provides support for these instructions through the following built-in
-+functions which are enabled with the @code{-mmma} option.  The vec_t type
-+below is defined to be a normal vector unsigned char type.  The uint2, uint4
-+and uint8 parameters are 2-bit, 4-bit and 8-bit unsigned integer constants
-+respectively.  The compiler will verify that they are constants and that
-+their values are within range. 
-+
-+The built-in functions supported are:
-+
-+@smallexample
-+void __builtin_mma_xvi4ger8 (__vector_quad *, vec_t, vec_t);
-+void __builtin_mma_xvi8ger4 (__vector_quad *, vec_t, vec_t);
-+void __builtin_mma_xvi16ger2 (__vector_quad *, vec_t, vec_t);
-+void __builtin_mma_xvi16ger2s (__vector_quad *, vec_t, vec_t);
-+void __builtin_mma_xvf16ger2 (__vector_quad *, vec_t, vec_t);
-+void __builtin_mma_xvbf16ger2 (__vector_quad *, vec_t, vec_t);
-+void __builtin_mma_xvf32ger (__vector_quad *, vec_t, vec_t);
-+
-+void __builtin_mma_xvi4ger8pp (__vector_quad *, vec_t, vec_t);
-+void __builtin_mma_xvi8ger4pp (__vector_quad *, vec_t, vec_t);
-+void __builtin_mma_xvi8ger4spp(__vector_quad *, vec_t, vec_t);
-+void __builtin_mma_xvi16ger2pp (__vector_quad *, vec_t, vec_t);
-+void __builtin_mma_xvi16ger2spp (__vector_quad *, vec_t, vec_t);
-+void __builtin_mma_xvf16ger2pp (__vector_quad *, vec_t, vec_t);
-+void __builtin_mma_xvf16ger2pn (__vector_quad *, vec_t, vec_t);
-+void __builtin_mma_xvf16ger2np (__vector_quad *, vec_t, vec_t);
-+void __builtin_mma_xvf16ger2nn (__vector_quad *, vec_t, vec_t);
-+void __builtin_mma_xvbf16ger2pp (__vector_quad *, vec_t, vec_t);
-+void __builtin_mma_xvbf16ger2pn (__vector_quad *, vec_t, vec_t);
-+void __builtin_mma_xvbf16ger2np (__vector_quad *, vec_t, vec_t);
-+void __builtin_mma_xvbf16ger2nn (__vector_quad *, vec_t, vec_t);
-+void __builtin_mma_xvf32gerpp (__vector_quad *, vec_t, vec_t);
-+void __builtin_mma_xvf32gerpn (__vector_quad *, vec_t, vec_t);
-+void __builtin_mma_xvf32gernp (__vector_quad *, vec_t, vec_t);
-+void __builtin_mma_xvf32gernn (__vector_quad *, vec_t, vec_t);
-+
-+void __builtin_mma_pmxvi4ger8 (__vector_quad *, vec_t, vec_t, uint4, uint4, uint8);
-+void __builtin_mma_pmxvi4ger8pp (__vector_quad *, vec_t, vec_t, uint4, uint4, uint8);
-+
-+void __builtin_mma_pmxvi8ger4 (__vector_quad *, vec_t, vec_t, uint4, uint4, uint4);
-+void __builtin_mma_pmxvi8ger4pp (__vector_quad *, vec_t, vec_t, uint4, uint4, uint4);
-+void __builtin_mma_pmxvi8ger4spp(__vector_quad *, vec_t, vec_t, uint4, uint4, uint4);
-+
-+void __builtin_mma_pmxvi16ger2 (__vector_quad *, vec_t, vec_t, uint4, uint4, uint2);
-+void __builtin_mma_pmxvi16ger2s (__vector_quad *, vec_t, vec_t, uint4, uint4, uint2);
-+void __builtin_mma_pmxvf16ger2 (__vector_quad *, vec_t, vec_t, uint4, uint4, uint2);
-+void __builtin_mma_pmxvbf16ger2 (__vector_quad *, vec_t, vec_t, uint4, uint4, uint2);
-+
-+void __builtin_mma_pmxvi16ger2pp (__vector_quad *, vec_t, vec_t, uint4, uint4, uint2);
-+void __builtin_mma_pmxvi16ger2spp (__vector_quad *, vec_t, vec_t, uint4, uint4, uint2);
-+void __builtin_mma_pmxvf16ger2pp (__vector_quad *, vec_t, vec_t, uint4, uint4, uint2);
-+void __builtin_mma_pmxvf16ger2pn (__vector_quad *, vec_t, vec_t, uint4, uint4, uint2);
-+void __builtin_mma_pmxvf16ger2np (__vector_quad *, vec_t, vec_t, uint4, uint4, uint2);
-+void __builtin_mma_pmxvf16ger2nn (__vector_quad *, vec_t, vec_t, uint4, uint4, uint2);
-+void __builtin_mma_pmxvbf16ger2pp (__vector_quad *, vec_t, vec_t, uint4, uint4, uint2);
-+void __builtin_mma_pmxvbf16ger2pn (__vector_quad *, vec_t, vec_t, uint4, uint4, uint2);
-+void __builtin_mma_pmxvbf16ger2np (__vector_quad *, vec_t, vec_t, uint4, uint4, uint2);
-+void __builtin_mma_pmxvbf16ger2nn (__vector_quad *, vec_t, vec_t, uint4, uint4, uint2);
-+
-+void __builtin_mma_pmxvf32ger (__vector_quad *, vec_t, vec_t, uint4, uint4);
-+void __builtin_mma_pmxvf32gerpp (__vector_quad *, vec_t, vec_t, uint4, uint4);
-+void __builtin_mma_pmxvf32gerpn (__vector_quad *, vec_t, vec_t, uint4, uint4);
-+void __builtin_mma_pmxvf32gernp (__vector_quad *, vec_t, vec_t, uint4, uint4);
-+void __builtin_mma_pmxvf32gernn (__vector_quad *, vec_t, vec_t, uint4, uint4);
-+
-+void __builtin_mma_xvf64ger (__vector_quad *, __vector_pair, vec_t);
-+void __builtin_mma_xvf64gerpp (__vector_quad *, __vector_pair, vec_t);
-+void __builtin_mma_xvf64gerpn (__vector_quad *, __vector_pair, vec_t);
-+void __builtin_mma_xvf64gernp (__vector_quad *, __vector_pair, vec_t);
-+void __builtin_mma_xvf64gernn (__vector_quad *, __vector_pair, vec_t);
-+
-+void __builtin_mma_pmxvf64ger (__vector_quad *, __vector_pair, vec_t, uint4, uint2);
-+void __builtin_mma_pmxvf64gerpp (__vector_quad *, __vector_pair, vec_t, uint4, uint2);
-+void __builtin_mma_pmxvf64gerpn (__vector_quad *, __vector_pair, vec_t, uint4, uint2);
-+void __builtin_mma_pmxvf64gernp (__vector_quad *, __vector_pair, vec_t, uint4, uint2);
-+void __builtin_mma_pmxvf64gernn (__vector_quad *, __vector_pair, vec_t, uint4, uint2);
-+
-+void __builtin_mma_xxmtacc (__vector_quad *);
-+void __builtin_mma_xxmfacc (__vector_quad *);
-+void __builtin_mma_xxsetaccz (__vector_quad *);
-+
-+void __builtin_mma_assemble_acc (__vector_quad *, vec_t, vec_t, vec_t, vec_t);
-+void __builtin_mma_disassemble_acc (void *, __vector_quad *);
-+
-+void __builtin_mma_assemble_pair (__vector_pair *, vec_t, vec_t);
-+void __builtin_mma_disassemble_pair (void *, __vector_pair *);
-+
-+vec_t __builtin_vsx_xvcvspbf16 (vec_t);
-+vec_t __builtin_vsx_xvcvbf16sp (vec_t);
-+@end smallexample
-+
- @node RX Built-in Functions
- @subsection RX Built-in Functions
- GCC supports some of the RX instructions which cannot be expressed in
 --- a/src/gcc/doc/invoke.texi
 +++ b/src/gcc/doc/invoke.texi
 @@ -696,6 +696,7 @@ Objective-C and Objective-C++ Dialects}.
@@ -293,114 +86,7 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  -march=@var{name}  -mcpu=@var{name}  -mtune=@var{name}  @gol
  -moverride=@var{string}  -mverbose-cost-dump @gol
  -mstack-protector-guard=@var{guard} -mstack-protector-guard-reg=@var{sysreg} @gol
-@@ -1198,7 +1199,7 @@ See RS/6000 and PowerPC Options.
- -mgnu-attribute  -mno-gnu-attribute @gol
- -mstack-protector-guard=@var{guard} -mstack-protector-guard-reg=@var{reg} @gol
- -mstack-protector-guard-offset=@var{offset} -mprefixed -mno-prefixed @gol
---mpcrel -mno-pcrel}
-+-mpcrel -mno-pcrel -mmma -mno-mmma}
- 
- @emph{RX Options}
- @gccoptlist{-m64bit-doubles  -m32bit-doubles  -fpu  -nofpu@gol
-@@ -10254,7 +10255,7 @@ When enabled, interprocedural constant propagation performs function cloning
- when externally visible function can be called with constant arguments.
- Because this optimization can create multiple copies of functions,
- it may significantly increase code size
--(see @option{--param ipcp-unit-growth=@var{value}}).
-+(see @option{--param ipa-cp-unit-growth=@var{value}}).
- This flag is enabled by default at @option{-O3}.
- It is also enabled by @option{-fprofile-use} and @option{-fauto-profile}.
- 
-@@ -11204,6 +11205,14 @@ conflicting translation units.  Specifically
- precedence; and for example @option{-ffp-contract=off} takes precedence
- over @option{-ffp-contract=fast}.  You can override them at link time.
- 
-+Diagnostic options such as @option{-Wstringop-overflow} are passed
-+through to the link stage and their setting matches that of the
-+compile-step at function granularity.  Note that this matters only
-+for diagnostics emitted during optimization.  Note that code
-+transforms such as inlining can lead to warnings being enabled
-+or disabled for regions if code not consistent with the setting
-+at compile time.
-+
- When you need to pass options to the assembler via @option{-Wa} or
- @option{-Xassembler} make sure to either compile such translation
- units with @option{-fno-lto} or consistently use the same assembler
-@@ -11399,7 +11408,7 @@ default, GCC emits an error message when an inconsistent profile is detected.
- This option is enabled by @option{-fauto-profile}.
- 
- @item -fprofile-partial-training
--@opindex fprofile-use
-+@opindex fprofile-partial-training
- With @code{-fprofile-use} all portions of programs not executed during train
- run are optimized agressively for size rather than speed.  In some cases it is
- not practical to train all possible hot paths in the program. (For
-@@ -12135,7 +12144,7 @@ For example, parameter value 20 limits unit growth to 1.2 times the original
- size. Cold functions (either marked cold via an attribute or by profile
- feedback) are not accounted into the unit size.
- 
--@item ipcp-unit-growth
-+@item ipa-cp-unit-growth
- Specifies maximal overall growth of the compilation unit caused by
- interprocedural constant propagation.  For example, parameter value 10 limits
- unit growth to 1.1 times the original size.
-@@ -13141,9 +13150,6 @@ will not try to thread through its block.
- Maximum number of nested calls to search for control dependencies
- during uninitialized variable analysis.
- 
--@item max-once-peeled-insns
--The maximum number of insns of a peeled loop that rolls only once.
--
- @item sra-max-scalarization-size-Osize
- Maximum size, in storage units, of an aggregate
- which should be considered for scalarization when compiling for size.
-@@ -13174,6 +13180,37 @@ of iterations or recursive calls GCC performs when optimizing certain
- statements or when determining their validity prior to issuing
- diagnostics.
- 
-+@item store-merging-max-size
-+Maximum size of a single store merging region in bytes.
-+
-+@item hash-table-verification-limit
-+The number of elements for which hash table verification is done
-+for each searched element.
-+
-+@item max-find-base-term-values
-+Maximum number of VALUEs handled during a single find_base_term call.
-+
-+@item analyzer-max-enodes-per-program-point
-+The maximum number of exploded nodes per program point within
-+the analyzer, before terminating analysis of that point.
-+
-+@item analyzer-min-snodes-for-call-summary
-+The minimum number of supernodes within a function for the
-+analyzer to consider summarizing its effects at call sites.
-+
-+@item analyzer-max-recursion-depth
-+The maximum number of times a callsite can appear in a call stack
-+within the analyzer, before terminating analysis of a call that would
-+recurse deeper.
-+
-+@item gimple-fe-computed-hot-bb-threshold
-+The number of executions of a basic block which is considered hot.
-+The parameter is used only in GIMPLE FE.
-+
-+@item analyzer-bb-explosion-factor
-+The maximum number of 'after supernode' exploded nodes within the analyzer
-+per supernode, before terminating analysis.
-+
- @end table
- 
- The following choices of @var{name} are available on AArch64 targets:
-@@ -13393,6 +13430,7 @@ location.  If you combine the option with multiple source files,
- the @file{.gcno} file will be overwritten.
- 
- @item -fprofile-prefix-path=@var{path}
-+@opindex fprofile-prefix-path
- 
- This option can be used in combination with
- @option{profile-generate=}@var{profile_dir} and
-@@ -16938,10 +16976,11 @@ performance of the code.  Permissible values for this option are:
+@@ -16975,7 +16976,8 @@ performance of the code.  Permissible values for this option are:
  @samp{octeontx81},  @samp{octeontx83},
  @samp{octeontx2}, @samp{octeontx2t98}, @samp{octeontx2t96}
  @samp{octeontx2t93}, @samp{octeontx2f95}, @samp{octeontx2f95n},
@@ -409,12 +95,8 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
 +@samp{a64fx},
  @samp{thunderx}, @samp{thunderxt88},
  @samp{thunderxt88p1}, @samp{thunderxt81}, @samp{tsv110},
--@samp{thunderxt83}, @samp{thunderx2t99}, @samp{thunderx3t110},
-+@samp{thunderxt83}, @samp{thunderx2t99}, @samp{thunderx3t110}, @samp{zeus},
- @samp{cortex-a57.cortex-a53}, @samp{cortex-a72.cortex-a53},
- @samp{cortex-a73.cortex-a35}, @samp{cortex-a73.cortex-a53},
- @samp{cortex-a75.cortex-a55}, @samp{cortex-a76.cortex-a55}
-@@ -17028,6 +17067,17 @@ functions.  The optional argument @samp{b-key} can be used to sign the functions
+ @samp{thunderxt83}, @samp{thunderx2t99}, @samp{thunderx3t110}, @samp{zeus},
+@@ -17065,6 +17067,17 @@ functions.  The optional argument @samp{b-key} can be used to sign the functions
  with the B-key instead of the A-key.
  @samp{bti} turns on branch target identification mechanism.
  
@@ -432,30 +114,6 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  @item -msve-vector-bits=@var{bits}
  @opindex msve-vector-bits
  Specify the number of bits in an SVE vector register.  This option only has
-@@ -25585,7 +25635,8 @@ following options:
- -mpowerpc-gpopt  -mpowerpc-gfxopt @gol
- -mmulhw  -mdlmzb  -mmfpgpr  -mvsx @gol
- -mcrypto  -mhtm  -mpower8-fusion  -mpower8-vector @gol
---mquad-memory  -mquad-memory-atomic  -mfloat128  -mfloat128-hardware}
-+-mquad-memory  -mquad-memory-atomic  -mfloat128 @gol
-+-mfloat128-hardware -mprefixed -mpcrel -mmma}
- 
- The particular options set for any particular CPU varies between
- compiler versions, depending on what setting seems to produce optimal
-@@ -26581,6 +26632,13 @@ addressing (@option{-mprefixed}) options are enabled.
- @opindex mno-prefixed
- Generate (do not generate) addressing modes using prefixed load and
- store instructions when the option @option{-mcpu=future} is used.
-+
-+@item -mmma
-+@itemx -mno-mma
-+@opindex mmma
-+@opindex mno-mma
-+Generate (do not generate) the MMA instructions when the option
-+@option{-mcpu=future} is used.
- @end table
- 
- @node RX Options
 --- a/src/gcc/doc/sourcebuild.texi
 +++ b/src/gcc/doc/sourcebuild.texi
 @@ -1244,6 +1244,18 @@ This DejaGnu directive compares @var{regexp} to the combined output
@@ -477,23 +135,7 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  @subsubsection Specify additional files for a test
  
  @table @code
-@@ -1915,6 +1927,15 @@ ARM target supports options to generate instructions from ARMv8.1-M with
- the M-Profile Vector Extension (MVE). Some multilibs may be incompatible
- with these options.
- 
-+@item arm_v8_1m_mve_fp_ok
-+ARM target supports options to generate instructions from ARMv8.1-M with
-+the Half-precision floating-point instructions (HP), Floating-point Extension
-+(FP) along with M-Profile Vector Extension (MVE). Some multilibs may be
-+incompatible with these options.
-+
-+@item arm_mve_hw
-+Test system supports executing MVE instructions.
-+
- @item arm_v8m_main_cde
- ARM target supports options to generate instructions from ARMv8-M with
- the Custom Datapath Extension (CDE). Some multilibs may be incompatible
-@@ -2021,6 +2042,9 @@ whether it does so by default).
+@@ -2030,6 +2042,9 @@ whether it does so by default).
  @itemx aarch64_sve2048_hw
  Like @code{aarch64_sve_hw}, but also test for an exact hardware vector length.
  
@@ -503,30 +145,3 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  @end table
  
  @subsubsection MIPS-specific attributes
---- a/src/libgomp/libgomp.texi
-+++ b/src/libgomp/libgomp.texi
-@@ -1967,6 +1967,12 @@ in @var{devicetype}, to use when executing a parallel or kernels region.
- This function returns what device type will be used when executing a
- parallel or kernels region.
- 
-+This function returns @code{acc_device_none} if
-+@code{acc_get_device_type} is called from
-+@code{acc_ev_device_init_start}, @code{acc_ev_device_init_end}
-+callbacks of the OpenACC Profiling Interface (@ref{OpenACC Profiling
-+Interface}), that is, if the device is currently being initialized.
-+
- @item @emph{C/C++}:
- @multitable @columnfractions .20 .80
- @item @emph{Prototype}: @tab @code{acc_device_t acc_get_device_type(void);}
-@@ -3382,6 +3388,11 @@ every event that has been registered.
- 
- We're not yet accounting for the fact that @cite{OpenACC events may
- occur during event processing}.
-+We just handle one case specially, as required by CUDA 9.0
-+@command{nvprof}, that @code{acc_get_device_type}
-+(@ref{acc_get_device_type})) may be called from
-+@code{acc_ev_device_init_start}, @code{acc_ev_device_init_end}
-+callbacks.
- 
- We're not yet implementing initialization via a
- @code{acc_register_library} function that is either statically linked
