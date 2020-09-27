@@ -2,21 +2,27 @@
 
 # Helper when migrating bugs from a gnat version to another.
 
+# Attempt to reproduce each known GNAT bug with version BV.
+# Reports results as control@bugs.debian.org commands.
+# Only remove temporary subdirectories when the bug is reproduced.
+
+# python3 confirm_debian_bugs.py same BV            -> found    | fixed
+# python3 confirm_debian_bugs.py new  BV            -> reassign | retitle
+
 from __future__ import print_function
 import os.path
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 
 os.environ ['LC_ALL'] = 'C'
 
-# If True, "reassign" -> "found" and "retitle" -> "fixed".
-# Once the bug tracking system is informed, please update this boolean.
-same_gcc_base_version = True
-
-# The current version.
-new_version = "9"
+assert len (sys.argv) == 3
+assert sys.argv [1] in ("same", "new")
+same_gcc_base_version = sys.argv [1] == "same"
+new_version = sys.argv [2]
 
 for line in subprocess.check_output (("dpkg", "--status", "gnat-" + new_version)).decode ().split ("\n"):
     if line.startswith ("Version: "):
