@@ -1,0 +1,162 @@
+# DP: Revert the fix for PR tree-optimization/96522.
+
+Index: b/src/gcc/testsuite/gcc.dg/torture/pr96522.c
+===================================================================
+--- a/src/gcc/testsuite/gcc.dg/torture/pr96522.c
++++ /dev/null
+@@ -1,36 +0,0 @@
+-/* { dg-do run } */
+-/* { dg-additional-options "-fno-tree-pta" } */
+-
+-__attribute__((noipa)) void
+-bar (void)
+-{
+-  volatile int v = 1;
+-  if (v)
+-    __builtin_abort ();
+-}
+-
+-__attribute__((noipa)) void
+-baz (void)
+-{
+-}
+-
+-__attribute__((noipa)) void
+-foo (int n, double *p, double *x)
+-{
+-  if (n < 10 && p != 0)
+-    for (int i = 0; i < 10; i++)
+-      if (x[0] < p[i])
+-        x[i] = 0;
+-  if (p != 0)
+-    bar ();
+-  else
+-    baz ();
+-}
+-
+-int
+-main ()
+-{
+-  double arr[10];
+-  foo (1000, 0, arr);
+-  return 0;
+-}
+Index: b/src/gcc/tree-ssa-address.c
+===================================================================
+--- a/src/gcc/tree-ssa-address.c
++++ b/src/gcc/tree-ssa-address.c
+@@ -47,7 +47,6 @@ along with GCC; see the file COPYING3.
+ #include "dumpfile.h"
+ #include "tree-affine.h"
+ #include "gimplify.h"
+-#include "builtins.h"
+ 
+ /* FIXME: We compute address costs using RTL.  */
+ #include "tree-ssa-address.h"
+@@ -1016,24 +1015,45 @@ copy_ref_info (tree new_ref, tree old_re
+ 
+   new_ptr_base = TREE_OPERAND (new_ref, 0);
+ 
+-  tree base = get_base_address (old_ref);
+-  if (!base)
+-    return;
+-
+   /* We can transfer points-to information from an old pointer
+      or decl base to the new one.  */
+   if (new_ptr_base
+       && TREE_CODE (new_ptr_base) == SSA_NAME
+       && !SSA_NAME_PTR_INFO (new_ptr_base))
+     {
+-      if ((TREE_CODE (base) == MEM_REF
+-	   || TREE_CODE (base) == TARGET_MEM_REF)
+-	  && TREE_CODE (TREE_OPERAND (base, 0)) == SSA_NAME
+-	  && SSA_NAME_PTR_INFO (TREE_OPERAND (base, 0)))
++      tree base = get_base_address (old_ref);
++      if (!base)
++	;
++      else if ((TREE_CODE (base) == MEM_REF
++		|| TREE_CODE (base) == TARGET_MEM_REF)
++	       && TREE_CODE (TREE_OPERAND (base, 0)) == SSA_NAME
++	       && SSA_NAME_PTR_INFO (TREE_OPERAND (base, 0)))
+ 	{
++	  struct ptr_info_def *new_pi;
++	  unsigned int align, misalign;
++
+ 	  duplicate_ssa_name_ptr_info
+ 	    (new_ptr_base, SSA_NAME_PTR_INFO (TREE_OPERAND (base, 0)));
+-	  reset_flow_sensitive_info (new_ptr_base);
++	  new_pi = SSA_NAME_PTR_INFO (new_ptr_base);
++	  /* We have to be careful about transferring alignment information.  */
++	  if (get_ptr_info_alignment (new_pi, &align, &misalign)
++	      && TREE_CODE (old_ref) == MEM_REF
++	      && !(TREE_CODE (new_ref) == TARGET_MEM_REF
++		   && (TMR_INDEX2 (new_ref)
++		       /* TODO: Below conditions can be relaxed if TMR_INDEX
++			  is an indcution variable and its initial value and
++			  step are aligned.  */
++		       || (TMR_INDEX (new_ref) && !TMR_STEP (new_ref))
++		       || (TMR_STEP (new_ref)
++			   && (TREE_INT_CST_LOW (TMR_STEP (new_ref))
++			       < align)))))
++	    {
++	      poly_uint64 inc = (mem_ref_offset (old_ref)
++				 - mem_ref_offset (new_ref)).force_uhwi ();
++	      adjust_ptr_info_misalignment (new_pi, inc);
++	    }
++	  else
++	    mark_ptr_info_alignment_unknown (new_pi);
+ 	}
+       else if (VAR_P (base)
+ 	       || TREE_CODE (base) == PARM_DECL
+@@ -1043,14 +1063,6 @@ copy_ref_info (tree new_ref, tree old_re
+ 	  pt_solution_set_var (&pi->pt, base);
+ 	}
+     }
+-
+-  /* And alignment info.  Note we cannot transfer misalignment info
+-     since that sits on the SSA name but this is flow-sensitive info
+-     which we cannot transfer in this generic routine.  */
+-  unsigned old_align = get_object_alignment (old_ref);
+-  unsigned new_align = get_object_alignment (new_ref);
+-  if (new_align < old_align)
+-    TREE_TYPE (new_ref) = build_aligned_type (TREE_TYPE (new_ref), old_align);
+ }
+ 
+ /* Move constants in target_mem_ref REF to offset.  Returns the new target
+Index: b/src/gcc/tree-ssa-sccvn.c
+===================================================================
+--- a/src/gcc/tree-ssa-sccvn.c
++++ b/src/gcc/tree-ssa-sccvn.c
+@@ -5849,7 +5849,8 @@ eliminate_dom_walker::eliminate_stmt (ba
+ 	      duplicate_ssa_name_ptr_info (sprime,
+ 					   SSA_NAME_PTR_INFO (lhs));
+ 	      if (b != sprime_b)
+-		reset_flow_sensitive_info (sprime);
++		mark_ptr_info_alignment_unknown
++		    (SSA_NAME_PTR_INFO (sprime));
+ 	    }
+ 	  else if (INTEGRAL_TYPE_P (TREE_TYPE (lhs))
+ 		   && SSA_NAME_RANGE_INFO (lhs)
+Index: b/src/gcc/ChangeLog
+===================================================================
+--- a/src/gcc/ChangeLog
++++ b/src/gcc/ChangeLog
+@@ -229,18 +229,6 @@
+ 
+ 2020-09-14  Richard Biener  <rguenther@suse.de>
+ 
+-	Backported from master:
+-	2020-08-27  Richard Biener  <rguenther@suse.de>
+-
+-	PR tree-optimization/96522
+-	* tree-ssa-address.c (copy_ref_info): Reset flow-sensitive
+-	info of the copied points-to.  Transfer bigger alignment
+-	via the access type.
+-	* tree-ssa-sccvn.c (eliminate_dom_walker::eliminate_stmt):
+-	Reset all flow-sensitive info.
+-
+-2020-09-14  Richard Biener  <rguenther@suse.de>
+-
+ 	PR tree-optimization/97043
+ 	* tree-vect-slp.c (vect_analyze_slp_instance): Do not
+ 	elide a load permutation if the current vectorization
