@@ -209,6 +209,9 @@ Provides: libgcc1`'LS (= ${gcc:EpochVersion}), ifdef(`TARGET',`libgcc-s1-TARGET-
 ifdef(`MULTIARCH', `Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
 ')`'dnl
+ifdef(`LIBGCCPROTECTED', `XB-Important: yes
+Protected: yes
+')`'dnl
 ifdef(`TARGET',`dnl
 Breaks: libgcc1`'LS (<< 1:10)
 Replaces: libgcc1`'LS (<< 1:10)
@@ -290,6 +293,9 @@ Priority: optional
 ifdef(`MULTIARCH', `Multi-Arch: same
 Pre-Depends: ${misc:Pre-Depends}
 ')`'dnl
+ifdef(`LIBGCCPROTECTED', `XB-Important: yes
+Protected: yes
+')`'dnl
 Depends: BASELDEP, ${shlibs:Depends}, ${misc:Depends}
 Provides: libgcc2`'LS (= ${gcc:EpochVersion}), ifdef(`TARGET',`libgcc-s2-TARGET-dcv1')`'
 ifdef(`TARGET',`dnl
@@ -363,6 +369,9 @@ Package: libgcc-s4`'LS
 TARGET_PACKAGE`'dnl
 Architecture: ifdef(`TARGET',`CROSS_ARCH',`hppa')
 ifdef(`MULTIARCH', `Multi-Arch: same
+ifdef(`LIBGCCPROTECTED', `XB-Important: yes
+Protected: yes
+')`'dnl
 Pre-Depends: ${misc:Pre-Depends}
 ')`'dnl
 Provides: libgcc4`'LS (= ${gcc:EpochVersion})
