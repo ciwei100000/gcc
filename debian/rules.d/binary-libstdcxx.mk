@@ -219,6 +219,7 @@ define __do_libstdcxx
 	  dh_strip -p$(p_l) $(if $(filter rtlibs,$(DEB_STAGE)),,--dbg-package=$(1)-$(BASE_VERSION)-dbg$(cross_lib_arch)),
 	  dh_strip -p$(p_l) $(if $(filter rtlibs,$(DEB_STAGE)),,--dbgsym-migration='$(1)-$(BASE_VERSION)-dbg$(cross_lib_arch) (<< $(v_dbg))')
 	)
+	ln -sf libstdc++.symbols debian/$(p_l).symbols
 	$(if $(filter $(DEB_TARGET_ARCH), armel hppa sparc64), \
 	  -$(cross_makeshlibs) dh_makeshlibs $(ldconfig_arg) -p$(p_l) \
 	  @echo "FIXME: libstdc++ not feature complete (https://gcc.gnu.org/ml/gcc/2014-07/msg00000.html)", \
