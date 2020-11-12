@@ -19,20 +19,20 @@
  // { dg-skip-if "" { *-*-* } { "*" } { "-O2" } }
  // { dg-skip-if "" { *-*-* } { "-flto" } { "" } }
  // { dg-additional-sources "asan_globals_test-wrapper.cc" }
--// { dg-options "-std=c++11 -fsanitize=address -fno-builtin -Wall -Werror -Wno-alloc-size-larger-than -g -DASAN_UAR=0 -DASAN_HAS_EXCEPTIONS=1 -DASAN_HAS_BLACKLIST=0 -DSANITIZER_USE_DEJAGNU_GTEST=1 -lasan -lpthread -ldl" }
-+// { dg-options "-std=c++11 -fsanitize=address -fno-builtin -Wall -Werror -Wno-alloc-size-larger-than -Wno-unused-result -g -DASAN_UAR=0 -DASAN_HAS_EXCEPTIONS=1 -DASAN_HAS_BLACKLIST=0 -DSANITIZER_USE_DEJAGNU_GTEST=1 -lasan -lpthread -ldl" }
+-// { dg-options "-std=c++11 -fsanitize=address -fno-builtin -Wall -Werror -Wno-alloc-size-larger-than -Wno-stringop-overflow -g -DASAN_UAR=0 -DASAN_HAS_EXCEPTIONS=1 -DASAN_HAS_BLACKLIST=0 -DSANITIZER_USE_DEJAGNU_GTEST=1 -lasan -lpthread" }
++// { dg-options "-std=c++11 -fsanitize=address -fno-builtin -Wall -Werror -Wno-alloc-size-larger-than -Wno-stringop-overflow -Wno-unused-result -g -DASAN_UAR=0 -DASAN_HAS_EXCEPTIONS=1 -DASAN_HAS_BLACKLIST=0 -DSANITIZER_USE_DEJAGNU_GTEST=1 -lasan -lpthread" }
+ // { dg-additional-options "-ldl" { target { ! *-*-freebsd* } } }
  // { dg-additional-options "-DASAN_NEEDS_SEGV=1" { target { ! arm*-*-* } } }
  // { dg-additional-options "-DASAN_LOW_MEMORY=1 -DASAN_NEEDS_SEGV=0" { target arm*-*-* } }
- // { dg-additional-options "-DASAN_AVOID_EXPENSIVE_TESTS=1" { target { ! run_expensive_tests } } }
 --- a/src/gcc/testsuite/g++.dg/asan/interception-malloc-test-1.C
 +++ b/src/gcc/testsuite/g++.dg/asan/interception-malloc-test-1.C
 @@ -1,7 +1,7 @@
  // ASan interceptor can be accessed with __interceptor_ prefix.
  
- // { dg-do run { target *-*-linux* } }
+ // { dg-do run { target *-*-linux* *-*-freebsd* } }
 -// { dg-options "-fno-builtin-free" }
 +// { dg-options "-fno-builtin-free -Wno-unused-result" }
- // { dg-additional-options "-D__NO_INLINE__" { target { *-*-linux-gnu } } }
+ // { dg-additional-options "-D__NO_INLINE__" { target { *-*-linux-gnu *-*-freebsd* } } }
  // { dg-shouldfail "asan" }
  
 --- a/src/gcc/testsuite/gcc.c-torture/execute/memset-1.c
