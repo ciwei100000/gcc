@@ -8,21 +8,21 @@
  
 -  (void) bindtextdomain ("gcc", LOCALEDIR);
 -  (void) textdomain ("gcc");
-+  (void) bindtextdomain ("gcc-10", LOCALEDIR);
-+  (void) textdomain ("gcc-10");
++  (void) bindtextdomain ("gcc-11", LOCALEDIR);
++  (void) textdomain ("gcc-11");
  
    /* Opening quotation mark.  */
    open_quote = _("`");
 --- a/src/gcc/Makefile.in
 +++ b/src/gcc/Makefile.in
-@@ -4276,8 +4276,8 @@ install-po:
+@@ -4295,8 +4295,8 @@ install-po:
  	  dir=$(localedir)/$$lang/LC_MESSAGES; \
  	  echo $(mkinstalldirs) $(DESTDIR)$$dir; \
  	  $(mkinstalldirs) $(DESTDIR)$$dir || exit 1; \
 -	  echo $(INSTALL_DATA) $$cat $(DESTDIR)$$dir/gcc.mo; \
 -	  $(INSTALL_DATA) $$cat $(DESTDIR)$$dir/gcc.mo; \
-+	  echo $(INSTALL_DATA) $$cat $(DESTDIR)$$dir/gcc-10.mo; \
-+	  $(INSTALL_DATA) $$cat $(DESTDIR)$$dir/gcc-10.mo; \
++	  echo $(INSTALL_DATA) $$cat $(DESTDIR)$$dir/gcc-11.mo; \
++	  $(INSTALL_DATA) $$cat $(DESTDIR)$$dir/gcc-11.mo; \
  	done
  
  # Rule for regenerating the message template (gcc.pot).
@@ -54,26 +54,26 @@
  LIBICONV = @LIBICONV@
  LIBINTL = @LIBINTL@
  PACKAGE = @PACKAGE@
-+PACKAGE_SUFFIX = -10
++PACKAGE_SUFFIX = -11
  RANLIB = @RANLIB@
  SHELL = @SHELL@
  USED_CATALOGS = @USED_CATALOGS@
-@@ -72,10 +73,12 @@ depcomp = $(SHELL) $(srcdir)/../depcomp
+@@ -73,11 +74,12 @@ depcomp = $(SHELL) $(srcdir)/../depcomp
  
  INCLUDES = -I$(srcdir) -I. -I$(srcdir)/../include @INCINTL@ \
  	-I$(srcdir)/include
 +DEBCPPFLAGS += -DPACKAGE_SUFFIX=\"$(strip $(PACKAGE_SUFFIX))\"
  
--ALL_CFLAGS = $(CFLAGS) $(WARN_CFLAGS) $(INCLUDES) $(CPPFLAGS) $(PICFLAG)
-+ALL_CFLAGS = $(CFLAGS) $(WARN_CFLAGS) $(INCLUDES) $(CPPFLAGS) $(PICFLAG) \
-+	$(DEBCPPFLAGS)
+ ALL_CFLAGS = $(CFLAGS) $(WARN_CFLAGS) $(INCLUDES) $(CPPFLAGS) $(PICFLAG) \
+-	$(CET_HOST_FLAGS)
++	$(CET_HOST_FLAGS) $(DEBCPPFLAGS)
  ALL_CXXFLAGS = $(CXXFLAGS) $(WARN_CXXFLAGS) $(NOEXCEPTION_FLAGS) $(INCLUDES) \
--	$(CPPFLAGS) $(PICFLAG)
-+	$(CPPFLAGS) $(PICFLAG) $(DEBCPPFLAGS)
+-	$(CPPFLAGS) $(PICFLAG) $(CET_HOST_FLAGS)
++	$(CPPFLAGS) $(PICFLAG) $(CET_HOST_FLAGS) $(DEBCPPFLAGS)
  
  # The name of the compiler to use.
  COMPILER = $(CXX)
-@@ -164,8 +167,8 @@ install-strip install: all installdirs
+@@ -166,8 +168,8 @@ install-strip install: all installdirs
  	  else continue; \
  	  fi; \
  	  dir=$(localedir)/$$lang/LC_MESSAGES; \

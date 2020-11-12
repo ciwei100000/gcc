@@ -1,6 +1,6 @@
 --- a/src/configure.ac
 +++ b/src/configure.ac
-@@ -162,6 +162,7 @@ target_libraries="target-libgcc \
+@@ -163,6 +163,7 @@ target_libraries="target-libgcc \
  		target-libffi \
  		target-libobjc \
  		target-libada \
@@ -8,7 +8,7 @@
  		target-libgo \
  		target-libphobos \
  		target-zlib"
-@@ -451,6 +452,12 @@ if test "${ENABLE_LIBADA}" != "yes" ; th
+@@ -452,6 +453,12 @@ if test "${ENABLE_LIBADA}" != "yes" ; th
    noconfigdirs="$noconfigdirs gnattools"
  fi
  
@@ -21,7 +21,7 @@
  AC_ARG_ENABLE(libssp,
  [AS_HELP_STRING([--enable-libssp], [build libssp directory])],
  ENABLE_LIBSSP=$enableval,
-@@ -3491,6 +3498,7 @@ NCN_STRICT_CHECK_TARGET_TOOLS(GCC_FOR_TA
+@@ -3507,6 +3514,7 @@ NCN_STRICT_CHECK_TARGET_TOOLS(GCC_FOR_TA
  NCN_STRICT_CHECK_TARGET_TOOLS(GFORTRAN_FOR_TARGET, gfortran)
  NCN_STRICT_CHECK_TARGET_TOOLS(GOC_FOR_TARGET, gccgo)
  NCN_STRICT_CHECK_TARGET_TOOLS(GDC_FOR_TARGET, gdc)
@@ -29,7 +29,7 @@
  
  ACX_CHECK_INSTALLED_TARGET_TOOL(AR_FOR_TARGET, ar)
  ACX_CHECK_INSTALLED_TARGET_TOOL(AS_FOR_TARGET, as)
-@@ -3527,6 +3535,8 @@ GCC_TARGET_TOOL(gccgo, GOC_FOR_TARGET, G
+@@ -3543,6 +3551,8 @@ GCC_TARGET_TOOL(gccgo, GOC_FOR_TARGET, G
  		[gcc/gccgo -B$$r/$(HOST_SUBDIR)/gcc/], go)
  GCC_TARGET_TOOL(gdc, GDC_FOR_TARGET, GDC,
  		[gcc/gdc -B$$r/$(HOST_SUBDIR)/gcc/], d)
@@ -38,7 +38,7 @@
  GCC_TARGET_TOOL(ld, LD_FOR_TARGET, LD, [ld/ld-new])
  GCC_TARGET_TOOL(lipo, LIPO_FOR_TARGET, LIPO)
  GCC_TARGET_TOOL(nm, NM_FOR_TARGET, NM, [binutils/nm-new])
-@@ -3653,6 +3663,7 @@ AC_SUBST(stage2_werror_flag)
+@@ -3669,6 +3679,7 @@ AC_SUBST(stage2_werror_flag)
  # Specify what files to not compare during bootstrap.
  
  compare_exclusions="gcc/cc*-checksum\$(objext) | gcc/ada/*tools/*"
@@ -84,7 +84,7 @@
 +}
 --- a/src/gcc/gcc.c
 +++ b/src/gcc/gcc.c
-@@ -309,6 +309,10 @@ static const char *cross_compile = "1";
+@@ -333,6 +333,10 @@ static const char *cross_compile = "1";
  static const char *cross_compile = "0";
  #endif
  
@@ -95,7 +95,7 @@
  /* Greatest exit code of sub-processes that has been encountered up to
     now.  */
  static int greatest_status = 1;
-@@ -337,7 +341,6 @@ static void set_spec (const char *, cons
+@@ -361,7 +365,6 @@ static void set_spec (const char *, cons
  static struct compiler *lookup_compiler (const char *, size_t, const char *);
  static char *build_search_list (const struct path_prefix *, const char *,
  				bool, bool);
@@ -103,7 +103,7 @@
  static void putenv_from_prefixes (const struct path_prefix *, const char *,
  				  bool);
  static int access_check (const char *, int);
-@@ -1120,6 +1123,7 @@ proper position among the other output f
+@@ -1204,6 +1207,7 @@ proper position among the other output f
  /* We pass any -flto flags on to the linker, which is expected
     to understand them.  In practice, this means it had better be collect2.  */
  /* %{e*} includes -export-dynamic; see comment in common.opt.  */
@@ -111,7 +111,7 @@
  #ifndef LINK_COMMAND_SPEC
  #define LINK_COMMAND_SPEC "\
  %{!fsyntax-only:%{!c:%{!M:%{!MM:%{!E:%{!S:\
-@@ -1746,6 +1750,10 @@ static const struct spec_function static
+@@ -1839,6 +1843,10 @@ static const struct spec_function static
    { 0, 0 }
  };
  
@@ -122,7 +122,7 @@
  static int processing_spec_function;
  
  /* Add appropriate libgcc specs to OBSTACK, taking into account
-@@ -2838,12 +2846,20 @@ add_to_obstack (char *path, void *data)
+@@ -2976,12 +2984,20 @@ add_to_obstack (char *path, void *data)
  
  /* Add or change the value of an environment variable, outputting the
     change to standard error if in verbose mode.  */
@@ -144,7 +144,7 @@
  /* Build a list of search directories from PATHS.
     PREFIX is a string to prepend to the list.
     If CHECK_DIR_P is true we ensure the directory exists.
-@@ -3790,7 +3806,7 @@ alloc_switch (void)
+@@ -3928,7 +3944,7 @@ alloc_switch (void)
  /* Save an option OPT with N_ARGS arguments in array ARGS, marking it
     as validated if VALIDATED and KNOWN if it is an internal switch.  */
  
@@ -153,7 +153,7 @@
  save_switch (const char *opt, size_t n_args, const char *const *args,
  	     bool validated, bool known)
  {
-@@ -3835,6 +3851,66 @@ set_source_date_epoch_envvar ()
+@@ -3973,6 +3989,66 @@ set_source_date_epoch_envvar ()
    setenv ("SOURCE_DATE_EPOCH", source_date_epoch, 0);
  }
  
@@ -220,7 +220,7 @@
  /* Handle an option DECODED that is unknown to the option-processing
     machinery.  */
  
-@@ -4318,33 +4394,7 @@ driver_handle_option (struct gcc_options
+@@ -4474,33 +4550,7 @@ driver_handle_option (struct gcc_options
        break;
  
      case OPT_B:
@@ -255,8 +255,8 @@
        validated = true;
        break;
  
-@@ -4430,6 +4480,68 @@ set_option_handlers (struct cl_option_ha
-   handlers->handlers[2].mask = CL_TARGET;
+@@ -4623,6 +4673,68 @@ single_input_file_index ()
+   return ret;
  }
  
 +/* print_option a debugging routine to display option i with a leading desc
@@ -324,7 +324,7 @@
  /* Create the vector `switches' and its contents.
     Store its length in `n_switches'.  */
  
-@@ -6211,6 +6323,33 @@ do_spec_1 (const char *spec, int inswitc
+@@ -6809,6 +6921,33 @@ do_spec_1 (const char *spec, int inswitc
    return 0;
  }
  
@@ -358,7 +358,7 @@
  /* Look up a spec function.  */
  
  static const struct spec_function *
-@@ -6222,6 +6361,11 @@ lookup_spec_function (const char *name)
+@@ -6820,6 +6959,11 @@ lookup_spec_function (const char *name)
      if (strcmp (sf->name, name) == 0)
        return sf;
  
@@ -370,7 +370,7 @@
    return NULL;
  }
  
-@@ -7708,6 +7852,8 @@ driver::set_up_specs () const
+@@ -8306,6 +8450,8 @@ driver::set_up_specs () const
  			   accel_dir_suffix, dir_separator_str, NULL);
    just_machine_suffix = concat (spec_machine, dir_separator_str, NULL);
  
@@ -379,7 +379,7 @@
    specs_file = find_a_file (&startfile_prefixes, "specs", R_OK, true);
    /* Read the specs file unless it is a default one.  */
    if (specs_file != 0 && strcmp (specs_file, "specs"))
-@@ -8404,7 +8550,8 @@ driver::maybe_run_linker (const char *ar
+@@ -9036,7 +9182,8 @@ driver::maybe_run_linker (const char *ar
  
    /* Run ld to link all the compiler output files.  */
  
@@ -389,7 +389,7 @@
      {
        int tmp = execution_count;
  
-@@ -8473,7 +8620,7 @@ driver::maybe_run_linker (const char *ar
+@@ -9105,7 +9252,7 @@ driver::maybe_run_linker (const char *ar
    /* If options said don't run linker,
       complain about input files to be given to the linker.  */
  

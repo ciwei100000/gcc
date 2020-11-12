@@ -13,7 +13,6 @@ series_file	?= $(patchdir)/series
 # which patches should be applied?
 
 debian_patches = \
-	git-updates \
 	$(if $(with_linaro_branch),gcc-linaro) \
 	$(if $(with_linaro_branch),gcc-linaro-no-macros) \
 
@@ -21,7 +20,6 @@ debian_patches = \
 
 ifneq ($(GFDL_INVARIANT_FREE),yes)
   debian_patches += \
-	git-doc-updates \
 	$(if $(with_linaro_branch),gcc-linaro-doc) \
 	rename-info-files \
 
@@ -62,7 +60,6 @@ debian_patches += \
 	sparc64-biarch-long-double-128 \
 	pr66368 \
 	pr67590 \
-	libjit-ldflags \
 	libffi-pax \
 	libffi-race-condition \
 	cuda-float128 \
@@ -95,7 +92,7 @@ endif
 
 hardening_patches =
 ifneq (,$(filter $(derivative),Ubuntu))
-  ifneq (,$(findstring gcc-10, $(PKGSOURCE)))
+  ifneq (,$(findstring gcc-11, $(PKGSOURCE)))
     hardening_patches += \
 	gcc-distro-specs-ubuntu-doc \
 	testsuite-hardening-format \
@@ -104,7 +101,7 @@ ifneq (,$(filter $(derivative),Ubuntu))
 	testsuite-glibc-warnings
   endif
 else ifneq (,$(filter $(derivative),Debian))
-  ifneq (,$(findstring gcc-10, $(PKGSOURCE)))
+  ifneq (,$(findstring gcc-11, $(PKGSOURCE)))
 #    ifneq ($(with_pie),yes)
 #      hardening_patches += \
 #        ignore-pie-specs-when-not-enabled
@@ -178,7 +175,9 @@ debian_patches += \
 	sys-auxv-header \
 	gdc-dynamic-link-phobos \
 	ia64-disable-selective-scheduling \
-	gcc-foffload-default \
+
+# FIXME: update?
+#	gcc-foffload-default \
 
 ifeq ($(with_ibm_branch),yes)
   debian_patches += ibm-branch
@@ -344,7 +343,7 @@ ifneq (,$(filter $(derivative),Ubuntu))
 	     >> $(srcdir)/gcc/distro-defaults.h
 	echo '#define DIST_DEFAULT_BIND_NOW 1' \
 	     >> $(srcdir)/gcc/distro-defaults.h
-  ifneq (,$(findstring gcc-10, $(PKGSOURCE)))
+  ifneq (,$(findstring gcc-11, $(PKGSOURCE)))
 # FIXME: this is directly patched
 #	echo '#define DIST_DEFAULT_FORTIFY_SOURCE 1' \
 #	     >> $(srcdir)/gcc/distro-defaults.h
@@ -358,7 +357,7 @@ ifneq (,$(filter $(derivative),Ubuntu))
 	     >> $(srcdir)/gcc/distro-defaults.h
   endif
 else ifneq (,$(filter $(derivative),Debian))
-  ifneq (,$(findstring gcc-10, $(PKGSOURCE)))
+  ifneq (,$(findstring gcc-11, $(PKGSOURCE)))
   endif
 endif
 	  echo '#endif' \

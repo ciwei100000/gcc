@@ -66,17 +66,20 @@ endef
 $(foreach v, CPPFLAGS CFLAGS CXXFLAGS DFLAGS FFLAGS FCFLAGS LDFLAGS OBJCFLAGS OBJCXXFLAGS, $(if $(filter environment,$(origin $(v))),$(eval $(call unsetenv, $(v)))))
 
 CC = $(notdir $(firstword $(wildcard \
+	/usr/bin/$(DEB_HOST_GNU_TYPE)-gcc-11 \
 	/usr/bin/$(DEB_HOST_GNU_TYPE)-gcc-10 \
 	/usr/bin/$(DEB_HOST_GNU_TYPE)-gcc-9 \
 	/usr/bin/$(DEB_HOST_GNU_TYPE)-gcc-8 \
 	/usr/bin/$(DEB_HOST_GNU_TYPE)-gcc)))
 CXX = $(notdir $(firstword $(wildcard \
+	/usr/bin/$(DEB_HOST_GNU_TYPE)-g++-11 \
 	/usr/bin/$(DEB_HOST_GNU_TYPE)-g++-10 \
 	/usr/bin/$(DEB_HOST_GNU_TYPE)-g++-9 \
 	/usr/bin/$(DEB_HOST_GNU_TYPE)-g++-8 \
 	/usr/bin/$(DEB_HOST_GNU_TYPE)-g++)))
 ifeq ($(with_ada),yes)
   GNAT = $(notdir $(firstword $(wildcard \
+	/usr/bin/$(DEB_HOST_GNU_TYPE)-gnat-11 \
 	/usr/bin/$(DEB_HOST_GNU_TYPE)-gnat-10 \
 	/usr/bin/$(DEB_HOST_GNU_TYPE)-gnat-9 \
 	/usr/bin/$(DEB_HOST_GNU_TYPE)-gnat-8 \
@@ -771,7 +774,8 @@ ifeq ($(trunk_build),yes)
   CONFARGS += --enable-checking=yes
 else
   ifneq (,$(filter $(DEB_TARGET_ARCH), amd64 armel armhf arm64 ppc64el s390x))
-    CONFARGS += --enable-checking=yes,extra,rtl
+    #CONFARGS += --enable-checking=yes,extra,rtl
+    CONFARGS += --enable-checking=release
   else
     CONFARGS += --enable-checking=release
   endif
@@ -2198,9 +2202,9 @@ ifeq ($(with_hppa64),yes)
 
 	ls -l $(d)/$(PF)/bin
 	if [ ! -x $(d)/$(PF)/bin/hppa64-linux-gnu-gcc ]; then \
-	  mv $(d)/$(PF)/bin/hppa64-linux-gnu-gcc-10* $(d)/$(PF)/bin/hppa64-linux-gnu-gcc; \
+	  mv $(d)/$(PF)/bin/hppa64-linux-gnu-gcc-11* $(d)/$(PF)/bin/hppa64-linux-gnu-gcc; \
 	else \
-	  rm -f $(d)/$(PF)/bin/hppa64-linux-gnu-gcc-10*; \
+	  rm -f $(d)/$(PF)/bin/hppa64-linux-gnu-gcc-11*; \
 	fi
 
 	for i in ar nm ranlib; do \
@@ -2246,9 +2250,9 @@ endif
 	done
 
 	if [ ! -x $(d)/$(PF)/bin/$(TARGET_ALIAS)-gcc ]; then \
-	  mv $(d)/$(PF)/bin/$(TARGET_ALIAS)-gcc-10* $(d)/$(PF)/bin/$(TARGET_ALIAS)-gcc; \
+	  mv $(d)/$(PF)/bin/$(TARGET_ALIAS)-gcc-11* $(d)/$(PF)/bin/$(TARGET_ALIAS)-gcc; \
 	else \
-	  rm -f $(d)/$(PF)/bin/$(TARGET_ALIAS)-gcc-10*; \
+	  rm -f $(d)/$(PF)/bin/$(TARGET_ALIAS)-gcc-11*; \
 	fi
 	mv $(d)/$(gcc_lib_dir)/include-fixed/{limits,syslimits}.h \
 	  $(d)/$(gcc_lib_dir)/include/.

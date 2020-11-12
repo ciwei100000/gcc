@@ -348,7 +348,7 @@ ifneq ($(trunk_build),yes)
   endif
 endif
 
-with_lto_build := disabled for GCC 10
+with_lto_build := disabled for GCC 11
 with_bootstrap :=
 
 ifneq ($(findstring nolto, $(DEB_BUILD_OPTIONS)),)
@@ -763,7 +763,7 @@ ifneq ($(findstring nonvptx, $(DEB_BUILD_OPTIONS)),)
   with_offload_nvptx := disabled by DEB_BUILD_OPTIONS
 endif
 with_offload_nvptx := $(call envfilt, nvptx, , , $(with_offload_nvptx))
-#with_offload_nvptx := not yet built for GCC 10
+#with_offload_nvptx := not yet built for GCC 11
 
 gcn_archs := amd64
 gcn_target_name = amdgcn-amdhsa
@@ -795,25 +795,9 @@ ifneq ($(findstring nogcn, $(DEB_BUILD_OPTIONS)),)
   with_offload_gcn := disabled by DEB_BUILD_OPTIONS
 endif
 with_offload_gcn := $(call envfilt, gcn, , , $(with_offload_gcn))
-#with_offload_gcn := not yet built for GCC 10
+#with_offload_gcn := not yet built for GCC 11
 
 hsa_archs := amd64
-ifneq (,$(filter $(DEB_TARGET_ARCH),$(hsa_archs)))
-  offload_targets += hsa
-  with_offload_hsa := yes
-endif
-ifneq (,$(findstring build-cross, $(build_type)))
-  with_offload_hsa := disabled for cross builds
-endif
-
-ifeq ($(single_package),yes)
-  with_offload_hsa := disabled for snapshot builds
-endif
-ifneq ($(findstring nohsa, $(DEB_BUILD_OPTIONS)),)
-  with_offload_hsa := disabled by DEB_BUILD_OPTIONS
-endif
-with_offload_hsa := $(call envfilt, hsa, , , $(with_offload_hsa))
-#with_offload_hsa := not yet built for GCC 10
 
 with_cc1 := yes
 with_cc1 := $(call envfilt, cc1, , , $(with_cc1))
@@ -880,7 +864,7 @@ with_ada := $(call envfilt, ada, , , $(with_ada))
 ifeq ($(DEB_STAGE)-$(filter libgnat, $(with_rtlibs)),rtlibs-)
   with_ada := disabled for rtlibs stage
 endif
-# with_ada := disabled for GCC 10
+with_ada := disabled for GCC 11
 
 #ifneq ($(single_package),yes)
 #  with_separate_gnat := yes
@@ -1086,7 +1070,7 @@ ifeq ($(GENERATE_DFSG_TARBALL),yes)
   with_d := disabled while generating the dfsg tarball
 endif
 with_d := $(call envfilt, d, , , $(with_d))
-#with_d := not yet built for GCC 10
+#with_d := not yet built for GCC 11
 
 ifeq ($(with_base_only),yes)
   with_d := no
@@ -1168,7 +1152,7 @@ ifneq (,$(filter $(DEB_TARGET_ARCH), $(quadmath_targets)))
   # FIXME: upstream build tied to gfortran build
   ifeq ($(with_fortran),yes)
     with_qmath := yes
-    ifneq (,$(findstring gcc-10,$(PKGSOURCE)))
+    ifneq (,$(findstring gcc-11,$(PKGSOURCE)))
       ifeq ($(with_common_libs),yes)
         with_libqmath := yes
       endif
@@ -1264,7 +1248,7 @@ endif
 ifneq (,$(filter $(distrelease),precise))
   with_m2 := disabled for $(distrelease) backport
 endif
-#with_m2 := disabled for GCC 10
+#with_m2 := disabled for GCC 11
 
 with_m2 := $(call envfilt, m2, , , $(with_m2))
 
@@ -1296,7 +1280,7 @@ with_nls := $(call envfilt, nls, , , $(with_nls))
 # powerpc nof libraries -----
 with_libnof := no
 
-ifneq (,$(findstring gcc-10,$(PKGSOURCE)))
+ifneq (,$(findstring gcc-11,$(PKGSOURCE)))
   ifeq (,$(with_rtlibs))
     with_source := yes
   endif
@@ -1315,7 +1299,7 @@ with_ssp := $(call envfilt, ssp, , , $(with_ssp))
 
 ifeq ($(with_ssp),yes)
   ifneq ($(derivative),Debian)
-    ifneq (,$(findstring gcc-10, $(PKGSOURCE)))
+    ifneq (,$(findstring gcc-11, $(PKGSOURCE)))
       with_ssp_default := yes
     endif
   endif
@@ -2036,7 +2020,7 @@ ifneq (,$(findstring $(DEB_TARGET_GNU_SYSTEM),$(locale_no_systems)))
   force_gnu_locales := disabled for system $(DEB_TARGET_GNU_SYSTEM)
 endif
 
-gcc_tarpath		:= $(firstword $(wildcard gcc-*.tar.* /usr/src/gcc-10/gcc-*.tar.*))
+gcc_tarpath		:= $(firstword $(wildcard gcc-*.tar.* /usr/src/gcc-11/gcc-*.tar.*))
 gcc_tarball		:= $(notdir $(gcc_tarpath))
 gcc_srcdir		:= $(subst -dfsg,,$(patsubst %.tar.xz,%,$(patsubst %.tar.lzma,%,$(patsubst %.tar.gz,%,$(gcc_tarball:.tar.bz2=)))))
 
