@@ -322,10 +322,6 @@ ifneq ($(trunk_build),yes)
     endif
   endif
 
-  ifneq ($(findstring nostrap, $(DEB_BUILD_OPTIONS)),)
-    with_bootstrap := off
-  endif
-
   # Enable LTO only for 64bit builds
   ifeq ($(DEB_BUILD_ARCH_BITS)-$(DEB_HOST_ARCH_BITS),64-64)
     with_lto_build := yes
@@ -349,7 +345,10 @@ ifneq ($(trunk_build),yes)
 endif
 
 with_lto_build := disabled for GCC 11
-with_bootstrap :=
+
+ifneq ($(findstring nostrap, $(DEB_BUILD_OPTIONS)),)
+  with_bootstrap := off
+endif
 
 ifneq ($(findstring nolto, $(DEB_BUILD_OPTIONS)),)
   with_lto_build :=
@@ -770,7 +769,10 @@ gcn_target_name = amdgcn-amdhsa
 
 ifneq (,$(filter $(distrelease),buster xenial bionic eoan))
   gcn_tools_llvm_version = 9
+else ifneq (,$(filter $(distrelease),focal groovy))
+  gcn_tools_llvm_version = 10
 else
+  # FIXME: PR target/97827
   gcn_tools_llvm_version = 10
 endif
 
