@@ -4,13 +4,9 @@ endif
 
 ifeq ($(with_libgnat),yes)
   # During native builds, gnat-BV Depends:
-  # * libgnat, libgnat_util because gnat1 is linked dynamically
   # * libgnat             because of the development symlink.
   # During cross builds, gnat1 is linked statically. Only the latter remains.
   $(lib_binaries) += libgnat
-  ifneq ($(DEB_CROSS),yes)
-    $(lib_binaries) += libgnat-util
-  endif
 endif
 
 arch_binaries := $(arch_binaries) ada
@@ -31,17 +27,12 @@ p_gnat	= gnat-$(GNAT_VERSION)$(cross_bin_arch)
 p_gnatsjlj= gnat-$(GNAT_VERSION)-sjlj$(cross_bin_arch)
 p_lgnat	= libgnat-$(GNAT_VERSION)$(cross_lib_arch)
 p_lgnat_dbg = libgnat-$(GNAT_VERSION)-dbg$(cross_lib_arch)
-# gnat_util (formerly gnatvsn)
-p_lgnatvsn     = libgnat-util$(GNAT_VERSION)$(cross_lib_arch)
-p_lgnatvsn_dev = libgnat-util$(GNAT_VERSION)-dev$(cross_lib_arch)
-p_lgnatvsn_dbg = libgnat-util$(GNAT_VERSION)-dbg$(cross_lib_arch)
 p_gnatd	= $(p_gnat)-doc
 
 d_gbase	= debian/$(p_gbase)
 d_gnat	= debian/$(p_gnat)
 d_gnatsjlj	= debian/$(p_gnatsjlj)
 d_lgnat	= debian/$(p_lgnat)
-d_lgnatvsn = debian/$(p_lgnatvsn)
 d_gnatd	= debian/$(p_gnatd)
 
 GNAT_TOOLS = gnat gnatbind gnatchop gnatclean gnatfind gnatkr gnatlink \
@@ -131,44 +122,6 @@ endif
 	echo $(p_lgnat) $(if $(with_dbg), $(p_lgnat_dbg)) >> debian/$(lib_binaries)
 
 	trap '' 1 2 3 15; touch $@; mv $(install_stamp)-tmp $(install_stamp)
-
-$(binary_stamp)-libgnat-util: $(install_stamp)
-	: # $(p_lgnatvsn_dev)
-	dh_install -p$(p_lgnatvsn_dev) --autodest \
-	   $(usr_lib)/ada/adalib/gnat_util \
-	   usr/share/ada/adainclude/gnat_util \
-	   usr/share/gpr/gnatvsn.gpr usr/share/gpr/gnat_util.gpr \
-	   $(usr_lib)/libgnat_util.{a,so}
-	debian/dh_doclink -p$(p_lgnatvsn_dev) $(p_glbase)
-	dh_strip -p$(p_lgnatvsn_dev) -X.a --keep-debug
-
-	: # $(p_lgnatvsn)
-	mkdir -p $(d_lgnatvsn)/usr/share/lintian/overrides
-	echo missing-dependency-on-libc \
-	  > $(d_lgnatvsn)/usr/share/lintian/overrides/$(p_lgnatvsn)
-	dh_install -p$(p_lgnatvsn) --autodest $(usr_lib)/libgnat_util.so.*
-	debian/dh_doclink -p$(p_lgnatvsn) $(p_glbase)
-	$(call do_strip_lib_dbg, $(p_lgnatvsn), $(p_lgnatvsn_dbg), $(v_dbg),,)
-	$(cross_makeshlibs) dh_makeshlibs $(ldconfig_arg) -p$(p_lgnatvsn) \
-		-V '$(p_lgnatvsn) (>= $(DEB_VERSION))'
-	$(call cross_mangle_shlibs,$(p_lgnatvsn))
-	cat debian/$(p_lgnatvsn)/DEBIAN/shlibs >> debian/shlibs.local
-	$(cross_shlibdeps) dh_shlibdeps -p$(p_lgnatvsn) \
-		$(call shlibdirs_to_search, \
-			$(subst gnat-util$(GNAT_SONAME),gcc-s$(GCC_SONAME),$(p_lgnatvsn)) \
-			$(subst gnat-util$(GNAT_SONAME),atomic$(ATOMIC_SONAME),$(p_lgnatvsn)) \
-			$(subst gnat-util$(GNAT_SONAME),gnat-$(GNAT_SONAME),$(p_lgnatvsn)) \
-		,) \
-		$(if $(filter yes, $(with_common_libs)),,-- -Ldebian/shlibs.common)
-	$(call cross_mangle_substvars,$(p_lgnatvsn))
-
-ifeq ($(with_dbg),yes)
-	: # $(p_lgnatvsn_dbg)
-	debian/dh_doclink -p$(p_lgnatvsn_dbg) $(p_glbase)
-endif
-	echo $(p_lgnatvsn) $(p_lgnatvsn_dev) $(if $(with_dbg), $(p_lgnatvsn_dbg)) >> debian/$(lib_binaries)
-
-	touch $@
 
 $(binary_stamp)-ada: $(install_stamp)
 	dh_testdir

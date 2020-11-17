@@ -4851,7 +4851,7 @@ Suggests: gnat`'PV-doc, ada-reference-manual-2012, gnat`'-GNAT_V-sjlj
 Breaks: gnat-4.9-base (= 4.9-20140330-1)
 Replaces: gnat-4.9-base (= 4.9-20140330-1)
 # gnat-base 4.9-20140330-1 contains debian_packaging.mk by mistake.
-Conflicts: gnat-4.9, gnat-5`'TS, gnat-6`'TS, gnat-7`'TS, gnat-8`'TS, gnat-9`'TS,
+Conflicts: gnat-4.9, gnat-5`'TS, gnat-6`'TS, gnat-7`'TS, gnat-8`'TS, gnat-9`'TS, gnat-10`'TS,
 # Previous versions conflict for (at least) /usr/bin/gnatmake.
 BUILT_USING`'dnl
 Description: GNU Ada compiler
@@ -4920,73 +4920,6 @@ Description: runtime for applications compiled with GNAT (debugging symbols)
  .
  This package contains the debugging symbols.
 ')`'dnl libdbg
-
-ifdef(`TARGET',`',`
-Package: libgnat-util`'GNAT_V-dev`'LS
-TARGET_PACKAGE`'dnl
-Section: libdevel
-Architecture: any
-Priority: optional
-Depends: BASELDEP, gnat`'PV`'TS (= ${gnat:Version}),
- libgnat-util`'GNAT_V`'LS (= ${gnat:Version}), ${misc:Depends}
-# Conflict with gnatvsn7+: /usr/share/gpr/gnatvsn.gpr
-# Conflict with gnatvsn9 : /usr/share/gpr/gnat{vsn,_util}.gpr
-Conflicts: libgnatvsn7-dev`'LS, libgnatvsn8-dev`'LS, libgnatvsn9-dev`'LS,
-BUILT_USING`'dnl
-Description: GNU Ada compiler selected components (development files)
- GNAT is a compiler for the Ada programming language. It produces optimized
- code on platforms supported by the GNU Compiler Collection (GCC).
- .
- The libgnat_util library exports selected GNAT components for use in other
- packages, most notably ASIS tools. It is licensed under the GNAT-Modified
- GPL, allowing to link proprietary programs with it.
- .
- This package contains the development files and static library.
-
-Package: libgnat-util`'GNAT_V`'LS
-TARGET_PACKAGE`'dnl
-Architecture: any
-ifdef(`MULTIARCH', `Multi-Arch: same
-Pre-Depends: ${misc:Pre-Depends}
-')`'dnl
-Priority: PRI(optional)
-Section: libs
-Depends: BASELDEP, libgnat`'-GNAT_V`'LS (= ${gnat:Version}),
- ${shlibs:Depends}, ${misc:Depends}
-BUILT_USING`'dnl
-Description: GNU Ada compiler selected components (shared library)
- GNAT is a compiler for the Ada programming language. It produces optimized
- code on platforms supported by the GNU Compiler Collection (GCC).
- .
- The libgnat_util library exports selected GNAT components for use in other
- packages, most notably ASIS tools. It is licensed under the GNAT-Modified
- GPL, allowing to link proprietary programs with it.
- .
- This package contains the runtime shared library.
-
-ifenabled(`libdbg',`
-Package: libgnat-util`'GNAT_V-dbg`'LS
-TARGET_PACKAGE`'dnl
-Architecture: any
-ifdef(`MULTIARCH', `Multi-Arch: same
-Pre-Depends: ${misc:Pre-Depends}
-')`'dnl
-Priority: optional
-Section: debug
-Depends: BASELDEP, libgnat-util`'GNAT_V`'LS (= ${gnat:Version}), ${misc:Depends}
-Suggests: gnat
-BUILT_USING`'dnl
-Description: GNU Ada compiler selected components (debugging symbols)
- GNAT is a compiler for the Ada programming language. It produces optimized
- code on platforms supported by the GNU Compiler Collection (GCC).
- .
- The libgnat_util library exports selected GNAT components for use in other
- packages, most notably ASIS tools. It is licensed under the GNAT-Modified
- GPL, allowing to link proprietary programs with it.
- .
- This package contains the debugging symbols.
-')`'dnl libdbg
-')`'dnl native
 ')`'dnl libgnat
 
 ifenabled(`lib64gnat',`

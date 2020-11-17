@@ -17,13 +17,6 @@ to stamp-gnatlib2 is not necessary anymore with gcc-9.
   Double-check the link since Debian moves some symbols.
 * set LD_LIBRARY_PATH so that rebuilt tools can be executed.
 
-This patch depends on ada-libgnat_util.diff.
-
-# DP: - When building a cross gnat, link against the libgnat_utilBV-dev
-# DP:   package.
-# DP:   This link will be done by /usr/bin/$(host_alias)-gnat*, thus
-# DP:   the native gnat with the same major version will be required.
-
 --- a/src/gcc/ada/Makefile.rtl
 +++ b/src/gcc/ada/Makefile.rtl
 @@ -1999,6 +1999,11 @@ ifeq ($(strip $(filter-out s390% linux%,
@@ -187,12 +180,11 @@ This patch depends on ada-libgnat_util.diff.
  # the GNATLIBFLAGS when this will be supported by GNAT. At this point we will
 --- a/src/gnattools/Makefile.in
 +++ b/src/gnattools/Makefile.in
-@@ -75,16 +75,24 @@ CXX_LFLAGS = \
+@@ -75,16 +75,23 @@ CXX_LFLAGS = \
   -L../../../$(target_noncanonical)/libstdc++-v3/src/.libs \
   -L../../../$(target_noncanonical)/libstdc++-v3/libsupc++/.libs
  
 +rtsdir := $(abspath ../gcc/ada/rts)
-+utildir := $(abspath ../$(target_noncanonical)/libgnat_util/lib-for-gnat-tools)
 +
  # Variables for gnattools, native
  TOOLS_FLAGS_TO_PASS_NATIVE= \
@@ -207,26 +199,26 @@ This patch depends on ada-libgnat_util.diff.
  	"ADA_CFLAGS=$(ADA_CFLAGS)" \
  	"INCLUDES=$(INCLUDES_FOR_SUBDIR)" \
 -	"ADA_INCLUDES=-I- -I../rts $(ADA_INCLUDES_FOR_SUBDIR)"\
-+	"ADA_INCLUDES=-I- -nostdinc -I$(utildir) -I$(rtsdir) $(ADA_INCLUDES_FOR_SUBDIR)" \
-+	"TOOLS_ALREADY_COMPILED=$(foreach d, $(utildir) $(rtsdir), \
++	"ADA_INCLUDES=-I- -nostdinc -I$(rtsdir) $(ADA_INCLUDES_FOR_SUBDIR)" \
++	"TOOLS_ALREADY_COMPILED=$(foreach d, $(rtsdir), \
 +	  $(patsubst $(d)/%.ali,%.o, $(wildcard $(d)/*.ali)))" \
-+	'LIBGNAT=-L$(utildir) -lgnat_util -L$(rtsdir) -lgnat-$$(LIB_VERSION)' \
++	'LIBGNAT=-L$(rtsdir) -lgnat-$$(LIB_VERSION)' \
 +	"GNATBIND_FLAGS=-nostdlib -x" \
  	"exeext=$(exeext)" \
  	"fsrcdir=$(fsrcdir)" \
  	"srcdir=$(fsrcdir)" \
-@@ -190,6 +198,10 @@ $(GCC_DIR)/stamp-tools:
+@@ -190,6 +197,10 @@ $(GCC_DIR)/stamp-tools:
  # to be able to build gnatmake without a version of gnatmake around. Once 
  # everything has been compiled once, gnatmake can be recompiled with itself 
  # (see target regnattools) 
 +gnattools-native: export LD_LIBRARY_PATH := \
-+  $(if $(LD_LIBRARY_PATH),$(LD_LIBRARY_PATH):)$(utildir):$(rtsdir)
++  $(if $(LD_LIBRARY_PATH),$(LD_LIBRARY_PATH):)$(rtsdir)
 +# Useful even for 1st pass, as ../../gnatmake may already be
 +# dynamically linked in case this target has already been invoked.
  gnattools-native: $(GCC_DIR)/stamp-tools $(GCC_DIR)/stamp-gnatlib-rts
  	# gnattools1
  	$(MAKE) -C $(GCC_DIR)/ada/tools -f ../Makefile \
-@@ -198,6 +210,13 @@ gnattools-native: $(GCC_DIR)/stamp-tools
+@@ -198,6 +209,13 @@ gnattools-native: $(GCC_DIR)/stamp-tools
  	# gnattools2
  	$(MAKE) -C $(GCC_DIR)/ada/tools -f ../Makefile \
  	  $(TOOLS_FLAGS_TO_PASS_NATIVE) common-tools
