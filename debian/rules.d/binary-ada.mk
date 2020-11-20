@@ -47,7 +47,9 @@ dirs_gnat = \
 
 files_gnat = \
 	$(gcc_lexec_dir)/gnat1 \
+	$(gcc_lib_dir)/ada_target_properties \
 	$(gcc_lib_dir)/adainclude/*.ad[bs] \
+	$(gcc_lib_dir)/adainclude/*.h \
 	$(gcc_lib_dir)/adalib/*.ali \
 	$(gcc_lib_dir)/adalib/lib*.a \
 	$(foreach i,$(GNAT_TOOLS),$(PF)/bin/$(cmd_prefix)$(i)$(pkg_ver))
