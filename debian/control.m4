@@ -4485,7 +4485,8 @@ Conflicts: libstdc++5-dbg`'LS, libstdc++5-3.3-dbg`'LS, libstdc++6-dbg`'LS,
  libstdc++6-4.3-dbg`'LS, libstdc++6-4.4-dbg`'LS, libstdc++6-4.5-dbg`'LS,
  libstdc++6-4.6-dbg`'LS, libstdc++6-4.7-dbg`'LS, libstdc++6-4.8-dbg`'LS,
  libstdc++6-4.9-dbg`'LS, libstdc++6-5-dbg`'LS, libstdc++6-6-dbg`'LS,
- libstdc++6-7-dbg`'LS, libstdc++6-8-dbg`'LS, libstdc++6-9-dbg`'LS
+ libstdc++6-7-dbg`'LS, libstdc++6-8-dbg`'LS, libstdc++6-9-dbg`'LS,
+ libstdc++6-10-dbg`'LS
 BUILT_USING`'dnl
 ifelse(index(enabled_languages, `libdbg'), -1, `dnl
 Description: GNU Standard C++ Library v3 (debug build)`'ifdef(`TARGET',` (TARGET)', `')
@@ -4538,7 +4539,7 @@ Conflicts: lib32stdc++6-dbg`'LS, lib32stdc++6-4.0-dbg`'LS,
  lib32stdc++6-4.4-dbg`'LS, lib32stdc++6-4.5-dbg`'LS, lib32stdc++6-4.6-dbg`'LS,
  lib32stdc++6-4.7-dbg`'LS, lib32stdc++6-4.8-dbg`'LS, lib32stdc++6-4.9-dbg`'LS,
  lib32stdc++6-5-dbg`'LS, lib32stdc++6-6-dbg`'LS, lib32stdc++6-7-dbg`'LS,
- lib32stdc++6-8-dbg`'LS, lib32stdc++6-9-dbg`'LS,
+ lib32stdc++6-8-dbg`'LS, lib32stdc++6-9-dbg`'LS, lib32stdc++6-10-dbg`'LS,
 BUILT_USING`'dnl
 ifelse(index(enabled_languages, `libdbg'), -1, `dnl
 Description: GNU Standard C++ Library v3 (debug build)`'ifdef(`TARGET',` (TARGET)', `')
@@ -4591,7 +4592,7 @@ Conflicts: lib64stdc++6-dbg`'LS, lib64stdc++6-4.0-dbg`'LS,
  lib64stdc++6-4.4-dbg`'LS, lib64stdc++6-4.5-dbg`'LS, lib64stdc++6-4.6-dbg`'LS,
  lib64stdc++6-4.7-dbg`'LS, lib64stdc++6-4.8-dbg`'LS, lib64stdc++6-4.9-dbg`'LS,
  lib64stdc++6-5-dbg`'LS, lib64stdc++6-6-dbg`'LS, lib64stdc++6-7-dbg`'LS,
- lib64stdc++6-8-dbg`'LS, lib64stdc++6-9-dbg`'LS,
+ lib64stdc++6-8-dbg`'LS, lib64stdc++6-9-dbg`'LS, lib64stdc++6-10-dbg`'LS,
 BUILT_USING`'dnl
 ifelse(index(enabled_languages, `libdbg'), -1, `dnl
 Description: GNU Standard C++ Library v3 (debug build)`'ifdef(`TARGET',` (TARGET)', `')
@@ -4644,7 +4645,7 @@ Conflicts: libn32stdc++6-dbg`'LS, libn32stdc++6-4.0-dbg`'LS,
  libn32stdc++6-4.4-dbg`'LS, libn32stdc++6-4.5-dbg`'LS, libn32stdc++6-4.6-dbg`'LS,
  libn32stdc++6-4.7-dbg`'LS, libn32stdc++6-4.8-dbg`'LS, libn32stdc++6-4.9-dbg`'LS,
  libn32stdc++6-5-dbg`'LS, libn32stdc++6-6-dbg`'LS, libn32stdc++6-7-dbg`'LS,
- libn32stdc++6-8-dbg`'LS, libn32stdc++6-9-dbg`'LS,
+ libn32stdc++6-8-dbg`'LS, libn32stdc++6-9-dbg`'LS, libn32stdc++6-10-dbg`'LS,
 BUILT_USING`'dnl
 ifelse(index(enabled_languages, `libdbg'), -1, `dnl
 Description: GNU Standard C++ Library v3 (debug build)`'ifdef(`TARGET',` (TARGET)', `')
@@ -4698,7 +4699,7 @@ ifdef(`TARGET',`Provides: libx32stdc++CXX_SO-dbg-TARGET-dcv1
 Conflicts: libx32stdc++6-dbg`'LS, libx32stdc++6-4.6-dbg`'LS,
  libx32stdc++6-4.7-dbg`'LS, libx32stdc++6-4.8-dbg`'LS, libx32stdc++6-4.9-dbg`'LS,
  libx32stdc++6-5-dbg`'LS, libx32stdc++6-6-dbg`'LS, libx32stdc++6-7-dbg`'LS,
- libx32stdc++6-8-dbg`'LS, libx32stdc++6-9-dbg`'LS,
+ libx32stdc++6-8-dbg`'LS, libx32stdc++6-9-dbg`'LS, libx32stdc++6-10-dbg`'LS,
 BUILT_USING`'dnl
 ifelse(index(enabled_languages, `libdbg'), -1, `dnl
 Description: GNU Standard C++ Library v3 (debug build)`'ifdef(`TARGET',` (TARGET)', `')
@@ -4798,7 +4799,7 @@ Depends: BASELDEP, libdep(stdc++CXX_SO,sf),
  ${shlibs:Depends}, ${misc:Depends}
 ifdef(`TARGET',`Provides: libsfstdc++CXX_SO-dbg-TARGET-dcv1
 ',`')`'dnl
-ifdef(`TARGET',`dnl',`Conflicts: libsfstdc++6-dbg`'LS, libsfstdc++6-4.3-dbg`'LS, libsfstdc++6-4.4-dbg`'LS, libsfstdc++6-4.5-dbg`'LS, libsfstdc++6-4.6-dbg`'LS, libsfstdc++6-4.7-dbg`'LS, libsfstdc++6-4.8-dbg`'LS, libsfstdc++6-4.9-dbg`'LS, libsfstdc++6-5-dbg`'LS, libhfstdc++6-6-dbg`'LS, libhfstdc++6-7-dbg`'LS, libhfstdc++6-8-dbg`'LS, libhfstdc++6-9-dbg`'LS, libstdc++'CXX_SO`-armel [biarchsf_archs]')
+ifdef(`TARGET',`dnl',`Conflicts: libsfstdc++6-dbg`'LS, libsfstdc++6-4.3-dbg`'LS, libsfstdc++6-4.4-dbg`'LS, libsfstdc++6-4.5-dbg`'LS, libsfstdc++6-4.6-dbg`'LS, libsfstdc++6-4.7-dbg`'LS, libsfstdc++6-4.8-dbg`'LS, libsfstdc++6-4.9-dbg`'LS, libsfstdc++6-5-dbg`'LS, libhfstdc++6-6-dbg`'LS, libhfstdc++6-7-dbg`'LS, libhfstdc++6-8-dbg`'LS, libhfstdc++6-9-dbg`'LS, libhfstdc++6-10-dbg`'LS, libstdc++'CXX_SO`-armel [biarchsf_archs]')
 BUILT_USING`'dnl
 ifelse(index(enabled_languages, `libdbg'), -1, `dnl
 Description: GNU Standard C++ Library v3 (debug build)`'ifdef(`TARGET',` (TARGET)', `')
@@ -4947,7 +4948,7 @@ Priority: PRI(optional)
 Depends: ${misc:Depends}
 Suggests: gnat`'PV
 Conflicts: gnat-4.9-doc,
-  gnat-5-doc, gnat-6-doc, gnat-7-doc, gnat-8-doc, gnat-9-doc,
+  gnat-5-doc, gnat-6-doc, gnat-7-doc, gnat-8-doc, gnat-9-doc, gnat-10-doc,
 BUILT_USING`'dnl
 Description: GNU Ada compiler (documentation)
  GNAT is a compiler for the Ada programming language. It produces optimized
