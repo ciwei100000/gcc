@@ -453,7 +453,7 @@ Priority: optional
 Recommends: ${dep:libcdev}
 Depends: BASELDEP, ${dep:libgcc}, ${dep:libssp}, ${dep:libgomp}, ${dep:libitm},
  ${dep:libatomic}, ${dep:libbtrace}, ${dep:libasan}, ${dep:liblsan},
- ${dep:libtsan}, ${dep:libubsan}, ${dep:libvtv},
+ ${dep:libtsan}, ${dep:libubsan}, ${dep:libhwasan}, ${dep:libvtv},
  ${dep:libqmath}, ${dep:libunwinddev}, ${shlibs:Depends}, ${misc:Depends}
 ifdef(`MULTIARCH', `Multi-Arch: same
 ')`'dnl
@@ -544,7 +544,7 @@ Recommends: ${dep:libcdev}
 Depends: BASELDEP, ${dep:libgccbiarch}, ${dep:libsspbiarch},
  ${dep:libgompbiarch}, ${dep:libitmbiarch}, ${dep:libatomicbiarch},
  ${dep:libbtracebiarch}, ${dep:libasanbiarch}, ${dep:liblsanbiarch},
- ${dep:libtsanbiarch}, ${dep:libubsanbiarch},
+ ${dep:libtsanbiarch}, ${dep:libubsanbiarch}, ${dep:libhwasanbiarch},
  ${dep:libvtvbiarch},
  ${dep:libqmathbiarch}, ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
@@ -633,7 +633,7 @@ Recommends: ${dep:libcdev}
 Depends: BASELDEP, ${dep:libgccbiarch}, ${dep:libsspbiarch},
  ${dep:libgompbiarch}, ${dep:libitmbiarch}, ${dep:libatomicbiarch},
  ${dep:libbtracebiarch}, ${dep:libasanbiarch}, ${dep:liblsanbiarch},
- ${dep:libtsanbiarch}, ${dep:libubsanbiarch},
+ ${dep:libtsanbiarch}, ${dep:libubsanbiarch}, ${dep:libhwasanbiarch},
  ${dep:libvtvbiarch},
  ${dep:libqmathbiarch}, ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
@@ -725,7 +725,7 @@ Recommends: ${dep:libcdev}
 Depends: BASELDEP, ${dep:libgccbiarch}, ${dep:libsspbiarch},
  ${dep:libgompbiarch}, ${dep:libitmbiarch}, ${dep:libatomicbiarch},
  ${dep:libbtracebiarch}, ${dep:libasanbiarch}, ${dep:liblsanbiarch},
- ${dep:libtsanbiarch}, ${dep:libubsanbiarch},
+ ${dep:libtsanbiarch}, ${dep:libubsanbiarch}, ${dep:libhwasanbiarch},
  ${dep:libvtvbiarch},
  ${dep:libqmathbiarch}, ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
@@ -818,7 +818,7 @@ Recommends: ${dep:libcdev}
 Depends: BASELDEP, ${dep:libgccbiarch}, ${dep:libsspbiarch},
  ${dep:libgompbiarch}, ${dep:libitmbiarch}, ${dep:libatomicbiarch},
  ${dep:libbtracebiarch}, ${dep:libasanbiarch}, ${dep:liblsanbiarch},
- ${dep:libtsanbiarch}, ${dep:libubsanbiarch},
+ ${dep:libtsanbiarch}, ${dep:libubsanbiarch}, ${dep:libhwasanbiarch},
  ${dep:libvtvbiarch},
  ${dep:libqmathbiarch}, ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
@@ -906,7 +906,7 @@ Recommends: ${dep:libcdev}
 Depends: BASELDEP, ${dep:libgccbiarch}, ${dep:libsspbiarch},
  ${dep:libgompbiarch}, ${dep:libitmbiarch}, ${dep:libatomicbiarch},
  ${dep:libbtracebiarch}, ${dep:libasanbiarch}, ${dep:liblsanbiarch},
- ${dep:libtsanbiarch}, ${dep:libubsanbiarch},
+ ${dep:libtsanbiarch}, ${dep:libubsanbiarch}, ${dep:libhwasanbiarch},
  ${dep:libvtvbiarch},
  ${dep:libqmathbiarch}, ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
@@ -994,7 +994,7 @@ Recommends: ${dep:libcdev}
 Depends: BASELDEP, ${dep:libgccbiarch}, ${dep:libsspbiarch},
  ${dep:libgompbiarch}, ${dep:libitmbiarch}, ${dep:libatomicbiarch},
  ${dep:libbtracebiarch}, ${dep:libasanbiarch}, ${dep:liblsanbiarch},
- ${dep:libtsanbiarch}, ${dep:libubsanbiarch},
+ ${dep:libtsanbiarch}, ${dep:libubsanbiarch}, ${dep:libhwasanbiarch},
  ${dep:libvtvbiarch},
  ${dep:libqmathbiarch}, ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
@@ -1028,6 +1028,7 @@ Suggests: ${gcc:multilib}, gcc`'PV-doc (>= ${gcc:SoftVersion}),
  libdbgdep(lsan`'LSAN_SO-dbg,),
  libdbgdep(tsan`'TSAN_SO-dbg,),
  libdbgdep(ubsan`'UBSAN_SO-dbg,),
+ libdbgdep(hwasan`'HWASAN_SO-dbg,),
 ifenabled(`libvtv',`',`
  libdbgdep(vtv`'VTV_SO-dbg,),
 ')`'dnl
@@ -2043,6 +2044,22 @@ Description: AddressSanitizer -- a fast memory error detector (soft float ABI de
 ')`'dnl libdbg
 ')`'dnl libsfasan
 ')`'dnl libasan
+
+ifenabled(`libhwasan',`
+Package: libhwasan`'HWASAN_SO`'LS
+TARGET_PACKAGE`'dnl
+Section: ifdef(`TARGET',`devel',`libs')
+Architecture: ifdef(`TARGET',`CROSS_ARCH',`any')
+ifdef(`MULTIARCH', `Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+')`'dnl
+Priority: optional
+Depends: BASELDEP, ${shlibs:Depends}, ${misc:Depends}
+BUILT_USING`'dnl
+Description: AddressSanitizer -- a fast memory error detector
+ AddressSanitizer (HWASan) is a fast memory error detector.  It finds
+ use-after-free and {heap,stack,global}-buffer overflow bugs in C/C++ programs.
+')`'dnl libhwasan
 
 ifenabled(`liblsan',`
 Package: liblsan`'LSAN_SO`'LS

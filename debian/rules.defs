@@ -1360,7 +1360,13 @@ ifneq (,$(filter $(DEB_TARGET_ARCH),$(tsan_archs)))
   with_tsan := yes
 endif
 
-endif # with_cdev
+# hwasan / sanitizer --------------------
+with_hwasan :=
+with_hwasan := $(call envfilt, hwasan, , , $(with_hwasan))
+hwasan_archs = arm64
+ifneq (,$(filter $(DEB_TARGET_ARCH),$(hwasan_archs)))
+  with_hwasan := yes
+endif
 
 # ubsan / sanitizer --------------------
 with_ubsan :=
@@ -1370,6 +1376,8 @@ ubsan_archs = amd64 armel armhf arm64 i386 powerpc ppc64 ppc64el x32 \
 ifneq (,$(filter $(DEB_TARGET_ARCH),$(ubsan_archs)))
   with_ubsan := yes
 endif
+
+endif # with_cdev
 
 # libvtv --------------------
 with_vtv :=
@@ -1502,6 +1510,13 @@ else
     endif
   endif
 
+  # libhwasan -----------------
+  ifeq ($(with_hwasan)-$(with_common_libs),yes-yes)
+    ifeq ($(with_hwasan),yes)
+      with_libhwasan := yes
+    endif
+  endif
+
   # libvtv -----------------
   ifeq ($(with_vtv)-$(with_common_libs),yes-yes)
       with_libvtv := yes
@@ -1585,6 +1600,7 @@ else
     with_liblsan := disabled for rtlibs stage
     with_libtsan := disabled for rtlibs stage
     with_libubsan := disabled for rtlibs stage
+    with_libhwasan := disabled for rtlibs stage
     with_hppa64 := disabled for rtlibs stage
   endif
 endif
@@ -1750,6 +1766,9 @@ define gen_biarch
     ifeq ($$(with_libubsan),yes)
       with_lib$1ubsan := yes
     endif
+    ifeq ($$(with_libhwasan),yes)
+      with_lib$1hwasan:= yes
+    endif
     ifeq ($$(with_libvtv),yes)
       with_lib$1vtv := yes
     endif
@@ -1861,6 +1880,7 @@ ifeq ($(no_biarch_libs),yes)
   with_lib64lsan	:= no
   with_lib64tsan	:= no
   with_lib64ubsan	:= no
+  with_lib64hwasan	:= no
   with_lib64vtv		:= no
   with_lib64gccdev	:= no
   with_lib64cxxdev	:= no
@@ -1886,6 +1906,7 @@ ifeq ($(no_biarch_libs),yes)
   with_lib32lsan	:= no
   with_lib32tsan	:= no
   with_lib32ubsan	:= no
+  with_lib32hwasan	:= no
   with_lib32vtv		:= no
   with_lib32gccdev	:= no
   with_lib32cxxdev	:= no
@@ -1911,6 +1932,7 @@ ifeq ($(no_biarch_libs),yes)
   with_libn32lsan	:= no
   with_libn32tsan	:= no
   with_libn32ubsan	:= no
+  with_libn32hwasan	:= no
   with_libn32gccdev	:= no
   with_libn32cxxdev	:= no
   with_libn32objcdev	:= no
@@ -1935,6 +1957,7 @@ ifeq ($(no_biarch_libs),yes)
   with_libx32lsan	:= no
   with_libx32tsan	:= no
   with_libx32ubsan	:= no
+  with_libx32hwasan	:= no
   with_libx32vtv	:= no
   with_libx32gccdev	:= no
   with_libx32cxxdev	:= no
@@ -1960,6 +1983,7 @@ ifeq ($(no_biarch_libs),yes)
   with_libhflsan	:= no
   with_libhftsan	:= no
   with_libhfubsan	:= no
+  with_libhfhwasan	:= no
   with_libhfgccdev	:= no
   with_libhfcxxdev	:= no
   with_libhfobjcdev	:= no
@@ -1984,6 +2008,7 @@ ifeq ($(no_biarch_libs),yes)
   with_libsflsan	:= no
   with_libsftsan	:= no
   with_libsfubsan	:= no
+  with_libsfhwasan	:= no
   with_libsfgccdev	:= no
   with_libsfcxxdev	:= no
   with_libsfobjcdev	:= no

@@ -3,7 +3,7 @@
 
 --- a/src/gcc/gcc.c
 +++ b/src/gcc/gcc.c
-@@ -739,8 +739,11 @@ proper position among the other output f
+@@ -745,8 +745,11 @@ proper position among the other output f
  #ifdef LIBASAN_EARLY_SPEC
  #define LIBASAN_SPEC STATIC_LIBASAN_LIBS
  #elif defined(HAVE_LD_STATIC_DYNAMIC)
@@ -17,7 +17,7 @@
  		     STATIC_LIBASAN_LIBS
  #else
  #define LIBASAN_SPEC "-lasan" STATIC_LIBASAN_LIBS
-@@ -757,8 +760,11 @@ proper position among the other output f
+@@ -781,8 +784,11 @@ proper position among the other output f
  #ifdef LIBTSAN_EARLY_SPEC
  #define LIBTSAN_SPEC STATIC_LIBTSAN_LIBS
  #elif defined(HAVE_LD_STATIC_DYNAMIC)
@@ -31,7 +31,7 @@
  		     STATIC_LIBTSAN_LIBS
  #else
  #define LIBTSAN_SPEC "-ltsan" STATIC_LIBTSAN_LIBS
-@@ -775,8 +781,11 @@ proper position among the other output f
+@@ -799,8 +805,11 @@ proper position among the other output f
  #ifdef LIBLSAN_EARLY_SPEC
  #define LIBLSAN_SPEC STATIC_LIBLSAN_LIBS
  #elif defined(HAVE_LD_STATIC_DYNAMIC)
@@ -45,7 +45,7 @@
  		     STATIC_LIBLSAN_LIBS
  #else
  #define LIBLSAN_SPEC "-llsan" STATIC_LIBLSAN_LIBS
-@@ -791,8 +800,11 @@ proper position among the other output f
+@@ -815,8 +824,11 @@ proper position among the other output f
  #define STATIC_LIBUBSAN_LIBS \
    " %{static-libubsan|static:%:include(libsanitizer.spec)%(link_libubsan)}"
  #ifdef HAVE_LD_STATIC_DYNAMIC
@@ -61,12 +61,17 @@
  #define LIBUBSAN_SPEC "-lubsan" STATIC_LIBUBSAN_LIBS
 --- a/src/gcc/config/gnu-user.h
 +++ b/src/gcc/config/gnu-user.h
-@@ -136,17 +136,17 @@ see the files COPYING3 and COPYING.RUNTI
+@@ -136,21 +136,21 @@ see the files COPYING3 and COPYING.RUNTI
  #define LIBASAN_EARLY_SPEC "%{!shared:libasan_preinit%O%s} " \
    "%{static-libasan:%{!shared:" \
    LD_STATIC_OPTION " --whole-archive -lasan --no-whole-archive " \
 -  LD_DYNAMIC_OPTION "}}%{!static-libasan:-lasan}"
 +  LD_DYNAMIC_OPTION "}}%{!static-libasan:%{!fuse-ld=gold:--push-state} --no-as-needed -lasan %{fuse-ld=gold:--as-needed;:--pop-state}}"
+ #undef LIBHWASAN_EARLY_SPEC
+ #define LIBHWASAN_EARLY_SPEC "%{static-libhwasan:%{!shared:" \
+   LD_STATIC_OPTION " --whole-archive -lhwasan --no-whole-archive " \
+-  LD_DYNAMIC_OPTION "}}%{!static-libhwasan:-lhwasan}"
++  LD_DYNAMIC_OPTION "}}%{!static-libhwasan:%{!fuse-ld=gold:--push-state} --no-as-needed -lhwasan %{fuse-ld=gold:--as-needed;:--pop-state}}"
  #undef LIBTSAN_EARLY_SPEC
  #define LIBTSAN_EARLY_SPEC "%{!shared:libtsan_preinit%O%s} " \
    "%{static-libtsan:%{!shared:" \
