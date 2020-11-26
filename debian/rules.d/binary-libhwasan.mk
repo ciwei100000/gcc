@@ -39,7 +39,7 @@ define __do_hwasan
 	  echo "$(p_l): symbols-file-contains-current-version-with-debian-revision" \
 	    >> debian/$(p_l)/usr/share/lintian/overrides/$(p_l))
 
-	$(call do_strip_lib_dbg, $(p_l), $(p_d), $(v_dbg),,)
+	$(if $(strip_sanitizer), $(call do_strip_lib_dbg, $(p_l), $(p_d), $(v_dbg),,))
 	$(cross_makeshlibs) dh_makeshlibs $(ldconfig_arg) -p$(p_l)
 	$(call cross_mangle_shlibs,$(p_l))
 	$(if $(ignshld),$(ignshld),-)DIRNAME=$(subst n,,$(2)) $(cross_shlibdeps) dh_shlibdeps -p$(p_l) \
