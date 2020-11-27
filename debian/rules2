@@ -552,6 +552,14 @@ ifeq ($(DEB_TARGET_ARCH_OS),linux)
   endif
 endif
 
+ifneq (,$(filter $(DEB_TARGET_ARCH), amd64 i386 x32))
+  ifneq (,$(filter $(distrelease),jessie stretch buster precise xenial bionic focal))
+    CONFARGS += --disable-cet
+  else
+    CONFARGS += --enable-cet
+  endif
+endif
+
 ifneq (,$(filter $(DEB_TARGET_ARCH), amd64 i386 kfreebsd-i386 kfreebsd-amd64))
   ifneq (,$(filter $(derivative),Ubuntu))
     ifneq (,$(filter $(distrelease),dapper hardy))
