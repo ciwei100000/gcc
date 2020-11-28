@@ -200,9 +200,9 @@ define __do_libstdcxx
 
 	$(if $(DEB_CROSS),,$(if $(2),,
 	dh_installdirs -p$(p_l) \
-		$(PF)/share/gcc-$(BASE_VERSION)/python
+		$(PF)/share/gcc/python
 	$(dh_compat2) dh_movefiles -p$(p_l) \
-		$(PF)/share/gcc-$(BASE_VERSION)/python/libstdcxx
+		$(PF)/share/gcc/python/libstdcxx
 	))
 	cp -p $(d)/$(usr_lib$(2))/libstdc++.so.*.py \
 		$(d_l)/$(PF)/share/gdb/auto-load/$(usr_lib$(2))/.
