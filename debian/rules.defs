@@ -311,6 +311,20 @@ ifdef WITH_BOOTSTRAP
   with_bootstrap = $(WITH_BOOTSTRAP)
 endif
 
+# gcc-snapshot ...
+ifeq ($(trunk_build),yes)
+  ifeq ($(build_type),build-native)
+    ifneq (,$(filter $(DEB_HOST_ARCH), amd64 i386 armhf arm64 powerpc ppc64 ppc64el s390x sparc64))
+      with_bootstrap := profiled
+    endif
+  endif
+
+  # Enable LTO only for 64bit builds
+  ifeq ($(DEB_BUILD_ARCH_BITS)-$(DEB_HOST_ARCH_BITS),64-64)
+  #  with_lto_build := yes
+  endif
+endif
+
 ifneq ($(trunk_build),yes)
   ifeq ($(build_type),build-native)
     ifeq (,$(DEB_STAGE))
