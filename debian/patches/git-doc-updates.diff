@@ -1,7 +1,7 @@
-# DP: updates from the 10 branch upto 20201011 (documentation).
+# DP: updates from the gcc-10 branch upto 20201207 (documentation).
 
 LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
-	ee5c3db6c5b2c3332912fb4c9cfa2864569ebd9a f16af0e32f9019f1e392fafb8f93dd5391301b6a \
+	ee5c3db6c5b2c3332912fb4c9cfa2864569ebd9a 5f2aa971d9700f4de8598f781c3862ad1d5fa51d \
 	| awk '/^diff .*\.texi/ {skip=0; print; next} /^diff / {skip=1; next} skip==0' \
         | grep -v -E '^(diff|index)'
 
@@ -309,6 +309,42 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  @end smallexample
  
  @node RX Built-in Functions
+--- a/src/gcc/doc/implement-c.texi
++++ b/src/gcc/doc/implement-c.texi
+@@ -576,6 +576,11 @@ are of scalar types, the expression is interpreted by GCC as a read of
+ the volatile object; in the other cases, the expression is only evaluated
+ for its side effects.
+ 
++When an object of an aggregate type, with the same size and alignment as a
++scalar type @code{S}, is the subject of a volatile access by an assignment
++expression or an atomic function, the access to it is performed as if the
++object's declared type were @code{volatile S}.
++
+ @end itemize
+ 
+ @node Declarators implementation
+--- a/src/gcc/doc/install.texi
++++ b/src/gcc/doc/install.texi
+@@ -1338,7 +1338,7 @@ Specify which cpu variant the compiler should generate code for by default.
+ This option is only supported on some targets, including ARC, ARM, i386, M68k,
+ PowerPC, and SPARC@.  It is mandatory for ARC@.  The @option{--with-cpu-32} and
+ @option{--with-cpu-64} options specify separate default CPUs for
+-32-bit and 64-bit modes; these options are only supported for i386,
++32-bit and 64-bit modes; these options are only supported for aarch64, i386,
+ x86-64, PowerPC, and SPARC@.
+ 
+ @item --with-schedule=@var{cpu}
+@@ -2761,6 +2761,10 @@ Arranges for the run time of each program started by the GCC driver,
+ built in any stage, to be logged to @file{time.log}, in the top level of
+ the build tree.
+ 
++@item @samp{bootstrap-asan}
++Compiles GCC itself using Address Sanitization in order to catch invalid memory
++accesses within the GCC code.
++
+ @end table
+ 
+ @section Building a cross compiler
 --- a/src/gcc/doc/invoke.texi
 +++ b/src/gcc/doc/invoke.texi
 @@ -551,11 +551,12 @@ Objective-C and Objective-C++ Dialects}.
@@ -343,7 +379,32 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  
  @emph{FR30 Options}
  @gccoptlist{-msmall-model  -mno-lsim}
-@@ -13478,14 +13480,14 @@ all the regular expressions (separated by a semi-colon).
+@@ -13234,6 +13236,24 @@ The number of Newton iterations for calculating the reciprocal for double type.
+ The precision of division is propotional to this param when division
+ approximation is enabled.  The default value is 2.
+ 
++@item aarch64-autovec-preference
++Force an ISA selection strategy for auto-vectorization.  Accepts values from
++0 to 4, inclusive.
++@table @samp
++@item 0
++Use the default heuristics.
++@item 1
++Use only Advanced SIMD for auto-vectorization.
++@item 2
++Use only SVE for auto-vectorization.
++@item 3
++Use both Advanced SIMD and SVE.  Prefer Advanced SIMD when the costs are
++deemed equal.
++@item 4
++Use both Advanced SIMD and SVE.  Prefer SVE when the costs are deemed equal.
++@end table
++The default value is 0.
++
+ @end table
+ 
+ @end table
+@@ -13478,14 +13498,14 @@ all the regular expressions (separated by a semi-colon).
  For example, @option{-fprofile-exclude-files=/usr/*} will prevent instrumentation
  of all files that are located in @file{/usr/} folder.
  
@@ -360,7 +421,7 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  @option{-fprofile-generate} is reproducible provided the trained program
  behaves the same at each invocation of the train run, it is not
  multi-threaded and profile data streaming is always done in the same
-@@ -13500,7 +13502,7 @@ Such non-reproducible part of programs may be annotated by
+@@ -13500,7 +13520,7 @@ Such non-reproducible part of programs may be annotated by
  @option{-l} can be used to dump gathered data and verify that they are
  indeed reproducible.
  
@@ -369,7 +430,7 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  stays reproducible regardless the order of streaming of the data into
  gcda files.  This setting makes it possible to run multiple instances of
  instrumented program in parallel (such as with @code{make -j}). This
-@@ -13831,7 +13833,7 @@ operand constant, @code{__sanitizer_cov_trace_cmpf} or
+@@ -13831,7 +13851,7 @@ operand constant, @code{__sanitizer_cov_trace_cmpf} or
  @code{__sanitizer_cov_trace_cmpd} for float or double comparisons and
  @code{__sanitizer_cov_trace_switch} for switch statements.
  
@@ -378,7 +439,7 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  @opindex fcf-protection
  Enable code instrumentation of control-flow transfers to increase
  program security by checking that target addresses of control-flow
-@@ -13849,6 +13851,11 @@ function.  The value @code{full} is an alias for specifying both
+@@ -13849,6 +13869,11 @@ function.  The value @code{full} is an alias for specifying both
  @code{branch} and @code{return}. The value @code{none} turns off
  instrumentation.
  
@@ -390,7 +451,7 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  The macro @code{__CET__} is defined when @option{-fcf-protection} is
  used.  The first bit of @code{__CET__} is set to 1 for the value
  @code{branch} and the second bit of @code{__CET__} is set to 1 for
-@@ -16969,13 +16976,14 @@ performance of the code.  Permissible values for this option are:
+@@ -16969,13 +16994,14 @@ performance of the code.  Permissible values for this option are:
  @samp{cortex-a57}, @samp{cortex-a72}, @samp{cortex-a73}, @samp{cortex-a75},
  @samp{cortex-a76}, @samp{cortex-a76ae}, @samp{cortex-a77},
  @samp{cortex-a65}, @samp{cortex-a65ae}, @samp{cortex-a34},
@@ -409,7 +470,7 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  @samp{thunderx}, @samp{thunderxt88},
  @samp{thunderxt88p1}, @samp{thunderxt81}, @samp{tsv110},
  @samp{thunderxt83}, @samp{thunderx2t99}, @samp{thunderx3t110}, @samp{zeus},
-@@ -17065,6 +17073,17 @@ functions.  The optional argument @samp{b-key} can be used to sign the functions
+@@ -17065,6 +17091,17 @@ functions.  The optional argument @samp{b-key} can be used to sign the functions
  with the B-key instead of the A-key.
  @samp{bti} turns on branch target identification mechanism.
  
@@ -427,7 +488,7 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  @item -msve-vector-bits=@var{bits}
  @opindex msve-vector-bits
  Specify the number of bits in an SVE vector register.  This option only has
-@@ -18805,9 +18824,9 @@ Permissible names are: @samp{arm7tdmi}, @samp{arm7tdmi-s}, @samp{arm710t},
+@@ -18805,9 +18842,9 @@ Permissible names are: @samp{arm7tdmi}, @samp{arm7tdmi-s}, @samp{arm710t},
  @samp{cortex-m35p}, @samp{cortex-m55},
  @samp{cortex-m1.small-multiply}, @samp{cortex-m0.small-multiply},
  @samp{cortex-m0plus.small-multiply}, @samp{exynos-m1}, @samp{marvell-pj4},
@@ -440,7 +501,7 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  
  Additionally, this option can specify that GCC should tune the performance
  of the code for a big.LITTLE system.  Permissible names are:
-@@ -19197,7 +19216,7 @@ is only available when generating non-pic code for M-profile targets.
+@@ -19197,7 +19234,7 @@ is only available when generating non-pic code for M-profile targets.
  @opindex mcmse
  Generate secure code as per the "ARMv8-M Security Extensions: Requirements on
  Development Tools Engineering Specification", which can be found on
@@ -449,7 +510,7 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  
  @item -mfdpic
  @itemx -mno-fdpic
-@@ -21032,6 +21051,14 @@ Generate code for a big-endian target.
+@@ -21032,6 +21069,14 @@ Generate code for a big-endian target.
  @item -mlittle-endian
  @opindex mlittle-endian
  Generate code for a little-endian target.  This is the default.
@@ -464,7 +525,7 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  @end table
  
  @node FR30 Options
-@@ -27019,7 +27046,7 @@ system representing a certain processor type.  Possible values for
+@@ -27019,7 +27064,7 @@ system representing a certain processor type.  Possible values for
  @var{cpu-type} are @samp{z900}/@samp{arch5}, @samp{z990}/@samp{arch6},
  @samp{z9-109}, @samp{z9-ec}/@samp{arch7}, @samp{z10}/@samp{arch8},
  @samp{z196}/@samp{arch9}, @samp{zEC12}, @samp{z13}/@samp{arch11},
@@ -473,6 +534,84 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  
  The default is @option{-march=z900}.
  
+@@ -28662,14 +28707,14 @@ BMI, BMI2 and F16C instruction set support.
+ 
+ @item broadwell
+ Intel Broadwell CPU with 64-bit extensions, MOVBE, MMX, SSE, SSE2, SSE3, SSSE3,
+-SSE4.1, SSE4.2, POPCNT, AVX, AVX2, AES, PCLMUL, FSGSBASE, RDRND, FMA,
+-BMI, BMI2, F16C, RDSEED, ADCX and PREFETCHW instruction set support.
++SSE4.1, SSE4.2, POPCNT, AVX, AVX2, AES, PCLMUL, FSGSBASE, RDRND, FMA, BMI, BMI2,
++F16C, RDSEED ADCX and PREFETCHW instruction set support.
+ 
+ @item skylake
+ Intel Skylake CPU with 64-bit extensions, MOVBE, MMX, SSE, SSE2, SSE3, SSSE3,
+ SSE4.1, SSE4.2, POPCNT, AVX, AVX2, AES, PCLMUL, FSGSBASE, RDRND, FMA,
+-BMI, BMI2, F16C, RDSEED, ADCX, PREFETCHW, CLFLUSHOPT, XSAVEC and
+-XSAVES instruction set support.
++BMI, BMI2, F16C, RDSEED, ADCX, PREFETCHW, CLFLUSHOPT, XSAVEC and XSAVES
++instruction set support.
+ 
+ @item bonnell
+ Intel Bonnell CPU with 64-bit extensions, MOVBE, MMX, SSE, SSE2, SSE3 and SSSE3
+@@ -28677,34 +28722,36 @@ instruction set support.
+ 
+ @item silvermont
+ Intel Silvermont CPU with 64-bit extensions, MOVBE, MMX, SSE, SSE2, SSE3, SSSE3,
+-SSE4.1, SSE4.2, POPCNT, AES, PCLMUL and RDRND instruction set support.
++SSE4.1, SSE4.2, POPCNT, AES, PREFETCHW, PCLMUL and RDRND instruction set support.
+ 
+ @item goldmont
+ Intel Goldmont CPU with 64-bit extensions, MOVBE, MMX, SSE, SSE2, SSE3, SSSE3,
+-SSE4.1, SSE4.2, POPCNT, AES, PCLMUL, RDRND, XSAVE, XSAVEOPT and FSGSBASE
+-instruction set support.
++SSE4.1, SSE4.2, POPCNT, AES, PREFETCHW, PCLMUL, RDRND, XSAVE, XSAVEC, XSAVES,
++XSAVEOPT and FSGSBASE instruction set support.
+ 
+ @item goldmont-plus
+ Intel Goldmont Plus CPU with 64-bit extensions, MOVBE, MMX, SSE, SSE2, SSE3,
+-SSSE3, SSE4.1, SSE4.2, POPCNT, AES, PCLMUL, RDRND, XSAVE, XSAVEOPT, FSGSBASE,
+-PTWRITE, RDPID, SGX and UMIP instruction set support.
++SSSE3, SSE4.1, SSE4.2, POPCNT, AES, PREFETCHW, PCLMUL, RDRND, XSAVE, XSAVEC,
++XSAVES, XSAVEOPT, FSGSBASE, PTWRITE, RDPID, SGX and UMIP instruction set support.
+ 
+ @item tremont
+ Intel Tremont CPU with 64-bit extensions, MOVBE, MMX, SSE, SSE2, SSE3, SSSE3,
+-SSE4.1, SSE4.2, POPCNT, AES, PCLMUL, RDRND, XSAVE, XSAVEOPT, FSGSBASE, PTWRITE,
+-RDPID, SGX, UMIP, GFNI-SSE, CLWB and ENCLV instruction set support.
++SSE4.1, SSE4.2, POPCNT, AES, PREFETCHW, PCLMUL, RDRND, XSAVE, XSAVEC, XSAVES,
++XSAVEOPT, FSGSBASE, PTWRITE, RDPID, SGX, UMIP, GFNI-SSE, CLWB, MOVDIRI,
++MOVDIR64B, CLDEMOTE and WAITPKG instruction set support.
+ 
+ @item knl
+ Intel Knight's Landing CPU with 64-bit extensions, MOVBE, MMX, SSE, SSE2, SSE3,
+ SSSE3, SSE4.1, SSE4.2, POPCNT, AVX, AVX2, AES, PCLMUL, FSGSBASE, RDRND, FMA,
+-BMI, BMI2, F16C, RDSEED, ADCX, PREFETCHW, AVX512F, AVX512PF, AVX512ER and
+-AVX512CD instruction set support.
++BMI, BMI2, F16C, RDSEED, ADCX, PREFETCHW, PREFETCHWT1, AVX512F, AVX512PF,
++AVX512ER and AVX512CD instruction set support.
+ 
+ @item knm
+ Intel Knights Mill CPU with 64-bit extensions, MOVBE, MMX, SSE, SSE2, SSE3,
+ SSSE3, SSE4.1, SSE4.2, POPCNT, AVX, AVX2, AES, PCLMUL, FSGSBASE, RDRND, FMA,
+-BMI, BMI2, F16C, RDSEED, ADCX, PREFETCHW, AVX512F, AVX512PF, AVX512ER, AVX512CD,
+-AVX5124VNNIW, AVX5124FMAPS and AVX512VPOPCNTDQ instruction set support.
++BMI, BMI2, F16C, RDSEED, ADCX, PREFETCHW, PREFETCHWT1, AVX512F, AVX512PF,
++AVX512ER, AVX512CD, AVX5124VNNIW, AVX5124FMAPS and AVX512VPOPCNTDQ instruction
++set support.
+ 
+ @item skylake-avx512
+ Intel Skylake Server CPU with 64-bit extensions, MOVBE, MMX, SSE, SSE2, SSE3,
+@@ -28755,8 +28802,8 @@ SSE4.1, SSE4.2, POPCNT, PKU, AVX, AVX2, AES, PCLMUL, FSGSBASE, RDRND, FMA, BMI,
+ BMI2, F16C, RDSEED, ADCX, PREFETCHW, CLFLUSHOPT, XSAVEC, XSAVES, AVX512F,
+ AVX512VL, AVX512BW, AVX512DQ, AVX512CD, AVX512VBMI, AVX512IFMA, SHA, CLWB, UMIP,
+ RDPID, GFNI, AVX512VBMI2, AVX512VPOPCNTDQ, AVX512BITALG, AVX512VNNI, VPCLMULQDQ,
+-VAES, PCONFIG, WBNOINVD, MOVDIRI, MOVDIR64B and  AVX512VP2INTERSECT instruction
+-set support.
++VAES, PCONFIG, WBNOINVD, MOVDIRI, MOVDIR64B, AVX512VP2INTERSECT and KEYLOCKER
++instruction set support.
+ 
+ @item k6
+ AMD K6 CPU with MMX instruction set support.
 --- a/src/gcc/doc/sourcebuild.texi
 +++ b/src/gcc/doc/sourcebuild.texi
 @@ -1244,6 +1244,18 @@ This DejaGnu directive compares @var{regexp} to the combined output
