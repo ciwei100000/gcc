@@ -14,7 +14,7 @@
  #include "config.h"
  #include "system.h"
  #include "coretypes.h"
-@@ -953,6 +958,90 @@ proper position among the other output f
+@@ -977,6 +982,90 @@ proper position among the other output f
  #define LINK_GCC_C_SEQUENCE_SPEC "%G %{!nolibc:%L %G}"
  #endif
  
@@ -105,7 +105,7 @@
  #ifndef LINK_SSP_SPEC
  #ifdef TARGET_LIBC_PROVIDES_SSP
  #define LINK_SSP_SPEC "%{fstack-protector|fstack-protector-all" \
-@@ -1009,7 +1098,7 @@ proper position among the other output f
+@@ -1033,7 +1122,7 @@ proper position among the other output f
  #ifndef LINK_PIE_SPEC
  #ifdef HAVE_LD_PIE
  #ifndef LD_PIE_SPEC
@@ -114,7 +114,7 @@
  #endif
  #else
  #define LD_PIE_SPEC ""
-@@ -1123,6 +1212,7 @@ proper position among the other output f
+@@ -1150,6 +1239,7 @@ proper position among the other output f
     "%{flto|flto=*:%<fcompare-debug*} \
      %{flto} %{fno-lto} %{flto=*} %l " LINK_PIE_SPEC \
     "%{fuse-ld=*:-fuse-ld=%*} " LINK_COMPRESS_DEBUG_SPEC \
@@ -122,7 +122,7 @@
     "%X %{o*} %{e*} %{N} %{n} %{r}\
      %{s} %{t} %{u*} %{z} %{Z} %{!nostdlib:%{!r:%{!nostartfiles:%S}}} \
      %{static|no-pie|static-pie:} %@{L*} %(mfwrap) %(link_libgcc) " \
-@@ -1163,6 +1253,7 @@ static const char *cpp_spec = CPP_SPEC;
+@@ -1190,6 +1280,7 @@ static const char *cpp_spec = CPP_SPEC;
  static const char *cc1_spec = CC1_SPEC;
  static const char *cc1plus_spec = CC1PLUS_SPEC;
  static const char *link_gcc_c_sequence_spec = LINK_GCC_C_SEQUENCE_SPEC;
@@ -130,7 +130,7 @@
  static const char *link_ssp_spec = LINK_SSP_SPEC;
  static const char *asm_spec = ASM_SPEC;
  static const char *asm_final_spec = ASM_FINAL_SPEC;
-@@ -1220,7 +1311,7 @@ static const char *cpp_options =
+@@ -1247,7 +1338,7 @@ static const char *cpp_options =
  "%(cpp_unique_options) %1 %{m*} %{std*&ansi&trigraphs} %{W*&pedantic*} %{w}\
   %{f*} %{g*:%{%:debug-level-gt(0):%{g*}\
   %{!fno-working-directory:-fworking-directory}}} %{O*}\
@@ -139,7 +139,7 @@
  
  /* Pass -d* flags, possibly modifying -dumpdir, -dumpbase et al.
  
-@@ -1409,9 +1500,9 @@ static const struct compiler default_com
+@@ -1436,9 +1527,9 @@ static const struct compiler default_com
        %{save-temps*|traditional-cpp|no-integrated-cpp:%(trad_capable_cpp) \
  	  %(cpp_options) -o %{save-temps*:%b.i} %{!save-temps*:%g.i} \n\
  	    cc1 -fpreprocessed %{save-temps*:%b.i} %{!save-temps*:%g.i} \
@@ -151,7 +151,7 @@
        %{!fsyntax-only:%(invoke_as)}}}}", 0, 0, 1},
    {"-",
     "%{!E:%e-E or -x required when input is from standard input}\
-@@ -1425,18 +1516,18 @@ static const struct compiler default_com
+@@ -1452,18 +1543,18 @@ static const struct compiler default_com
  	  %{save-temps*|traditional-cpp|no-integrated-cpp:%(trad_capable_cpp) \
  		%(cpp_options) -o %{save-temps*:%b.i} %{!save-temps*:%g.i} \n\
  		    cc1 -fpreprocessed %{save-temps*:%b.i} %{!save-temps*:%g.i} \
@@ -173,7 +173,7 @@
    {".s", "@assembler", 0, 0, 0},
    {"@assembler",
     "%{!M:%{!MM:%{!E:%{!S:as %(asm_debug) %(asm_options) %i %A }}}}", 0, 0, 0},
-@@ -1668,6 +1759,7 @@ static struct spec_list static_specs[] =
+@@ -1695,6 +1786,7 @@ static struct spec_list static_specs[] =
    INIT_STATIC_SPEC ("cc1_options",		&cc1_options),
    INIT_STATIC_SPEC ("cc1plus",			&cc1plus_spec),
    INIT_STATIC_SPEC ("link_gcc_c_sequence",	&link_gcc_c_sequence_spec),
@@ -183,29 +183,50 @@
    INIT_STATIC_SPEC ("link",			&link_spec),
 --- a/src/gcc/cp/lang-specs.h
 +++ b/src/gcc/cp/lang-specs.h
-@@ -47,7 +47,7 @@ along with GCC; see the file COPYING3.
+@@ -51,7 +51,7 @@ along with GCC; see the file COPYING3.
+       " 	   %{save-temps*:%b.ii} %{!save-temps*:%g.ii}}"
+       "  %{!save-temps*:%{!no-integrated-cpp:%(cpp_unique_options)}}"
+       "  %{fmodules-ts:-fmodule-header %{fpreprocessed:-fdirectives-only}}"
+-      "  %(cc1_options) %2"
++      "  %(cc1_options) %(distro_defaults) %2"
+       "  %{!S:-o %g.s%V}"
+       "  %{!fsyntax-only:%{!fmodule-*:%{!fmodules-*:%{!fdump-ada-spec*:"
+       "	     %{!o*:--output-pch=%i.gch}%W{o*:--output-pch=%*}}}}}}}}",
+@@ -69,7 +69,7 @@ along with GCC; see the file COPYING3.
+       " 	   %{save-temps*:%b.ii} %{!save-temps*:%g.ii}}"
+       "  %{!save-temps*:%{!no-integrated-cpp:%(cpp_unique_options)}}"
+       "  %{fmodules-ts:-fmodule-header=system %{fpreprocessed:-fdirectives-only}}"
+-      "  %(cc1_options) %2"
++      "	 %(cc1_options) %(distro_defaults) %2"
+       "  %{!S:-o %g.s%V}"
+       "  %{!fsyntax-only:%{!fmodule-*:%{!fmodules-*:%{!fdump-ada-spec*:"
+       "	     %{!o*:--output-pch=%i.gch}%W{o*:--output-pch=%*}}}}}}}}",
+@@ -87,7 +87,7 @@ along with GCC; see the file COPYING3.
+       " 	   %{save-temps*:%b.ii} %{!save-temps*:%g.ii}}"
+       "  %{!save-temps*:%{!no-integrated-cpp:%(cpp_unique_options)}}"
+       "  %{fmodules-ts:-fmodule-header=user %{fpreprocessed:-fdirectives-only}}"
+-      "  %(cc1_options) %2"
++      "	 %(cc1_options) %(distro_defaults) %2"
+       "  %{!S:-o %g.s%V}"
+       "  %{!fsyntax-only:%{!fmodule-*:%{!fmodules-*:%{!fdump-ada-spec*:"
+       "	     %{!o*:--output-pch=%i.gch}%W{o*:--output-pch=%*}}}}}}}}",
+@@ -100,14 +100,14 @@ along with GCC; see the file COPYING3.
        "  cc1plus %{save-temps*|no-integrated-cpp:-fpreprocessed"
        " 	   %{save-temps*:%b.ii} %{!save-temps*:%g.ii}}"
        "  %{!save-temps*:%{!no-integrated-cpp:%(cpp_unique_options)}}"
 -      "  %(cc1_options) %2"
-+      "  %(cc1_options) %(distro_defaults) %2"
-       "  %{!fsyntax-only:%{!S:-o %g.s}"
-       "    %{!fdump-ada-spec*:%{!o*:--output-pch=%i.gch}"
-       "      %W{o*:--output-pch=%*}}%V}}}}",
-@@ -60,11 +60,11 @@ along with GCC; see the file COPYING3.
-       "  cc1plus %{save-temps*|no-integrated-cpp:-fpreprocessed"
-       " 	   %{save-temps*:%b.ii} %{!save-temps*:%g.ii}}"
-       "  %{!save-temps*:%{!no-integrated-cpp:%(cpp_unique_options)}}"
--      "	 %(cc1_options) %2"
 +      "	 %(cc1_options) %(distro_defaults) %2"
-       "  %{!fsyntax-only:%(invoke_as)}}}}",
+       "  %{fmodule-only:%{!S:-o %g.s%V}}"
+       "  %{!fsyntax-only:%{!fmodule-only:%(invoke_as)}}}}}",
        CPLUSPLUS_CPP_SPEC, 0, 0},
    {".ii", "@c++-cpp-output", 0, 0, 0},
    {"@c++-cpp-output",
        "%{!E:%{!M:%{!MM:"
 -      "  cc1plus -fpreprocessed %i %(cc1_options) %2"
 +      "  cc1plus -fpreprocessed %i %(cc1_options) %(distro_defaults) %2"
-       "  %{!fsyntax-only:%(invoke_as)}}}}", 0, 0, 0},
+       "  %{fmodule-only:%{!S:-o %g.s%V}}"
+       "  %{!fsyntax-only:%{!fmodule-only:%{!fmodule-header*:"
+       "     %(invoke_as)}}}}}}", 0, 0, 0},
 --- a/src/gcc/objc/lang-specs.h
 +++ b/src/gcc/objc/lang-specs.h
 @@ -29,9 +29,9 @@ along with GCC; see the file COPYING3.
@@ -274,9 +295,9 @@
      %{!fsyntax-only:%(invoke_as)}}}}", 0, 0, 0},
 --- a/src/gcc/c-family/c-cppbuiltin.c
 +++ b/src/gcc/c-family/c-cppbuiltin.c
-@@ -33,6 +33,11 @@ along with GCC; see the file COPYING3.
- #include "common/common-target.h"
+@@ -34,6 +34,11 @@ along with GCC; see the file COPYING3.
  #include "cppbuiltin.h"
+ #include "configargs.h"
  
 +/* Inject some default compilation flags which are used as the default.
 +   Done by the packaging build system.  Should that be done in the headers
@@ -286,7 +307,7 @@
  #ifndef TARGET_OS_CPP_BUILTINS
  # define TARGET_OS_CPP_BUILTINS()
  #endif
-@@ -1387,6 +1392,12 @@ c_cpp_builtins (cpp_reader *pfile)
+@@ -1416,6 +1421,12 @@ c_cpp_builtins (cpp_reader *pfile)
    builtin_define_with_value ("__REGISTER_PREFIX__", REGISTER_PREFIX, 0);
    builtin_define_with_value ("__USER_LABEL_PREFIX__", user_label_prefix, 0);
  
