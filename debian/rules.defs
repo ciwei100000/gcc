@@ -340,7 +340,7 @@ ifneq ($(trunk_build),yes)
   ifeq ($(DEB_BUILD_ARCH_BITS)-$(DEB_HOST_ARCH_BITS),64-64)
     with_lto_build := yes
   endif
-  with_lto_build := yes
+  #with_lto_build := yes
 
   # FIXME: hppa has issues with parsing the jobs output.
   # FIXME: m68k, riscv64 and sh4 running on simulators, don't care ...
@@ -349,6 +349,12 @@ ifneq ($(trunk_build),yes)
   # FIXME: not yet tried to build: alpha
   ifneq (,$(filter $(DEB_HOST_ARCH), alpha hppa m68k mips mipsel mips64el riscv64 sh4 sparc64 hurd-i386))
     with_lto_build :=
+  endif
+
+  ifeq ($(derivative),Ubuntu)
+    ifneq (,$(filter $(DEB_HOST_ARCH), ppc64el))
+      with_lto_build :=
+    endif
   endif
 
   # FIXME: newer binutils needed?
@@ -1666,7 +1672,7 @@ endif
 ifeq ($(distribution)-$(DEB_HOST_ARCH),Ubuntu-riscv64)
   with_check := disabled for $(DEB_HOST_ARCH) on Ubuntu, qemu builders
 endif
-#with_check := disabled for this upload
+with_check := disabled for this upload
 
 # not a dependency on all archs, but if available, use it for the testsuite
 ifneq (,$(wildcard /usr/bin/localedef))
