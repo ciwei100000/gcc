@@ -11,16 +11,16 @@ gcc/
 
 --- a/src-gcn/gcc/varasm.c
 +++ b/src-gcn/gcc/varasm.c
-@@ -6752,9 +6752,12 @@
+@@ -6792,9 +6792,12 @@
    /* If we have already declared this section, we can use an
       abbreviated form to switch back to it -- unless this section is
-      part of a COMDAT groups or with SHF_GNU_RETAIN, in which case GAS
--     requires the full declaration every time.  */
-+     requires the full declaration every time.  
+      part of a COMDAT groups or with SHF_GNU_RETAIN or with SHF_LINK_ORDER,
+-     in which case GAS requires the full declaration every time.  */
++     in which case GAS requires the full declaration every time.
 +     LLVM's MC linker requires that the flags are identical,
 +     thus avoid the abbreviated form with MERGE.  */
    if (!(HAVE_COMDAT_GROUP && (flags & SECTION_LINKONCE))
-       && !(flags & SECTION_RETAIN)
+       && !(flags & (SECTION_RETAIN | SECTION_LINK_ORDER))
 +      && !(flags & SECTION_MERGE)
        && (flags & SECTION_DECLARED))
      {
