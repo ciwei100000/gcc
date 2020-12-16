@@ -199,6 +199,9 @@ define __do_gcc_devels2
 	$(if $(filter yes, $(with_ubsan)),
 		$(call install_gcc_lib,libubsan,$(UBSAN_SONAME),$(1),$(2))
 	)
+	$(if $(1),,$(if $(filter yes, $(with_hwasan)),
+		$(call install_gcc_lib,libhwasan,$(HWASAN_SONAME),$(1),$(2))
+	))
 	$(if $(filter yes, $(with_vtv)),
 		$(call install_gcc_lib,libvtv,$(VTV_SONAME),$(1),$(2))
 	)
