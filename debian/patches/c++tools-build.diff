@@ -1,0 +1,35 @@
+[PATCH] c++tools: Fix up c++tools for --with-gcc-major-version-only
+
+2020-12-17  Jakub Jelinek  <jakub@redhat.com>
+
+	* configure.ac: Add GCC_BASE_VER.
+	* Makefile.in (version): Remove variable.
+	(gcc_version): New variable.
+	(libexecsubdir): Use $(gcc_version) instead of $(version).
+	* configure: Regenerated.
+
+--- a/src/c++tools/configure.ac
++++ b/src/c++tools/configure.ac
+@@ -204,6 +204,9 @@ if test $ac_cv_inet_ntop = yes; then
+   [Define if inet_ntop provided.])
+ fi
+ 
++# Determine what GCC version number to use in filesystem paths.
++GCC_BASE_VER
++
+ AC_CONFIG_HEADERS([config.h])
+ AC_CONFIG_FILES([Makefile])
+ 
+--- a/src/c++tools/Makefile.in
++++ b/src/c++tools/Makefile.in
+@@ -20,8 +20,8 @@ prefix := @prefix@
+ bindir := @bindir@
+ libexecdir := @libexecdir@
+ target_noncanonical := @target_noncanonical@
+-version := $(shell cat $(srcdir)/../gcc/BASE-VER)
+-libexecsubdir := $(libexecdir)/gcc/$(target_noncanonical)/$(version)
++gcc_version := $(shell @get_gcc_base_ver@ $(srcdir)/../gcc/BASE-VER)
++libexecsubdir := $(libexecdir)/gcc/$(target_noncanonical)/$(gcc_version)
+ INSTALL := @INSTALL@
+ AUTOCONF := @AUTOCONF@
+ AUTOHEADER := @AUTOHEADER@

@@ -13,7 +13,8 @@ dirs_cxx = \
 	$(PF)/share/man/man1
 files_cxx = \
 	$(PF)/bin/$(cmd_prefix)g++$(pkg_ver) \
-	$(gcc_lexec_dir)/cc1plus
+	$(gcc_lexec_dir)/cc1plus \
+	$(gcc_lexec_dir)/g++-mapper-server
 
 ifneq ($(GFDL_INVARIANT_FREE),yes)
   files_cxx += \
