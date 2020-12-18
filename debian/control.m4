@@ -6133,8 +6133,7 @@ ifdef(`TARGET',`Multi-Arch: foreign
 Priority: optional
 Depends: BASEDEP, gcc`'PV (= ${gcc:Version}), ${dep:libcdev},
   libgomp-plugin-amdgcn`'GOMP_SO (>= ${gcc:Version}),
-  llvm-LLVM_VER, lld-LLVM_VER,
-  ${shlibs:Depends}, ${misc:Depends}
+  LLVM_DEP ${shlibs:Depends}, ${misc:Depends}
 BUILT_USING`'dnl
 Description: GCC offloading compiler to GCN
  The package provides offloading support for AMD GCN.  OpenMP and OpenACC
