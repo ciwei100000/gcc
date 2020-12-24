@@ -41,6 +41,15 @@ $(binary_stamp)-gcn: $(install_stamp)
 	$(dh_compat2) dh_movefiles --sourcedir=$(d)-gcn -p$(p_gcn) \
 		$(files_gcn)
 
+ifeq ($(gcn_tools_llvm_version),tools)
+	: # re-create the symlinks as relative symlinks
+	dh_link -p$(p_gcn) \
+	  /usr/$(gcn_target_name)/bin/ar     /$(gcc_lexec_dir)/accel/$(gcn_target_name)/ar \
+	  /usr/$(gcn_target_name)/bin/as     /$(gcc_lexec_dir)/accel/$(gcn_target_name)/as \
+	  /usr/$(gcn_target_name)/bin/ld     /$(gcc_lexec_dir)/accel/$(gcn_target_name)/ld \
+	  /usr/$(gcn_target_name)/bin/nm     /$(gcc_lexec_dir)/accel/$(gcn_target_name)/nm \
+	  /usr/$(gcn_target_name)/bin/ranlib /$(gcc_lexec_dir)/accel/$(gcn_target_name)/ranlib
+else
 	: # re-create the symlinks as relative symlinks
 	dh_link -p$(p_gcn) \
 	  /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/llvm-ar /$(gcc_lexec_dir)/accel/$(gcn_target_name)/ar \
@@ -49,7 +58,6 @@ $(binary_stamp)-gcn: $(install_stamp)
 	  /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/llvm-nm /$(gcc_lexec_dir)/accel/$(gcn_target_name)/nm \
 	  /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/llvm-ranlib /$(gcc_lexec_dir)/accel/$(gcn_target_name)/ranlib
 
-	: # FIXME: split out into an amdgcn-tools package?
 	mkdir -p $(d_gcn)/usr/$(gcn_target_name)/bin
 	dh_link -p$(p_gcn) \
 	  /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/llvm-ar /usr/$(gcn_target_name)/bin/ar \
@@ -57,6 +65,7 @@ $(binary_stamp)-gcn: $(install_stamp)
 	  /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/lld /usr/$(gcn_target_name)/bin/ld \
 	  /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/llvm-nm /usr/$(gcn_target_name)/bin/nm \
 	  /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/llvm-ranlib /usr/$(gcn_target_name)/bin/ranlib
+endif
 
 	mkdir -p $(d_gcn)/usr/share/lintian/overrides
 	( \

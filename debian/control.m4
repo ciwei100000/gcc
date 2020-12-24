@@ -6084,8 +6084,7 @@ ifdef(`TARGET',`Multi-Arch: foreign
 Priority: optional
 Depends: BASEDEP, gcc`'PV (= ${gcc:Version}), ${dep:libcdev},
   libgomp-plugin-amdgcn`'GOMP_SO (>= ${gcc:Version}),
-  llvm-LLVM_VER, lld-LLVM_VER,
-  ${shlibs:Depends}, ${misc:Depends}
+  LLVM_DEP ${shlibs:Depends}, ${misc:Depends}
 Conflicts: gcc-10-offload-amdgcn,
 BUILT_USING`'dnl
 Description: GCC offloading compiler to GCN
