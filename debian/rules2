@@ -1490,13 +1490,16 @@ $(configure_gcn_stamp): $(build_stamp) \
 	dh_testdir
 
 	rm -rf bin-gcn
+ifeq ($(gcn_tools_llvm_version),tools)
+	ln -s /usr/$(gcn_target_name)/bin bin-gcn
+else
 	mkdir bin-gcn
 	ln -sf /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/llvm-ar bin-gcn/ar
 	ln -sf /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/llvm-mc bin-gcn/as
 	ln -sf /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/lld bin-gcn/ld
 	ln -sf /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/llvm-nm bin-gcn/nm
 	ln -sf /usr/lib/llvm-$(gcn_tools_llvm_version)/bin/llvm-ranlib bin-gcn/ranlib
-
+endif
 	rm -f $(configure_gcn_stamp) $(build_gcn_stamp)
 	rm -rf src-gcn $(builddir_gcn)
 	cp -al src src-gcn
