@@ -18,7 +18,7 @@ dirs_snap = \
 	usr/lib
 
 ifeq ($(with_hppa64),yes)
-  snapshot_depends = binutils-hppa64,
+  snapshot_depends = $(binutils_hppa64),
 endif
 ifeq ($(with_offload_nvptx),yes)
   snapshot_depends += nvptx-tools,
@@ -140,9 +140,9 @@ ifeq ($(with_hppa64),yes)
 	: # provide as and ld links
 	dh_link -p $(p_snap) \
 		/usr/bin/hppa64-linux-gnu-as \
-		/$(PF)/libexec/gcc/hppa64-linux-gnu/$(GCC_VERSION)/as \
+		/$(PF)/lib/gcc/hppa64-linux-gnu/$(versiondir)/as \
 		/usr/bin/hppa64-linux-gnu-ld \
-		/$(PF)/libexec/gcc/hppa64-linux-gnu/$(GCC_VERSION)/ld
+		/$(PF)/lib/gcc/hppa64-linux-gnu/$(versiondir)/ld
 endif
 
 ifeq ($(with_check),yes)
