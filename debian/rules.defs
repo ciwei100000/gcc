@@ -1627,7 +1627,7 @@ endif
 ifneq (,$(with_rtlibs))
   with_check := disabled for rtlibs stage
 endif
-check_no_cpus := m68k
+#check_no_cpus := m68k
 check_no_systems := # gnu kfreebsd-gnu
 ifneq (,$(filter $(DEB_TARGET_ARCH_CPU),$(check_no_cpus)))
   with_check := disabled for cpu $(DEB_TARGET_ARCH_CPU)
@@ -1650,6 +1650,12 @@ endif
 #    with_check := disabled for $(DEB_HOST_ARCH), testsuite timeouts with expect
 #  endif
 #endif
+# override the Debian porters, we need to know about the test results
+ifeq ($(distribution),Debian)
+  ifneq (,$(filter $(DEB_HOST_ARCH), alpha m68k powerpc ppc64 riscv64 sh4 sparc64))
+    with_check := yes
+  endif
+endif
 ifeq ($(distribution)-$(DEB_HOST_ARCH),Ubuntu-riscv64)
   with_check := disabled for $(DEB_HOST_ARCH) on Ubuntu, qemu builders
 endif
