@@ -1,0 +1,34 @@
+--- a/src/libgo/go/internal/cpu/cpu_ppc64x_aix.go
++++ b/src/libgo/go/internal/cpu/cpu_ppc64x_aix.go
+@@ -12,10 +12,14 @@ const (
+ 	_IMPL_POWER9 = 0x20000
+ )
+ 
+-func osinit() {
++func doinit() {
+ 	impl := getsystemcfg(_SC_IMPL)
+ 	PPC64.IsPOWER9 = isSet(impl, _IMPL_POWER9)
+ }
+ 
++func isSet(hwc uint, value uint) bool {
++        return hwc&value != 0
++}
++
+ // getsystemcfg is defined in runtime/os2_aix.go
+ func getsystemcfg(label uint) uint
+--- a/src/libgo/go/internal/cpu/cpu_ppc64x_linux.go
++++ b/src/libgo/go/internal/cpu/cpu_ppc64x_linux.go
+@@ -22,8 +22,12 @@ const (
+ 	hwcap2_SCV  = 0x00100000
+ )
+ 
+-func osinit() {
++func doinit() {
+ 	PPC64.IsPOWER9 = isSet(HWCap2, hwcap2_ARCH_3_00)
+ 	PPC64.HasDARN = isSet(HWCap2, hwcap2_DARN)
+ 	PPC64.HasSCV = isSet(HWCap2, hwcap2_SCV)
+ }
++
++func isSet(hwc uint, value uint) bool {
++        return hwc&value != 0
++}
