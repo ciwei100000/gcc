@@ -73,7 +73,7 @@ Build-Depends: DEBHELPER_BUILD_DEP DPKG_BUILD_DEP
   libzstd-dev, zlib1g-dev, gawk, lzma, xz-utils, patchutils,
   pkg-config, libgc-dev,
   zlib1g-dev, SDT_BUILD_DEP
-  bison (>= 1:2.3), flex, coreutils (>= 2.26) | realpath (>= 1.9.12), lsb-release, quilt
+  bison (>= 1:2.3), flex, coreutils (>= 2.26) | realpath (>= 1.9.12), lsb-release, quilt, time
 ',`dnl native
 Build-Depends: DEBHELPER_BUILD_DEP DPKG_BUILD_DEP GCC_MULTILIB_BUILD_DEP
   LIBC_BUILD_DEP, LIBC_BIARCH_BUILD_DEP LIBC_DBG_DEP
@@ -88,7 +88,7 @@ Build-Depends: DEBHELPER_BUILD_DEP DPKG_BUILD_DEP GCC_MULTILIB_BUILD_DEP
   texinfo (>= 4.3), LOCALES, sharutils,
   procps, FORTRAN_BUILD_DEP GNAT_BUILD_DEP GO_BUILD_DEP GDC_BUILD_DEP GM2_BUILD_DEP
   ISL_BUILD_DEP MPC_BUILD_DEP MPFR_BUILD_DEP GMP_BUILD_DEP PHOBOS_BUILD_DEP
-  CHECK_BUILD_DEP coreutils (>= 2.26) | realpath (>= 1.9.12), chrpath, lsb-release, quilt,
+  CHECK_BUILD_DEP coreutils (>= 2.26) | realpath (>= 1.9.12), chrpath, lsb-release, quilt, time,
   pkg-config, libgc-dev,
   TARGET_TOOL_BUILD_DEP
 Build-Depends-Indep: LIBSTDCXX_BUILD_INDEP

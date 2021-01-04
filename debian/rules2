@@ -41,6 +41,8 @@ else
   ULIMIT_M = true
 endif
 
+time_command = /usr/bin/time
+
 ifeq ($(locale_data),generate)
   SET_LOCPATH = LOCPATH=$(CURDIR)/locales
 endif
@@ -1253,7 +1255,7 @@ ifeq ($(build_type),build-native)
 	  $(SET_PATH) \
 	  $(SET_SHELL) \
 	  $(SET_LOCPATH) \
-	    $(MAKE) $(NJOBS) -C $(builddir) $(bootstrap_target) \
+	    $(time_command) $(MAKE) $(NJOBS) -C $(builddir) $(bootstrap_target) \
 		$(call pass_vars, CC $(flags_to_pass) \
 		  STAGE1_CFLAGS                         STAGE1_LDFLAGS \
 		  BOOT_CFLAGS                           BOOT_LDFLAGS \
@@ -1263,6 +1265,7 @@ ifeq ($(build_type),build-native)
 		; \
 	  status=$$?; \
 	  echo $$status > status; \
+	  echo === TIME $@ ===; \
 	  if [ $$status -eq 0 ] || [ $$try -eq $(MAX_BUILD_TRIES) ]; then \
 	    exit $$status; \
 	  fi; \
@@ -1273,11 +1276,12 @@ else ifneq (,$(filter $(build_type),build-cross cross-build-native cross-build-c
 	  set +e; \
 	  $(SET_PATH) \
 	  $(SET_LOCPATH) \
-	    $(MAKE) $(NJOBS) -C $(builddir) \
+	    $(time_command) $(MAKE) $(NJOBS) -C $(builddir) \
 		$(call pass_vars, BOOT_CFLAGS       BOOT_LDFLAGS \
 		                  CFLAGS_FOR_TARGET LDFLAGS_FOR_TARGET) \
 		; \
 	  echo $$? > status; \
+	  echo === TIME $@ ===; \
 	) 2>&1 | tee bootstrap-protocol
 endif
 	@echo TTTTT $$(date -R)
@@ -1308,6 +1312,7 @@ ifeq ($(DEB_CHECK_ALI_UPDATE)$(with_libgnat)$(build_type),1yesbuild-native)
 endif
 
 	touch $(build_stamp)
+	@echo === END $@ ===
 
 ifneq ($(build_type),build-native)
   BUILT_CC = $(CC)
@@ -1360,11 +1365,12 @@ $(build_jit_stamp): $(configure_jit_stamp)
 	  $(SET_LOCPATH) \
 	  LD_LIBRARY_PATH=$${LD_LIBRARY_PATH:+$$LD_LIBRARY_PATH:}$(builddir)/gcc \
 	  biarch_multidir_names=none \
-		$(MAKE) $(NJOBS) -C $(builddir_jit) \
+		$(time_command) $(MAKE) $(NJOBS) -C $(builddir_jit) \
 		$(call pass_vars, BOOT_CFLAGS       BOOT_LDFLAGS \
 		                  CFLAGS_FOR_TARGET LDFLAGS_FOR_TARGET) \
 		; \
 	  echo $$? > status; \
+	  echo === TIME $@ ===; \
 	) 2>&1 | tee jit-protocol
 
 	s=`cat status`; rm -f status; \
@@ -1390,6 +1396,7 @@ ifeq ($(with_check),yes)
 endif
 
 	touch $(build_jit_stamp)
+	@echo === END $@ ===
 
 CONFARGS_NVPTX := \
 	--prefix=/$(PF) \
@@ -1446,11 +1453,12 @@ $(build_nvptx_stamp): $(configure_nvptx_stamp) \
 	  $(SET_LOCPATH) \
 	  LD_LIBRARY_PATH=$${LD_LIBRARY_PATH:+$$LD_LIBRARY_PATH:}$(builddir)/gcc \
 	  biarch_multidir_names=none \
-		$(MAKE) $(NJOBS) -C $(builddir_nvptx) \
+		$(time_command) $(MAKE) $(NJOBS) -C $(builddir_nvptx) \
 		$(call pass_vars, BOOT_CFLAGS BOOT_LDFLAGS \
 		                  CFLAGS_FOR_TARGET) \
 		; \
 	  echo $$? > status; \
+	  echo === TIME $@ ===; \
 	) 2>&1 | tee nvptx-protocol
 
 	s=`cat status`; rm -f status; \
@@ -1466,6 +1474,7 @@ $(build_nvptx_stamp): $(configure_nvptx_stamp) \
 
 	rm -f $(srcdir)/newlib
 	touch $(build_nvptx_stamp)
+	@echo === END $@ ===
 
 CONFARGS_GCN := \
 	--prefix=/$(PF) \
@@ -1547,11 +1556,12 @@ $(build_gcn_stamp): $(configure_gcn_stamp) \
 	  $(SET_LOCPATH) \
 	  LD_LIBRARY_PATH=$${LD_LIBRARY_PATH:+$$LD_LIBRARY_PATH:}$(builddir)/gcc \
 	  biarch_multidir_names=none \
-		$(MAKE) $(NJOBS) -C $(builddir_gcn) \
+		$(time_command) $(MAKE) $(NJOBS) -C $(builddir_gcn) \
 		$(call pass_vars, BOOT_CFLAGS BOOT_LDFLAGS \
 		                  CFLAGS_FOR_TARGET) \
 		; \
 	  echo $$? > status; \
+	  echo === TIME $@ ===; \
 	) 2>&1 | tee amdgcn-protocol
 
 	s=`cat status`; rm -f status; \
@@ -1567,6 +1577,7 @@ $(build_gcn_stamp): $(configure_gcn_stamp) \
 
 	rm -f $(srcdir)/newlib
 	touch $(build_gcn_stamp)
+	@echo === END $@ ===
 
 ifeq ($(versioned_packages),yes)
   hppa64_configure_flags += --program-suffix=-$(BASE_VERSION)
@@ -1623,13 +1634,14 @@ $(build_hppa64_stamp): $(configure_hppa64_stamp) \
 	  $(SET_SHELL) \
 	  $(SET_LOCPATH) \
 	  LD_LIBRARY_PATH=$${LD_LIBRARY_PATH:+$$LD_LIBRARY_PATH:}$(builddir)/gcc \
-	    $(MAKE) $(NJOBS) -C $(builddir_hppa64) \
+	    $(time_command) $(MAKE) $(NJOBS) -C $(builddir_hppa64) \
 		$(call pass_vars, \
 		  CFLAGS_FOR_TARGET CXXFLAGS_FOR_TARGET LDFLAGS_FOR_TARGET)
 	if [ -f $(srcdir)/gcc/distro-defaults.h.saved ]; then \
 	  mv -f $(srcdir)/gcc/distro-defaults.h.saved $(srcdir)/gcc/distro-defaults.h; \
 	fi
 	touch $(build_hppa64_stamp)
+	@echo === END $@ ===
 
 ifeq ($(with_ada),yes)
   MANUALS = \
