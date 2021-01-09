@@ -6136,7 +6136,7 @@ Package: gcc`'PV-source
 Multi-Arch: foreign
 Architecture: all
 Priority: PRI(optional)
-Depends: make, quilt, patchutils, sharutils, gawk, lsb-release, AUTO_BUILD_DEP
+Depends: make, quilt, patchutils, sharutils, gawk, lsb-release, time, AUTO_BUILD_DEP
   ${misc:Depends}
 Description: Source of the GNU Compiler Collection
  This package contains the sources and patches which are needed to

@@ -109,6 +109,11 @@ ifneq (,$(filter parallel=%,$(subst $(COMMA), ,$(DEB_BUILD_OPTIONS))))
   NJOBS_TESTS := -j $(USE_CPUS)
 endif
 
+CPUS_LTOLINK := $(if $(filter 1, $(USE_CPUS)),1,$(shell expr $(USE_CPUS) / 2))
+ifeq ($(derivative)-$(DEB_BUILD_ARCH),Ubuntu-ppc64el)
+  CPUS_LTOLINK := 1
+endif
+
 ifneq (,$(findstring gcc-snapshot, $(PKGSOURCE)))
   single_package = yes
   trunk_build = yes
@@ -323,6 +328,12 @@ ifeq ($(trunk_build),yes)
   ifeq ($(DEB_BUILD_ARCH_BITS)-$(DEB_HOST_ARCH_BITS),64-64)
     with_lto_build := yes
   endif
+
+  # PR 98228
+  ifneq (,$(filter $(DEB_HOST_ARCH), s390x))
+    with_lto_build :=
+  endif
+
 endif
 
 ifneq ($(trunk_build),yes)
@@ -340,24 +351,17 @@ ifneq ($(trunk_build),yes)
   ifeq ($(DEB_BUILD_ARCH_BITS)-$(DEB_HOST_ARCH_BITS),64-64)
     with_lto_build := yes
   endif
-  #with_lto_build := yes
 
   # FIXME: hppa has issues with parsing the jobs output.
-  # FIXME: m68k, riscv64 and sh4 running on simulators, don't care ...
+  # FIXME: m68k and sh4 running on simulators, don't care ...
   # FIXME: buildds not powerful ebough: mips*
   # FIXME: just let it build, takes too long: hurd-i386
   # FIXME: not yet tried to build: alpha
-  ifneq (,$(filter $(DEB_HOST_ARCH), alpha hppa m68k mips mipsel mips64el riscv64 sh4 sparc64 hurd-i386))
+  ifneq (,$(filter $(DEB_HOST_ARCH), alpha hppa m68k mips mipsel sh4 hurd-i386))
     with_lto_build :=
   endif
 
-  ifeq ($(derivative),Ubuntu)
-    ifneq (,$(filter $(DEB_HOST_ARCH), ppc64el))
-      with_lto_build :=
-    endif
-  endif
-
-  # PR 976846
+  # PR 98228
   ifneq (,$(filter $(DEB_HOST_ARCH), s390x))
     with_lto_build :=
   endif
@@ -737,7 +741,8 @@ enabled_languages := c
 with_jit = yes
 
 # FIXME: compiler bug
-jit_no_cpus	:= ia64
+# m68k: PR 95381
+jit_no_cpus	:= ia64 m68k
 
 ifneq (,$(filter $(DEB_TARGET_ARCH_CPU),$(jit_no_cpus)))
   with_jit := disabled for cpu $(DEB_TARGET_ARCH_CPU)
@@ -853,6 +858,8 @@ endif
 ifeq (,$(filter $(DEB_STAGE),stage1 stage2))
 # Ada --------------------
 ada_no_cpus	:= m32r sh3 sh3eb sh4eb
+ada_no_cpus	+= ia64
+ada_no_cpus	+= m68k
 ada_no_systems	:= 
 ada_no_cross	:= no
 ada_no_snap	:= no
@@ -1274,7 +1281,7 @@ endif
 ifneq (,$(filter $(distrelease),precise))
   with_m2 := disabled for $(distrelease) backport
 endif
-#with_m2 := disabled for GCC 11
+with_m2 := disabled for GCC 11
 
 with_m2 := $(call envfilt, m2, , , $(with_m2))
 
@@ -1651,7 +1658,7 @@ endif
 ifneq (,$(with_rtlibs))
   with_check := disabled for rtlibs stage
 endif
-check_no_cpus := m68k
+#check_no_cpus := m68k
 check_no_systems := # gnu kfreebsd-gnu
 ifneq (,$(filter $(DEB_TARGET_ARCH_CPU),$(check_no_cpus)))
   with_check := disabled for cpu $(DEB_TARGET_ARCH_CPU)
@@ -1674,10 +1681,16 @@ endif
 #    with_check := disabled for $(DEB_HOST_ARCH), testsuite timeouts with expect
 #  endif
 #endif
+# override the Debian porters, we need to know about the test results
+ifeq ($(distribution),Debian)
+  ifneq (,$(filter $(DEB_HOST_ARCH), m68k sh4))
+    with_check := yes
+  endif
+endif
 ifeq ($(distribution)-$(DEB_HOST_ARCH),Ubuntu-riscv64)
   with_check := disabled for $(DEB_HOST_ARCH) on Ubuntu, qemu builders
 endif
-with_check := disabled for this upload
+#with_check := disabled for this upload
 
 # not a dependency on all archs, but if available, use it for the testsuite
 ifneq (,$(wildcard /usr/bin/localedef))
