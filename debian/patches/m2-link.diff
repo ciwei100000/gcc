@@ -1,0 +1,26 @@
+--- a/src/gcc/m2/Make-lang.in~	2020-09-17 13:21:10.000000000 +0000
++++ b/src/gcc/m2/Make-lang.in	2021-01-09 19:12:19.361141829 +0000
+@@ -82,6 +82,8 @@
+ # Define the names for selecting GNU Modula-2 in LANGUAGES.
+ m2 modula-2 modula2: gm2$(exeext) xgcc$(exeext) cc1gm2$(exeext) \
+                  $(GCC_TOOLS_FOR_GM2)
++m2.serial: gm2$(exeext) xgcc$(exeext) cc1gm2$(exeext) \
++                 $(GCC_TOOLS_FOR_GM2)
+ 
+ # Tell GNU make to ignore these if they exist.
+ .PHONY: m2 modula-2 modula2
+@@ -126,10 +128,12 @@
+ 
+ # Create the compiler driver for gm2.
+ gm2$(exeext): $(GM2_OBJS) $(EXTRA_GCC_OBJS) libcommon-target.a $(LIBDEPS) \
+-    m2/gm2config.h
+-	+$(LINKER) $(ALL_LINKERFLAGS) $(LDFLAGS) -o $@ \
++    m2/gm2config.h $(m2.prev)
++	@$(call LINK_PROGRESS,$(INDEX.m2),start)
++	+$(LLINKER) $(ALL_LINKERFLAGS) $(LDFLAGS) -o $@ \
+ 	  $(GM2_OBJS) $(EXTRA_GCC_OBJS) libcommon-target.a \
+ 	  $(EXTRA_GCC_LIBS) $(LIBS)
++	@$(call LINK_PROGRESS,$(INDEX.m2),end)
+ 
+ # Create a version of the gm2 driver which calls the cross-compiler.
+ gm2-cross$(exeext): gm2$(exeext)
