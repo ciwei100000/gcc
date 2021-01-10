@@ -6085,7 +6085,6 @@ Priority: optional
 Depends: BASEDEP, gcc`'PV (= ${gcc:Version}), ${dep:libcdev},
   libgomp-plugin-amdgcn`'GOMP_SO (>= ${gcc:Version}),
   LLVM_DEP ${shlibs:Depends}, ${misc:Depends}
-Conflicts: gcc-10-offload-amdgcn,
 BUILT_USING`'dnl
 Description: GCC offloading compiler to GCN
  The package provides offloading support for AMD GCN.  OpenMP and OpenACC

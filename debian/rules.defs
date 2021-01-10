@@ -112,6 +112,8 @@ endif
 CPUS_LTOLINK := $(if $(filter 1, $(USE_CPUS)),1,$(shell expr $(USE_CPUS) / 2))
 ifeq ($(derivative)-$(DEB_BUILD_ARCH),Ubuntu-ppc64el)
   CPUS_LTOLINK := 1
+else ifeq ($(derivative)-$(DEB_BUILD_ARCH),Debian-sparc64)
+  CPUS_LTOLINK := $(shell if test $(CPUS_LTOLINK) -gt 4; then echo 4; else echo $(CPUS_LTOLINK); fi)
 endif
 
 ifneq (,$(findstring gcc-snapshot, $(PKGSOURCE)))
@@ -334,6 +336,10 @@ ifeq ($(trunk_build),yes)
     with_lto_build :=
   endif
 
+  # memory constraints
+  ifeq ($(derivative)-$(DEB_BUILD_ARCH),Ubuntu-ppc64el)
+    with_lto_build :=
+  endif
 endif
 
 ifneq ($(trunk_build),yes)
@@ -363,6 +369,11 @@ ifneq ($(trunk_build),yes)
 
   # PR 98228
   ifneq (,$(filter $(DEB_HOST_ARCH), s390x))
+    with_lto_build :=
+  endif
+
+  # memory constraints
+  ifeq ($(derivative)-$(DEB_BUILD_ARCH),Ubuntu-ppc64el)
     with_lto_build :=
   endif
 
@@ -797,7 +808,7 @@ with_offload_nvptx := $(call envfilt, nvptx, , , $(with_offload_nvptx))
 gcn_archs := amd64
 gcn_target_name = amdgcn-amdhsa
 
-ifneq (,$(filter $(distrelease),buster sid bullseye xenial bionic eoan focal groovy))
+ifneq (,$(filter $(distrelease),buster xenial bionic eoan focal groovy))
   gcn_tools_llvm_version = 9
 else ifneq (,$(filter $(distrelease),focal groovy))
   gcn_tools_llvm_version = 11
