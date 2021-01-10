@@ -62,7 +62,7 @@ Uploaders: Iain Buclaw <ibuclaw@ubuntu.com>, Matthias Klose <doko@debian.org>
 ', `dnl
 Uploaders: Matthias Klose <doko@debian.org>
 ')dnl SRCNAME
-Standards-Version: 4.5.0
+Standards-Version: 4.5.1
 ifdef(`TARGET',`dnl cross
 Build-Depends: DEBHELPER_BUILD_DEP DPKG_BUILD_DEP
   LIBC_BUILD_DEP, LIBC_BIARCH_BUILD_DEP
@@ -6184,7 +6184,7 @@ Package: gcc`'PV-source
 Multi-Arch: foreign
 Architecture: all
 Priority: PRI(optional)
-Depends: make, quilt, patchutils, sharutils, gawk, lsb-release, AUTO_BUILD_DEP
+Depends: make, quilt, patchutils, sharutils, gawk, lsb-release, time, AUTO_BUILD_DEP
   ${misc:Depends}
 Description: Source of the GNU Compiler Collection
  This package contains the sources and patches which are needed to
