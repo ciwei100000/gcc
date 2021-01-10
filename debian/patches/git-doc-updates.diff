@@ -1,7 +1,7 @@
-# DP: updates from the 9 branch upto 20200808 (documentation).
+# DP: updates from the 9 branch upto 20210110 (documentation).
 
 LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
-        4212a6a3e44f870412d9025eeb323fd4f50a61da 4ad02cfb768b86c1d501469dd45c38ab8425e87a \
+        4212a6a3e44f870412d9025eeb323fd4f50a61da 8e4642602b076340340a838d705b82c9594915b6 \
 	| awk '/^diff .*\.texi/ {skip=0; print; next} /^diff / {skip=1; next} skip==0' \
         | grep -v -E '^(diff|index)'
 
@@ -124,6 +124,30 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  @end deftypefn
  
  @deftypefn {Built-in Function} {void *} __builtin_extract_return_addr (void *@var{addr})
+@@ -14402,12 +14421,12 @@ long long __builtin_arm_wzero ()
+ 
+ GCC implements extensions for C as described in the ARM C Language
+ Extensions (ACLE) specification, which can be found at
+-@uref{http://infocenter.arm.com/help/topic/com.arm.doc.ihi0053c/IHI0053C_acle_2_0.pdf}.
++@uref{https://developer.arm.com/documentation/ihi0053/latest/}.
+ 
+ As a part of ACLE, GCC implements extensions for Advanced SIMD as described in
+ the ARM C Language Extensions Specification.  The complete list of Advanced SIMD
+ intrinsics can be found at
+-@uref{http://infocenter.arm.com/help/topic/com.arm.doc.ihi0073a/IHI0073A_arm_neon_intrinsics_ref.pdf}.
++@uref{https://developer.arm.com/documentation/ihi0073/latest/}.
+ The built-in intrinsics for the Advanced SIMD extension are available when
+ NEON is enabled.
+ 
+@@ -14438,7 +14457,7 @@ void __builtin_arm_set_fpscr (unsigned int)
+ GCC implements the ARMv8-M Security Extensions as described in the ARMv8-M
+ Security Extensions: Requirements on Development Tools Engineering
+ Specification, which can be found at
+-@uref{http://infocenter.arm.com/help/topic/com.arm.doc.ecm0359818/ECM0359818_armv8m_security_extensions_reqs_on_dev_tools_1_0.pdf}.
++@uref{https://developer.arm.com/documentation/ecm0359818/latest/}.
+ 
+ As part of the Security Extensions GCC implements two new function attributes:
+ @code{cmse_nonsecure_entry} and @code{cmse_nonsecure_call}.
 @@ -19722,6 +19741,13 @@ bool scalar_test_data_class (__ieee128 source, const int condition);
  bool scalar_test_neg (float source);
  bool scalar_test_neg (double source);
@@ -148,6 +172,17 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  
  The @code{scalar_insert_exp}
  functions require a 64-bit environment supporting ISA 3.0 or later.
+--- a/src/gcc/doc/install.texi
++++ b/src/gcc/doc/install.texi
+@@ -1294,7 +1294,7 @@ Specify which cpu variant the compiler should generate code for by default.
+ This option is only supported on some targets, including ARC, ARM, i386, M68k,
+ PowerPC, and SPARC@.  It is mandatory for ARC@.  The @option{--with-cpu-32} and
+ @option{--with-cpu-64} options specify separate default CPUs for
+-32-bit and 64-bit modes; these options are only supported for i386,
++32-bit and 64-bit modes; these options are only supported for aarch64, i386,
+ x86-64, PowerPC, and SPARC@.
+ 
+ @item --with-schedule=@var{cpu}
 --- a/src/gcc/doc/invoke.texi
 +++ b/src/gcc/doc/invoke.texi
 @@ -634,10 +634,12 @@ Objective-C and Objective-C++ Dialects}.
@@ -208,12 +243,16 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  @item -march=@var{name}
  @opindex march
  Specify the name of the target architecture and, optionally, one or
-@@ -15828,9 +15853,11 @@ performance of the code.  Permissible values for this option are:
+@@ -15826,11 +15851,13 @@ performance of the code.  Permissible values for this option are:
+ @samp{generic}, @samp{cortex-a35}, @samp{cortex-a53}, @samp{cortex-a55},
+ @samp{cortex-a57}, @samp{cortex-a72}, @samp{cortex-a73}, @samp{cortex-a75},
  @samp{cortex-a76}, @samp{ares}, @samp{exynos-m1}, @samp{emag}, @samp{falkor},
- @samp{neoverse-e1},@samp{neoverse-n1},@samp{qdf24xx}, @samp{saphira},
- @samp{phecda}, @samp{xgene1}, @samp{vulcan}, @samp{octeontx},
+-@samp{neoverse-e1},@samp{neoverse-n1},@samp{qdf24xx}, @samp{saphira},
+-@samp{phecda}, @samp{xgene1}, @samp{vulcan}, @samp{octeontx},
 -@samp{octeontx81},  @samp{octeontx83}, @samp{thunderx}, @samp{thunderxt88},
-+@samp{octeontx81},  @samp{octeontx83},
++@samp{neoverse-e1}, @samp{neoverse-n1}, @samp{neoverse-n2}, @samp{neoverse-v1},
++@samp{qdf24xx}, @samp{saphira}, @samp{phecda}, @samp{xgene1}, @samp{vulcan},
++@samp{octeontx}, @samp{octeontx81},  @samp{octeontx83},
 +@samp{a64fx},
 +@samp{thunderx}, @samp{thunderxt88},
  @samp{thunderxt88p1}, @samp{thunderxt81}, @samp{tsv110},
@@ -240,7 +279,96 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  @item -msve-vector-bits=@var{bits}
  @opindex msve-vector-bits
  Specify the number of bits in an SVE vector register.  This option only has
-@@ -28711,9 +28749,9 @@ Note that @option{-mcmodel=large} is incompatible with
+@@ -17532,9 +17570,9 @@ Permissible names are: @samp{arm7tdmi}, @samp{arm7tdmi-s}, @samp{arm710t},
+ @samp{cortex-m4}, @samp{cortex-m7}, @samp{cortex-m23}, @samp{cortex-m33},
+ @samp{cortex-m1.small-multiply}, @samp{cortex-m0.small-multiply},
+ @samp{cortex-m0plus.small-multiply}, @samp{exynos-m1}, @samp{marvell-pj4},
+-@samp{neoverse-n1}, @samp{xscale}, @samp{iwmmxt}, @samp{iwmmxt2},
+-@samp{ep9312}, @samp{fa526}, @samp{fa626}, @samp{fa606te}, @samp{fa626te},
+-@samp{fmp626}, @samp{fa726te}, @samp{xgene1}.
++@samp{neoverse-n1}, @samp{neoverse-n2}, @samp{neoverse-v1}, @samp{xscale},
++@samp{iwmmxt}, @samp{iwmmxt2}, @samp{ep9312}, @samp{fa526}, @samp{fa626},
++@samp{fa606te}, @samp{fa626te}, @samp{fmp626}, @samp{fa726te}, @samp{xgene1}.
+ 
+ Additionally, this option can specify that GCC should tune the performance
+ of the code for a big.LITTLE system.  Permissible names are:
+@@ -17926,7 +17964,7 @@ is only available when generating non-pic code for M-profile targets.
+ @opindex mcmse
+ Generate secure code as per the "ARMv8-M Security Extensions: Requirements on
+ Development Tools Engineering Specification", which can be found on
+-@url{http://infocenter.arm.com/help/topic/com.arm.doc.ecm0359818/ECM0359818_armv8m_security_extensions_reqs_on_dev_tools_1_0.pdf}.
++@url{https://developer.arm.com/documentation/ecm0359818/latest/}.
+ @end table
+ 
+ @node AVR Options
+@@ -27257,14 +27295,14 @@ BMI, BMI2 and F16C instruction set support.
+ 
+ @item broadwell
+ Intel Broadwell CPU with 64-bit extensions, MOVBE, MMX, SSE, SSE2, SSE3, SSSE3,
+-SSE4.1, SSE4.2, POPCNT, AVX, AVX2, AES, PCLMUL, FSGSBASE, RDRND, FMA,
+-BMI, BMI2, F16C, RDSEED, ADCX and PREFETCHW instruction set support.
++SSE4.1, SSE4.2, POPCNT, AVX, AVX2, AES, PCLMUL, FSGSBASE, RDRND, FMA, BMI, BMI2,
++F16C, RDSEED ADCX and PREFETCHW instruction set support.
+ 
+ @item skylake
+ Intel Skylake CPU with 64-bit extensions, MOVBE, MMX, SSE, SSE2, SSE3, SSSE3,
+ SSE4.1, SSE4.2, POPCNT, AVX, AVX2, AES, PCLMUL, FSGSBASE, RDRND, FMA,
+-BMI, BMI2, F16C, RDSEED, ADCX, PREFETCHW, CLFLUSHOPT, XSAVEC and
+-XSAVES instruction set support.
++BMI, BMI2, F16C, RDSEED, ADCX, PREFETCHW, CLFLUSHOPT, XSAVEC and XSAVES
++instruction set support.
+ 
+ @item bonnell
+ Intel Bonnell CPU with 64-bit extensions, MOVBE, MMX, SSE, SSE2, SSE3 and SSSE3
+@@ -27272,34 +27310,36 @@ instruction set support.
+ 
+ @item silvermont
+ Intel Silvermont CPU with 64-bit extensions, MOVBE, MMX, SSE, SSE2, SSE3, SSSE3,
+-SSE4.1, SSE4.2, POPCNT, AES, PCLMUL and RDRND instruction set support.
++SSE4.1, SSE4.2, POPCNT, AES, PREFETCHW, PCLMUL and RDRND instruction set support.
+ 
+ @item goldmont
+ Intel Goldmont CPU with 64-bit extensions, MOVBE, MMX, SSE, SSE2, SSE3, SSSE3,
+-SSE4.1, SSE4.2, POPCNT, AES, PCLMUL, RDRND, XSAVE, XSAVEOPT and FSGSBASE
+-instruction set support.
++SSE4.1, SSE4.2, POPCNT, AES, PREFETCHW, PCLMUL, RDRND, XSAVE, XSAVEC, XSAVES,
++XSAVEOPT and FSGSBASE instruction set support.
+ 
+ @item goldmont-plus
+ Intel Goldmont Plus CPU with 64-bit extensions, MOVBE, MMX, SSE, SSE2, SSE3,
+-SSSE3, SSE4.1, SSE4.2, POPCNT, AES, PCLMUL, RDRND, XSAVE, XSAVEOPT, FSGSBASE,
+-PTWRITE, RDPID, SGX and UMIP instruction set support.
++SSSE3, SSE4.1, SSE4.2, POPCNT, AES, PREFETCHW, PCLMUL, RDRND, XSAVE, XSAVEC,
++XSAVES, XSAVEOPT, FSGSBASE, PTWRITE, RDPID, SGX and UMIP instruction set support.
+ 
+ @item tremont
+ Intel Tremont CPU with 64-bit extensions, MOVBE, MMX, SSE, SSE2, SSE3, SSSE3,
+-SSE4.1, SSE4.2, POPCNT, AES, PCLMUL, RDRND, XSAVE, XSAVEOPT, FSGSBASE, PTWRITE,
+-RDPID, SGX, UMIP, GFNI-SSE, CLWB and ENCLV instruction set support.
++SSE4.1, SSE4.2, POPCNT, AES, PREFETCHW, PCLMUL, RDRND, XSAVE, XSAVEC, XSAVES,
++XSAVEOPT, FSGSBASE, PTWRITE, RDPID, SGX, UMIP, GFNI-SSE, CLWB, MOVDIRI,
++MOVDIR64B, CLDEMOTE and WAITPKG instruction set support.
+ 
+ @item knl
+ Intel Knight's Landing CPU with 64-bit extensions, MOVBE, MMX, SSE, SSE2, SSE3,
+ SSSE3, SSE4.1, SSE4.2, POPCNT, AVX, AVX2, AES, PCLMUL, FSGSBASE, RDRND, FMA,
+-BMI, BMI2, F16C, RDSEED, ADCX, PREFETCHW, AVX512F, AVX512PF, AVX512ER and
+-AVX512CD instruction set support.
++BMI, BMI2, F16C, RDSEED, ADCX, PREFETCHW, PREFETCHWT1, AVX512F, AVX512PF,
++AVX512ER and AVX512CD instruction set support.
+ 
+ @item knm
+ Intel Knights Mill CPU with 64-bit extensions, MOVBE, MMX, SSE, SSE2, SSE3,
+ SSSE3, SSE4.1, SSE4.2, POPCNT, AVX, AVX2, AES, PCLMUL, FSGSBASE, RDRND, FMA,
+-BMI, BMI2, F16C, RDSEED, ADCX, PREFETCHW, AVX512F, AVX512PF, AVX512ER, AVX512CD,
+-AVX5124VNNIW, AVX5124FMAPS and AVX512VPOPCNTDQ instruction set support.
++BMI, BMI2, F16C, RDSEED, ADCX, PREFETCHW, PREFETCHWT1, AVX512F, AVX512PF,
++AVX512ER, AVX512CD, AVX5124VNNIW, AVX5124FMAPS and AVX512VPOPCNTDQ instruction
++set support.
+ 
+ @item skylake-avx512
+ Intel Skylake Server CPU with 64-bit extensions, MOVBE, MMX, SSE, SSE2, SSE3,
+@@ -28711,9 +28751,9 @@ Note that @option{-mcmodel=large} is incompatible with
  @option{-mindirect-branch=thunk-extern} since the thunk function may
  not be reachable in the large code model.
  
@@ -253,7 +381,7 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  
  @item -mfunction-return=@var{choice}
  @opindex mfunction-return
-@@ -28726,6 +28764,10 @@ object file.  You can control this behavior for a specific function by
+@@ -28726,6 +28766,10 @@ object file.  You can control this behavior for a specific function by
  using the function attribute @code{function_return}.
  @xref{Function Attributes}.
  
@@ -264,6 +392,37 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  Note that @option{-mcmodel=large} is incompatible with
  @option{-mfunction-return=thunk} and
  @option{-mfunction-return=thunk-extern} since the thunk function may
+--- a/src/gcc/doc/sourcebuild.texi
++++ b/src/gcc/doc/sourcebuild.texi
+@@ -1244,6 +1244,18 @@ This DejaGnu directive compares @var{regexp} to the combined output
+ that the test executable writes to @file{stdout} and @file{stderr}.
+ @end table
+ 
++@subsubsection Specify environment variables for a test
++
++@table @code
++@item @{ dg-set-compiler-env-var @var{var_name} "@var{var_value}" @}
++Specify that the environment variable @var{var_name} needs to be set
++to @var{var_value} before invoking the compiler on the test file.
++
++@item @{ dg-set-target-env-var @var{var_name} "@var{var_value}" @}
++Specify that the environment variable @var{var_name} needs to be set
++to @var{var_value} before execution of the program created by the test.
++@end table
++
+ @subsubsection Specify additional files for a test
+ 
+ @table @code
+@@ -1915,6 +1927,9 @@ AArch64 target which generates instruction sequences for big endian.
+ Binutils installed on test system supports relocation types required by -fpic
+ for AArch64 small memory model.
+ 
++@item aarch64_fjcvtzs_hw
++AArch64 target that is able to generate and execute armv8.3-a FJCVTZS
++instruction.
+ @end table
+ 
+ @subsubsection MIPS-specific attributes
 --- a/src/gcc/doc/tm.texi
 +++ b/src/gcc/doc/tm.texi
 @@ -8330,11 +8330,11 @@ as the number of bits.
@@ -298,3 +457,15 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  the variable's decl in order to chose what to output.
  @end defmac
  
+--- a/src/gcc/fortran/intrinsic.texi
++++ b/src/gcc/fortran/intrinsic.texi
+@@ -6041,7 +6041,8 @@ END PROGRAM
+ @item @emph{Description}:
+ Determines the location of the element in the array with the value
+ given in the @var{VALUE} argument, or, if the @var{DIM} argument is
+-supplied, determines the locations of the maximum element along each
++supplied, determines the locations of the elements equal to the
++@var{VALUE} argument element along each
+ row of the array in the @var{DIM} direction.  If @var{MASK} is
+ present, only the elements for which @var{MASK} is @code{.TRUE.} are
+ considered.  If more than one element in the array has the value
