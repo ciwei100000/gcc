@@ -1,0 +1,32 @@
+# DP: Work around PR ada/98228, not using lto for gnat1 on s390x
+
+--- a/src/gcc/ada/gcc-interface/Make-lang.in
++++ b/src/gcc/ada/gcc-interface/Make-lang.in
+@@ -238,7 +238,8 @@
+   -Wl,--no-undefined
+ 
+ GCC_LINK=$(LINKER) $(GCC_LINKERFLAGS) $(LDFLAGS)
+-GCC_LLINK=$(LLINKER) $(GCC_LINKERFLAGS) $(LDFLAGS)
++# PR ada/98228 workaround on s390x
++GCC_LLINK=$(LLINKER) $(filter-out -flto% -ffat-lto-objects, $(GCC_LINKERFLAGS) $(LDFLAGS)) -fno-lto
+ 
+ # Lists of files for various purposes.
+ 
+--- a/src/config/bootstrap-lto-lean.mk
++++ b/src/config/bootstrap-lto-lean.mk
+@@ -1,10 +1,11 @@
+ # This option enables LTO for stage4 and LTO for generators in stage3 with profiledbootstrap.
+ # Otherwise, LTO is used in only stage3.
+ 
+-STAGE3_CFLAGS += -flto=jobserver
+-override STAGEtrain_CFLAGS := $(filter-out -flto=jobserver,$(STAGEtrain_CFLAGS))
+-STAGEtrain_GENERATOR_CFLAGS += -flto=jobserver
+-STAGEfeedback_CFLAGS += -flto=jobserver
++# see PR ada/98228, not using lto for gnat1 on s390x
++STAGE3_CFLAGS += -flto=jobserver -ffat-lto-objects
++override STAGEtrain_CFLAGS := $(filter-out -flto=jobserver -ffat-lto-objects,$(STAGEtrain_CFLAGS))
++STAGEtrain_GENERATOR_CFLAGS += -flto=jobserver -ffat-lto-objects
++STAGEfeedback_CFLAGS += -flto=jobserver -ffat-lto-objects
+ 
+ # assumes the host supports the linker plugin
+ LTO_AR = $$r/$(HOST_SUBDIR)/prev-gcc/gcc-ar$(exeext) -B$$r/$(HOST_SUBDIR)/prev-gcc/
