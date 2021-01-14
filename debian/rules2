@@ -42,6 +42,7 @@ else
 endif
 
 time_command = /usr/bin/time -v
+time_command += $(CURDIR)/debian/usage-wrapper.py -o usage-$(shell echo $@ | sed 's/.*0[1-9]-//;s/-stamp//').svg
 
 ifeq ($(locale_data),generate)
   SET_LOCPATH = LOCPATH=$(CURDIR)/locales
@@ -1817,7 +1818,7 @@ endif
 	      EXTRA_TEST_PFLAGS=-g0 \
 	      DEJAGNU_TIMEOUT=$(DEJAGNU_TIMEOUT) \
 	      DEB_GCC_NO_O3=1 \
-		$(MAKE) -k -C $$d $(NJOBS_TESTS) check $(RUNTESTFLAGS); \
+	      $(time_command) $(MAKE) -k -C $$d $(NJOBS_TESTS) check $(RUNTESTFLAGS); \
 	    done 2>&1 | tee test-protocol
 
 	-ps aux | fgrep logwatch | fgrep -v fgrep
@@ -1985,6 +1986,7 @@ clean: debian/control
 	rm -f debian/arch_binaries* debian/indep_binaries*
 	rm -rf bin bin-gcn locales share
 	rm -rf check-inst
+	rm -f usage-*.svg
 	dh_clean
 ifneq (,$(filter $(build_type), build-cross cross-build-cross))
 	$(cross_clean) dh_clean

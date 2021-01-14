@@ -163,6 +163,8 @@ ifeq ($(with_check),yes)
 else
 	dh_installdocs -p$(p_snap)
 endif
+	-cp usage-*.svg $(d_snap)/$(docdir)/$(p_snap)/.
+
 	if [ -f $(buildlibdir)/libstdc++-v3/testsuite/current_symbols.txt ]; \
 	then \
 	  cp -p $(buildlibdir)/libstdc++-v3/testsuite/current_symbols.txt \

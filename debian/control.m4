@@ -72,7 +72,7 @@ Build-Depends: DEBHELPER_BUILD_DEP DPKG_BUILD_DEP
   ISL_BUILD_DEP MPC_BUILD_DEP MPFR_BUILD_DEP GMP_BUILD_DEP,
   libzstd-dev, zlib1g-dev, gawk, lzma, xz-utils, patchutils,
   pkg-config, libgc-dev,
-  zlib1g-dev, SDT_BUILD_DEP
+  zlib1g-dev, SDT_BUILD_DEP USAGE_BUILD_DEP
   bison (>= 1:2.3), flex, coreutils (>= 2.26) | realpath (>= 1.9.12), lsb-release, quilt, time
 ',`dnl native
 Build-Depends: DEBHELPER_BUILD_DEP DPKG_BUILD_DEP GCC_MULTILIB_BUILD_DEP
@@ -81,7 +81,7 @@ Build-Depends: DEBHELPER_BUILD_DEP DPKG_BUILD_DEP GCC_MULTILIB_BUILD_DEP
   AUTO_BUILD_DEP BASE_BUILD_DEP
   dwz, libunwind8-dev [ia64], libatomic-ops-dev [ia64],
   gawk, lzma, xz-utils, patchutils,
-  libzstd-dev, zlib1g-dev, SDT_BUILD_DEP
+  libzstd-dev, zlib1g-dev, SDT_BUILD_DEP USAGE_BUILD_DEP
   BINUTILS_BUILD_DEP,
   gperf (>= 3.0.1), bison (>= 1:2.3), flex, gettext,
   gdb`'NT [!riscv64], OFFLOAD_BUILD_DEP

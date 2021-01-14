@@ -305,6 +305,8 @@ else
 endif
 	echo "TEST COMPARE END"
 
+	-cp usage-*.svg $(d_tst)/$(docdir)/$(p_xbase)/.
+
 	debian/dh_rmemptydirs -p$(p_tst)
 
 	echo $(p_tst) >> debian/arch_binaries
