@@ -306,6 +306,7 @@ endif
 	echo "TEST COMPARE END"
 
 	-cp usage-*.svg $(d_tst)/$(docdir)/$(p_xbase)/.
+	-xz -9v $(d_tst)/$(docdir)/$(p_xbase)/*.svg
 
 	debian/dh_rmemptydirs -p$(p_tst)
 

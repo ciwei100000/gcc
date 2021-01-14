@@ -164,6 +164,7 @@ else
 	dh_installdocs -p$(p_snap)
 endif
 	-cp usage-*.svg $(d_snap)/$(docdir)/$(p_snap)/.
+	-xz -9v $(d_snap)/$(docdir)/$(p_snap)/*.svg
 
 	if [ -f $(buildlibdir)/libstdc++-v3/testsuite/current_symbols.txt ]; \
 	then \
