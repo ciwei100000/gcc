@@ -93,7 +93,7 @@
  
  #define LINUX_TARGET_LINK_SPEC  "%{h*}		\
     --hash-style=gnu				\
-+   --as-needed					\
++   %{!fsanitize=*:--as-needed}			\
     %{static:-Bstatic}				\
     %{shared:-shared}				\
     %{symbolic:-Bsymbolic}			\
@@ -104,7 +104,7 @@
  
  #undef LINK_SPEC
 -#define LINK_SPEC " --hash-style=gnu \
-+#define LINK_SPEC " --hash-style=gnu --as-needed \
++#define LINK_SPEC " --hash-style=gnu %{!fsanitize=*:--as-needed} \
    %{shared:-shared} \
    %{!shared: \
      %{!static: \
@@ -115,7 +115,7 @@
  
  #undef  LINK_SPEC
 -#define LINK_SPEC "-m elf32_sparc --hash-style=gnu %{shared:-shared} \
-+#define LINK_SPEC "-m elf32_sparc --hash-style=gnu --as-needed %{shared:-shared} \
++#define LINK_SPEC "-m elf32_sparc --hash-style=gnu %{!fsanitize=*:--as-needed} %{shared:-shared} \
    %{!mno-relax:%{!r:-relax}} \
    %{!shared: \
      %{!static: \
@@ -126,7 +126,7 @@
  #undef  LINK_SPEC
  #define LINK_SPEC \
 -  "%{m31:-m elf_s390}%{m64:-m elf64_s390} --hash-style=gnu \
-+  "%{m31:-m elf_s390}%{m64:-m elf64_s390} --hash-style=gnu --as-needed \
++  "%{m31:-m elf_s390}%{m64:-m elf64_s390} --hash-style=gnu %{!fsanitize=*:--as-needed} \
     %{shared:-shared} \
     %{!shared: \
        %{static:-static} \
@@ -137,14 +137,14 @@
  #endif
  
 -#define LINK_OS_LINUX_SPEC32 LINK_OS_LINUX_EMUL32 " --hash-style=gnu %{!shared: %{!static: \
-+#define LINK_OS_LINUX_SPEC32 LINK_OS_LINUX_EMUL32 " --hash-style=gnu --as-needed %{!shared: %{!static: \
++#define LINK_OS_LINUX_SPEC32 LINK_OS_LINUX_EMUL32 " --hash-style=gnu %{!fsanitize=*:--as-needed} %{!shared: %{!static: \
    %{!static-pie: \
      %{rdynamic:-export-dynamic} \
      -dynamic-linker " GNU_USER_DYNAMIC_LINKER32 "}}} \
    %(link_os_extra_spec32)"
  
 -#define LINK_OS_LINUX_SPEC64 LINK_OS_LINUX_EMUL64 " --hash-style=gnu %{!shared: %{!static: \
-+#define LINK_OS_LINUX_SPEC64 LINK_OS_LINUX_EMUL64 " --hash-style=gnu --as-needed %{!shared: %{!static: \
++#define LINK_OS_LINUX_SPEC64 LINK_OS_LINUX_EMUL64 " --hash-style=gnu %{!fsanitize=*:--as-needed} %{!shared: %{!static: \
    %{!static-pie: \
      %{rdynamic:-export-dynamic} \
      -dynamic-linker " GNU_USER_DYNAMIC_LINKER64 "}}} \
@@ -155,7 +155,7 @@
  #endif
  
 -#define LINK_OS_LINUX_SPEC "-m elf32ppclinux --hash-style=gnu %{!shared: %{!static: \
-+#define LINK_OS_LINUX_SPEC "-m elf32ppclinux --hash-style=gnu --as-needed %{!shared: %{!static: \
++#define LINK_OS_LINUX_SPEC "-m elf32ppclinux --hash-style=gnu %{!fsanitize=*:--as-needed} %{!shared: %{!static: \
    %{rdynamic:-export-dynamic} \
    -dynamic-linker " GNU_USER_DYNAMIC_LINKER "}}"
  
@@ -165,7 +165,7 @@
                     %{" SPEC_32 ":-m " GNU_USER_LINK_EMULATION32 "} \
                     %{" SPEC_X32 ":-m " GNU_USER_LINK_EMULATIONX32 "} \
    --hash-style=gnu \
-+  --as-needed \
++  %{!fsanitize=*:--as-needed} \
    %{shared:-shared} \
    %{!shared: \
      %{!static: \
@@ -176,7 +176,7 @@
    { "dynamic_linker", GNU_USER_DYNAMIC_LINKER }
  
 -#define GNU_USER_TARGET_LINK_SPEC "-m %(link_emulation) --hash-style=gnu %{shared:-shared} \
-+#define GNU_USER_TARGET_LINK_SPEC "-m %(link_emulation) --hash-style=gnu --as-needed %{shared:-shared} \
++#define GNU_USER_TARGET_LINK_SPEC "-m %(link_emulation) --hash-style=gnu %{!fsanitize=*:--as-needed} %{shared:-shared} \
    %{!shared: \
      %{!static: \
        %{!static-pie: \
@@ -187,7 +187,7 @@
  #define ELF_DYNAMIC_LINKER	GNU_USER_DYNAMIC_LINKER
  
 -#define LINK_SPEC "-m elf64alpha --hash-style=gnu %{G*} %{relax:-relax}	\
-+#define LINK_SPEC "-m elf64alpha --hash-style=gnu --as-needed %{G*} %{relax:-relax}	\
++#define LINK_SPEC "-m elf64alpha --hash-style=gnu %{!fsanitize=*:--as-needed} %{G*} %{relax:-relax}	\
    %{O*:-O3} %{!O*:-O1}						\
    %{shared:-shared}						\
    %{!shared:							\
@@ -197,7 +197,7 @@
       %{!shared:-dynamic-linker " GNU_USER_DYNAMIC_LINKER "}} \
     -X \
     --hash-style=gnu \
-+   --as-needed \
++   %{!fsanitize=*:--as-needed} \
     %{mbig-endian:-EB} %{mlittle-endian:-EL}" \
     SUBTARGET_EXTRA_LINK_SPEC
  
@@ -207,7 +207,7 @@
  #undef GNU_USER_TARGET_LINK_SPEC
  #define GNU_USER_TARGET_LINK_SPEC "\
    %{G*} %{EB} %{EL} %{mips*} %{shared} \
-+ -as-needed \
++ %{!fsanitize=*:--as-needed} \
    %{!shared: \
      %{!static: \
        %{rdynamic:-export-dynamic} \
@@ -217,7 +217,37 @@
  
  #define LINK_SPEC "\
  -hash-style=gnu \
-+-as-needed \
++%{!fsanitize=*:--as-needed} \
  -melf" XLEN_SPEC "lriscv" LD_EMUL_SUFFIX " \
  %{mno-relax:--no-relax} \
  %{shared} \
+--- a/src/gcc/config/m68k/linux.h
++++ b/src/gcc/config/m68k/linux.h
+@@ -78,6 +78,7 @@ along with GCC; see the file COPYING3.
+ 
+ #undef LINK_SPEC
+ #define LINK_SPEC "-m m68kelf %{shared} \
++  %{!fsanitize=*:--as-needed} \
+   %{!shared: \
+     %{!static: \
+       %{rdynamic:-export-dynamic} \
+--- a/src/gcc/config/sh/linux.h
++++ b/src/gcc/config/sh/linux.h
+@@ -72,6 +72,7 @@ along with GCC; see the file COPYING3.
+ #undef SUBTARGET_LINK_SPEC
+ #define SUBTARGET_LINK_SPEC \
+   "%{shared:-shared} \
++   %{!fsanitize=*:--as-needed} \
+    %{!static: \
+      %{rdynamic:-export-dynamic} \
+      -dynamic-linker " GNU_USER_DYNAMIC_LINKER "} \
+--- a/src/gcc/config/pa/pa-linux.h
++++ b/src/gcc/config/pa/pa-linux.h
+@@ -41,6 +41,7 @@ along with GCC; see the file COPYING3.
+ 
+ #undef LINK_SPEC
+ #define LINK_SPEC "\
++  %{!fsanitize=*:--as-needed} \
+   %{shared:-shared} \
+   %{!shared: \
+     %{!static: \
