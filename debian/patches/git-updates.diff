@@ -1,7 +1,7 @@
-# DP: updates from the 8 branch upto 20201125 (1dbf117ce5d).
+# DP: updates from the 8 branch upto 20210111 (6d1d6f7a4f3).
 
 LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
-        8cd3bffead2ed1d1998c190865694f920fbc93ab 1dbf117ce5df08e3303f89c0af9e601b2cbd6163 \
+        8cd3bffead2ed1d1998c190865694f920fbc93ab 6d1d6f7a4f3847615a2c2ad309ffa88145d9ffab \
 	| awk '/^diff .*\.texi/ {skip=1; next} /^diff / { skip=0 } skip==0' \
 	| grep -v -E '^(diff|index)'
 
@@ -17,7 +17,15 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  	* GCC 8.4.0 released.
 --- a/src/contrib/ChangeLog
 +++ b/src/contrib/ChangeLog
-@@ -1,3 +1,67 @@
+@@ -1,3 +1,75 @@
++2021-01-07  Martin Liska  <mliska@suse.cz>
++
++	* gcc-changelog/git_commit.py: Sync from master.
++	* gcc-changelog/git_email.py: Likewise.
++	* gcc-changelog/git_repository.py: Likewise.
++	* gcc-changelog/test_email.py: Likewise.
++	* gcc-changelog/test_patches.txt: Likewise.
++
 +2020-11-25  Martin Liska  <mliska@suse.cz>
 +
 +	* gcc-changelog/git_commit.py: Use revert_regex instead
@@ -141,7 +149,7 @@ new file mode 100755
 new file mode 100755
 --- /dev/null
 +++ b/src/contrib/gcc-changelog/git_commit.py
-@@ -0,0 +1,692 @@
+@@ -0,0 +1,723 @@
 +#!/usr/bin/env python3
 +#
 +# This file is part of GCC.
@@ -160,10 +168,12 @@ new file mode 100755
 +# along with GCC; see the file COPYING3.  If not see
 +# <http://www.gnu.org/licenses/>.  */
 +
++import difflib
 +import os
 +import re
 +
 +changelog_locations = {
++    'c++tools',
 +    'config',
 +    'contrib',
 +    'contrib/header-tools',
@@ -194,6 +204,7 @@ new file mode 100755
 +    'libatomic',
 +    'libbacktrace',
 +    'libcc1',
++    'libcody',
 +    'libcpp',
 +    'libcpp/po',
 +    'libdecnumber',
@@ -282,7 +293,8 @@ new file mode 100755
 +
 +wildcard_prefixes = {
 +    'gcc/testsuite/',
-+    'libstdc++-v3/doc/html/'
++    'libstdc++-v3/doc/html/',
++    'libstdc++-v3/testsuite/'
 +    }
 +
 +misc_files = {
@@ -302,16 +314,34 @@ new file mode 100755
 +item_empty_regex = re.compile(r'\t(\* \S+ )?\(\S+\):\s*$')
 +item_parenthesis_regex = re.compile(r'\t(\*|\(\S+\):)')
 +revert_regex = re.compile(r'This reverts commit (?P<hash>\w+).$')
++cherry_pick_regex = re.compile(r'cherry picked from commit (?P<hash>\w+)')
 +
 +LINE_LIMIT = 100
 +TAB_WIDTH = 8
 +CO_AUTHORED_BY_PREFIX = 'co-authored-by: '
-+CHERRY_PICK_PREFIX = '(cherry picked from commit '
 +
 +REVIEW_PREFIXES = ('reviewed-by: ', 'reviewed-on: ', 'signed-off-by: ',
 +                   'acked-by: ', 'tested-by: ', 'reported-by: ',
 +                   'suggested-by: ')
 +DATE_FORMAT = '%Y-%m-%d'
++
++
++def decode_path(path):
++    # When core.quotepath is true (default value), utf8 chars are encoded like:
++    # "b/ko\304\215ka.txt"
++    #
++    # The upstream bug is fixed:
++    # https://github.com/gitpython-developers/GitPython/issues/1099
++    #
++    # but we still need a workaround for older versions of the library.
++    # Please take a look at the explanation of the transformation:
++    # https://stackoverflow.com/questions/990169/how-do-convert-unicode-escape-sequences-to-unicode-characters-in-a-python-string
++
++    if path.startswith('"') and path.endswith('"'):
++        return (path.strip('"').encode('utf8').decode('unicode-escape')
++                .encode('latin-1').decode('utf8'))
++    else:
++        return path
 +
 +
 +class Error:
@@ -415,6 +445,10 @@ new file mode 100755
 +        self.cherry_pick_commit = None
 +        self.revert_commit = None
 +        self.commit_to_info_hook = commit_to_info_hook
++
++        # Skip Update copyright years commits
++        if self.info.lines and self.info.lines[0] == 'Update copyright years.':
++            return
 +
 +        # Identify first if the commit is a Revert commit
 +        for line in self.info.lines:
@@ -566,14 +600,16 @@ new file mode 100755
 +                    continue
 +                elif lowered_line.startswith(REVIEW_PREFIXES):
 +                    continue
-+                elif line.startswith(CHERRY_PICK_PREFIX):
-+                    commit = line[len(CHERRY_PICK_PREFIX):].rstrip(')')
-+                    if self.cherry_pick_commit:
-+                        self.errors.append(Error('multiple cherry pick lines',
-+                                                 line))
-+                    else:
-+                        self.cherry_pick_commit = commit
-+                    continue
++                else:
++                    m = cherry_pick_regex.search(line)
++                    if m:
++                        commit = m.group('hash')
++                        if self.cherry_pick_commit:
++                            msg = 'multiple cherry pick lines'
++                            self.errors.append(Error(msg, line))
++                        else:
++                            self.cherry_pick_commit = commit
++                        continue
 +
 +                # ChangeLog name will be deduced later
 +                if not last_entry:
@@ -634,7 +670,7 @@ new file mode 100755
 +        for entry in self.changelog_entries:
 +            for pattern in entry.file_patterns:
 +                name = os.path.join(entry.folder, pattern)
-+                if name not in wildcard_prefixes:
++                if not [name.startswith(pr) for pr in wildcard_prefixes]:
 +                    msg = 'unsupported wildcard prefix'
 +                    self.errors.append(Error(msg, name))
 +
@@ -702,7 +738,7 @@ new file mode 100755
 +        mentioned_patterns = []
 +        used_patterns = set()
 +        for entry in self.changelog_entries:
-+            if not entry.files:
++            if not entry.files and not entry.file_patterns:
 +                msg = 'no files mentioned for ChangeLog in directory'
 +                self.errors.append(Error(msg, entry.folder))
 +            assert not entry.folder.endswith('/')
@@ -717,6 +753,9 @@ new file mode 100755
 +        changed_files = set(cand)
 +        for file in sorted(mentioned_files - changed_files):
 +            msg = 'unchanged file mentioned in a ChangeLog'
++            candidates = difflib.get_close_matches(file, changed_files, 1)
++            if candidates:
++                msg += f' (did you mean "{candidates[0]}"?)'
 +            self.errors.append(Error(msg, file))
 +        for file in sorted(changed_files - mentioned_files):
 +            if not self.in_ignored_location(file):
@@ -758,7 +797,7 @@ new file mode 100755
 +
 +        for pattern in mentioned_patterns:
 +            if pattern not in used_patterns:
-+                error = 'pattern doesn''t match any changed files'
++                error = "pattern doesn't match any changed files"
 +                self.errors.append(Error(error, pattern))
 +
 +    def check_for_correct_changelog(self):
@@ -862,7 +901,7 @@ new file mode 100755
 +
 +from dateutil.parser import parse
 +
-+from git_commit import GitCommit, GitInfo
++from git_commit import GitCommit, GitInfo, decode_path
 +
 +from unidiff import PatchSet, PatchedFile
 +
@@ -892,8 +931,8 @@ new file mode 100755
 +        modified_files = []
 +        for f in diff:
 +            # Strip "a/" and "b/" prefixes
-+            source = f.source_file[2:]
-+            target = f.target_file[2:]
++            source = decode_path(f.source_file)[2:]
++            target = decode_path(f.target_file)[2:]
 +
 +            if f.is_added_file:
 +                t = 'A'
@@ -978,7 +1017,7 @@ new file mode 100755
 +    print('  Debian, Ubuntu: python3-git')
 +    exit(1)
 +
-+from git_commit import GitCommit, GitInfo
++from git_commit import GitCommit, GitInfo, decode_path
 +
 +
 +def parse_git_revisions(repo_path, revisions, strict=True):
@@ -1003,11 +1042,11 @@ new file mode 100755
 +                    # Consider that renamed files are two operations:
 +                    # the deletion of the original name
 +                    # and the addition of the new one.
-+                    modified_files.append((file.a_path, 'D'))
++                    modified_files.append((decode_path(file.a_path), 'D'))
 +                    t = 'A'
 +                else:
 +                    t = 'M'
-+                modified_files.append((file.b_path, t))
++                modified_files.append((decode_path(file.b_path), t))
 +
 +            date = datetime.utcfromtimestamp(c.committed_date)
 +            author = '%s  <%s>' % (c.author.name, c.author.email)
@@ -1186,7 +1225,7 @@ new file mode 100644
 new file mode 100755
 --- /dev/null
 +++ b/src/contrib/gcc-changelog/test_email.py
-@@ -0,0 +1,386 @@
+@@ -0,0 +1,406 @@
 +#!/usr/bin/env python3
 +#
 +# This file is part of GCC.
@@ -1302,7 +1341,9 @@ new file mode 100755
 +        email = self.from_patch_glob('0096')
 +        assert email.errors
 +        err = email.errors[0]
-+        assert err.message == 'unchanged file mentioned in a ChangeLog'
++        assert err.message == 'unchanged file mentioned in a ChangeLog (did ' \
++            'you mean "gcc/testsuite/gcc.target/aarch64/' \
++            'advsimd-intrinsics/vdot-3-1.c"?)'
 +        assert err.line == 'gcc/testsuite/gcc.target/aarch64/' \
 +                           'advsimd-intrinsics/vdot-compile-3-1.c'
 +
@@ -1522,7 +1563,7 @@ new file mode 100755
 +        assert not email.errors
 +        email = self.from_patch_glob('0002-libstdc-Fake-test-change-1.patch')
 +        assert len(email.errors) == 1
-+        msg = 'pattern doesn''t match any changed files'
++        msg = "pattern doesn't match any changed files"
 +        assert email.errors[0].message == msg
 +        assert email.errors[0].line == 'libstdc++-v3/doc/html/'
 +        email = self.from_patch_glob('0003-libstdc-Fake-test-change-2.patch')
@@ -1544,6 +1585,8 @@ new file mode 100755
 +    def test_backport(self):
 +        email = self.from_patch_glob('0001-asan-fix-RTX-emission.patch')
 +        assert not email.errors
++        expected_hash = '8cff672cb9a132d3d3158c2edfc9a64b55292b80'
++        assert email.cherry_pick_commit == expected_hash
 +        assert len(email.changelog_entries) == 1
 +        entry = list(email.to_changelog_entries())[0][1]
 +        assert entry.startswith('2020-06-11  Martin Liska  <mliska@suse.cz>')
@@ -1573,10 +1616,26 @@ new file mode 100755
 +        email = self.from_patch_glob('0001-lto-fix-LTO-debug')
 +        assert not email.errors
 +        assert len(email.changelog_entries) == 1
++
++    def test_wildcard_in_subdir(self):
++        email = self.from_patch_glob('0001-Wildcard-subdirs.patch')
++        assert len(email.changelog_entries) == 1
++        err = email.errors[0]
++        assert err.message == "pattern doesn't match any changed files"
++        assert err.line == 'libstdc++-v3/testsuite/28_regex_not-existing/'
++
++    def test_unicode_chars_in_filename(self):
++        email = self.from_patch_glob('0001-Add-horse.patch')
++        assert not email.errors
++
++    def test_bad_unicode_chars_in_filename(self):
++        email = self.from_patch_glob('0001-Add-horse2.patch')
++        assert not email.errors
++        assert email.changelog_entries[0].files == ['koníček.txt']
 new file mode 100644
 --- /dev/null
 +++ b/src/contrib/gcc-changelog/test_patches.txt
-@@ -0,0 +1,3322 @@
+@@ -0,0 +1,3401 @@
 +=== 0342-ARC-Propagate-uncached-type-attribute-to-each-member.patch ===
 +From 62a715c706d8482560dadfa9ead0766f3c20e434 Mon Sep 17 00:00:00 2001
 +From: Claudiu Zissulescu <claziss@gmail.com>
@@ -4724,7 +4783,7 @@ new file mode 100644
 +	by using Pmode instead of ptr_mode.
 +
 +Co-Authored-By: Jakub Jelinek <jakub@redhat.com>
-+(cherry picked from commit 8cff672cb9a132d3d3158c2edfc9a64b55292b80)
++(cherry picked from commit 8cff672cb9a132d3d3158c2edfc9a64b55292b80 (only part))
 +---
 + gcc/asan.c | 1 +
 + 1 file changed, 1 insertion(+)
@@ -4899,6 +4958,85 @@ new file mode 100644
 +-- 
 +2.25.1
 +
++=== 0001-Wildcard-subdirs.patch ===
++From b798205595426c53eb362065f6ed6c320dcc161d Mon Sep 17 00:00:00 2001
++From: Martin Liska <mliska@suse.cz>
++Date: Mon, 30 Nov 2020 13:27:51 +0100
++Subject: [PATCH] Fix it.
++
++libstdc++-v3/ChangeLog:
++
++	* testsuite/28_regex/*: Fix them all.
++	* testsuite/28_regex_not-existing/*: Fix them all.
++---
++ contrib/gcc-changelog/git_commit.py          | 1 +
++ libstdc++-v3/testsuite/28_regex/init-list.cc | 1 +
++ 2 files changed, 2 insertions(+)
++
++diff --git a/libstdc++-v3/testsuite/28_regex/init-list.cc b/libstdc++-v3/testsuite/28_regex/init-list.cc
++index f51453f019a..d10ecf483f4 100644
++--- a/libstdc++-v3/testsuite/28_regex/init-list.cc
+++++ b/libstdc++-v3/testsuite/28_regex/init-list.cc
++@@ -1 +1,2 @@
++ 
+++
++--
++2.29.2
++
++=== 0001-Add-horse.patch ===
++From 2884248d07e4e2c922e137365253e2e521c425b0 Mon Sep 17 00:00:00 2001
++From: Martin Liska <mliska@suse.cz>
++Date: Mon, 21 Dec 2020 10:14:46 +0100
++Subject: [PATCH] Add horse.
++MIME-Version: 1.0
++Content-Type: text/plain; charset=UTF-8
++Content-Transfer-Encoding: 8bit
++
++ChangeLog:
++
++	* koníček.txt: New file.
++---
++ koníček.txt | 1 +
++ 1 file changed, 1 insertion(+)
++ create mode 100644 koníček.txt
++
++diff --git a/koníček.txt b/koníček.txt
++new file mode 100644
++index 00000000000..56c67f58752
++--- /dev/null
+++++ b/koníček.txt
++@@ -0,0 +1 @@
+++I'm a horse.
++-- 
++2.29.2
++=== 0001-Add-horse2.patch ===
++From 2884248d07e4e2c922e137365253e2e521c425b0 Mon Sep 17 00:00:00 2001
++From: Martin Liska <mliska@suse.cz>
++Date: Mon, 21 Dec 2020 10:14:46 +0100
++Subject: [PATCH] Add horse.
++MIME-Version: 1.0
++Content-Type: text/plain; charset=UTF-8
++Content-Transfer-Encoding: 8bit
++
++ChangeLog:
++
++	* koníček.txt: New file.
++---
++ "kon\303\255\304\215ek.txt" | 1 +
++ 1 file changed, 1 insertion(+)
++ create mode 100644 "kon\303\255\304\215ek.txt"
++
++diff --git "a/kon\303\255\304\215ek.txt" "b/kon\303\255\304\215ek.txt"
++new file mode 100644
++index 00000000000..56c67f58752
++--- /dev/null
+++++ "b/kon\303\255\304\215ek.txt"
++@@ -0,0 +1 @@
+++I'm a horse.
++-- 
++2.29.2
++
++
 new file mode 100755
 --- /dev/null
 +++ b/src/contrib/git-backport.py
@@ -4970,7 +5108,143 @@ new file mode 100755
 +            print('Please resolve all remaining file conflicts.')
 --- a/src/gcc/ChangeLog
 +++ b/src/gcc/ChangeLog
-@@ -1,3 +1,1979 @@
+@@ -1,3 +1,2111 @@
++2020-12-28  Uroš Bizjak  <ubizjak@gmail.com>
++
++	PR target/96793
++	* config/i386/i386.c (ix86_expand_rint):
++	Remove the sign of the intermediate value for flag_rounding_math.
++
++2020-12-27  Uroš Bizjak  <ubizjak@gmail.com>
++
++	PR target/96793
++	* config/i386/i386.c (ix86_expand_truncdf_32):
++	Remove the sign of the intermediate value for flag_rounding_math.
++
++2020-12-24  Roman Zhuykov  <zhroma@ispras.ru>
++
++	Backported from master:
++	2020-12-05  Roman Zhuykov  <zhroma@ispras.ru>
++
++	PR rtl-optimization/97421
++	* modulo-sched.c (generate_prolog_epilog): Remove forward
++	declaration, adjust last argument name and type.
++	(const_iteration_count): Add bool pointer parameter to return
++	whether count register is read in pre-header after its
++	initialization.
++	(sms_schedule): Fix count register initialization adjustment
++	procedure according to what const_iteration_count said.
++
++2020-12-23  Uroš Bizjak  <ubizjak@gmail.com>
++
++	PR target/96793
++	* config/i386/i386.c (ix86_expand_floorceil):
++	Remove the sign of the intermediate value for flag_rounding_math.
++	(ix86_expand_floorceildf_32): Ditto.
++
++2020-12-14  Wilco Dijkstra  <wdijkstr@arm.com>
++
++	* config.gcc (aarch64*-*-*): Add --with-tune. Support --with-cpu=native.
++	* config/aarch64/aarch64.h (OPTION_DEFAULT_SPECS): Add --with-tune.
++
++2020-12-14  Sebastian Pop  <spop@amazon.com>
++
++	* config.gcc (aarch64*-*-*): Remove --with-{cpu,arch,tune}-32 flags.
++
++2020-12-01  Richard Biener  <rguenther@suse.de>
++
++	Backported from master:
++	2020-05-07  Richard Biener  <rguenther@suse.de>
++
++	PR ipa/94947
++	* tree-ssa-structalias.c (refered_from_nonlocal_fn): Use
++	DECL_EXTERNAL || TREE_PUBLIC instead of externally_visible.
++	(refered_from_nonlocal_var): Likewise.
++	(ipa_pta_execute): Likewise.
++
++2020-12-01  Richard Biener  <rguenther@suse.de>
++
++	Backported from master:
++	2020-05-05  Richard Biener  <rguenther@suse.de>
++
++	PR ipa/94947
++	* tree-ssa-structalias.c (ipa_pta_execute): Use
++	varpool_node::externally_visible_p ().
++	(refered_from_nonlocal_var): Likewise.
++
++2020-12-01  Richard Biener  <rguenther@suse.de>
++
++	Backported from master:
++	2020-05-06  Richard Biener  <rguenther@suse.de>
++
++	PR middle-end/94964
++	* cfgloopmanip.c (create_preheader): Require non-complex
++	preheader edge for CP_SIMPLE_PREHEADERS.
++
++2020-12-01  Richard Biener  <rguenther@suse.de>
++
++	Backported from master:
++	2020-05-15  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/95133
++	* gimple-ssa-split-paths.c
++	(find_block_to_duplicate_for_splitting_paths): Check for
++	normal edges.
++
++2020-12-01  Richard Biener  <rguenther@suse.de>
++
++	Backported from master:
++	2020-10-26  Richard Biener  <rguenther@suse.de>
++
++	PR middle-end/97554
++	* sbitmap.c (sbitmap_vector_alloc): Use size_t for byte
++	quantities to avoid overflow.
++
++2020-11-30  Stam Markianos-Wright  <stam.markianos-wright@arm.com>
++
++	PR target/91816
++	* config/arm/arm-protos.h: New function arm_gen_far_branch prototype.
++	* config/arm/arm.c (arm_gen_far_branch): New function
++	arm_gen_far_branch.
++	* config/arm/arm.md: Update b<cond> for Thumb2 range checks.
++
++2020-11-25  Szabolcs Nagy  <szabolcs.nagy@arm.com>
++
++	Backported from master:
++	2020-07-13  Szabolcs Nagy  <szabolcs.nagy@arm.com>
++
++	* config/aarch64/aarch64-c.c (aarch64_update_cpp_builtins): Add
++	__ARM_FEATURE_PAC_DEFAULT support.
++
++2020-11-25  Szabolcs Nagy  <szabolcs.nagy@arm.com>
++
++	Backported from master:
++	2020-07-13  Szabolcs Nagy  <szabolcs.nagy@arm.com>
++
++	PR target/94891
++	* doc/extend.texi: Update the text for  __builtin_return_address.
++
++2020-11-25  Szabolcs Nagy  <szabolcs.nagy@arm.com>
++
++	Backported from master:
++	2020-07-13  Szabolcs Nagy  <szabolcs.nagy@arm.com>
++
++	PR target/94891
++	* config/aarch64/aarch64.c (aarch64_return_address_signing_enabled):
++	Disable return address signing if __builtin_eh_return is used.
++
++2020-11-25  Szabolcs Nagy  <szabolcs.nagy@arm.com>
++
++	Backported from master:
++	2020-07-13  Szabolcs Nagy  <szabolcs.nagy@arm.com>
++
++	PR target/94891
++	PR target/94791
++	* config/aarch64/aarch64-protos.h (aarch64_return_addr_rtx): Declare.
++	* config/aarch64/aarch64.c (aarch64_return_addr_rtx): New.
++	(aarch64_return_addr): Use aarch64_return_addr_rtx.
++	* config/aarch64/aarch64.h (PROFILE_HOOK): Likewise.
++
 +2020-11-24  Jason Merrill  <jason@redhat.com>
 +
 +	PR c++/97918
@@ -6943,10 +7217,6 @@ new file mode 100755
 +	* gimplify.c (gimplify_init_constructor): Don't promote readonly
 +	DECL_REGISTER variables to TREE_STATIC.
 +
-+2020-03-04  Jakub Jelinek  <jakub@redhat.com>
-+
-+	* BASE-VER: Set to 8.4.1.
-+
  2020-03-04  Release Manager
  
  	* GCC 8.4.0 released.
@@ -6954,10 +7224,16 @@ new file mode 100755
 +++ b/src/gcc/DATESTAMP
 @@ -1 +1 @@
 -20200304
-+20201125
++20210111
 --- a/src/gcc/ada/ChangeLog
 +++ b/src/gcc/ada/ChangeLog
-@@ -1,3 +1,13 @@
+@@ -1,3 +1,19 @@
++2020-12-10  Ed Schonberg  <schonberg@adacore.com>
++
++	PR ada/98230
++	* exp_attr.adb (Expand_N_Attribute_Reference, case Mod): Use base
++	type of argument to obtain static bound and required size.
++
 +2020-06-23  Eric Botcazou  <ebotcazou@gcc.gnu.org>
 +
 +	* gcc-interface/trans.c (gnat_to_gnu) <N_Allocator>: Minor tweaks.
@@ -6971,6 +7247,26 @@ new file mode 100755
  2020-03-04  Release Manager
  
  	* GCC 8.4.0 released.
+--- a/src/gcc/ada/exp_attr.adb
++++ b/src/gcc/ada/exp_attr.adb
+@@ -4447,13 +4447,15 @@ package body Exp_Attr is
+ 
+       when Attribute_Mod => Mod_Case : declare
+          Arg  : constant Node_Id := Relocate_Node (First (Exprs));
+-         Hi   : constant Node_Id := Type_High_Bound (Etype (Arg));
++         Hi   : constant Node_Id := Type_High_Bound (Base_Type (Etype (Arg)));
+          Modv : constant Uint    := Modulus (Btyp);
+ 
+       begin
+ 
+          --  This is not so simple. The issue is what type to use for the
+-         --  computation of the modular value.
++         --  computation of the modular value. In addition we need to use
++         --  the base type as above to retrieve a static bound for the
++         --  comparisons that follow.
+ 
+          --  The easy case is when the modulus value is within the bounds
+          --  of the signed integer type of the argument. In this case we can
 --- a/src/gcc/ada/gcc-interface/trans.c
 +++ b/src/gcc/ada/gcc-interface/trans.c
 @@ -6840,9 +6840,8 @@ gnat_to_gnu (Node_Id gnat_node)
@@ -7418,6 +7714,21 @@ new file mode 100755
  
  	        SET_HARD_REG_BIT (clobbered_regs, reg);
  	        rtx x = gen_rtx_REG (reg_raw_mode[reg], reg);
+--- a/src/gcc/cfgloopmanip.c
++++ b/src/gcc/cfgloopmanip.c
+@@ -1500,9 +1500,10 @@ create_preheader (struct loop *loop, int flags)
+       else
+         {
+           /* If we want simple preheaders, also force the preheader to have
+-             just a single successor.  */
++	     just a single successor and a normal edge.  */
+           if ((flags & CP_SIMPLE_PREHEADERS)
+-              && !single_succ_p (single_entry->src))
++	      && ((single_entry->flags & EDGE_COMPLEX)
++		  || !single_succ_p (single_entry->src)))
+             need_forwarder_block = true;
+           /* If we want fallthru preheaders, also create forwarder block when
+              preheader ends with a jump or has predecessors from loop.  */
 --- a/src/gcc/cfgrtl.c
 +++ b/src/gcc/cfgrtl.c
 @@ -224,10 +224,20 @@ delete_insn_and_edges (rtx_insn *insn)
@@ -7506,36 +7817,56 @@ new file mode 100755
      }
 --- a/src/gcc/config.gcc
 +++ b/src/gcc/config.gcc
-@@ -3703,9 +3703,26 @@ fi
+@@ -3703,9 +3703,17 @@ fi
  supported_defaults=
  case "${target}" in
  	aarch64*-*-*)
 -		supported_defaults="abi cpu arch"
 -		for which in cpu arch; do
 -
-+		supported_defaults="abi cpu cpu_32 cpu_64 arch arch_32 arch_64 tune tune_32 tune_64"
++		supported_defaults="abi cpu cpu_64 arch arch_64 tune tune_64"
 +		if test x$with_cpu_64 != x && test x$with_cpu = x; then
 +			with_cpu=$with_cpu_64
-+		fi
-+		if test x$with_cpu_32 != x && test x$with_cpu = x; then
-+			with_cpu=$with_cpu_32
 +		fi
 +		if test x$with_arch_64 != x && test x$with_arch = x; then
 +			with_arch=$with_arch_64
 +		fi
-+		if test x$with_arch_32 != x && test x$with_arch = x; then
-+			with_arch=$with_arch_32
-+		fi
 +		if test x$with_tune_64 != x && test x$with_tune = x; then
 +			with_tune=$with_tune_64
-+		fi
-+		if test x$with_tune_32 != x && test x$with_tune = x; then
-+			with_tune=$with_tune_32
 +		fi
 +		for which in cpu arch tune; do
  			eval "val=\$with_$which"
  			base_val=`echo $val | sed -e 's/\+.*//'`
  			ext_val=`echo $val | sed -e 's/[a-z0-9.-]\+//'`
+@@ -3744,6 +3752,12 @@ case "${target}" in
+ 				  sed -e 's/,.*$//'`
+ 			  fi
+ 
++			  # Disallow extensions in --with-tune=cortex-a53+crc.
++			  if [ $which = tune ] && [ x"$ext_val" != x ]; then
++			    echo "Architecture extensions not supported in --with-$which=$val" 1>&2
++			    exit 1
++			  fi
++
+ 			  while [ x"$ext_val" != x ]
+ 			  do
+ 				ext_val=`echo $ext_val | sed -e 's/\+//'`
+@@ -3793,8 +3807,13 @@ case "${target}" in
+ 			  fi
+ 			  true
+ 			else
+-			  echo "Unknown $which used in --with-$which=$val" 1>&2
+-			  exit 1
++			  # Allow --with-$which=native.
++			  if [ "$val" = native ]; then
++			    true
++			  else
++			    echo "Unknown $which used in --with-$which=$val" 1>&2
++			    exit 1
++			  fi
+ 			fi
+ 		done
+ 		;;
 --- a/src/gcc/config.in
 +++ b/src/gcc/config.in
 @@ -717,6 +717,20 @@
@@ -9660,6 +9991,25 @@ new file mode 100755
      fun = gen_rtx_SYMBOL_REF (Pmode, MCOUNT_NAME);			\
      emit_library_call (fun, LCT_NORMAL, VOIDmode, lr, Pmode);		\
    }
+@@ -986,12 +997,14 @@ extern enum aarch64_code_model aarch64_cmodel;
+ #define ENDIAN_LANE_N(NUNITS, N) \
+   (BYTES_BIG_ENDIAN ? NUNITS - 1 - N : N)
+ 
+-/* Support for a configure-time default CPU, etc.  We currently support
+-   --with-arch and --with-cpu.  Both are ignored if either is specified
+-   explicitly on the command line at run time.  */
++/* Support for configure-time --with-arch, --with-cpu and --with-tune.
++   --with-arch and --with-cpu are ignored if either -mcpu or -march is used.
++   --with-tune is ignored if either -mtune or -mcpu is used (but is not
++   affected by -march).  */
+ #define OPTION_DEFAULT_SPECS				\
+   {"arch", "%{!march=*:%{!mcpu=*:-march=%(VALUE)}}" },	\
+-  {"cpu",  "%{!march=*:%{!mcpu=*:-mcpu=%(VALUE)}}" },
++  {"cpu",  "%{!march=*:%{!mcpu=*:-mcpu=%(VALUE)}}" },   \
++  {"tune", "%{!mcpu=*:%{!mtune=*:-mtune=%(VALUE)}}"},
+ 
+ #define MCPU_TO_MARCH_SPEC \
+    " %{mcpu=*:-march=%:rewrite_mcpu(%{mcpu=*:%*})}"
 --- a/src/gcc/config/aarch64/aarch64.md
 +++ b/src/gcc/config/aarch64/aarch64.md
 @@ -105,6 +105,7 @@
@@ -20519,6 +20869,15 @@ new file mode 100755
  # V8 M-profile implementations.
  begin cpu cortex-m23
   cname cortexm23
+--- a/src/gcc/config/arm/arm-protos.h
++++ b/src/gcc/config/arm/arm-protos.h
+@@ -553,4 +553,6 @@ void arm_parse_option_features (sbitmap, const cpu_arch_option *,
+ 
+ void arm_initialize_isa (sbitmap, const enum isa_feature *);
+ 
++const char * arm_gen_far_branch (rtx *, int, const char * , const char *);
++
+ #endif /* ! GCC_ARM_PROTOS_H */
 --- a/src/gcc/config/arm/arm-tables.opt
 +++ b/src/gcc/config/arm/arm-tables.opt
 @@ -351,6 +351,12 @@ Enum(processor_type) String(cortex-a75) Value( TARGET_CPU_cortexa75)
@@ -20663,6 +21022,46 @@ new file mode 100755
  		return "ldrd%?\t%0, [%1]";
  
  	      return "ldmia%?\t%1, %M0";
+@@ -31625,6 +31629,39 @@ arm_constant_alignment (const_tree exp, HOST_WIDE_INT align)
+   return align;
+ }
+ 
++/* Generate code to enable conditional branches in functions over 1 MiB.
++   Parameters are:
++     operands: is the operands list of the asm insn (see arm_cond_branch or
++       arm_cond_branch_reversed).
++     pos_label: is an index into the operands array where operands[pos_label] is
++       the asm label of the final jump destination.
++     dest: is a string which is used to generate the asm label of the intermediate
++       destination
++   branch_format: is a string denoting the intermediate branch format, e.g.
++     "beq", "bne", etc.  */
++
++const char *
++arm_gen_far_branch (rtx * operands, int pos_label, const char * dest,
++		    const char * branch_format)
++{
++  rtx_code_label * tmp_label = gen_label_rtx ();
++  char label_buf[256];
++  char buffer[128];
++  ASM_GENERATE_INTERNAL_LABEL (label_buf, dest , \
++			CODE_LABEL_NUMBER (tmp_label));
++  const char *label_ptr = arm_strip_name_encoding (label_buf);
++  rtx dest_label = operands[pos_label];
++  operands[pos_label] = tmp_label;
++
++  snprintf (buffer, sizeof (buffer), "%s%s", branch_format , label_ptr);
++  output_asm_insn (buffer, operands);
++
++  snprintf (buffer, sizeof (buffer), "b\t%%l0%d\n%s:", pos_label, label_ptr);
++  operands[pos_label] = dest_label;
++  output_asm_insn (buffer, operands);
++  return "";
++}
++
+ #if CHECKING_P
+ namespace selftest {
+ 
 --- a/src/gcc/config/arm/arm.md
 +++ b/src/gcc/config/arm/arm.md
 @@ -6312,16 +6312,21 @@
@@ -20690,6 +21089,150 @@ new file mode 100755
  )
  
  ;; Subroutine to store a half word from a register into memory.
+@@ -7182,9 +7187,15 @@
+ ;; And for backward branches we have 
+ ;;   (neg_range - neg_base_offs + pc_offs) = (neg_range - (-2 or -4) + 4).
+ ;;
++;; In 16-bit Thumb these ranges are:
+ ;; For a 'b'       pos_range = 2046, neg_range = -2048 giving (-2040->2048).
+ ;; For a 'b<cond>' pos_range = 254,  neg_range = -256  giving (-250 ->256).
+ 
++;; In 32-bit Thumb these ranges are:
++;; For a 'b'       +/- 16MB is not checked for.
++;; For a 'b<cond>' pos_range = 1048574,  neg_range = -1048576  giving
++;; (-1048568 -> 1048576).
++
+ (define_expand "cbranchsi4"
+   [(set (pc) (if_then_else
+ 	      (match_operator 0 "expandable_comparison_operator"
+@@ -7439,23 +7450,50 @@
+ 		      (label_ref (match_operand 0 "" ""))
+ 		      (pc)))]
+   "TARGET_32BIT"
+-  "*
+-  if (arm_ccfsm_state == 1 || arm_ccfsm_state == 2)
++  {
++    if (arm_ccfsm_state == 1 || arm_ccfsm_state == 2)
+     {
+       arm_ccfsm_state += 2;
+-      return \"\";
++      return "";
+     }
+-  return \"b%d1\\t%l0\";
+-  "
++    switch (get_attr_length (insn))
++      {
++	case 2: /* Thumb2 16-bit b{cond}.  */
++	case 4: /* Thumb2 32-bit b{cond} or A32 b{cond}.  */
++	  return "b%d1\t%l0";
++	  break;
++
++	/* Thumb2 b{cond} out of range.  Use 16-bit b{cond} and
++	   unconditional branch b.  */
++	default: return arm_gen_far_branch (operands, 0, "Lbcond", "b%D1\t");
++      }
++  }
+   [(set_attr "conds" "use")
+    (set_attr "type" "branch")
+    (set (attr "length")
+-	(if_then_else
+-	   (and (match_test "TARGET_THUMB2")
+-		(and (ge (minus (match_dup 0) (pc)) (const_int -250))
+-		     (le (minus (match_dup 0) (pc)) (const_int 256))))
+-	   (const_int 2)
+-	   (const_int 4)))]
++    (if_then_else (match_test "!TARGET_THUMB2")
++
++      ;;Target is not Thumb2, therefore is A32.  Generate b{cond}.
++      (const_int 4)
++
++      ;; Check if target is within 16-bit Thumb2 b{cond} range.
++      (if_then_else (and (ge (minus (match_dup 0) (pc)) (const_int -250))
++		         (le (minus (match_dup 0) (pc)) (const_int 256)))
++
++	;; Target is Thumb2, within narrow range.
++	;; Generate b{cond}.
++	(const_int 2)
++
++	;; Check if target is within 32-bit Thumb2 b{cond} range.
++	(if_then_else (and (ge (minus (match_dup 0) (pc))(const_int -1048568))
++			   (le (minus (match_dup 0) (pc)) (const_int 1048576)))
++
++	  ;; Target is Thumb2, within wide range.
++	  ;; Generate b{cond}
++	  (const_int 4)
++	  ;; Target is Thumb2, out of range.
++	  ;; Generate narrow b{cond} and unconditional branch b.
++	  (const_int 6)))))]
+ )
+ 
+ (define_insn "*arm_cond_branch_reversed"
+@@ -7465,23 +7503,50 @@
+ 		      (pc)
+ 		      (label_ref (match_operand 0 "" ""))))]
+   "TARGET_32BIT"
+-  "*
+-  if (arm_ccfsm_state == 1 || arm_ccfsm_state == 2)
+-    {
+-      arm_ccfsm_state += 2;
+-      return \"\";
+-    }
+-  return \"b%D1\\t%l0\";
+-  "
+-  [(set_attr "conds" "use")
++  {
++    if (arm_ccfsm_state == 1 || arm_ccfsm_state == 2)
++      {
++	arm_ccfsm_state += 2;
++	return "";
++      }
++    switch (get_attr_length (insn))
++      {
++	case 2: /* Thumb2 16-bit b{cond}.  */
++	case 4: /* Thumb2 32-bit b{cond} or A32 b{cond}.  */
++	  return "b%D1\t%l0";
++	  break;
++
++	/* Thumb2 b{cond} out of range.  Use 16-bit b{cond} and
++	   unconditional branch b.  */
++	default: return arm_gen_far_branch (operands, 0, "Lbcond", "b%d1\t");
++      }
++  }
++[(set_attr "conds" "use")
+    (set_attr "type" "branch")
+    (set (attr "length")
+-	(if_then_else
+-	   (and (match_test "TARGET_THUMB2")
+-		(and (ge (minus (match_dup 0) (pc)) (const_int -250))
+-		     (le (minus (match_dup 0) (pc)) (const_int 256))))
+-	   (const_int 2)
+-	   (const_int 4)))]
++    (if_then_else (match_test "!TARGET_THUMB2")
++
++      ;;Target is not Thumb2, therefore is A32.  Generate b{cond}.
++      (const_int 4)
++
++      ;; Check if target is within 16-bit Thumb2 b{cond} range.
++      (if_then_else (and (ge (minus (match_dup 0) (pc)) (const_int -250))
++			 (le (minus (match_dup 0) (pc)) (const_int 256)))
++
++	;; Target is Thumb2, within narrow range.
++	;; Generate b{cond}.
++	(const_int 2)
++
++	;; Check if target is within 32-bit Thumb2 b{cond} range.
++	(if_then_else (and (ge (minus (match_dup 0) (pc))(const_int -1048568))
++			   (le (minus (match_dup 0) (pc)) (const_int 1048576)))
++
++	  ;; Target is Thumb2, within wide range.
++	  ;; Generate b{cond}.
++	  (const_int 4)
++	  ;; Target is Thumb2, out of range.
++	  ;; Generate narrow b{cond} and unconditional branch b.
++	  (const_int 6)))))]
+ )
+ 
+ 
 --- a/src/gcc/config/arm/driver-arm.c
 +++ b/src/gcc/config/arm/driver-arm.c
 @@ -56,6 +56,8 @@ static struct vendor_cpu arm_cpu_table[] = {
@@ -22627,7 +23170,157 @@ new file mode 100755
        break;
      default:
        gcc_unreachable ();
-@@ -46753,7 +46773,7 @@ expand_vec_perm_pshufb (struct expand_vec_perm_d *d)
+@@ -45593,7 +45613,7 @@ ix86_expand_rint (rtx operand0, rtx operand1)
+         return copysign (xa, operand1);
+    */
+   machine_mode mode = GET_MODE (operand0);
+-  rtx res, xa, TWO52, two52, mask;
++  rtx res, xa, TWO52, mask;
+   rtx_code_label *label;
+ 
+   res = gen_reg_rtx (mode);
+@@ -45606,16 +45626,18 @@ ix86_expand_rint (rtx operand0, rtx operand1)
+   TWO52 = ix86_gen_TWO52 (mode);
+   label = ix86_expand_sse_compare_and_jump (UNLE, TWO52, xa, false);
+ 
+-  two52 = TWO52;
+   if (flag_rounding_math)
+     {
+-      two52 = gen_reg_rtx (mode);
+-      ix86_sse_copysign_to_positive (two52, TWO52, res, mask);
++      ix86_sse_copysign_to_positive (TWO52, TWO52, res, mask);
+       xa = res;
+     }
+ 
+-  xa = expand_simple_binop (mode, PLUS, xa, two52, NULL_RTX, 0, OPTAB_DIRECT);
+-  xa = expand_simple_binop (mode, MINUS, xa, two52, xa, 0, OPTAB_DIRECT);
++  xa = expand_simple_binop (mode, PLUS, xa, TWO52, NULL_RTX, 0, OPTAB_DIRECT);
++  xa = expand_simple_binop (mode, MINUS, xa, TWO52, xa, 0, OPTAB_DIRECT);
++
++  /* Remove the sign with FE_DOWNWARD, where x - x = -0.0.  */
++  if (HONOR_SIGNED_ZEROS (mode) && flag_rounding_math)
++    xa = ix86_expand_sse_fabs (xa, NULL);
+ 
+   ix86_sse_copysign_to_positive (res, xa, res, mask);
+ 
+@@ -45636,12 +45658,14 @@ ix86_expand_floorceildf_32 (rtx operand0, rtx operand1, bool do_floor)
+           return x;
+         xa = xa + TWO52 - TWO52;
+         x2 = copysign (xa, x);
++
+      Compensate.  Floor:
+         if (x2 > x)
+           x2 -= 1;
+      Compensate.  Ceil:
+         if (x2 < x)
+           x2 += 1;
++
+ 	if (HONOR_SIGNED_ZEROS (mode))
+ 	  x2 = copysign (x2, x);
+ 	return x2;
+@@ -45678,8 +45702,14 @@ ix86_expand_floorceildf_32 (rtx operand0, rtx operand1, bool do_floor)
+   emit_insn (gen_rtx_SET (tmp, gen_rtx_AND (mode, one, tmp)));
+   tmp = expand_simple_binop (mode, do_floor ? MINUS : PLUS,
+ 			     xa, tmp, NULL_RTX, 0, OPTAB_DIRECT);
+-  if (!do_floor && HONOR_SIGNED_ZEROS (mode))
+-    ix86_sse_copysign_to_positive (tmp, tmp, res, mask);
++  if (HONOR_SIGNED_ZEROS (mode))
++    {
++      /* Remove the sign with FE_DOWNWARD, where x - x = -0.0.  */
++      if (do_floor && flag_rounding_math)
++	tmp = ix86_expand_sse_fabs (tmp, NULL);
++
++      ix86_sse_copysign_to_positive (tmp, tmp, res, mask);
++    }
+   emit_move_insn (res, tmp);
+ 
+   emit_label (label);
+@@ -45698,12 +45728,14 @@ ix86_expand_floorceil (rtx operand0, rtx operand1, bool do_floor)
+         if (!isless (xa, TWO52))
+           return x;
+ 	x2 = (double)(long)x;
++
+      Compensate.  Floor:
+ 	if (x2 > x)
+ 	  x2 -= 1;
+      Compensate.  Ceil:
+ 	if (x2 < x)
+ 	  x2 += 1;
++
+ 	if (HONOR_SIGNED_ZEROS (mode))
+ 	  return copysign (x2, x);
+ 	return x2;
+@@ -45738,10 +45770,15 @@ ix86_expand_floorceil (rtx operand0, rtx operand1, bool do_floor)
+   emit_insn (gen_rtx_SET (tmp, gen_rtx_AND (mode, one, tmp)));
+   tmp = expand_simple_binop (mode, do_floor ? MINUS : PLUS,
+ 			     xa, tmp, NULL_RTX, 0, OPTAB_DIRECT);
+-  emit_move_insn (res, tmp);
+-
+   if (HONOR_SIGNED_ZEROS (mode))
+-    ix86_sse_copysign_to_positive (res, res, force_reg (mode, operand1), mask);
++    {
++      /* Remove the sign with FE_DOWNWARD, where x - x = -0.0.  */
++      if (do_floor && flag_rounding_math)
++	tmp = ix86_expand_sse_fabs (tmp, NULL);
++
++      ix86_sse_copysign_to_positive (tmp, tmp, res, mask);
++    }
++  emit_move_insn (res, tmp);
+ 
+   emit_label (label);
+   LABEL_NUSES (label) = 1;
+@@ -45872,7 +45909,7 @@ void
+ ix86_expand_truncdf_32 (rtx operand0, rtx operand1)
+ {
+   machine_mode mode = GET_MODE (operand0);
+-  rtx xa, mask, TWO52, one, res, smask, tmp;
++  rtx xa, xa2, TWO52, tmp, one, res, mask;
+   rtx_code_label *label;
+ 
+   /* C code for SSE variant we expand below.
+@@ -45895,28 +45932,29 @@ ix86_expand_truncdf_32 (rtx operand0, rtx operand1)
+   emit_move_insn (res, operand1);
+ 
+   /* xa = abs (operand1) */
+-  xa = ix86_expand_sse_fabs (res, &smask);
++  xa = ix86_expand_sse_fabs (res, &mask);
+ 
+   /* if (!isless (xa, TWO52)) goto label; */
+   label = ix86_expand_sse_compare_and_jump (UNLE, TWO52, xa, false);
+ 
+-  /* res = xa + TWO52 - TWO52; */
+-  tmp = expand_simple_binop (mode, PLUS, xa, TWO52, NULL_RTX, 0, OPTAB_DIRECT);
+-  tmp = expand_simple_binop (mode, MINUS, tmp, TWO52, tmp, 0, OPTAB_DIRECT);
+-  emit_move_insn (res, tmp);
++  /* xa2 = xa + TWO52 - TWO52; */
++  xa2 = expand_simple_binop (mode, PLUS, xa, TWO52, NULL_RTX, 0, OPTAB_DIRECT);
++  xa2 = expand_simple_binop (mode, MINUS, xa2, TWO52, xa2, 0, OPTAB_DIRECT);
+ 
+   /* generate 1.0 */
+   one = force_reg (mode, const_double_from_real_value (dconst1, mode));
+ 
+-  /* Compensate: res = xa2 - (res > xa ? 1 : 0)  */
+-  mask = ix86_expand_sse_compare_mask (UNGT, res, xa, false);
+-  emit_insn (gen_rtx_SET (mask, gen_rtx_AND (mode, mask, one)));
++  /* Compensate: xa2 = xa2 - (xa2 > xa ? 1 : 0)  */
++  tmp = ix86_expand_sse_compare_mask (UNGT, xa2, xa, false);
++  emit_insn (gen_rtx_SET (tmp, gen_rtx_AND (mode, one, tmp)));
+   tmp = expand_simple_binop (mode, MINUS,
+-			     res, mask, NULL_RTX, 0, OPTAB_DIRECT);
+-  emit_move_insn (res, tmp);
++			     xa2, tmp, NULL_RTX, 0, OPTAB_DIRECT);
++  /* Remove the sign with FE_DOWNWARD, where x - x = -0.0.  */
++  if (HONOR_SIGNED_ZEROS (mode) && flag_rounding_math)
++    tmp = ix86_expand_sse_fabs (tmp, NULL);
+ 
+-  /* res = copysign (res, operand1) */
+-  ix86_sse_copysign_to_positive (res, res, force_reg (mode, operand1), smask);
++  /* res = copysign (xa2, operand1) */
++  ix86_sse_copysign_to_positive (res, tmp, res, mask);
+ 
+   emit_label (label);
+   LABEL_NUSES (label) = 1;
+@@ -46753,7 +46791,7 @@ expand_vec_perm_pshufb (struct expand_vec_perm_d *d)
  	      /* vpshufb only works intra lanes, it is not
  		 possible to shuffle bytes in between the lanes.  */
  	      for (i = 0; i < nelt; ++i)
@@ -22636,7 +23329,7 @@ new file mode 100755
  		  return false;
  	    }
  	}
-@@ -50337,7 +50357,9 @@ ix86_get_mask_mode (poly_uint64 nunits, poly_uint64 vector_size)
+@@ -50337,7 +50375,9 @@ ix86_get_mask_mode (poly_uint64 nunits, poly_uint64 vector_size)
    if ((TARGET_AVX512F && vector_size == 64)
        || (TARGET_AVX512VL && (vector_size == 32 || vector_size == 16)))
      {
@@ -22647,7 +23340,7 @@ new file mode 100755
  	return smallest_int_mode_for_size (nunits);
      }
  
-@@ -50970,11 +50992,12 @@ ix86_atomic_assign_expand_fenv (tree *hold, tree *clear, tree *update)
+@@ -50970,11 +51010,12 @@ ix86_atomic_assign_expand_fenv (tree *hold, tree *clear, tree *update)
        *clear = build_call_expr (fnclex, 0);
        tree sw_var = create_tmp_var_raw (short_unsigned_type_node);
        tree fnstsw_call = build_call_expr (fnstsw, 0);
@@ -22664,7 +23357,7 @@ new file mode 100755
        *update = build2 (COMPOUND_EXPR, integer_type_node,
  			sw_mod, update_mod);
        tree update_fldenv = build_call_expr (fldenv, 1, fenv_addr);
-@@ -50987,15 +51010,17 @@ ix86_atomic_assign_expand_fenv (tree *hold, tree *clear, tree *update)
+@@ -50987,15 +51028,17 @@ ix86_atomic_assign_expand_fenv (tree *hold, tree *clear, tree *update)
        tree stmxcsr = ix86_builtins[IX86_BUILTIN_STMXCSR];
        tree ldmxcsr = ix86_builtins[IX86_BUILTIN_LDMXCSR];
        tree stmxcsr_hold_call = build_call_expr (stmxcsr, 0);
@@ -22686,7 +23379,7 @@ new file mode 100755
        tree ldmxcsr_hold_call = build_call_expr (ldmxcsr, 1, mxcsr_mod_var);
        tree hold_all = build2 (COMPOUND_EXPR, unsigned_type_node,
  			      hold_assign_orig, hold_assign_mod);
-@@ -51024,8 +51049,8 @@ ix86_atomic_assign_expand_fenv (tree *hold, tree *clear, tree *update)
+@@ -51024,8 +51067,8 @@ ix86_atomic_assign_expand_fenv (tree *hold, tree *clear, tree *update)
  			    exceptions_assign);
  	}
        else
@@ -23927,7 +24620,26 @@ new file mode 100755
  
 --- a/src/gcc/cp/ChangeLog
 +++ b/src/gcc/cp/ChangeLog
-@@ -1,3 +1,143 @@
+@@ -1,3 +1,162 @@
++2020-12-16  Nathan Sidwell  <nathan@acm.org>
++
++	* parser.c (cp_parser_elaborated_type_specifier): Test
++	BOUND_TEMPLATE_TEMPLATE_PARM before checking for instantiation.
++
++2020-12-09  Jason Merrill  <jason@redhat.com>
++
++	PR c++/91953
++	* constexpr.c (potential_constant_expression_1) [PARM_DECL]: Allow
++	empty class type.
++
++2020-11-25  Thomas Schwinge  <thomas@codesourcery.com>
++
++	Backported from master:
++	2020-11-25  Thomas Schwinge  <thomas@codesourcery.com>
++
++	* pt.c (tsubst_omp_clauses): Handle 'OMP_CLAUSE__CACHE_'.
++	(tsubst_expr): Handle 'OACC_CACHE'.
++
 +2020-11-24  Jason Merrill  <jason@redhat.com>
 +
 +	PR c++/95158
@@ -24143,6 +24855,21 @@ new file mode 100755
  }
  
  /* Callback for walk_tree used by unshare_constructor.  */
+@@ -5384,8 +5386,13 @@ potential_constant_expression_1 (tree t, bool want_rval, bool strict, bool now,
+       return true;
+ 
+     case PARM_DECL:
+-      if (now)
++      if (now && want_rval)
+ 	{
++	  tree type = TREE_TYPE (t);
++	  if (dependent_type_p (type)
++	      || is_really_empty_class (type))
++	    /* An empty class has no data to read.  */
++	    return true;
+ 	  if (flags & tf_error)
+ 	    error ("%qE is not a constant expression", t);
+ 	  return false;
 --- a/src/gcc/cp/cp-gimplify.c
 +++ b/src/gcc/cp/cp-gimplify.c
 @@ -2101,12 +2101,17 @@ cxx_omp_finish_clause (tree c, gimple_seq *)
@@ -24296,7 +25023,18 @@ new file mode 100755
  	    /* Skip tokens until we reach the end of the statement.  */
  	    cp_parser_skip_to_end_of_statement (parser);
  	    /* If the next token is now a `;', consume it.  */
-@@ -18090,9 +18090,7 @@ cp_parser_enum_specifier (cp_parser* parser)
+@@ -18016,7 +18016,9 @@ cp_parser_elaborated_type_specifier (cp_parser* parser,
+       if (TREE_CODE (type) == TYPENAME_TYPE)
+ 	warning (OPT_Wattributes,
+ 		 "attributes ignored on uninstantiated type");
+-      else if (tag_type != enum_type && CLASSTYPE_TEMPLATE_INSTANTIATION (type)
++      else if (tag_type != enum_type
++	       && TREE_CODE (type) != BOUND_TEMPLATE_TEMPLATE_PARM
++	       && CLASSTYPE_TEMPLATE_INSTANTIATION (type)
+ 	       && ! processing_explicit_instantiation)
+ 	warning (OPT_Wattributes,
+ 		 "attributes ignored on template instantiation");
+@@ -18090,9 +18092,7 @@ cp_parser_enum_specifier (cp_parser* parser)
    bool is_unnamed = false;
    tree underlying_type = NULL_TREE;
    cp_token *type_start_token = NULL;
@@ -24307,7 +25045,7 @@ new file mode 100755
  
    /* Parse tentatively so that we can back up if we don't find a
       enum-specifier.  */
-@@ -18132,24 +18130,24 @@ cp_parser_enum_specifier (cp_parser* parser)
+@@ -18132,24 +18132,24 @@ cp_parser_enum_specifier (cp_parser* parser)
  
    push_deferring_access_checks (dk_no_check);
    nested_name_specifier
@@ -24344,7 +25082,7 @@ new file mode 100755
        if (name && name != error_mark_node)
  	{
  	  type = TREE_TYPE (name);
-@@ -18228,23 +18226,21 @@ cp_parser_enum_specifier (cp_parser* parser)
+@@ -18228,23 +18228,21 @@ cp_parser_enum_specifier (cp_parser* parser)
      {
        if (cxx_dialect < cxx11 || (!scoped_enum_p && !underlying_type))
  	{
@@ -24374,7 +25112,7 @@ new file mode 100755
  	}
      }
  
-@@ -18260,9 +18256,7 @@ cp_parser_enum_specifier (cp_parser* parser)
+@@ -18260,9 +18258,7 @@ cp_parser_enum_specifier (cp_parser* parser)
  	  push_scope (nested_name_specifier);
  	}
        else if (TREE_CODE (nested_name_specifier) == NAMESPACE_DECL)
@@ -24385,7 +25123,7 @@ new file mode 100755
      }
  
    /* Issue an error message if type-definitions are forbidden here.  */
-@@ -18422,12 +18416,8 @@ cp_parser_enum_specifier (cp_parser* parser)
+@@ -18422,12 +18418,8 @@ cp_parser_enum_specifier (cp_parser* parser)
  	  pop_scope (nested_name_specifier);
  	}
        else if (TREE_CODE (nested_name_specifier) == NAMESPACE_DECL)
@@ -24399,7 +25137,7 @@ new file mode 100755
    return type;
  }
  
-@@ -31694,6 +31684,8 @@ cp_parser_omp_var_list_no_open (cp_parser *parser, enum omp_clause_code kind,
+@@ -31694,6 +31686,8 @@ cp_parser_omp_var_list_no_open (cp_parser *parser, enum omp_clause_code kind,
  	    cp_parser_name_lookup_error (parser, name, decl, NLE_NULL,
  					 token->location);
  	}
@@ -24524,7 +25262,23 @@ new file mode 100755
  		SET_DECL_VALUE_EXPR (r, ve);
  	      }
  	    if (CP_DECL_THREAD_LOCAL_P (r)
-@@ -26520,10 +26573,13 @@ build_deduction_guide (tree ctor, tree outer_args, tsubst_flags_t complain)
+@@ -16077,6 +16130,7 @@ tsubst_omp_clauses (tree clauses, enum c_omp_region_type ort,
+ 	case OMP_CLAUSE_FROM:
+ 	case OMP_CLAUSE_TO:
+ 	case OMP_CLAUSE_MAP:
++	case OMP_CLAUSE__CACHE_:
+ 	case OMP_CLAUSE_USE_DEVICE_PTR:
+ 	case OMP_CLAUSE_IS_DEVICE_PTR:
+ 	  OMP_CLAUSE_DECL (nc)
+@@ -17316,6 +17370,7 @@ tsubst_expr (tree t, tree args, tsubst_flags_t complain, tree in_decl,
+       add_stmt (t);
+       break;
+ 
++    case OACC_CACHE:
+     case OACC_ENTER_DATA:
+     case OACC_EXIT_DATA:
+     case OACC_UPDATE:
+@@ -26520,10 +26575,13 @@ build_deduction_guide (tree ctor, tree outer_args, tsubst_flags_t complain)
  				     complain, ctor);
  	  if (fparms == error_mark_node)
  	    ok = false;
@@ -24882,7 +25636,24 @@ new file mode 100755
  				    "division"),
 --- a/src/gcc/fortran/ChangeLog
 +++ b/src/gcc/fortran/ChangeLog
-@@ -1,3 +1,236 @@
+@@ -1,3 +1,253 @@
++2020-12-23  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2020-12-17  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/98307
++	* trans-stmt.c (check_forall_dependencies): Extend dependency
++	check to allocatable components of derived types.
++
++2020-12-11  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2020-11-29  Harald Anlauf  <anlauf@gmx.de>
++
++	* expr.c (simplify_parameter_variable): Fix up character length
++	after copying an array-valued expression.
++
 +2020-09-28  Mark Eggleston  <markeggleston@gcc.gnu.org>
 +
 +	Revert:
@@ -25256,6 +26027,18 @@ new file mode 100755
        gfc_syntax_error (ST_MODULE_PROC);
        return MATCH_ERROR;
      }
+--- a/src/gcc/fortran/expr.c
++++ b/src/gcc/fortran/expr.c
+@@ -1898,6 +1898,9 @@ simplify_parameter_variable (gfc_expr *p, int type)
+ 
+   e->rank = p->rank;
+ 
++  if (e->ts.type == BT_CHARACTER && p->ts.u.cl)
++    e->ts = p->ts;
++
+   /* Do not copy subobject refs for constant.  */
+   if (e->expr_type != EXPR_CONSTANT && p->ref != NULL)
+     e->ref = gfc_copy_ref (p->ref);
 --- a/src/gcc/fortran/frontend-passes.c
 +++ b/src/gcc/fortran/frontend-passes.c
 @@ -4766,6 +4766,7 @@ gfc_code_walker (gfc_code **c, walk_code_fn_t codefn, walk_expr_fn_t exprfn,
@@ -25615,6 +26398,19 @@ new file mode 100755
      }
  
    /* Per F2008, 8.5.1, a SYNC MEMORY is implied by calling the
+@@ -3535,9 +3535,10 @@ check_forall_dependencies (gfc_code *c, stmtblock_t *pre, stmtblock_t *post)
+      point to the copy instead.  Note that the shallow copy of
+      the variable will not suffice for derived types with
+      pointer components.  We therefore leave these to their
+-     own devices.  */
++     own devices.  Likewise for allocatable components.  */
+   if (lsym->ts.type == BT_DERIVED
+-	&& lsym->ts.u.derived->attr.pointer_comp)
++      && (lsym->ts.u.derived->attr.pointer_comp
++	  || lsym->ts.u.derived->attr.alloc_comp))
+     return need_temp;
+ 
+   new_symtree = NULL;
 --- a/src/gcc/fortran/trans-types.c
 +++ b/src/gcc/fortran/trans-types.c
 @@ -3344,7 +3344,7 @@ gfc_get_array_descr_info (const_tree type, struct array_descr_info *info)
@@ -25768,6 +26564,25 @@ new file mode 100755
  	    || !linfo.has_block (w))
  	  continue;
  
+--- a/src/gcc/gimple-ssa-split-paths.c
++++ b/src/gcc/gimple-ssa-split-paths.c
+@@ -68,8 +68,14 @@ find_block_to_duplicate_for_splitting_paths (basic_block latch)
+ 	 region.  Verify that it is.
+ 
+ 	 First, verify that BB has two predecessors (each arm of the
+-	 IF-THEN-ELSE) and two successors (the latch and exit).  */
+-      if (EDGE_COUNT (bb->preds) == 2 && EDGE_COUNT (bb->succs) == 2)
++	 IF-THEN-ELSE) and two successors (the latch and exit) and that
++	 all edges are normal.  */
++      if (EDGE_COUNT (bb->preds) == 2
++	  && !(EDGE_PRED (bb, 0)->flags & EDGE_COMPLEX)
++	  && !(EDGE_PRED (bb, 1)->flags & EDGE_COMPLEX)
++	  && EDGE_COUNT (bb->succs) == 2
++	  && !(EDGE_SUCC (bb, 0)->flags & EDGE_COMPLEX)
++	  && !(EDGE_SUCC (bb, 1)->flags & EDGE_COMPLEX))
+ 	{
+ 	  /* Now verify that BB's immediate dominator ends in a
+ 	     conditional as well.  */
 --- a/src/gcc/gimple-ssa-store-merging.c
 +++ b/src/gcc/gimple-ssa-store-merging.c
 @@ -2014,7 +2014,8 @@ struct imm_store_chain_info
@@ -26039,6 +26854,168 @@ new file mode 100755
    tree chain1 = gimple_call_chain (s1);
    tree chain2 = gimple_call_chain (s2);
    if ((chain1 && !chain2)
+--- a/src/gcc/modulo-sched.c
++++ b/src/gcc/modulo-sched.c
+@@ -211,8 +211,6 @@ static int sms_order_nodes (ddg_ptr, int, int *, int *);
+ static void set_node_sched_params (ddg_ptr);
+ static partial_schedule_ptr sms_schedule_by_order (ddg_ptr, int, int, int *);
+ static void permute_partial_schedule (partial_schedule_ptr, rtx_insn *);
+-static void generate_prolog_epilog (partial_schedule_ptr, struct loop *,
+-                                    rtx, rtx);
+ static int calculate_stage_count (partial_schedule_ptr, int);
+ static void calculate_must_precede_follow (ddg_node_ptr, int, int,
+ 					   int, int, sbitmap, sbitmap, sbitmap);
+@@ -392,30 +390,40 @@ doloop_register_get (rtx_insn *head, rtx_insn *tail)
+    this constant.  Otherwise return 0.  */
+ static rtx_insn *
+ const_iteration_count (rtx count_reg, basic_block pre_header,
+-		       int64_t * count)
++		       int64_t *count, bool* adjust_inplace)
+ {
+   rtx_insn *insn;
+   rtx_insn *head, *tail;
+ 
++  *adjust_inplace = false;
++  bool read_after = false;
++
+   if (! pre_header)
+     return NULL;
+ 
+   get_ebb_head_tail (pre_header, pre_header, &head, &tail);
+ 
+   for (insn = tail; insn != PREV_INSN (head); insn = PREV_INSN (insn))
+-    if (NONDEBUG_INSN_P (insn) && single_set (insn) &&
+-	rtx_equal_p (count_reg, SET_DEST (single_set (insn))))
++    if (single_set (insn) && rtx_equal_p (count_reg,
++					  SET_DEST (single_set (insn))))
+       {
+ 	rtx pat = single_set (insn);
+ 
+ 	if (CONST_INT_P (SET_SRC (pat)))
+ 	  {
+ 	    *count = INTVAL (SET_SRC (pat));
++	    *adjust_inplace = !read_after;
+ 	    return insn;
+ 	  }
+ 
+ 	return NULL;
+       }
++    else if (NONDEBUG_INSN_P (insn) && reg_mentioned_p (count_reg, insn))
++      {
++	read_after = true;
++	if (reg_set_p (count_reg, insn))
++	   break;
++      }
+ 
+   return NULL;
+ }
+@@ -1125,7 +1133,7 @@ duplicate_insns_of_cycles (partial_schedule_ptr ps, int from_stage,
+ /* Generate the instructions (including reg_moves) for prolog & epilog.  */
+ static void
+ generate_prolog_epilog (partial_schedule_ptr ps, struct loop *loop,
+-                        rtx count_reg, rtx count_init)
++			rtx count_reg, bool adjust_init)
+ {
+   int i;
+   int last_stage = PS_STAGE_COUNT (ps) - 1;
+@@ -1134,12 +1142,12 @@ generate_prolog_epilog (partial_schedule_ptr ps, struct loop *loop,
+   /* Generate the prolog, inserting its insns on the loop-entry edge.  */
+   start_sequence ();
+ 
+-  if (!count_init)
++  if (adjust_init)
+     {
+       /* Generate instructions at the beginning of the prolog to
+-         adjust the loop count by STAGE_COUNT.  If loop count is constant
+-         (count_init), this constant is adjusted by STAGE_COUNT in
+-         generate_prolog_epilog function.  */
++	 adjust the loop count by STAGE_COUNT.  If loop count is constant
++	 and it not used anywhere in prologue, this constant is adjusted by
++	 STAGE_COUNT outside of generate_prolog_epilog function.  */
+       rtx sub_reg = NULL_RTX;
+ 
+       sub_reg = expand_simple_binop (GET_MODE (count_reg), MINUS, count_reg,
+@@ -1534,7 +1542,8 @@ sms_schedule (void)
+       rtx_insn *count_init;
+       int mii, rec_mii, stage_count, min_cycle;
+       int64_t loop_count = 0;
+-      bool opt_sc_p;
++      bool opt_sc_p, adjust_inplace = false;
++      basic_block pre_header;
+ 
+       if (! (g = g_arr[loop->num]))
+         continue;
+@@ -1579,19 +1588,13 @@ sms_schedule (void)
+ 	}
+ 
+ 
+-      /* In case of th loop have doloop register it gets special
+-	 handling.  */
+-      count_init = NULL;
+-      if ((count_reg = doloop_register_get (head, tail)))
+-	{
+-	  basic_block pre_header;
+-
+-	  pre_header = loop_preheader_edge (loop)->src;
+-	  count_init = const_iteration_count (count_reg, pre_header,
+-					      &loop_count);
+-	}
++      count_reg = doloop_register_get (head, tail);
+       gcc_assert (count_reg);
+ 
++      pre_header = loop_preheader_edge (loop)->src;
++      count_init = const_iteration_count (count_reg, pre_header, &loop_count,
++					  &adjust_inplace);
++
+       if (dump_file && count_init)
+         {
+           fprintf (dump_file, "SMS const-doloop ");
+@@ -1711,9 +1714,20 @@ sms_schedule (void)
+ 	      print_partial_schedule (ps, dump_file);
+ 	    }
+  
+-          /* case the BCT count is not known , Do loop-versioning */
+-	  if (count_reg && ! count_init)
++	  if (count_init)
++	    {
++	       if (adjust_inplace)
++		{
++		  /* When possible, set new iteration count of loop kernel in
++		     place.  Otherwise, generate_prolog_epilog creates an insn
++		     to adjust.  */
++		  SET_SRC (single_set (count_init)) = GEN_INT (loop_count
++							    - stage_count + 1);
++		}
++	    }
++	  else
+             {
++	      /* case the BCT count is not known , Do loop-versioning */
+ 	      rtx comp_rtx = gen_rtx_GT (VOIDmode, count_reg,
+ 					 gen_int_mode (stage_count,
+ 						       GET_MODE (count_reg)));
+@@ -1723,12 +1737,7 @@ sms_schedule (void)
+ 	      loop_version (loop, comp_rtx, &condition_bb,
+ 	  		    prob, prob.invert (),
+ 			    prob, prob.invert (), true);
+-	     }
+-
+-	  /* Set new iteration count of loop kernel.  */
+-          if (count_reg && count_init)
+-	    SET_SRC (single_set (count_init)) = GEN_INT (loop_count
+-						     - stage_count + 1);
++	    }
+ 
+ 	  /* Now apply the scheduled kernel to the RTL of the loop.  */
+ 	  permute_partial_schedule (ps, g->closing_branch->first_note);
+@@ -1745,7 +1754,7 @@ sms_schedule (void)
+ 	  if (dump_file)
+ 	    print_node_sched_params (dump_file, g->num_nodes, ps);
+ 	  /* Generate prolog and epilog.  */
+-          generate_prolog_epilog (ps, loop, count_reg, count_init);
++	  generate_prolog_epilog (ps, loop, count_reg, !adjust_inplace);
+ 	  break;
+ 	}
+ 
 --- a/src/gcc/omp-simd-clone.c
 +++ b/src/gcc/omp-simd-clone.c
 @@ -816,6 +816,7 @@ simd_clone_init_simd_arrays (struct cgraph_node *node,
@@ -26362,6 +27339,18 @@ new file mode 100755
  extern void incr_ticks_for_insn (rtx_insn *);
  extern void mark_end_of_function_resources (rtx, bool);
  extern void init_resource_info (rtx_insn *);
+--- a/src/gcc/sbitmap.c
++++ b/src/gcc/sbitmap.c
+@@ -139,7 +139,8 @@ sbitmap_realloc (sbitmap src, unsigned int n_elms)
+ sbitmap *
+ sbitmap_vector_alloc (unsigned int n_vecs, unsigned int n_elms)
+ {
+-  unsigned int i, bytes, offset, elm_bytes, size, amt, vector_bytes;
++  unsigned int i, size;
++  size_t amt, bytes, vector_bytes, elm_bytes, offset;
+   sbitmap *bitmap_vector;
+ 
+   size = SBITMAP_SET_SIZE (n_elms);
 --- a/src/gcc/stor-layout.c
 +++ b/src/gcc/stor-layout.c
 @@ -1314,7 +1314,8 @@ place_field (record_layout_info rli, tree field)
@@ -26386,7 +27375,146 @@ new file mode 100755
    if (warn_packed && TREE_CODE (rli->t) == RECORD_TYPE
 --- a/src/gcc/testsuite/ChangeLog
 +++ b/src/gcc/testsuite/ChangeLog
-@@ -1,3 +1,1212 @@
+@@ -1,3 +1,1351 @@
++2020-12-28  Uroš Bizjak  <ubizjak@gmail.com>
++
++	PR target/96793
++	* gcc.target/i386/pr96793-2.c: New test.
++
++2020-12-27  Uroš Bizjak  <ubizjak@gmail.com>
++
++	PR target/96793
++	* gcc.target/i386/pr96793-1.c: New test.
++
++2020-12-24  Roman Zhuykov  <zhroma@ispras.ru>
++
++	Backported from master:
++	2020-12-05  Roman Zhuykov  <zhroma@ispras.ru>
++
++	PR rtl-optimization/97421
++	* gcc.c-torture/execute/pr97421-1.c: New test.
++	* gcc.c-torture/execute/pr97421-2.c: New test.
++	* gcc.c-torture/execute/pr97421-3.c: New test.
++
++2020-12-23  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2020-12-17  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/98307
++	* gfortran.dg/forall_19.f90: New test.
++
++2020-12-23  Uroš Bizjak  <ubizjak@gmail.com>
++
++	PR target/96793
++	* gcc.target/i386/pr96793.c: New test.
++
++2020-12-16  Nathan Sidwell  <nathan@acm.org>
++
++	* g++.dg/template/pr98297.C: New.
++
++2020-12-14  Wilco Dijkstra  <wdijkstr@arm.com>
++
++	* lib/target-supports.exp (check_effective_target_tune_cortex_a76): New
++	effective target test.
++	* gcc.target/aarch64/with-tune-config.c: New test.
++	* gcc.target/aarch64/with-tune-march.c: Likewise.
++	* gcc.target/aarch64/with-tune-mcpu.c: Likewise.
++	* gcc.target/aarch64/with-tune-mtune.c: Likewise.
++
++2020-12-11  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2020-11-29  Harald Anlauf  <anlauf@gmx.de>
++
++	* gfortran.dg/pr98017.f90: New test.
++
++2020-12-10  Ed Schonberg  <schonberg@adacore.com>
++
++	* gnat.dg/modular6.adb: New test.
++
++2020-12-09  Jason Merrill  <jason@redhat.com>
++
++	PR c++/91953
++	* g++.dg/cpp1z/constexpr-if12.C: Remove error.
++	* g++.dg/cpp0x/constexpr-empty14.C: New test.
++
++2020-12-01  Richard Biener  <rguenther@suse.de>
++
++	Backported from master:
++	2020-05-05  Richard Biener  <rguenther@suse.de>
++
++	PR ipa/94947
++	* gcc.dg/torture/pr94947-1.c: New testcase.
++	* gcc.dg/torture/pr94947-2.c: Likewise.
++
++2020-12-01  Richard Biener  <rguenther@suse.de>
++
++	Backported from master:
++	2020-05-15  Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/95133
++	* gcc.dg/pr95133.c: New testcase.
++
++2020-12-01  Richard Biener  <rguenther@suse.de>
++
++	Backported from master:
++	2020-11-26  Richard Biener  <rguenther@suse.de>
++
++	PR testsuite/98002
++	* gcc.dg/strncmp-2.c: Call mprotect again before free.
++
++2020-11-30  Stam Markianos-Wright  <stam.markianos-wright@arm.com>
++
++	PR target/91816
++	* gcc.target/arm/pr91816.c: New test.
++
++2020-11-26  Thomas Schwinge  <thomas@codesourcery.com>
++
++	Backported from master:
++	2020-11-26  Thomas Schwinge  <thomas@codesourcery.com>
++
++	* c-c++-common/goacc/cache-3-1.c: New.
++	* c-c++-common/goacc/cache-3-2.c: Likewise.
++	* c-c++-common/goacc/data-clause-1.c: Likewise.
++	* c-c++-common/goacc/data-clause-2.c: Likewise.
++	* c-c++-common/gomp/map-1.c: Adjust.
++	* c-c++-common/gomp/map-2.c: Likewise.
++	* g++.dg/goacc/cache-3-1.C: New.
++	* g++.dg/goacc/cache-3-2.C: Likewise.
++	* g++.dg/goacc/data-clause-1.C: Likewise.
++	* g++.dg/goacc/data-clause-2.C: Likewise.
++	* g++.dg/gomp/map-1.C: Adjust.
++	* g++.dg/gomp/map-2.C: Likewise.
++
++2020-11-25  Thomas Schwinge  <thomas@codesourcery.com>
++
++	Backported from master:
++	2020-11-25  Thomas Schwinge  <thomas@codesourcery.com>
++
++	* g++.dg/gomp/map-1.C: New.
++	* g++.dg/gomp/map-2.C: Likewise.
++	* c-c++-common/gomp/map-1.c: Adjust.
++	* c-c++-common/gomp/map-2.c: Likewise.
++
++2020-11-25  Thomas Schwinge  <thomas@codesourcery.com>
++
++	Backported from master:
++	2020-11-25  Thomas Schwinge  <thomas@codesourcery.com>
++
++	* c-c++-common/goacc/cache-1.c: Update.
++	* c-c++-common/goacc/cache-2.c: Likewise.
++	* g++.dg/goacc/cache-1.C: New.
++	* g++.dg/goacc/cache-2.C: Likewise.
++
++2020-11-25  Szabolcs Nagy  <szabolcs.nagy@arm.com>
++
++	Backported from master:
++	2020-07-13  Szabolcs Nagy  <szabolcs.nagy@arm.com>
++
++	PR target/94891
++	* gcc.target/aarch64/return_address_sign_1.c: Update test.
++
 +2020-11-24  Jason Merrill  <jason@redhat.com>
 +
 +	PR c++/97918
@@ -27599,6 +28727,404 @@ new file mode 100755
  2020-03-04  Release Manager
  
  	* GCC 8.4.0 released.
+--- a/src/gcc/testsuite/c-c++-common/goacc/cache-1.c
++++ b/src/gcc/testsuite/c-c++-common/goacc/cache-1.c
+@@ -1,9 +1,15 @@
+-/* OpenACC cache directive: valid usage.  */
+-/* For execution testing, this file is "#include"d from
+-   libgomp/testsuite/libgomp.oacc-c-c++-common/cache-1.c.  */
++/* OpenACC 'cache' directive: valid usage.  */
+ 
+-int
+-main (int argc, char **argv)
++/* See also corresponding C++ variant: '../../g++.dg/goacc/cache-1.C'.  */
++
++/* For execution testing, this file is '#include'd from
++   '../../../../libgomp/testsuite/libgomp.oacc-c-c++-common/cache-1.c'.  */
++
++#ifdef TEMPLATIZE
++template <int N>
++#endif
++static void
++test ()
+ {
+ #define N   2
+     int a[N], b[N];
+@@ -61,6 +67,4 @@ main (int argc, char **argv)
+         if (a[i] != b[i])
+             __builtin_abort ();
+     }
+-
+-    return 0;
+ }
+--- a/src/gcc/testsuite/c-c++-common/goacc/cache-2.c
++++ b/src/gcc/testsuite/c-c++-common/goacc/cache-2.c
+@@ -1,7 +1,9 @@
+-/* OpenACC cache directive: invalid usage.  */
++/* OpenACC 'cache' directive: invalid usage.  */
+ 
+-int
+-main (int argc, char **argv)
++/* See also corresponding C++ variant: '../../g++.dg/goacc/cache-2.C'.  */
++
++static void
++test ()
+ {
+ #define N   2
+     int a[N], b[N];
+@@ -52,6 +54,4 @@ main (int argc, char **argv)
+         if (a[i] != b[i])
+             __builtin_abort ();
+     }
+-
+-    return 0;
+ }
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/c-c++-common/goacc/cache-3-1.c
+@@ -0,0 +1,116 @@
++/* Test 'cache' directive diagnostics.  */
++
++/* See also corresponding C++ variant: '../../g++.dg/goacc/cache-3-1.C'.  */
++
++/* See also corresponding C/C++ data clause variant: 'data-clause-1.c'.  */
++
++/* { dg-additional-options "-fopenmp" } for '#pragma omp threadprivate'.  */
++
++/* The current implementation doesn't restrict where a 'cache' directive may
++   appear, so we don't make any special arrangements.  */
++
++extern int a[][10], a2[][10];
++int b[10], c[10][2], d[10], e[10], f[10];
++int b2[10], c2[10][2], d2[10], e2[10], f2[10];
++int k[10], l[10], m[10], n[10], o;
++int *p;
++int **q;
++int r[4][4][4][4][4];
++extern struct s s1;
++extern struct s s2[1]; /* { dg-error "array type has incomplete element type" "" { target c } } */
++int t[10];
++#pragma omp threadprivate (t)
++#pragma acc routine
++void bar (int *);
++
++void
++foo (int g[3][10], int h[4][8], int i[2][10], int j[][9],
++     int g2[3][10], int h2[4][8], int i2[2][10], int j2[][9])
++{
++  #pragma acc cache(bar[2:5]) /* { dg-error "is not a variable" } */
++    ;
++  #pragma acc cache(t[2:5]) /* { dg-error "is threadprivate variable" } */
++    ;
++  #pragma acc cache(k[0.5:]) /* { dg-error "low bound \[^\n\r]* of array section does not have integral type" } */
++    ;
++  #pragma acc cache(l[:7.5f]) /* { dg-error "length \[^\n\r]* of array section does not have integral type" } */
++    ;
++  #pragma acc cache(m[p:]) /* { dg-error "low bound \[^\n\r]* of array section does not have integral type" } */
++    ;
++  #pragma acc cache(n[:p]) /* { dg-error "length \[^\n\r]* of array section does not have integral type" } */
++    ;
++  #pragma acc cache(o[2:5]) /* { dg-error "does not have pointer or array type" } */
++    ;
++  #pragma acc cache(s1) /* { dg-error "expected '\\\['" } */
++    ;
++  #pragma acc cache(s2) /* { dg-error "expected '\\\['" } */
++    ;
++  #pragma acc cache(a[:][:]) /* { dg-error "array type length expression must be specified" } */
++    bar (&a[0][0]); /* { dg-bogus "referenced in target region does not have a mappable type" } */
++  #pragma acc cache(b[-1:]) /* { dg-error "negative low bound in array section" } */
++    bar (b);
++  #pragma acc cache(c[:-3][:]) /* { dg-error "negative length in array section" } */
++    bar (&c[0][0]);
++  #pragma acc cache(d[11:]) /* { dg-error "low bound \[^\n\r]* above array section size" } */
++    bar (d);
++  #pragma acc cache(e[:11]) /* { dg-error "length \[^\n\r]* above array section size" } */
++    bar (e);
++  #pragma acc cache(f[1:10]) /* { dg-error "high bound \[^\n\r]* above array section size" } */
++    bar (f);
++  #pragma acc cache(g[:][0:10]) /* { dg-error "for pointer type length expression must be specified" } */
++    bar (&g[0][0]);
++  #pragma acc cache(h[2:1][-1:]) /* { dg-error "negative low bound in array section" } */
++    bar (&h[0][0]);
++  #pragma acc cache(h[:1][:-3]) /* { dg-error "negative length in array section" } */
++    bar (&h[0][0]);
++  #pragma acc cache(i[:1][11:]) /* { dg-error "low bound \[^\n\r]* above array section size" } */
++    bar (&i[0][0]);
++  #pragma acc cache(j[3:1][:10]) /* { dg-error "length \[^\n\r]* above array section size" } */
++    bar (&j[0][0]);
++  #pragma acc cache(j[30:1][5:5]) /* { dg-error "high bound \[^\n\r]* above array section size" } */
++    bar (&j[0][0]);
++  #pragma acc cache(a2[:1][2:4])
++    bar (&a2[0][0]);
++  #pragma acc cache(a2[3:5][:])
++    bar (&a2[0][0]);
++  #pragma acc cache(a2[3:5][:10])
++    bar (&a2[0][0]);
++  #pragma acc cache(b2[0:])
++    bar (b2);
++  #pragma acc cache(c2[:3][:])
++    bar (&c2[0][0]);
++  #pragma acc cache(d2[9:])
++    bar (d2);
++  #pragma acc cache(e2[:10])
++    bar (e2);
++  #pragma acc cache(f2[1:9])
++    bar (f2);
++  #pragma acc cache(g2[:1][2:4])
++    bar (&g2[0][0]);
++  #pragma acc cache(h2[2:2][0:])
++    bar (&h2[0][0]);
++  #pragma acc cache(h2[:1][:3])
++    bar (&h2[0][0]);
++  #pragma acc cache(i2[:1][9:])
++    bar (&i2[0][0]);
++  #pragma acc cache(j2[3:4][:9])
++    bar (&j2[0][0]);
++  #pragma acc cache(j2[30:1][5:4])
++    bar (&j2[0][0]);
++  #pragma acc cache(q[1:2])
++    ;
++  #pragma acc cache(q[3:5][:10]) /* { dg-error "array section is not contiguous" } */
++    ;
++  #pragma acc cache(r[3:][2:1][1:2])
++    ;
++  #pragma acc cache(r[3:][2:1][1:2][:][0:4])
++    ;
++  #pragma acc cache(r[3:][2:1][1:2][1:][0:4]) /* { dg-error "array section is not contiguous" } */
++    ;
++  #pragma acc cache(r[3:][2:1][1:2][:3][0:4]) /* { dg-error "array section is not contiguous" } */
++    ;
++  #pragma acc cache(r[3:][2:1][1:2][:][1:]) /* { dg-error "array section is not contiguous" } */
++    ;
++  #pragma acc cache(r[3:][2:1][1:2][:][:3]) /* { dg-error "array section is not contiguous" } */
++    ;
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/c-c++-common/goacc/cache-3-2.c
+@@ -0,0 +1,50 @@
++/* Test 'cache' directive diagnostics.  */
++
++/* See also corresponding C++ variant: '../../g++.dg/goacc/cache-3-2.C'.  */
++
++/* See also corresponding C/C++ data clause variant: 'data-clause-2.c'.  */
++
++/* The current implementation doesn't restrict where a 'cache' directive may
++   appear, so we don't make any special arrangements.  */
++
++void
++foo (int *p, int (*q)[10], int r[10], int s[10][10])
++{
++  int a[10], b[10][10];
++  #pragma acc cache (p[-1:2])
++  ;
++  #pragma acc cache (q[-1:2][0:10])
++  ;
++  #pragma acc cache (q[-1:2][-2:10]) /* { dg-error "negative low bound in array section in" } */
++  ;
++  #pragma acc cache (r[-1:2])
++  ;
++  #pragma acc cache (s[-1:2][:])
++  ;
++  #pragma acc cache (s[-1:2][-2:10]) /* { dg-error "negative low bound in array section in" } */
++  ;
++  #pragma acc cache (a[-1:2])	 /* { dg-error "negative low bound in array section in" } */
++  ;
++  #pragma acc cache (b[-1:2][0:])	 /* { dg-error "negative low bound in array section in" } */
++  ;
++  #pragma acc cache (b[1:2][-2:10]) /* { dg-error "negative low bound in array section in" } */
++  ;
++  #pragma acc cache (p[2:-3])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma acc cache (q[2:-3][:])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma acc cache (q[2:3][0:-1])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma acc cache (r[2:-5])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma acc cache (s[2:-5][:])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma acc cache (s[2:5][0:-4])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma acc cache (a[2:-5])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma acc cache (b[2:-5][0:10]) /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma acc cache (b[2:5][0:-4]) /* { dg-error "negative length in array section in" } */
++  ;
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/c-c++-common/goacc/data-clause-1.c
+@@ -0,0 +1,115 @@
++/* Test data clause diagnostics.  */
++
++/* See also corresponding OpenACC C++ variant: '../../g++.dg/goacc/data-clause-1.C'.  */
++
++/* See also corresponding OpenACC 'cache' directive variant: 'cache-3-1.c'.  */
++
++/* See also corresponding OpenMP variant: '../gomp/map-1.c'.  */
++
++/* { dg-additional-options "-fopenmp" } for '#pragma omp threadprivate'.  */
++
++extern int a[][10], a2[][10];
++int b[10], c[10][2], d[10], e[10], f[10];
++int b2[10], c2[10][2], d2[10], e2[10], f2[10];
++int k[10], l[10], m[10], n[10], o;
++int *p;
++int **q;
++int r[4][4][4][4][4];
++extern struct s s1;
++extern struct s s2[1]; /* { dg-error "array type has incomplete element type" "" { target c } } */
++int t[10];
++#pragma omp threadprivate (t)
++#pragma acc routine
++void bar (int *);
++
++void
++foo (int g[3][10], int h[4][8], int i[2][10], int j[][9],
++     int g2[3][10], int h2[4][8], int i2[2][10], int j2[][9])
++{
++  #pragma acc parallel copyin(bar[2:5]) /* { dg-error "is not a variable" } */
++    ;
++  #pragma acc parallel copyout(t[2:5]) /* { dg-error "is threadprivate variable" } */
++    ;
++  #pragma acc parallel copy(k[0.5:]) /* { dg-error "low bound \[^\n\r]* of array section does not have integral type" } */
++    ;
++  #pragma acc parallel copyout(l[:7.5f]) /* { dg-error "length \[^\n\r]* of array section does not have integral type" } */
++    ;
++  #pragma acc parallel copyin(m[p:]) /* { dg-error "low bound \[^\n\r]* of array section does not have integral type" } */
++    ;
++  #pragma acc parallel copy(n[:p]) /* { dg-error "length \[^\n\r]* of array section does not have integral type" } */
++    ;
++  #pragma acc parallel copyin(o[2:5]) /* { dg-error "does not have pointer or array type" } */
++    ;
++  #pragma acc parallel create(s1) /* { dg-error "'s1' does not have a mappable type in 'map' clause" } */
++    ;
++  #pragma acc parallel create(s2) /* { dg-error "'s2' does not have a mappable type in 'map' clause" } */
++    ;
++  #pragma acc parallel copyin(a[:][:]) /* { dg-error "array type length expression must be specified" } */
++    bar (&a[0][0]); /* { dg-error "referenced in target region does not have a mappable type" } */
++  #pragma acc parallel copy(b[-1:]) /* { dg-error "negative low bound in array section" } */
++    bar (b);
++  #pragma acc parallel copy(c[:-3][:]) /* { dg-error "negative length in array section" } */
++    bar (&c[0][0]);
++  #pragma acc parallel copyout(d[11:]) /* { dg-error "low bound \[^\n\r]* above array section size" } */
++    bar (d);
++  #pragma acc parallel copyin(e[:11]) /* { dg-error "length \[^\n\r]* above array section size" } */
++    bar (e);
++  #pragma acc parallel copyin(f[1:10]) /* { dg-error "high bound \[^\n\r]* above array section size" } */
++    bar (f);
++  #pragma acc parallel copyout(g[:][0:10]) /* { dg-error "for pointer type length expression must be specified" } */
++    bar (&g[0][0]);
++  #pragma acc parallel copyout(h[2:1][-1:]) /* { dg-error "negative low bound in array section" } */
++    bar (&h[0][0]);
++  #pragma acc parallel copy(h[:1][:-3]) /* { dg-error "negative length in array section" } */
++    bar (&h[0][0]);
++  #pragma acc parallel copy(i[:1][11:]) /* { dg-error "low bound \[^\n\r]* above array section size" } */
++    bar (&i[0][0]);
++  #pragma acc parallel copyout(j[3:1][:10]) /* { dg-error "length \[^\n\r]* above array section size" } */
++    bar (&j[0][0]);
++  #pragma acc parallel copyin(j[30:1][5:5]) /* { dg-error "high bound \[^\n\r]* above array section size" } */
++    bar (&j[0][0]);
++  #pragma acc parallel copyin(a2[:1][2:4])
++    bar (&a2[0][0]);
++  #pragma acc parallel copy(a2[3:5][:])
++    bar (&a2[0][0]);
++  #pragma acc parallel copyin(a2[3:5][:10])
++    bar (&a2[0][0]);
++  #pragma acc parallel copy(b2[0:])
++    bar (b2);
++  #pragma acc parallel copy(c2[:3][:])
++    bar (&c2[0][0]);
++  #pragma acc parallel copyout(d2[9:])
++    bar (d2);
++  #pragma acc parallel copyin(e2[:10])
++    bar (e2);
++  #pragma acc parallel copyin(f2[1:9])
++    bar (f2);
++  #pragma acc parallel copy(g2[:1][2:4])
++    bar (&g2[0][0]);
++  #pragma acc parallel copyout(h2[2:2][0:])
++    bar (&h2[0][0]);
++  #pragma acc parallel copy(h2[:1][:3])
++    bar (&h2[0][0]);
++  #pragma acc parallel copyin(i2[:1][9:])
++    bar (&i2[0][0]);
++  #pragma acc parallel copyout(j2[3:4][:9])
++    bar (&j2[0][0]);
++  #pragma acc parallel copyin(j2[30:1][5:4])
++    bar (&j2[0][0]);
++  #pragma acc parallel copy(q[1:2])
++    ;
++  #pragma acc parallel copy(q[3:5][:10]) /* { dg-error "array section is not contiguous" } */
++    ;
++  #pragma acc parallel copy(r[3:][2:1][1:2])
++    ;
++  #pragma acc parallel copy(r[3:][2:1][1:2][:][0:4])
++    ;
++  #pragma acc parallel copy(r[3:][2:1][1:2][1:][0:4]) /* { dg-error "array section is not contiguous" } */
++    ;
++  #pragma acc parallel copy(r[3:][2:1][1:2][:3][0:4]) /* { dg-error "array section is not contiguous" } */
++    ;
++  #pragma acc parallel copy(r[3:][2:1][1:2][:][1:]) /* { dg-error "array section is not contiguous" } */
++    ;
++  #pragma acc parallel copy(r[3:][2:1][1:2][:][:3]) /* { dg-error "array section is not contiguous" } */
++    ;
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/c-c++-common/goacc/data-clause-2.c
+@@ -0,0 +1,49 @@
++/* Test data clause diagnostics.  */
++
++/* See also corresponding OpenACC C++ variant: '../../g++.dg/goacc/data-clause-2.C'.  */
++
++/* See also corresponding OpenACC 'cache' directive variant: 'cache-3-2.c'.  */
++
++/* See also corresponding OpenMP variant: '../gomp/map-2.c'.  */
++
++void
++foo (int *p, int (*q)[10], int r[10], int s[10][10])
++{
++  int a[10], b[10][10];
++  #pragma acc parallel copy (p[-1:2])
++  ;
++  #pragma acc parallel copy (q[-1:2][0:10])
++  ;
++  #pragma acc parallel copy (q[-1:2][-2:10]) /* { dg-error "negative low bound in array section in" } */
++  ;
++  #pragma acc parallel copy (r[-1:2])
++  ;
++  #pragma acc parallel copy (s[-1:2][:])
++  ;
++  #pragma acc parallel copy (s[-1:2][-2:10]) /* { dg-error "negative low bound in array section in" } */
++  ;
++  #pragma acc parallel copy (a[-1:2])	 /* { dg-error "negative low bound in array section in" } */
++  ;
++  #pragma acc parallel copy (b[-1:2][0:])	 /* { dg-error "negative low bound in array section in" } */
++  ;
++  #pragma acc parallel copy (b[1:2][-2:10]) /* { dg-error "negative low bound in array section in" } */
++  ;
++  #pragma acc parallel copy (p[2:-3])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma acc parallel copy (q[2:-3][:])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma acc parallel copy (q[2:3][0:-1])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma acc parallel copy (r[2:-5])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma acc parallel copy (s[2:-5][:])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma acc parallel copy (s[2:5][0:-4])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma acc parallel copy (a[2:-5])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma acc parallel copy (b[2:-5][0:10]) /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma acc parallel copy (b[2:5][0:-4]) /* { dg-error "negative length in array section in" } */
++  ;
++}
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/c-c++-common/gomp/hsa-indirect-call-1.c
@@ -27627,6 +29153,32 @@ new file mode 100644
 +}
 +
 +/* { dg-warning "could not emit HSAIL for the function" "" { target *-*-* } 0 } */
+--- a/src/gcc/testsuite/c-c++-common/gomp/map-1.c
++++ b/src/gcc/testsuite/c-c++-common/gomp/map-1.c
+@@ -1,5 +1,8 @@
+-/* { dg-do compile } */
+-/* { dg-options "-fopenmp" } */
++/* Test 'map' clause diagnostics.  */
++
++/* See also corresponding OpenMP C++ variant: '../../g++.dg/gomp/map-1.C'.  */
++
++/* See also corresponding OpenACC variant: '../goacc/data-clause-1.c'.  */
+ 
+ extern int a[][10], a2[][10];
+ int b[10], c[10][2], d[10], e[10], f[10];
+--- a/src/gcc/testsuite/c-c++-common/gomp/map-2.c
++++ b/src/gcc/testsuite/c-c++-common/gomp/map-2.c
+@@ -1,5 +1,8 @@
+-/* { dg-do compile } */
+-/* { dg-options "-fopenmp" } */
++/* Test 'map' clause diagnostics.  */
++
++/* See also corresponding OpenMP C++ variant: '../../g++.dg/gomp/map-2.C'.  */
++
++/* See also corresponding OpenACC variant: '../goacc/data-clause-2.c'.  */
+ 
+ void
+ foo (int *p, int (*q)[10], int r[10], int s[10][10])
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/c-c++-common/pr95903.c
@@ -27727,6 +29279,20 @@ new file mode 100644
 +constexpr int fn(const int b) { return b; }
 +constexpr int c = fn(alignof(int));
 +alignas(c) char d;
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/g++.dg/cpp0x/constexpr-empty14.C
+@@ -0,0 +1,10 @@
++// PR c++/91953
++// { dg-do compile { target c++11 } }
++
++struct S {};
++
++template <class T> void
++foo (S s)
++{
++  constexpr S x = s;
++}
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/g++.dg/cpp0x/enum40.C
@@ -27917,6 +29483,17 @@ new file mode 100644
 +template <typename T> struct S
 +{ template <typename V> S (T, V, long = 0); };
 +using U = decltype(S{0, 4u});
+--- a/src/gcc/testsuite/g++.dg/cpp1z/constexpr-if12.C
++++ b/src/gcc/testsuite/g++.dg/cpp1z/constexpr-if12.C
+@@ -7,7 +7,7 @@ struct T {
+ 
+ template <class MustBeTemplate>
+ constexpr auto bf(T t) {
+-    if constexpr(t.foo()) {	// { dg-error "constant expression" }
++    if constexpr(t.foo()) {
+         return false;
+     }
+     return true;
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/g++.dg/cpp1z/decomp51.C
@@ -28121,6 +29698,648 @@ new file mode 100644
 +// { dg-options "-O0 -mavx2 -mxop" }
 +
 +#include "pr94046-1.C"
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/g++.dg/goacc/cache-1.C
+@@ -0,0 +1,15 @@
++/* OpenACC 'cache' directive: valid usage.  */
++
++/* See also corresponding C/C++ variant '../../c-c++-common/goacc/cache-1.c'.  */
++
++/* For execution testing, this file is '#include'd from
++   '../../../../libgomp/testsuite/libgomp.oacc-c++/cache-1.C'.  */
++
++#define TEMPLATIZE
++#include "../../c-c++-common/goacc/cache-1.c"
++
++static void
++instantiate ()
++{
++  &test<0>;
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/g++.dg/goacc/cache-2.C
+@@ -0,0 +1,64 @@
++/* OpenACC 'cache' directive: invalid usage.  */
++
++/* See also corresponding C/C++ variant '../../c-c++-common/goacc/cache-2.c'.  */
++
++template <int N>
++static void
++test ()
++{
++#define N   2
++    int a[N], b[N];
++    int i;
++
++    for (i = 0; i < N; i++)
++    {
++        a[i] = 3;
++        b[i] = 0;
++    }
++
++#pragma acc parallel copyin (a[0:N]) copyout (b[0:N])
++{
++    int ii;
++
++    for (ii = 0; ii < N; ii++)
++    {
++        const int idx = ii;
++        int n = 1;
++        const int len = n;
++
++#pragma acc cache /* { dg-error "expected '\\\(' before end of line" } */
++#pragma acc cache a[0:N] /* { dg-error "expected '\\\(' before 'a'" } */
++	/* { dg-bogus "expected end of line before 'a'" "" { xfail c++ } .-1 } */
++#pragma acc cache (a) /* { dg-error "expected '\\\['" } */
++#pragma acc cache ( /* { dg-error "expected (identifier|unqualified-id) before end of line" } */
++#pragma acc cache () /* { dg-error "expected (identifier|unqualified-id) before '\\\)' token" } */
++#pragma acc cache (,) /* { dg-error "expected (identifier|unqualified-id) before '(,|\\\))' token" } */
++#pragma acc cache (a[0:N] /* { dg-error "expected '\\\)' before end of line" } */
++#pragma acc cache (a[0:N],) /* { dg-error "expected (identifier|unqualified-id) before '(,|\\\))' token" "" { xfail c } } */
++#pragma acc cache (a[0:N]) copyin (a[0:N]) /* { dg-error "expected end of line before 'copyin'" } */
++#pragma acc cache () /* { dg-error "expected (identifier|unqualified-id) before '\\\)' token" } */
++#pragma acc cache (a[0:N] b[0:N]) /* { dg-error "expected '\\\)' before 'b'" } */
++#pragma acc cache (a[0:N] b[0:N}) /* { dg-error "expected '\\\)' before 'b'" } */
++	/* { dg-bogus "expected end of line before '\\\}' token" "" { xfail c++ } .-1 } */
++#pragma acc cache (a[0:N] /* { dg-error "expected '\\\)' before end of line" } */
++#pragma acc cache (a[0:N]) ( /* { dg-error "expected end of line before '\\(' token" } */
++#pragma acc cache (a[0:N]) ii /* { dg-error "expected end of line before 'ii'" } */
++#pragma acc cache (a[0:N] ii) /* { dg-error "expected '\\)' before 'ii'" } */
++
++        b[ii] = a[ii];
++    }
++}
++
++
++    for (i = 0; i < N; i++)
++    {
++        if (a[i] != b[i])
++            __builtin_abort ();
++    }
++}
++
++static void
++instantiate ()
++{
++  &test<0>;
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/g++.dg/goacc/cache-3-1.C
+@@ -0,0 +1,123 @@
++/* Test 'cache' directive diagnostics.  */
++
++/* See also corresponding C/C++ variant: '../../c-c++-common/goacc/cache-3-1.c'.  */
++
++/* See also corresponding C++ data clause variant: 'data-clause-1.C'.  */
++
++/* { dg-additional-options "-fopenmp" } for '#pragma omp threadprivate'.  */
++
++/* The current implementation doesn't restrict where a 'cache' directive may
++   appear, so we don't make any special arrangements.  */
++
++extern int a[][10], a2[][10];
++int b[10], c[10][2], d[10], e[10], f[10];
++int b2[10], c2[10][2], d2[10], e2[10], f2[10];
++int k[10], l[10], m[10], n[10], o;
++int *p;
++int **q;
++int r[4][4][4][4][4];
++extern struct s s1;
++extern struct s s2[1]; /* { dg-error "array type has incomplete element type" "" { target c } } */
++int t[10];
++#pragma omp threadprivate (t)
++#pragma acc routine
++void bar (int *);
++
++template <int N>
++void
++foo (int g[3][10], int h[4][8], int i[2][10], int j[][9],
++     int g2[3][10], int h2[4][8], int i2[2][10], int j2[][9])
++{
++  #pragma acc cache(bar[2:5]) /* { dg-error "is not a variable" } */
++    ;
++  #pragma acc cache(t[2:5]) /* { dg-error "is threadprivate variable" } */
++    ;
++  #pragma acc cache(k[0.5:]) /* { dg-error "low bound \[^\n\r]* of array section does not have integral type" } */
++    ;
++  #pragma acc cache(l[:7.5f]) /* { dg-error "length \[^\n\r]* of array section does not have integral type" } */
++    ;
++  #pragma acc cache(m[p:]) /* { dg-error "low bound \[^\n\r]* of array section does not have integral type" } */
++    ;
++  #pragma acc cache(n[:p]) /* { dg-error "length \[^\n\r]* of array section does not have integral type" } */
++    ;
++  #pragma acc cache(o[2:5]) /* { dg-error "does not have pointer or array type" } */
++    ;
++  #pragma acc cache(s1) /* { dg-error "expected '\\\['" } */
++    ;
++  #pragma acc cache(s2) /* { dg-error "expected '\\\['" } */
++    ;
++  #pragma acc cache(a[:][:]) /* { dg-error "array type length expression must be specified" } */
++    bar (&a[0][0]);
++  #pragma acc cache(b[-1:]) /* { dg-error "negative low bound in array section" } */
++    bar (b);
++  #pragma acc cache(c[:-3][:]) /* { dg-error "negative length in array section" } */
++    bar (&c[0][0]);
++  #pragma acc cache(d[11:]) /* { dg-error "low bound \[^\n\r]* above array section size" } */
++    bar (d);
++  #pragma acc cache(e[:11]) /* { dg-error "length \[^\n\r]* above array section size" } */
++    bar (e);
++  #pragma acc cache(f[1:10]) /* { dg-error "high bound \[^\n\r]* above array section size" } */
++    bar (f);
++  #pragma acc cache(g[:][0:10]) /* { dg-error "for pointer type length expression must be specified" } */
++    bar (&g[0][0]);
++  #pragma acc cache(h[2:1][-1:]) /* { dg-error "negative low bound in array section" } */
++    bar (&h[0][0]);
++  #pragma acc cache(h[:1][:-3]) /* { dg-error "negative length in array section" } */
++    bar (&h[0][0]);
++  #pragma acc cache(i[:1][11:]) /* { dg-error "low bound \[^\n\r]* above array section size" } */
++    bar (&i[0][0]);
++  #pragma acc cache(j[3:1][:10]) /* { dg-error "length \[^\n\r]* above array section size" } */
++    bar (&j[0][0]);
++  #pragma acc cache(j[30:1][5:5]) /* { dg-error "high bound \[^\n\r]* above array section size" } */
++    bar (&j[0][0]);
++  #pragma acc cache(a2[:1][2:4])
++    bar (&a2[0][0]);
++  #pragma acc cache(a2[3:5][:])
++    bar (&a2[0][0]);
++  #pragma acc cache(a2[3:5][:10])
++    bar (&a2[0][0]);
++  #pragma acc cache(b2[0:])
++    bar (b2);
++  #pragma acc cache(c2[:3][:])
++    bar (&c2[0][0]);
++  #pragma acc cache(d2[9:])
++    bar (d2);
++  #pragma acc cache(e2[:10])
++    bar (e2);
++  #pragma acc cache(f2[1:9])
++    bar (f2);
++  #pragma acc cache(g2[:1][2:4])
++    bar (&g2[0][0]);
++  #pragma acc cache(h2[2:2][0:])
++    bar (&h2[0][0]);
++  #pragma acc cache(h2[:1][:3])
++    bar (&h2[0][0]);
++  #pragma acc cache(i2[:1][9:])
++    bar (&i2[0][0]);
++  #pragma acc cache(j2[3:4][:9])
++    bar (&j2[0][0]);
++  #pragma acc cache(j2[30:1][5:4])
++    bar (&j2[0][0]);
++  #pragma acc cache(q[1:2])
++    ;
++  #pragma acc cache(q[3:5][:10]) /* { dg-error "array section is not contiguous" } */
++    ;
++  #pragma acc cache(r[3:][2:1][1:2])
++    ;
++  #pragma acc cache(r[3:][2:1][1:2][:][0:4])
++    ;
++  #pragma acc cache(r[3:][2:1][1:2][1:][0:4]) /* { dg-error "array section is not contiguous" } */
++    ;
++  #pragma acc cache(r[3:][2:1][1:2][:3][0:4]) /* { dg-error "array section is not contiguous" } */
++    ;
++  #pragma acc cache(r[3:][2:1][1:2][:][1:]) /* { dg-error "array section is not contiguous" } */
++    ;
++  #pragma acc cache(r[3:][2:1][1:2][:][:3]) /* { dg-error "array section is not contiguous" } */
++    ;
++}
++
++static void
++instantiate ()
++{
++  &foo<0>;
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/g++.dg/goacc/cache-3-2.C
+@@ -0,0 +1,57 @@
++/* Test 'cache' directive diagnostics.  */
++
++/* See also corresponding C/C++ variant: '../../c-c++-common/goacc/cache-3-2.c'.  */
++
++/* See also corresponding C++ data clause variant: 'data-clause-2.C'.  */
++
++/* The current implementation doesn't restrict where a 'cache' directive may
++   appear, so we don't make any special arrangements.  */
++
++template <int N>
++void
++foo (int *p, int (*q)[10], int r[10], int s[10][10])
++{
++  int a[10], b[10][10];
++  #pragma acc cache (p[-1:2])
++  ;
++  #pragma acc cache (q[-1:2][0:10])
++  ;
++  #pragma acc cache (q[-1:2][-2:10]) /* { dg-error "negative low bound in array section in" } */
++  ;
++  #pragma acc cache (r[-1:2])
++  ;
++  #pragma acc cache (s[-1:2][:])
++  ;
++  #pragma acc cache (s[-1:2][-2:10]) /* { dg-error "negative low bound in array section in" } */
++  ;
++  #pragma acc cache (a[-1:2])	 /* { dg-error "negative low bound in array section in" } */
++  ;
++  #pragma acc cache (b[-1:2][0:])	 /* { dg-error "negative low bound in array section in" } */
++  ;
++  #pragma acc cache (b[1:2][-2:10]) /* { dg-error "negative low bound in array section in" } */
++  ;
++  #pragma acc cache (p[2:-3])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma acc cache (q[2:-3][:])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma acc cache (q[2:3][0:-1])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma acc cache (r[2:-5])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma acc cache (s[2:-5][:])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma acc cache (s[2:5][0:-4])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma acc cache (a[2:-5])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma acc cache (b[2:-5][0:10]) /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma acc cache (b[2:5][0:-4]) /* { dg-error "negative length in array section in" } */
++  ;
++}
++
++static void
++instantiate ()
++{
++  &foo<0>;
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/g++.dg/goacc/data-clause-1.C
+@@ -0,0 +1,122 @@
++/* Test data clause diagnostics.  */
++
++/* See also corresponding OpenACC C/C++ variant: '../../c-c++-common/goacc/data-clause-1.c'.  */
++
++/* See also corresponding OpenACC 'cache' directive variant: 'cache-3-1.C'.  */
++
++/* See also corresponding OpenMP variant: '../gomp/map-1.C'.  */
++
++/* { dg-additional-options "-fopenmp" } for '#pragma omp threadprivate'.  */
++
++extern int a[][10], a2[][10];
++int b[10], c[10][2], d[10], e[10], f[10];
++int b2[10], c2[10][2], d2[10], e2[10], f2[10];
++int k[10], l[10], m[10], n[10], o;
++int *p;
++int **q;
++int r[4][4][4][4][4];
++extern struct s s1;
++extern struct s s2[1]; /* { dg-error "array type has incomplete element type" "" { target c } } */
++int t[10];
++#pragma omp threadprivate (t)
++#pragma acc routine
++void bar (int *);
++
++template <int N>
++void
++foo (int g[3][10], int h[4][8], int i[2][10], int j[][9],
++     int g2[3][10], int h2[4][8], int i2[2][10], int j2[][9])
++{
++  #pragma acc parallel copyin(bar[2:5]) /* { dg-error "is not a variable" } */
++    ;
++  #pragma acc parallel copyout(t[2:5]) /* { dg-error "is threadprivate variable" } */
++    ;
++  #pragma acc parallel copy(k[0.5:]) /* { dg-error "low bound \[^\n\r]* of array section does not have integral type" } */
++    ;
++  #pragma acc parallel copyout(l[:7.5f]) /* { dg-error "length \[^\n\r]* of array section does not have integral type" } */
++    ;
++  #pragma acc parallel copyin(m[p:]) /* { dg-error "low bound \[^\n\r]* of array section does not have integral type" } */
++    ;
++  #pragma acc parallel copy(n[:p]) /* { dg-error "length \[^\n\r]* of array section does not have integral type" } */
++    ;
++  #pragma acc parallel copyin(o[2:5]) /* { dg-error "does not have pointer or array type" } */
++    ;
++  #pragma acc parallel create(s1) /* { dg-error "'s1' does not have a mappable type in 'map' clause" } */
++    ;
++  #pragma acc parallel create(s2) /* { dg-error "'s2' does not have a mappable type in 'map' clause" } */
++    ;
++  #pragma acc parallel copyin(a[:][:]) /* { dg-error "array type length expression must be specified" } */
++    bar (&a[0][0]); /* { dg-error "referenced in target region does not have a mappable type" "PR97996" { xfail *-*-* } } */
++  #pragma acc parallel copy(b[-1:]) /* { dg-error "negative low bound in array section" } */
++    bar (b);
++  #pragma acc parallel copy(c[:-3][:]) /* { dg-error "negative length in array section" } */
++    bar (&c[0][0]);
++  #pragma acc parallel copyout(d[11:]) /* { dg-error "low bound \[^\n\r]* above array section size" } */
++    bar (d);
++  #pragma acc parallel copyin(e[:11]) /* { dg-error "length \[^\n\r]* above array section size" } */
++    bar (e);
++  #pragma acc parallel copyin(f[1:10]) /* { dg-error "high bound \[^\n\r]* above array section size" } */
++    bar (f);
++  #pragma acc parallel copyout(g[:][0:10]) /* { dg-error "for pointer type length expression must be specified" } */
++    bar (&g[0][0]);
++  #pragma acc parallel copyout(h[2:1][-1:]) /* { dg-error "negative low bound in array section" } */
++    bar (&h[0][0]);
++  #pragma acc parallel copy(h[:1][:-3]) /* { dg-error "negative length in array section" } */
++    bar (&h[0][0]);
++  #pragma acc parallel copy(i[:1][11:]) /* { dg-error "low bound \[^\n\r]* above array section size" } */
++    bar (&i[0][0]);
++  #pragma acc parallel copyout(j[3:1][:10]) /* { dg-error "length \[^\n\r]* above array section size" } */
++    bar (&j[0][0]);
++  #pragma acc parallel copyin(j[30:1][5:5]) /* { dg-error "high bound \[^\n\r]* above array section size" } */
++    bar (&j[0][0]);
++  #pragma acc parallel copyin(a2[:1][2:4])
++    bar (&a2[0][0]);
++  #pragma acc parallel copy(a2[3:5][:])
++    bar (&a2[0][0]);
++  #pragma acc parallel copyin(a2[3:5][:10])
++    bar (&a2[0][0]);
++  #pragma acc parallel copy(b2[0:])
++    bar (b2);
++  #pragma acc parallel copy(c2[:3][:])
++    bar (&c2[0][0]);
++  #pragma acc parallel copyout(d2[9:])
++    bar (d2);
++  #pragma acc parallel copyin(e2[:10])
++    bar (e2);
++  #pragma acc parallel copyin(f2[1:9])
++    bar (f2);
++  #pragma acc parallel copy(g2[:1][2:4])
++    bar (&g2[0][0]);
++  #pragma acc parallel copyout(h2[2:2][0:])
++    bar (&h2[0][0]);
++  #pragma acc parallel copy(h2[:1][:3])
++    bar (&h2[0][0]);
++  #pragma acc parallel copyin(i2[:1][9:])
++    bar (&i2[0][0]);
++  #pragma acc parallel copyout(j2[3:4][:9])
++    bar (&j2[0][0]);
++  #pragma acc parallel copyin(j2[30:1][5:4])
++    bar (&j2[0][0]);
++  #pragma acc parallel copy(q[1:2])
++    ;
++  #pragma acc parallel copy(q[3:5][:10]) /* { dg-error "array section is not contiguous" } */
++    ;
++  #pragma acc parallel copy(r[3:][2:1][1:2])
++    ;
++  #pragma acc parallel copy(r[3:][2:1][1:2][:][0:4])
++    ;
++  #pragma acc parallel copy(r[3:][2:1][1:2][1:][0:4]) /* { dg-error "array section is not contiguous" } */
++    ;
++  #pragma acc parallel copy(r[3:][2:1][1:2][:3][0:4]) /* { dg-error "array section is not contiguous" } */
++    ;
++  #pragma acc parallel copy(r[3:][2:1][1:2][:][1:]) /* { dg-error "array section is not contiguous" } */
++    ;
++  #pragma acc parallel copy(r[3:][2:1][1:2][:][:3]) /* { dg-error "array section is not contiguous" } */
++    ;
++}
++
++static void
++instantiate ()
++{
++  &foo<0>;
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/g++.dg/goacc/data-clause-2.C
+@@ -0,0 +1,56 @@
++/* Test data clause diagnostics.  */
++
++/* See also corresponding OpenACC C/C++ variant: '../../c-c++-common/goacc/data-clause-2.c'.  */
++
++/* See also corresponding OpenACC 'cache' directive variant: 'cache-3-2.C'.  */
++
++/* See also corresponding OpenMP variant: '../gomp/map-2.C'.  */
++
++template <int N>
++void
++foo (int *p, int (*q)[10], int r[10], int s[10][10])
++{
++  int a[10], b[10][10];
++  #pragma acc parallel copy (p[-1:2])
++  ;
++  #pragma acc parallel copy (q[-1:2][0:10])
++  ;
++  #pragma acc parallel copy (q[-1:2][-2:10]) /* { dg-error "negative low bound in array section in" } */
++  ;
++  #pragma acc parallel copy (r[-1:2])
++  ;
++  #pragma acc parallel copy (s[-1:2][:])
++  ;
++  #pragma acc parallel copy (s[-1:2][-2:10]) /* { dg-error "negative low bound in array section in" } */
++  ;
++  #pragma acc parallel copy (a[-1:2])	 /* { dg-error "negative low bound in array section in" } */
++  ;
++  #pragma acc parallel copy (b[-1:2][0:])	 /* { dg-error "negative low bound in array section in" } */
++  ;
++  #pragma acc parallel copy (b[1:2][-2:10]) /* { dg-error "negative low bound in array section in" } */
++  ;
++  #pragma acc parallel copy (p[2:-3])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma acc parallel copy (q[2:-3][:])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma acc parallel copy (q[2:3][0:-1])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma acc parallel copy (r[2:-5])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma acc parallel copy (s[2:-5][:])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma acc parallel copy (s[2:5][0:-4])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma acc parallel copy (a[2:-5])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma acc parallel copy (b[2:-5][0:10]) /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma acc parallel copy (b[2:5][0:-4]) /* { dg-error "negative length in array section in" } */
++  ;
++}
++
++static void
++instantiate ()
++{
++  &foo<0>;
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/g++.dg/gomp/map-1.C
+@@ -0,0 +1,119 @@
++/* Test 'map' clause diagnostics.  */
++
++/* See also corresponding OpenMP C/C++ variant: '../../c-c++-common/gomp/map-1.c'.  */
++
++/* See also corresponding OpenACC variant: '../goacc/data-clause-1.C'.  */
++
++extern int a[][10], a2[][10];
++int b[10], c[10][2], d[10], e[10], f[10];
++int b2[10], c2[10][2], d2[10], e2[10], f2[10];
++int k[10], l[10], m[10], n[10], o;
++int *p;
++int **q;
++int r[4][4][4][4][4];
++extern struct s s1;
++extern struct s s2[1]; /* { dg-error "array type has incomplete element type" "" { target c } } */
++int t[10];
++#pragma omp threadprivate (t)
++#pragma omp declare target
++void bar (int *);
++#pragma omp end declare target
++
++template <int N>
++void
++foo (int g[3][10], int h[4][8], int i[2][10], int j[][9],
++     int g2[3][10], int h2[4][8], int i2[2][10], int j2[][9])
++{
++  #pragma omp target map(to: bar[2:5]) /* { dg-error "is not a variable" } */
++    ;
++  #pragma omp target map(from: t[2:5]) /* { dg-error "is threadprivate variable" } */
++    ;
++  #pragma omp target map(tofrom: k[0.5:]) /* { dg-error "low bound \[^\n\r]* of array section does not have integral type" } */
++    ;
++  #pragma omp target map(from: l[:7.5f]) /* { dg-error "length \[^\n\r]* of array section does not have integral type" } */
++    ;
++  #pragma omp target map(to: m[p:]) /* { dg-error "low bound \[^\n\r]* of array section does not have integral type" } */
++    ;
++  #pragma omp target map(tofrom: n[:p]) /* { dg-error "length \[^\n\r]* of array section does not have integral type" } */
++    ;
++  #pragma omp target map(to: o[2:5]) /* { dg-error "does not have pointer or array type" } */
++    ;
++  #pragma omp target map(alloc: s1) /* { dg-error "'s1' does not have a mappable type in 'map' clause" } */
++    ;
++  #pragma omp target map(alloc: s2) /* { dg-error "'s2' does not have a mappable type in 'map' clause" } */
++    ;
++  #pragma omp target map(to: a[:][:]) /* { dg-error "array type length expression must be specified" } */
++    bar (&a[0][0]); /* { dg-error "referenced in target region does not have a mappable type" "PR97996" { xfail *-*-* } } */
++  #pragma omp target map(tofrom: b[-1:]) /* { dg-error "negative low bound in array section" } */
++    bar (b);
++  #pragma omp target map(tofrom: c[:-3][:]) /* { dg-error "negative length in array section" } */
++    bar (&c[0][0]);
++  #pragma omp target map(from: d[11:]) /* { dg-error "low bound \[^\n\r]* above array section size" } */
++    bar (d);
++  #pragma omp target map(to: e[:11]) /* { dg-error "length \[^\n\r]* above array section size" } */
++    bar (e);
++  #pragma omp target map(to: f[1:10]) /* { dg-error "high bound \[^\n\r]* above array section size" } */
++    bar (f);
++  #pragma omp target map(from: g[:][0:10]) /* { dg-error "for pointer type length expression must be specified" } */
++    bar (&g[0][0]);
++  #pragma omp target map(from: h[2:1][-1:]) /* { dg-error "negative low bound in array section" } */
++    bar (&h[0][0]);
++  #pragma omp target map(tofrom: h[:1][:-3]) /* { dg-error "negative length in array section" } */
++    bar (&h[0][0]);
++  #pragma omp target map(i[:1][11:]) /* { dg-error "low bound \[^\n\r]* above array section size" } */
++    bar (&i[0][0]);
++  #pragma omp target map(from: j[3:1][:10]) /* { dg-error "length \[^\n\r]* above array section size" } */
++    bar (&j[0][0]);
++  #pragma omp target map(to: j[30:1][5:5]) /* { dg-error "high bound \[^\n\r]* above array section size" } */
++    bar (&j[0][0]);
++  #pragma omp target map(to: a2[:1][2:4])
++    bar (&a2[0][0]);
++  #pragma omp target map(a2[3:5][:])
++    bar (&a2[0][0]);
++  #pragma omp target map(to: a2[3:5][:10])
++    bar (&a2[0][0]);
++  #pragma omp target map(tofrom: b2[0:])
++    bar (b2);
++  #pragma omp target map(tofrom: c2[:3][:])
++    bar (&c2[0][0]);
++  #pragma omp target map(from: d2[9:])
++    bar (d2);
++  #pragma omp target map(to: e2[:10])
++    bar (e2);
++  #pragma omp target map(to: f2[1:9])
++    bar (f2);
++  #pragma omp target map(g2[:1][2:4])
++    bar (&g2[0][0]);
++  #pragma omp target map(from: h2[2:2][0:])
++    bar (&h2[0][0]);
++  #pragma omp target map(tofrom: h2[:1][:3])
++    bar (&h2[0][0]);
++  #pragma omp target map(to: i2[:1][9:])
++    bar (&i2[0][0]);
++  #pragma omp target map(from: j2[3:4][:9])
++    bar (&j2[0][0]);
++  #pragma omp target map(to: j2[30:1][5:4])
++    bar (&j2[0][0]);
++  #pragma omp target map(q[1:2])
++    ;
++  #pragma omp target map(tofrom: q[3:5][:10]) /* { dg-error "array section is not contiguous" } */
++    ;
++  #pragma omp target map(r[3:][2:1][1:2])
++    ;
++  #pragma omp target map(r[3:][2:1][1:2][:][0:4])
++    ;
++  #pragma omp target map(r[3:][2:1][1:2][1:][0:4]) /* { dg-error "array section is not contiguous" } */
++    ;
++  #pragma omp target map(r[3:][2:1][1:2][:3][0:4]) /* { dg-error "array section is not contiguous" } */
++    ;
++  #pragma omp target map(r[3:][2:1][1:2][:][1:]) /* { dg-error "array section is not contiguous" } */
++    ;
++  #pragma omp target map(r[3:][2:1][1:2][:][:3]) /* { dg-error "array section is not contiguous" } */
++    ;
++}
++
++static void
++instantiate ()
++{
++  &foo<0>;
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/g++.dg/gomp/map-2.C
+@@ -0,0 +1,54 @@
++/* Test 'map' clause diagnostics.  */
++
++/* See also corresponding OpenMP C/C++ variant: '../../c-c++-common/gomp/map-2.c'.  */
++
++/* See also corresponding OpenACC variant: '../goacc/data-clause-2.C'.  */
++
++template <int N>
++void
++foo (int *p, int (*q)[10], int r[10], int s[10][10])
++{
++  int a[10], b[10][10];
++  #pragma omp target map (tofrom: p[-1:2])
++  ;
++  #pragma omp target map (tofrom: q[-1:2][0:10])
++  ;
++  #pragma omp target map (tofrom: q[-1:2][-2:10]) /* { dg-error "negative low bound in array section in" } */
++  ;
++  #pragma omp target map (tofrom: r[-1:2])
++  ;
++  #pragma omp target map (tofrom: s[-1:2][:])
++  ;
++  #pragma omp target map (tofrom: s[-1:2][-2:10]) /* { dg-error "negative low bound in array section in" } */
++  ;
++  #pragma omp target map (tofrom: a[-1:2])	 /* { dg-error "negative low bound in array section in" } */
++  ;
++  #pragma omp target map (tofrom: b[-1:2][0:])	 /* { dg-error "negative low bound in array section in" } */
++  ;
++  #pragma omp target map (tofrom: b[1:2][-2:10]) /* { dg-error "negative low bound in array section in" } */
++  ;
++  #pragma omp target map (tofrom: p[2:-3])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma omp target map (tofrom: q[2:-3][:])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma omp target map (tofrom: q[2:3][0:-1])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma omp target map (tofrom: r[2:-5])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma omp target map (tofrom: s[2:-5][:])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma omp target map (tofrom: s[2:5][0:-4])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma omp target map (tofrom: a[2:-5])	 /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma omp target map (tofrom: b[2:-5][0:10]) /* { dg-error "negative length in array section in" } */
++  ;
++  #pragma omp target map (tofrom: b[2:5][0:-4]) /* { dg-error "negative length in array section in" } */
++  ;
++}
++
++static void
++instantiate ()
++{
++  &foo<0>;
++}
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/g++.dg/guality/pr93888.C
@@ -28334,6 +30553,16 @@ new file mode 100644
 +  for (int b; b; b++)
 +    c += g[b].e();
 +}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/g++.dg/template/pr98297.C
+@@ -0,0 +1,6 @@
++// PR 98297, ICE
++// { dg-do compile { target c++11 } }
++template <template <class> class a>
++struct [[b]]
++a <int>; // { dg-error "does not declare anything" }
++// { dg-warning "ignored" "" { target *-*-* } .-1 }
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/g++.dg/template/virtual5.C
@@ -29086,6 +31315,81 @@ new file mode 100644
 +}
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/gcc.c-torture/execute/pr97421-1.c
+@@ -0,0 +1,23 @@
++/* PR rtl-optimization/97421 */
++/* { dg-additional-options "-fmodulo-sched" } */
++
++int a, b, d, e;
++int *volatile c = &a;
++
++__attribute__((noinline))
++void f(void)
++{
++  for (int g = 2; g >= 0; g--) {
++    d = 0;
++    for (b = 0; b <= 2; b++)
++      ;
++    e = *c;
++  }
++}
++
++int main(void)
++{
++  f();
++  if (b != 3)
++    __builtin_abort();
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.c-torture/execute/pr97421-2.c
+@@ -0,0 +1,18 @@
++/* PR rtl-optimization/97421 */
++/* { dg-additional-options "-fmodulo-sched -fno-dce -fno-strict-aliasing" } */
++
++static int a, b, c;
++int *d = &c;
++int **e = &d;
++int ***f = &e;
++int main()
++{
++  int h;
++  for (a = 2; a; a--)
++    for (h = 0; h <= 2; h++)
++      for (b = 0; b <= 2; b++)
++        ***f = 6;
++
++  if (b != 3)
++    __builtin_abort();
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.c-torture/execute/pr97421-3.c
+@@ -0,0 +1,22 @@
++/* PR rtl-optimization/97421 */
++/* { dg-additional-options "-fmodulo-sched" } */
++
++int a, b, c;
++short d;
++void e(void) {
++  unsigned f = 0;
++  for (; f <= 2; f++) {
++    int g[1];
++    int h = (long)g;
++    c = 0;
++    for (; c < 10; c++)
++      g[0] = a = 0;
++    for (; a <= 2; a++)
++      b = d;
++  }
++}
++int main(void) {
++  e();
++  if (a != 3)
++    __builtin_abort();
++}
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/gcc.dg/Wunused-var-4.c
 @@ -0,0 +1,33 @@
 +/* PR c/96571 */
@@ -29501,6 +31805,24 @@ new file mode 100644
 +}
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/gcc.dg/pr95133.c
+@@ -0,0 +1,14 @@
++/* { dg-do compile } */
++/* { dg-options "-O3" } */
++
++extern int a[16];
++void f (int *ip, int x)
++{
++  int *xp = a;
++  for (int i=0; i<8; ++i)
++  {
++    base: if (x) return;
++  }
++  *xp++ = *ip;
++  goto *(&&base + *ip);
++}
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/gcc.dg/pr95857.c
 @@ -0,0 +1,37 @@
 +/* PR tree-optimization/95857 */
@@ -29704,6 +32026,16 @@ new file mode 100644
 +  garply (&p, &a[0], &a[0], &a[0], u);
 +  return 0;
 +}
+--- a/src/gcc/testsuite/gcc.dg/strncmp-2.c
++++ b/src/gcc/testsuite/gcc.dg/strncmp-2.c
+@@ -40,6 +40,7 @@ static void test_driver_strncmp (void (test_strncmp)(const char *, const char *,
+     e = lib_memcmp(buf1,p2,sz);
+     (*test_memcmp)(buf1,p2,e);
+   }
++  mprotect (buf2+pgsz,pgsz,PROT_READ|PROT_WRITE);
+   free(buf2);
+ }
+ 
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/gcc.dg/torture/pr94482.c
@@ -29743,6 +32075,44 @@ new file mode 100644
 +  if (z.i[0] != 1729)
 +    __builtin_abort ();
 +  return 0;
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.dg/torture/pr94947-1.c
+@@ -0,0 +1,23 @@
++/* { dg-do run } */
++/* { dg-additional-sources "pr94947-2.c" } */
++/* { dg-additional-options "-fipa-pta -flto-partition=1to1" } */
++
++extern void abort ();
++extern void baz ();
++extern void (*baz_call)();
++static int *p;
++
++static void foo ()
++{
++  if (*p != 1)
++    abort ();
++}
++
++int main()
++{
++  int x = 1;
++  p = &x;
++  baz_call = foo;
++  baz ();
++  return 0;
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.dg/torture/pr94947-2.c
+@@ -0,0 +1,7 @@
++/* { dg-do compile } */
++
++void (*baz_call)();
++void baz ()
++{
++  baz_call ();
 +}
 new file mode 100644
 --- /dev/null
@@ -33237,6 +35607,120 @@ new file mode 100644
 +
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/gcc.target/aarch64/with-tune-config.c
+@@ -0,0 +1,7 @@
++/* { dg-do compile { target { tune_cortex_a76 } } } */
++/* { dg-additional-options " -dA " } */
++
++void foo ()
++{}
++
++/* { dg-final { scan-assembler "//.tune cortex-a76" } } */
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.target/aarch64/with-tune-march.c
+@@ -0,0 +1,8 @@
++/* { dg-do compile { target { tune_cortex_a76 } } } */
++/* { dg-additional-options " -dA -march=armv8.6-a " } */
++
++void foo ()
++{}
++
++/* { dg-final { scan-assembler "//.tune cortex-a76" } } */
++/* { dg-final { scan-assembler ".arch armv8.6-a" } } */
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.target/aarch64/with-tune-mcpu.c
+@@ -0,0 +1,8 @@
++/* { dg-do compile { target { tune_cortex_a76 } } } */
++/* { dg-additional-options " -dA -mcpu=cortex-a73" } */
++
++void foo ()
++{}
++
++/* { dg-final { scan-assembler "//.tune cortex-a73" } } */
++/* { dg-final { scan-assembler ".arch armv8-a" } } */
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.target/aarch64/with-tune-mtune.c
+@@ -0,0 +1,7 @@
++/* { dg-do compile { target { tune_cortex_a76 } } } */
++/* { dg-additional-options " -dA -mtune=cortex-a73" } */
++
++void foo ()
++{}
++
++/* { dg-final { scan-assembler "//.tune cortex-a73" } } */
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.target/arm/pr91816.c
+@@ -0,0 +1,64 @@
++/* { dg-do compile } */
++/* { dg-require-effective-target arm_thumb2_ok } */
++/* { dg-additional-options "-mthumb" }  */
++/* { dg-timeout-factor 4.0 } */
++
++int printf(const char *, ...);
++
++#define HW0	printf("Hello World!\n");
++#define HW1	HW0 HW0 HW0 HW0 HW0 HW0 HW0 HW0 HW0 HW0
++#define HW2	HW1 HW1 HW1 HW1 HW1 HW1 HW1 HW1 HW1 HW1
++#define HW3	HW2 HW2 HW2 HW2 HW2 HW2 HW2 HW2 HW2 HW2
++#define HW4	HW3 HW3 HW3 HW3 HW3 HW3 HW3 HW3 HW3 HW3
++#define HW5	HW4 HW4 HW4 HW4 HW4 HW4 HW4 HW4 HW4 HW4
++#define HW6	HW5 HW5
++
++__attribute__((noinline,noclone)) void f1 (int a)
++{
++  if (a) { HW0 }
++}
++
++__attribute__((noinline,noclone)) void f2 (int a)
++{
++  if (a) { HW3 }
++}
++
++
++__attribute__((noinline,noclone)) void f3 (int a)
++{
++  if (a) { HW6 }
++}
++
++__attribute__((noinline,noclone)) void f4 (int a)
++{
++  if (a == 1) { HW0 }
++}
++
++__attribute__((noinline,noclone)) void f5 (int a)
++{
++  if (a == 1) { HW3 }
++}
++
++
++__attribute__((noinline,noclone)) void f6 (int a)
++{
++  if (a == 1) { HW6 }
++}
++
++
++int main(void)
++{
++	f1(0);
++	f2(0);
++	f3(0);
++	f4(0);
++	f5(0);
++	f6(0);
++	return 0;
++}
++
++
++/* { dg-final { scan-assembler-times "beq\\t.L\[0-9\]" 2 } } */
++/* { dg-final { scan-assembler-times "beq\\t.Lbcond\[0-9\]" 1 } } */
++/* { dg-final { scan-assembler-times "bne\\t.L\[0-9\]" 2 } } */
++/* { dg-final { scan-assembler-times "bne\\t.Lbcond\[0-9\]" 1 } } */
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/gcc.target/i386/avx2-pr94460.c
 @@ -0,0 +1,31 @@
 +/* PR target/94460 */
@@ -33632,6 +36116,102 @@ new file mode 100644
 +foo (V v)
 +{
 +  return __builtin_ia32_movq128 (v);  /* { dg-error "" } */
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.target/i386/pr96793-1.c
+@@ -0,0 +1,28 @@
++/* PR target/96793 */
++/* { dg-do run { target *-*-linux* *-*-gnu* } } */
++/* { dg-require-effective-target sse2_runtime } */
++/* { dg-options "-O2 -frounding-math -msse2 -mno-sse4 -mfpmath=sse" } */
++
++#include <fenv.h>
++
++double
++__attribute__((noinline))
++test (double value)
++{
++  return __builtin_trunc (value);
++}
++
++int
++main ()
++{
++  double result;
++
++  fesetround (FE_DOWNWARD);
++
++  result = test (0.25);
++
++  if (__builtin_signbit (result) != 0)
++    __builtin_abort ();
++
++  return 0;
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.target/i386/pr96793-2.c
+@@ -0,0 +1,28 @@
++/* PR target/96793 */
++/* { dg-do run { target *-*-linux* *-*-gnu* } } */
++/* { dg-require-effective-target sse2_runtime } */
++/* { dg-options "-O2 -frounding-math -msse2 -mno-sse4 -mfpmath=sse" } */
++
++#include <fenv.h>
++
++double
++__attribute__((noinline))
++test (double value)
++{
++  return __builtin_rint (value);
++}
++
++int
++main ()
++{
++  double result;
++
++  fesetround (FE_DOWNWARD);
++
++  result = test (0.25);
++
++  if (__builtin_signbit (result) != 0)
++    __builtin_abort ();
++
++  return 0;
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gcc.target/i386/pr96793.c
+@@ -0,0 +1,28 @@
++/* PR target/96793 */
++/* { dg-do run { target *-*-linux* *-*-gnu* } } */
++/* { dg-require-effective-target sse2_runtime } */
++/* { dg-options "-O2 -frounding-math -msse2 -mno-sse4 -mfpmath=sse" } */
++
++#include <fenv.h>
++
++double
++__attribute__((noinline))
++test (double value)
++{
++  return __builtin_floor (value);
++}
++
++int
++main ()
++{
++  double result;
++
++  fesetround (FE_DOWNWARD);
++
++  result = test (0.25);
++
++  if (__builtin_signbit (result) != 0)
++    __builtin_abort ();
++
++  return 0;
 +}
 new file mode 100644
 --- /dev/null
@@ -35816,6 +38396,42 @@ new file mode 100644
 +! { dg-final { cleanup-saved-temps } }
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/forall_19.f90
+@@ -0,0 +1,32 @@
++! { dg-do run }
++! PR fortran/98307 - Dependency check fails when using "allocatable"
++
++program forall_deps
++  implicit none
++  type t
++    logical :: valid = .true.
++    integer :: s     = 0
++    integer, allocatable :: p(:)
++  end type
++  type(t) :: v(2)
++  integer :: i
++
++  allocate (v(1)%p(8))
++  allocate (v(2)%p(8))
++  v(1)%s    = 8
++  v(2)%s    = 6
++
++  v(1)%p(:) = [1, 2, 3, 4, 5, 6, 7, 8]
++  v(2)%p(:) = [13, 14, 15, 16, 17, 18, 19, 20]
++  forall (i=1:2)
++     v(i)%p(1:v(i)%s) = v(3-i)%p(1:v(i)%s)
++  end forall
++  if (any(v(2)%p(:) /= [1, 2, 3, 4, 5, 6, 19, 20])) stop 1
++
++  v(1)%p(:) = [1, 2, 3, 4, 5, 6, 7, 8]
++  v(2)%p(:) = [13, 14, 15, 16, 17, 18, 19, 20]
++  forall (i=1:2, v(i)%valid)
++     v(i)%p(1:v(i)%s) = v(3-i)%p(1:v(i)%s)
++  end forall
++  if (any(v(2)%p(:) /= [1, 2, 3, 4, 5, 6, 19, 20])) stop 2
++end
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/gfortran.dg/goacc/atomic-1.f90
 @@ -0,0 +1,17 @@
 +! { dg-do compile }
@@ -36212,6 +38828,24 @@ new file mode 100644
 +
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/pr98017.f90
+@@ -0,0 +1,14 @@
++! { dg-do run }
++! PR98017 - [8/9/10/11 Regression] Suspected regression using PACK
++
++program p
++  implicit none
++  character(*), parameter :: s(1) = ['abc()']
++  character(*), parameter :: t(*) = s(:)(:1)
++  if (len (pack (s, s(:)(:1)  == 'a')) /= len (s)) stop 1
++  if (any (pack (s, s(:)(:1)  == 'a')  /=      s)) stop 2
++  if (len (pack (s,         t == 'a')) /= len (s)) stop 3
++  if (any (pack (s,         t == 'a')  /=      s)) stop 4
++  if (len (pack (s(:)(1:5), t == 'a')) /= len (s)) stop 5
++  if (any (pack (s(:)(1:5), t == 'a')  /=      s)) stop 6
++end
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/gfortran.dg/warn_unused_dummy_argument_6.f90
 @@ -0,0 +1,13 @@
 +! { dg-do compile }
@@ -36227,6 +38861,25 @@ new file mode 100644
 +    call meh(bar)
 +  end subroutine foo_internal
 +end subroutine foo
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gnat.dg/modular6.adb
+@@ -0,0 +1,15 @@
++-- { dg-do compile }
++
++with Ada.Text_IO; use Ada.Text_IO;
++
++procedure Modular6 is
++   Max : Integer := 0;
++   
++   type Modulus is mod 3;
++begin
++   Max := 30;
++   
++   for N in 1 .. Max loop
++      Put_Line("N: " & Integer'Image(N) & " Modulus:    " & Integer'Image(Modulus'Modulus) & " Mod:" & Modulus'Image(Modulus'Mod(N)));
++   end loop;
++end;
 --- a/src/gcc/testsuite/lib/gcc-dg.exp
 +++ b/src/gcc/testsuite/lib/gcc-dg.exp
 @@ -429,7 +429,10 @@ proc dg-set-target-env-var { args } {
@@ -36288,7 +38941,7 @@ new file mode 100644
  		}
          } "$flags -march=armv8.2-a+fp16fml"] } {
              set et_arm_fp16fml_neon_flags "$flags -march=armv8.2-a+fp16fml"
-@@ -9335,3 +9356,127 @@ proc check_effective_target_cet { } {
+@@ -9335,3 +9356,132 @@ proc check_effective_target_cet { } {
  	}
      } "-O2" ]
  }
@@ -36415,6 +39068,11 @@ new file mode 100644
 +	  __builtin_ia32_movdir64b (d, s);
 +	}
 +    } "-mmovdiri -mmovdir64b" ]
++}
++
++# Return 1 if GCC was configured with --with-tune=cortex-a76
++proc check_effective_target_tune_cortex_a76 { } {
++    return [check_configured_with "with-tune=cortex-a76"]
 +}
 --- a/src/gcc/tree-cfg.c
 +++ b/src/gcc/tree-cfg.c
@@ -37190,6 +39848,50 @@ new file mode 100644
  		    }
  		}
  	      continue;
+--- a/src/gcc/tree-ssa-structalias.c
++++ b/src/gcc/tree-ssa-structalias.c
+@@ -7893,7 +7893,8 @@ refered_from_nonlocal_fn (struct cgraph_node *node, void *data)
+ {
+   bool *nonlocal_p = (bool *)data;
+   *nonlocal_p |= (node->used_from_other_partition
+-		  || node->externally_visible
++		  || DECL_EXTERNAL (node->decl)
++		  || TREE_PUBLIC (node->decl)
+ 		  || node->force_output
+ 		  || lookup_attribute ("noipa", DECL_ATTRIBUTES (node->decl)));
+   return false;
+@@ -7905,7 +7906,8 @@ refered_from_nonlocal_var (struct varpool_node *node, void *data)
+ {
+   bool *nonlocal_p = (bool *)data;
+   *nonlocal_p |= (node->used_from_other_partition
+-		  || node->externally_visible
++		  || DECL_EXTERNAL (node->decl)
++		  || TREE_PUBLIC (node->decl)
+ 		  || node->force_output);
+   return false;
+ }
+@@ -7954,7 +7956,8 @@ ipa_pta_execute (void)
+ 	 For local functions we see all callers and thus do not need initial
+ 	 constraints for parameters.  */
+       bool nonlocal_p = (node->used_from_other_partition
+-			 || node->externally_visible
++			 || DECL_EXTERNAL (node->decl)
++			 || TREE_PUBLIC (node->decl)
+ 			 || node->force_output
+ 			 || lookup_attribute ("noipa",
+ 					      DECL_ATTRIBUTES (node->decl)));
+@@ -7994,8 +7997,9 @@ ipa_pta_execute (void)
+ 
+       /* For the purpose of IPA PTA unit-local globals are not
+          escape points.  */
+-      bool nonlocal_p = (var->used_from_other_partition
+-			 || var->externally_visible
++      bool nonlocal_p = (DECL_EXTERNAL (var->decl)
++			 || TREE_PUBLIC (var->decl)
++			 || var->used_from_other_partition
+ 			 || var->force_output);
+       var->call_for_symbol_and_aliases (refered_from_nonlocal_var,
+ 					&nonlocal_p, true);
 --- a/src/gcc/tree-vect-generic.c
 +++ b/src/gcc/tree-vect-generic.c
 @@ -433,6 +433,7 @@ expand_vector_divmod (gimple_stmt_iterator *gsi, tree type, tree op0,
@@ -37361,7 +40063,23 @@ new file mode 100644
        /* No need for fwait, exception is triggered by emitted fstp.  */
 --- a/src/libgcc/ChangeLog
 +++ b/src/libgcc/ChangeLog
-@@ -1,3 +1,123 @@
+@@ -1,3 +1,139 @@
++2020-11-25  Szabolcs Nagy  <szabolcs.nagy@arm.com>
++
++	Backported from master:
++	2020-07-13  Szabolcs Nagy  <szabolcs.nagy@arm.com>
++
++	PR target/94891
++	* config/aarch64/aarch64-unwind.h (MD_POST_EXTRACT_ROOT_ADDR): Remove.
++	(MD_POST_FROB_EH_HANDLER_ADDR): Remove.
++	(MD_POST_EXTRACT_FRAME_ADDR): Rename to ...
++	(MD_DEMANGLE_RETURN_ADDR): This.
++	(aarch64_post_extract_frame_addr): Rename to ...
++	(aarch64_demangle_return_addr): This.
++	(aarch64_post_frob_eh_handler_addr): Remove.
++	* unwind-dw2.c (uw_update_context): Demangle return address.
++	(uw_frob_return_addr): Remove.
++
 +2020-08-07  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from master:
@@ -42624,7 +45342,15 @@ new mode 100755
        const 'rtype_name` *restrict abase_x;
 --- a/src/libgomp/ChangeLog
 +++ b/src/libgomp/ChangeLog
-@@ -1,3 +1,48 @@
+@@ -1,3 +1,56 @@
++2020-11-25  Thomas Schwinge  <thomas@codesourcery.com>
++
++	Backported from master:
++	2020-11-25  Thomas Schwinge  <thomas@codesourcery.com>
++
++	* testsuite/libgomp.oacc-c++/cache-1.C: New.
++	* testsuite/libgomp.oacc-c-c++-common/cache-1.c: Update.
++
 +2020-11-02  Thomas Schwinge  <thomas@codesourcery.com>
 +
 +	Backported from master:
@@ -42954,6 +45680,40 @@ new file mode 100644
 +      end do
 +   end
 +end
+new file mode 100644
+--- /dev/null
++++ b/src/libgomp/testsuite/libgomp.oacc-c++/cache-1.C
+@@ -0,0 +1,13 @@
++/* OpenACC 'cache' directive.  */
++
++/* See also corresponding C/C++ variant '../libgomp.oacc-c-c++-common/cache-1.c'.  */
++
++#include "../../../gcc/testsuite/g++.dg/goacc/cache-1.C"
++
++int
++main (int argc, char *argv[])
++{
++  test<0> ();
++
++  return 0;
++}
+--- a/src/libgomp/testsuite/libgomp.oacc-c-c++-common/cache-1.c
++++ b/src/libgomp/testsuite/libgomp.oacc-c-c++-common/cache-1.c
+@@ -1,3 +1,13 @@
+-/* OpenACC cache directive.  */
++/* OpenACC 'cache' directive.  */
++
++/* See also corresponding C++ variant '../libgomp.oacc-c++/cache-1.C'.  */
+ 
+ #include "../../../gcc/testsuite/c-c++-common/goacc/cache-1.c"
++
++int
++main (int argc, char *argv[])
++{
++  test ();
++
++  return 0;
++}
 --- a/src/libgomp/testsuite/libgomp.oacc-fortran/error_stop-1.f
 +++ b/src/libgomp/testsuite/libgomp.oacc-fortran/error_stop-1.f
 @@ -3,6 +3,10 @@
@@ -43059,9 +45819,51 @@ new file mode 100644
    /* Copy over .comment section under the same name if present.  Solaris
       ld uses them to relax its checking of ELF gABI access rules for
       COMDAT sections in objects produced by GCC.  */
+--- a/src/libobjc/ChangeLog
++++ b/src/libobjc/ChangeLog
+@@ -1,3 +1,11 @@
++2020-12-30  Iain Sandoe  <iain@sandoe.co.uk>
++
++	Backported from master:
++	2020-10-11  Iain Sandoe  <iain@sandoe.co.uk>
++
++	* encoding.c (_darwin_rs6000_special_round_type_align):
++	Use DFMode in the emulation of the special round type.
++
+ 2020-03-04  Release Manager
+ 
+ 	* GCC 8.4.0 released.
+--- a/src/libobjc/encoding.c
++++ b/src/libobjc/encoding.c
+@@ -145,7 +145,6 @@ static int __attribute__ ((__unused__)) not_target_flags = 0;
+ #  undef TARGET_ALIGN_NATURAL
+ #  define TARGET_ALIGN_NATURAL 1
+ # endif
+-
+ /* On Darwin32, we need to recurse until we find the starting stuct type.  */
+ static int 
+ _darwin_rs6000_special_round_type_align (const char *struc, int comp, int spec)
+@@ -162,7 +161,7 @@ _darwin_rs6000_special_round_type_align (const char *struc, int comp, int spec)
+       case UNION_TYPE:
+ 	return MAX (MAX (comp, spec), objc_alignof_type (_stp) * __CHAR_BIT__);
+ 	break;
+-      case E_DFmode:
++      case DFmode:
+       case _C_LNG_LNG:
+       case _C_ULNG_LNG:
+ 	return MAX (MAX (comp, spec), 64);
 --- a/src/libstdc++-v3/ChangeLog
 +++ b/src/libstdc++-v3/ChangeLog
-@@ -1,3 +1,180 @@
+@@ -1,3 +1,189 @@
++2020-11-26  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2020-11-26  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/98001
++	* testsuite/ext/stdio_filebuf/char/79820.cc: Do not pass invalid
++	FILE* to constructor.
++
 +2020-11-16  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	Backported from master:
@@ -43387,6 +46189,18 @@ new file mode 100644
      __GXX_ABI_VERSION. This macro is defined as the version of the
      compiler v3 ABI, with g++ 3.0 being version 100. This macro will
      be automatically defined whenever g++ is used (the curious can
+--- a/src/libstdc++-v3/doc/html/manual/configure.html
++++ b/src/libstdc++-v3/doc/html/manual/configure.html
+@@ -110,7 +110,8 @@
+ 	the build directory, will do much the same thing, without the
+ 	configuration difference and without building everything twice:
+ 	<code class="code">make CXXFLAGS='-g3 -O0 -fno-inline' all</code>
+-     </p></dd><dt><span class="term"><code class="code">--enable-libstdcxx-debug-flags=FLAGS</code></span></dt><dd><p>This option is only valid when <code class="code"> --enable-debug </code>
++     </p></dd><dt><span class="term"><code class="code">--enable-libstdcxx-debug-flags=FLAGS</code></span></dt><dd><p>This option is only valid when
++	<code class="code">--enable-libstdcxx-debug</code>
+ 	is also specified, and applies to the debug builds only. With
+ 	this option, you can pass a specific string of flags to the
+ 	compiler to use when building the debug versions of libstdc++.
 --- a/src/libstdc++-v3/doc/html/manual/status.html
 +++ b/src/libstdc++-v3/doc/html/manual/status.html
 @@ -689,7 +689,7 @@ Feature-testing recommendations for C++</a>.
@@ -43844,6 +46658,18 @@ new file mode 100644
      </itemizedlist>
      </listitem>
  
+--- a/src/libstdc++-v3/doc/xml/manual/configure.xml
++++ b/src/libstdc++-v3/doc/xml/manual/configure.xml
+@@ -198,7 +198,8 @@
+ 
+  <varlistentry><term><code>--enable-libstdcxx-debug-flags=FLAGS</code></term>
+ 
+- <listitem><para>This option is only valid when <code> --enable-debug </code>
++ <listitem><para>This option is only valid when
++	<code>--enable-libstdcxx-debug</code>
+ 	is also specified, and applies to the debug builds only. With
+ 	this option, you can pass a specific string of flags to the
+ 	compiler to use when building the debug versions of libstdc++.
 --- a/src/libstdc++-v3/doc/xml/manual/status_cxx2017.xml
 +++ b/src/libstdc++-v3/doc/xml/manual/status_cxx2017.xml
 @@ -458,7 +458,7 @@ Feature-testing recommendations for C++</link>.
@@ -44357,6 +47183,121 @@ new file mode 100644
  
    template<typename _Tp, bool = __is_referenceable<_Tp>::value>
      struct __is_nothrow_copy_constructible_impl;
+--- a/src/libstdc++-v3/python/libstdcxx/v6/printers.py
++++ b/src/libstdc++-v3/python/libstdcxx/v6/printers.py
+@@ -179,13 +179,22 @@ class UniquePointerPrinter:
+ 
+     def __init__ (self, typename, val):
+         self.val = val
+-        impl_type = val.type.fields()[0].type.tag
+-        if is_specialization_of(impl_type, '__uniq_ptr_impl'): # New implementation
+-            self.pointer = val['_M_t']['_M_t']['_M_head_impl']
+-        elif is_specialization_of(impl_type, 'tuple'):
+-            self.pointer = val['_M_t']['_M_head_impl']
++        impl_type = val.type.fields()[0].type.strip_typedefs()
++        if is_specialization_of(str(impl_type), '__uniq_ptr_impl'): # New implementation
++            tuple_member = val['_M_t']['_M_t']
++        elif is_specialization_of(str(impl_type), 'tuple'):
++            tuple_member = val['_M_t']
+         else:
+-            raise ValueError("Unsupported implementation for unique_ptr: %s" % impl_type)
++            raise ValueError("Unsupported implementation for unique_ptr: %s" % str(impl_type))
++        tuple_impl_type = tuple_member.type.fields()[0].type # _Tuple_impl
++        tuple_head_type = tuple_impl_type.fields()[1].type   # _Head_base
++        head_field = tuple_head_type.fields()[0]
++        if head_field.name == '_M_head_impl':
++            self.pointer = tuple_member['_M_head_impl']
++        elif head_field.is_base_class:
++            self.pointer = tuple_member.cast(head_field.type)
++        else:
++            raise ValueError("Unsupported implementation for tuple in unique_ptr: %s" % str(impl_type))
+ 
+     def children (self):
+         return SmartPtrIterator(self.pointer)
+@@ -1030,6 +1039,29 @@ class SingleObjContainerPrinter(object):
+             return self.visualizer.display_hint ()
+         return self.hint
+ 
++def function_pointer_to_name(f):
++    "Find the name of the function referred to by the gdb.Value f, "
++    " which should contain a function pointer from the program."
++
++    # Turn the function pointer into an actual address.
++    # This is needed to unpack ppc64 function descriptors.
++    f = f.dereference().address
++
++    if sys.version_info[0] == 2:
++        # Older versions of GDB need to use long for Python 2,
++        # because int(f) on 64-bit big-endian values raises a
++        # gdb.error saying "Cannot convert value to int."
++        f = long(f)
++    else:
++        f = int(f)
++
++    try:
++        # If the function can't be found older versions of GDB raise a
++        # RuntimeError saying "Cannot locate object file for block."
++        return gdb.block_for_pc(f).function.name
++    except:
++        return None
++
+ class StdExpAnyPrinter(SingleObjContainerPrinter):
+     "Print a std::any or std::experimental::any"
+ 
+@@ -1042,11 +1074,11 @@ class StdExpAnyPrinter(SingleObjContainerPrinter):
+         visualizer = None
+         mgr = self.val['_M_manager']
+         if mgr != 0:
+-            func = gdb.block_for_pc(int(mgr.cast(gdb.lookup_type('intptr_t'))))
++            func = function_pointer_to_name(mgr)
+             if not func:
+-                raise ValueError("Invalid function pointer in %s" % self.typename)
++                raise ValueError("Invalid function pointer in %s" % (self.typename))
+             rx = r"""({0}::_Manager_\w+<.*>)::_S_manage""".format(typename)
+-            m = re.match(rx, func.function.name)
++            m = re.match(rx, func)
+             if not m:
+                 raise ValueError("Unknown manager function in %s" % self.typename)
+ 
+@@ -1184,10 +1216,11 @@ class StdExpStringViewPrinter:
+         return 'string'
+ 
+ class StdExpPathPrinter:
+-    "Print a std::experimental::filesystem::path"
++    "Print a std::experimental::filesystem::path or std::filesystem::path"
+ 
+     def __init__ (self, typename, val):
+         self.val = val
++        self.typename = typename
+         start = self.val['_M_cmpts']['_M_impl']['_M_start']
+         finish = self.val['_M_cmpts']['_M_impl']['_M_finish']
+         self.num_cmpts = int (finish - start)
+@@ -1209,7 +1242,8 @@ class StdExpPathPrinter:
+         return "filesystem::path %s" % path
+ 
+     class _iterator(Iterator):
+-        def __init__(self, cmpts):
++        def __init__(self, cmpts, pathtype):
++            self.pathtype = pathtype
+             self.item = cmpts['_M_impl']['_M_start']
+             self.finish = cmpts['_M_impl']['_M_finish']
+             self.count = 0
+@@ -1225,13 +1259,13 @@ class StdExpPathPrinter:
+             self.count = self.count + 1
+             self.item = self.item + 1
+             path = item['_M_pathname']
+-            t = StdExpPathPrinter(item.type.name, item)._path_type()
++            t = StdExpPathPrinter(self.pathtype, item)._path_type()
+             if not t:
+                 t = count
+             return ('[%s]' % t, path)
+ 
+     def children(self):
+-        return self._iterator(self.val['_M_cmpts'])
++        return self._iterator(self.val['_M_cmpts'], self.typename)
+ 
+ 
+ class StdPairPrinter:
 deleted file mode 100644
 --- a/src/libstdc++-v3/src/c++17/Makefile.in
 +++ /dev/null
@@ -46138,6 +49079,222 @@ new file mode 100644
 +  static_assert( std::experimental::gcd(SHRT_MIN, 1U + SHRT_MAX) == 1U + SHRT_MAX,
 +      "|SHRT_MIN| should not be undefined" );
 +}
+--- a/src/libstdc++-v3/testsuite/ext/stdio_filebuf/char/79820.cc
++++ b/src/libstdc++-v3/testsuite/ext/stdio_filebuf/char/79820.cc
+@@ -26,10 +26,11 @@ void
+ test01()
+ {
+   FILE* f = std::fopen("79820.txt", "w");
+-  std::fclose(f);
+   errno = 127;
+   __gnu_cxx::stdio_filebuf<char> b(f, std::ios::out, BUFSIZ);
+   VERIFY(errno == 127); // PR libstdc++/79820
++  b.close();
++  std::fclose(f);
+ }
+ 
+ int
+new file mode 100644
+--- /dev/null
++++ b/src/libstdc++-v3/testsuite/libstdc++-prettyprinters/compat.cc
+@@ -0,0 +1,118 @@
++// { dg-options "-g -O0" }
++// { dg-do run { target c++11 } }
++// { dg-skip-if "" { *-*-* } { "-D_GLIBCXX_PROFILE" } }
++
++// Copyright (C) 2014-2019 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++// Test that current printers still support old definitions of types.
++
++namespace std
++{
++  template<typename T>
++    struct _Head_base : T
++    { };
++
++  template<typename T>
++    struct _Head_base<T*>
++    {
++      T* _M_head_impl;
++    };
++
++  template<unsigned long, typename ...> struct _Tuple_impl;
++
++  template<typename T, typename U>
++    struct _Tuple_impl<0, T, U> : _Tuple_impl<1, U>, _Head_base<T>
++    { };
++
++  template<typename U>
++    struct _Tuple_impl<1, U> : _Head_base<U>
++    { };
++
++  template<typename T, typename U>
++    struct tuple : _Tuple_impl<0, T, U>
++    { };
++
++  template<typename T> struct default_delete { };
++
++  template<typename T, typename D = default_delete<T>>
++    struct unique_ptr
++    {
++      unique_ptr(T* p) { _M_t._M_head_impl = p; }
++
++      using __tuple_type = tuple<T*, D>;
++
++      __tuple_type _M_t;
++    };
++
++  // Old representation of std::optional, before GCC 9
++  template<typename T>
++    struct _Optional_payload
++    {
++      _Optional_payload() : _M_empty(), _M_engaged(false) { }
++      struct _Empty_byte { };
++      union {
++	_Empty_byte _M_empty;
++	T _M_payload;
++      };
++      bool _M_engaged;
++    };
++
++  template<typename T>
++    struct _Optional_base
++    {
++      _Optional_payload<T> _M_payload;
++    };
++
++  template<typename T>
++    struct optional : _Optional_base<T>
++    {
++      optional() { }
++
++      optional(T t)
++      {
++	this->_M_payload._M_payload = t;
++	this->_M_payload._M_engaged = true;
++      }
++    };
++} // namespace std
++
++int
++main()
++{
++  struct datum { };
++  std::unique_ptr<datum> uptr (new datum);
++// { dg-final { regexp-test uptr {std::unique_ptr.datum. = {get\(\) = 0x.*}} } }
++  std::unique_ptr<datum> &ruptr = uptr;
++// { dg-final { regexp-test ruptr {std::unique_ptr.datum. = {get\(\) = 0x.*}} } }
++
++  using std::optional;
++
++  optional<int> o;
++// { dg-final { note-test o {std::optional<int> [no contained value]} } }
++  optional<bool> ob{false};
++// { dg-final { note-test ob {std::optional<bool> = {[contained value] = false}} } }
++  optional<int> oi{5};
++// { dg-final { note-test oi {std::optional<int> = {[contained value] = 5}} } }
++  optional<void*> op{nullptr};
++// { dg-final { note-test op {std::optional<void *> = {[contained value] = 0x0}} } }
++
++  __builtin_puts("");
++  return 0;			// Mark SPOT
++}
++
++// { dg-final { gdb-test SPOT } }
+--- a/src/libstdc++-v3/testsuite/libstdc++-prettyprinters/cxx11.cc
++++ b/src/libstdc++-v3/testsuite/libstdc++-prettyprinters/cxx11.cc
+@@ -60,6 +60,21 @@ struct datum
+ 
+ std::unique_ptr<datum> global;
+ 
++struct Deleter
++{
++  // Deleter is not an empty class:
++  int deleter_member = -1;
++  // But pointer is an empty class:
++  struct pointer
++  {
++    pointer(const void* = nullptr) { }
++    explicit operator bool() const noexcept { return false; }
++    friend bool operator==(pointer, pointer) noexcept { return true; }
++    friend bool operator!=(pointer, pointer) noexcept { return false; }
++  };
++  void operator()(pointer) const noexcept { }
++};
++
+ int
+ main()
+ {
+@@ -137,6 +152,11 @@ main()
+   std::unique_ptr<data>& rarrptr = arrptr;
+ // { dg-final { regexp-test rarrptr {std::unique_ptr.datum \[\]. = {get\(\) = 0x.*}} } }
+ 
++  std::unique_ptr<int, Deleter> empty_ptr;
++// { dg-final { note-test empty_ptr {std::unique_ptr<int> = {get() = {<No data fields>}}} } }
++  std::unique_ptr<int, Deleter>& rempty_ptr = empty_ptr;
++// { dg-final { note-test rempty_ptr {std::unique_ptr<int> = {get() = {<No data fields>}}} } }
++
+   ExTuple tpl(6,7);
+ // { dg-final { note-test tpl {std::tuple containing = {[1] = 6, [2] = 7}} } }
+   ExTuple &rtpl = tpl;
+new file mode 100644
+--- /dev/null
++++ b/src/libstdc++-v3/testsuite/libstdc++-prettyprinters/filesystem-ts.cc
+@@ -0,0 +1,39 @@
++// { dg-options "-g -O0 -lstdc++fs" }
++// { dg-do run { target c++11 } }
++// { dg-require-filesystem-ts "" }
++
++// Copyright (C) 2020 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++#include <experimental/filesystem>
++#include <iostream>
++
++int
++main()
++{
++  std::experimental::filesystem::path path0;
++// { dg-final { note-test path0 {filesystem::path ""} } }
++  std::experimental::filesystem::path path1("filename");
++// { dg-final { note-test path1 {filesystem::path "filename"} } }
++  std::experimental::filesystem::path path2("/dir/.");
++// { dg-final { note-test path2 {filesystem::path "/dir/." = {[root-directory] = "/", [1] = "dir", [2] = "."}} } }
++
++  std::cout << "\n";
++  return 0;			// Mark SPOT
++}
++
++// { dg-final { gdb-test SPOT } }
 --- a/src/maintainer-scripts/ChangeLog
 +++ b/src/maintainer-scripts/ChangeLog
 @@ -1,3 +1,15 @@

@@ -1,13 +1,192 @@
-# DP: updates from the 8 branch upto 20200323 (documentation).
+# DP: updates from the 8 branch upto 20210111 (documentation).
 
 LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
-        8cd3bffead2ed1d1998c190865694f920fbc93ab 3c1be1b68cbbc7324ab6ac0c6c689dbf35600293 \
+        8cd3bffead2ed1d1998c190865694f920fbc93ab 6d1d6f7a4f3847615a2c2ad309ffa88145d9ffab \
 	| awk '/^diff .*\.texi/ {skip=0; print; next} /^diff / {skip=1; next} skip==0' \
         | grep -v -E '^(diff|index)'
 
+--- a/src/gcc/doc/cpp.texi
++++ b/src/gcc/doc/cpp.texi
+@@ -1632,7 +1632,7 @@ a function can.  The syntax for defining the macro is similar to that of
+ a function.  Here is an example:
+ 
+ @smallexample
+-#define eprintf(@dots{}) fprintf (stderr, __VA_ARGS__)
++#define eprintf(...) fprintf (stderr, __VA_ARGS__)
+ @end smallexample
+ 
+ This kind of macro is called @dfn{variadic}.  When the macro is invoked,
+@@ -1656,11 +1656,11 @@ below for an important special case for @samp{##}.)
+ If your macro is complicated, you may want a more descriptive name for
+ the variable argument than @code{@w{__VA_ARGS__}}.  CPP permits
+ this, as an extension.  You may write an argument name immediately
+-before the @samp{@dots{}}; that name is used for the variable argument.
++before the @samp{...}; that name is used for the variable argument.
+ The @code{eprintf} macro above could be written
+ 
+ @smallexample
+-#define eprintf(args@dots{}) fprintf (stderr, args)
++#define eprintf(args...) fprintf (stderr, args)
+ @end smallexample
+ 
+ @noindent
+@@ -1671,7 +1671,7 @@ You can have named arguments as well as variable arguments in a variadic
+ macro.  We could define @code{eprintf} like this, instead:
+ 
+ @smallexample
+-#define eprintf(format, @dots{}) fprintf (stderr, format, __VA_ARGS__)
++#define eprintf(format, ...) fprintf (stderr, format, __VA_ARGS__)
+ @end smallexample
+ 
+ @noindent
+@@ -1710,7 +1710,7 @@ invocation expands to its argument; but if the variable argument does
+ not have any tokens, the @code{@w{__VA_OPT__}} expands to nothing:
+ 
+ @smallexample
+-#define eprintf(format, @dots{}) \
++#define eprintf(format, ...) \
+   fprintf (stderr, format __VA_OPT__(,) __VA_ARGS__)
+ @end smallexample
+ 
+@@ -1723,7 +1723,7 @@ the introduction of @code{@w{__VA_OPT__}}, this extension remains
+ supported in GNU CPP, for backward compatibility.  If you write
+ 
+ @smallexample
+-#define eprintf(format, @dots{}) fprintf (stderr, format, ##__VA_ARGS__)
++#define eprintf(format, ...) fprintf (stderr, format, ##__VA_ARGS__)
+ @end smallexample
+ 
+ @noindent
+@@ -1759,7 +1759,7 @@ replacement list of a variadic macro.
+ Variadic macros became a standard part of the C language with C99.  
+ GNU CPP previously supported them
+ with a named variable argument
+-(@samp{args@dots{}}, not @samp{@dots{}} and @code{@w{__VA_ARGS__}}), which
++(@samp{args...}, not @samp{...} and @code{@w{__VA_ARGS__}}), which
+ is still supported for backward compatibility.
+ 
+ @node Predefined Macros
+--- a/src/gcc/doc/extend.texi
++++ b/src/gcc/doc/extend.texi
+@@ -3655,6 +3655,12 @@ Select the function scope on which return address signing will be applied.  The
+ behavior and permissible arguments are the same as for the command-line option
+ @option{-msign-return-address=}.  The default value is @code{none}.
+ 
++@item outline-atomics
++@cindex @code{outline-atomics} function attribute, AArch64
++Enable or disable calls to out-of-line helpers to implement atomic operations.
++This corresponds to the behavior of the command line options
++@option{-moutline-atomics} and @option{-mno-outline-atomics}.
++
+ @end table
+ 
+ The above target attributes can be specified as follows:
+@@ -10173,18 +10179,31 @@ The @var{level} argument must be a constant integer.
+ 
+ On some machines it may be impossible to determine the return address of
+ any function other than the current one; in such cases, or when the top
+-of the stack has been reached, this function returns @code{0} or a
+-random value.  In addition, @code{__builtin_frame_address} may be used
++of the stack has been reached, this function returns an unspecified
++value.  In addition, @code{__builtin_frame_address} may be used
+ to determine if the top of the stack has been reached.
+ 
+ Additional post-processing of the returned value may be needed, see
+ @code{__builtin_extract_return_addr}.
+ 
++The stored representation of the return address in memory may be different
++from the address returned by @code{__builtin_return_address}.  For example,
++on AArch64 the stored address may be mangled with return address signing
++whereas the address returned by @code{__builtin_return_address} is not.
++
+ Calling this function with a nonzero argument can have unpredictable
+ effects, including crashing the calling program.  As a result, calls
+ that are considered unsafe are diagnosed when the @option{-Wframe-address}
+ option is in effect.  Such calls should only be made in debugging
+ situations.
++
++On targets where code addresses are representable as @code{void *},
++@smallexample
++void *addr = __builtin_extract_return_addr (__builtin_return_address (0));
++@end smallexample
++gives the code address where the current function would return.  For example,
++such an address may be used with @code{dladdr} or other interfaces that work
++with code addresses.
+ @end deftypefn
+ 
+ @deftypefn {Built-in Function} {void *} __builtin_extract_return_addr (void *@var{addr})
+@@ -13579,12 +13598,12 @@ long long __builtin_arm_wzero ()
+ 
+ GCC implements extensions for C as described in the ARM C Language
+ Extensions (ACLE) specification, which can be found at
+-@uref{http://infocenter.arm.com/help/topic/com.arm.doc.ihi0053c/IHI0053C_acle_2_0.pdf}.
++@uref{https://developer.arm.com/documentation/ihi0053/latest/}.
+ 
+ As a part of ACLE, GCC implements extensions for Advanced SIMD as described in
+ the ARM C Language Extensions Specification.  The complete list of Advanced SIMD
+ intrinsics can be found at
+-@uref{http://infocenter.arm.com/help/topic/com.arm.doc.ihi0073a/IHI0073A_arm_neon_intrinsics_ref.pdf}.
++@uref{https://developer.arm.com/documentation/ihi0073/latest/}.
+ The built-in intrinsics for the Advanced SIMD extension are available when
+ NEON is enabled.
+ 
+@@ -13615,7 +13634,7 @@ void __builtin_arm_set_fpscr (unsigned int)
+ GCC implements the ARMv8-M Security Extensions as described in the ARMv8-M
+ Security Extensions: Requirements on Development Tools Engineering
+ Specification, which can be found at
+-@uref{http://infocenter.arm.com/help/topic/com.arm.doc.ecm0359818/ECM0359818_armv8m_security_extensions_reqs_on_dev_tools_1_0.pdf}.
++@uref{https://developer.arm.com/documentation/ecm0359818/latest/}.
+ 
+ As part of the Security Extensions GCC implements two new function attributes:
+ @code{cmse_nonsecure_entry} and @code{cmse_nonsecure_call}.
+@@ -16207,6 +16226,13 @@ bool scalar_test_neg (float source);
+ bool scalar_test_neg (double source);
+ bool scalar_test_neg (__ieee128 source);
+ 
++vector _uint128_t vec_msum (vector unsigned long long,
++                           vector unsigned long long,
++                           vector _uint128_t);
++vector _int128_t vec_msum (vector signed long long,
++                          vector signed long long,
++                          vector _int128_t);
++
+ int __builtin_byte_in_set (unsigned char u, unsigned long long set);
+ int __builtin_byte_in_range (unsigned char u, unsigned int range);
+ int __builtin_byte_in_either_range (unsigned char u, unsigned int ranges);
+@@ -16257,6 +16283,9 @@ Note that the sign of the significand is not represented in the result
+ returned from the @code{scalar_extract_sig} function.  Use the
+ @code{scalar_test_neg} function to test the sign of its @code{double}
+ argument.
++The @code{vec_msum} functions perform a vector multiply-sum, returning
++the result of arg1*arg2+arg3.  ISA 3.0 adds support for vec_msum returning
++a vector int128 result.
+ 
+ The @code{scalar_insert_exp}
+ functions require a 64-bit environment supporting ISA 3.0 or later.
+--- a/src/gcc/doc/install.texi
++++ b/src/gcc/doc/install.texi
+@@ -1263,7 +1263,7 @@ Specify which cpu variant the compiler should generate code for by default.
+ This option is only supported on some targets, including ARC, ARM, i386, M68k,
+ PowerPC, and SPARC@.  It is mandatory for ARC@.  The @option{--with-cpu-32} and
+ @option{--with-cpu-64} options specify separate default CPUs for
+-32-bit and 64-bit modes; these options are only supported for i386,
++32-bit and 64-bit modes; these options are only supported for aarch64, i386,
+ x86-64, PowerPC, and SPARC@.
+ 
+ @item --with-schedule=@var{cpu}
 --- a/src/gcc/doc/invoke.texi
 +++ b/src/gcc/doc/invoke.texi
-@@ -3859,6 +3859,11 @@ are being produced.  This allows the use of new @option{-Wno-} options
+@@ -604,7 +604,8 @@ Objective-C and Objective-C++ Dialects}.
+ -mpc-relative-literal-loads @gol
+ -msign-return-address=@var{scope} @gol
+ -march=@var{name}  -mcpu=@var{name}  -mtune=@var{name}  @gol
+--moverride=@var{string}  -mverbose-cost-dump}
++-moverride=@var{string}  -mverbose-cost-dump @gol
++-moutline-atomics }
+ 
+ @emph{Adapteva Epiphany Options}
+ @gccoptlist{-mhalf-reg-file  -mprefer-short-insn-regs @gol
+@@ -3859,6 +3860,11 @@ are being produced.  This allows the use of new @option{-Wno-} options
  with old compilers, but if something goes wrong, the compiler
  warns that an unrecognized option is present.
  
@@ -19,3 +198,133 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  @table @gcctabopt
  @item -Wpedantic
  @itemx -pedantic
+@@ -10902,6 +10908,11 @@ speed
+ (@option{sra-max-scalarization-size-Ospeed}) or size
+ (@option{sra-max-scalarization-size-Osize}) respectively.
+ 
++@item sra-max-propagations
++The maximum number of artificial accesses that Scalar Replacement of
++Aggregates (SRA) will track, per one local variable, in order to
++facilitate copy propagation.
++
+ @item tm-max-aggregate-size
+ When making copies of thread-local variables in a transaction, this
+ parameter specifies the size in bytes after which variables are
+@@ -14702,6 +14713,19 @@ This option only has an effect if @option{-ffast-math} or
+ precision of division results to about 16 bits for
+ single precision and to 32 bits for double precision.
+ 
++@item -moutline-atomics
++@itemx -mno-outline-atomics
++Enable or disable calls to out-of-line helpers to implement atomic operations.
++These helpers will, at runtime, determine if the LSE instructions from
++ARMv8.1-A can be used; if not, they will use the load/store-exclusive
++instructions that are present in the base ARMv8.0 ISA.
++
++This option is only applicable when compiling for the base ARMv8.0
++instruction set.  If using a later revision, e.g. @option{-march=armv8.1-a}
++or @option{-march=armv8-a+lse}, the ARMv8.1-Atomics instructions will be
++used directly.  The same applies when using @option{-mcpu=} when the
++selected cpu supports the @samp{lse} feature.
++
+ @item -march=@var{name}
+ @opindex march
+ Specify the name of the target architecture and, optionally, one or
+@@ -14747,9 +14771,9 @@ Specify the name of the target processor for which GCC should tune the
+ performance of the code.  Permissible values for this option are:
+ @samp{generic}, @samp{cortex-a35}, @samp{cortex-a53}, @samp{cortex-a55},
+ @samp{cortex-a57}, @samp{cortex-a72}, @samp{cortex-a73}, @samp{cortex-a75},
+-@samp{cortex-a76}, @samp{ares}, @samp{neoverse-n1}
+-@samp{exynos-m1}, @samp{falkor}, @samp{qdf24xx}, @samp{saphira},
+-@samp{xgene1}, @samp{vulcan}, @samp{thunderx},
++@samp{cortex-a76}, @samp{ares}, @samp{neoverse-n1}, @samp{neoverse-n2},
++@samp{neoverse-v1}, @samp{zeus}, @samp{exynos-m1}, @samp{falkor},
++@samp{qdf24xx}, @samp{saphira}, @samp{xgene1}, @samp{vulcan}, @samp{thunderx},
+ @samp{thunderxt88}, @samp{thunderxt88p1}, @samp{thunderxt81},
+ @samp{thunderxt83}, @samp{thunderx2t99}, @samp{cortex-a57.cortex-a53},
+ @samp{cortex-a72.cortex-a53}, @samp{cortex-a73.cortex-a35},
+@@ -16310,8 +16334,8 @@ Permissible names are: @samp{arm2}, @samp{arm250},
+ @samp{cortex-a9}, @samp{cortex-a12}, @samp{cortex-a15}, @samp{cortex-a17},
+ @samp{cortex-a32}, @samp{cortex-a35}, @samp{cortex-a53}, @samp{cortex-a55},
+ @samp{cortex-a57}, @samp{cortex-a72}, @samp{cortex-a73}, @samp{cortex-a75},
+-@samp{cortex-r4}, @samp{cortex-r4f}, @samp{cortex-r5}, @samp{cortex-r7},
+-@samp{cortex-r8}, @samp{cortex-r52},
++@samp{neoverse-v1}, @samp{neoverse-n2}, @samp{cortex-r4}, @samp{cortex-r4f},
++@samp{cortex-r5}, @samp{cortex-r7}, @samp{cortex-r8}, @samp{cortex-r52},
+ @samp{cortex-m33},
+ @samp{cortex-m23},
+ @samp{cortex-m7},
+@@ -16721,7 +16745,7 @@ MOVT instruction.
+ @opindex mcmse
+ Generate secure code as per the "ARMv8-M Security Extensions: Requirements on
+ Development Tools Engineering Specification", which can be found on
+-@url{http://infocenter.arm.com/help/topic/com.arm.doc.ecm0359818/ECM0359818_armv8m_security_extensions_reqs_on_dev_tools_1_0.pdf}.
++@url{https://developer.arm.com/documentation/ecm0359818/latest/}.
+ @end table
+ 
+ @node AVR Options
+--- a/src/gcc/doc/sourcebuild.texi
++++ b/src/gcc/doc/sourcebuild.texi
+@@ -1238,6 +1238,18 @@ This DejaGnu directive compares @var{regexp} to the combined output
+ that the test executable writes to @file{stdout} and @file{stderr}.
+ @end table
+ 
++@subsubsection Specify environment variables for a test
++
++@table @code
++@item @{ dg-set-compiler-env-var @var{var_name} "@var{var_value}" @}
++Specify that the environment variable @var{var_name} needs to be set
++to @var{var_value} before invoking the compiler on the test file.
++
++@item @{ dg-set-target-env-var @var{var_name} "@var{var_value}" @}
++Specify that the environment variable @var{var_name} needs to be set
++to @var{var_value} before execution of the program created by the test.
++@end table
++
+ @subsubsection Specify additional files for a test
+ 
+ @table @code
+@@ -1886,6 +1898,9 @@ AArch64 target which generates instruction sequences for big endian.
+ Binutils installed on test system supports relocation types required by -fpic
+ for AArch64 small memory model.
+ 
++@item aarch64_fjcvtzs_hw
++AArch64 target that is able to generate and execute armv8.3-a FJCVTZS
++instruction.
+ @end table
+ 
+ @subsubsection MIPS-specific attributes
+--- a/src/gcc/doc/tm.texi
++++ b/src/gcc/doc/tm.texi
+@@ -8208,11 +8208,11 @@ as the number of bits.
+ @end defmac
+ 
+ @defmac ASM_OUTPUT_ALIGNED_DECL_LOCAL (@var{stream}, @var{decl}, @var{name}, @var{size}, @var{alignment})
+-Like @code{ASM_OUTPUT_ALIGNED_DECL} except that @var{decl} of the
++Like @code{ASM_OUTPUT_ALIGNED_LOCAL} except that @var{decl} of the
+ variable to be output, if there is one, or @code{NULL_TREE} if there
+ is no corresponding variable.  If you define this macro, GCC will use it
+-in place of both @code{ASM_OUTPUT_DECL} and
+-@code{ASM_OUTPUT_ALIGNED_DECL}.  Define this macro when you need to see
++in place of both @code{ASM_OUTPUT_LOCAL} and
++@code{ASM_OUTPUT_ALIGNED_LOCAL}.  Define this macro when you need to see
+ the variable's decl in order to chose what to output.
+ @end defmac
+ 
+--- a/src/gcc/doc/tm.texi.in
++++ b/src/gcc/doc/tm.texi.in
+@@ -5342,11 +5342,11 @@ as the number of bits.
+ @end defmac
+ 
+ @defmac ASM_OUTPUT_ALIGNED_DECL_LOCAL (@var{stream}, @var{decl}, @var{name}, @var{size}, @var{alignment})
+-Like @code{ASM_OUTPUT_ALIGNED_DECL} except that @var{decl} of the
++Like @code{ASM_OUTPUT_ALIGNED_LOCAL} except that @var{decl} of the
+ variable to be output, if there is one, or @code{NULL_TREE} if there
+ is no corresponding variable.  If you define this macro, GCC will use it
+-in place of both @code{ASM_OUTPUT_DECL} and
+-@code{ASM_OUTPUT_ALIGNED_DECL}.  Define this macro when you need to see
++in place of both @code{ASM_OUTPUT_LOCAL} and
++@code{ASM_OUTPUT_ALIGNED_LOCAL}.  Define this macro when you need to see
+ the variable's decl in order to chose what to output.
+ @end defmac
+ 
