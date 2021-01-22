@@ -301,7 +301,10 @@ Provides: libgcc2`'LS (= ${gcc:EpochVersion}), ifdef(`TARGET',`libgcc-s2-TARGET-
 ifdef(`TARGET',`dnl
 Breaks: libgcc2`'LS (<< 1:10)
 Replaces: libgcc2`'LS (<< 1:10)
-')dnl
+',`dnl
+Breaks: ${libgcc:Breaks}
+Replaces: libgcc2`'LS (<< 1:10)
+')`'dnl
 BUILT_USING`'dnl
 Description: GCC support library`'ifdef(`TARGET',` (TARGET)', `')
  Shared version of the support library, a library of internal subroutines
@@ -378,7 +381,10 @@ Provides: libgcc4`'LS (= ${gcc:EpochVersion})
 ifdef(`TARGET',`dnl
 Breaks: libgcc4`'LS (<< 1:10)
 Replaces: libgcc4`'LS (<< 1:10)
-')dnl
+',`dnl
+Breaks: ${libgcc:Breaks}
+Replaces: libgcc4`'LS (<< 1:10)
+')`'dnl
 Section: ifdef(`TARGET',`devel',`libs')
 Priority: optional
 Depends: BASELDEP, ${shlibs:Depends}, ${misc:Depends}
