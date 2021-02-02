@@ -1,7 +1,7 @@
-# DP: updates from the 9 branch upto 20210110 (8e4642602b0).
+# DP: updates from the 9 branch upto 20210202 (13ec4505c04).
 
 LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
-	4212a6a3e44f870412d9025eeb323fd4f50a61da 8e4642602b076340340a838d705b82c9594915b6 \
+	4212a6a3e44f870412d9025eeb323fd4f50a61da 13ec4505c04c6cadfc22ec1b23fd6edf745ca183 \
 	| awk '/^diff .*\.texi/ {skip=1; next} /^diff / { skip=0 } skip==0' \
 	| grep -v -E '^(diff|index)'
 
@@ -57,7 +57,12 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
      fi
 --- a/src/contrib/ChangeLog
 +++ b/src/contrib/ChangeLog
-@@ -1,3 +1,75 @@
+@@ -1,3 +1,80 @@
++2021-01-28  Eric Botcazou  <ebotcazou@adacore.com>
++
++	PR lto/85574
++	* compare-lto: Deal with PE-COFF executables specifically.
++
 +2021-01-07  Martin Liska  <mliska@suse.cz>
 +
 +	* gcc-changelog/git_commit.py: Sync from master.
@@ -133,6 +138,43 @@ LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
  2020-03-12  Release Manager
  
  	* GCC 9.3.0 released.
+--- a/src/contrib/compare-lto
++++ b/src/contrib/compare-lto
+@@ -32,7 +32,7 @@ case $1 in
+ esac
+ 
+ if test $# != 2; then
+-  echo 'usage: compare-lto file1.o file2.o' >&2
++  echo 'usage: compare-lto file1 file2' >&2
+   exit 1
+ fi
+ 
+@@ -101,6 +101,25 @@ else
+     else
+       status=1
+     fi
++
++  # PE-COFF executables are timestamped so skip leading bytes for them.
++  else
++    case "$1" in
++      *.exe)
++        if cmp -i 256 "$1" "$2"; then
++          status=0
++        else
++          status=1
++        fi
++        ;;
++      *)
++        if test -f "$1.exe" && cmp -i 256 "$1.exe" "$2.exe"; then
++          status=0
++        else
++          status=1
++        fi
++        ;;
++    esac
+   fi
+ fi
+ 
 new file mode 100755
 --- /dev/null
 +++ b/src/contrib/gcc-changelog/git_check_commit.py
@@ -5148,7 +5190,34 @@ new file mode 100755
 +            print('Please resolve all remaining file conflicts.')
 --- a/src/gcc/ChangeLog
 +++ b/src/gcc/ChangeLog
-@@ -1,3 +1,2468 @@
+@@ -1,3 +1,2495 @@
++2021-01-29  Richard Biener  <rguenther@suse.de>
++
++	Backported from master:
++	2021-01-29  Bin Cheng  <bin.cheng@linux.alibaba.com>
++		    Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/97627
++	* tree-ssa-loop-niter.c (number_of_iterations_exit_assumptions):
++	Do not analyze fake edges.
++
++2021-01-21  Wilco Dijkstra  <wdijkstr@arm.com>
++
++	Backported from master:
++	2019-10-16  Wilco Dijkstra  <wdijkstr@arm.com>
++
++	PR target/98618
++	* config/aarch64/aarch64.c (aarch64_classify_symbol):
++	Apply reasonable limit to symbol offsets.
++
++2021-01-13  Samuel Thibault  <samuel.thibault@ens-lyon.org>
++
++	Backported from master:
++	2021-01-13  Samuel Thibault  <samuel.thibault@ens-lyon.org>
++
++	* config.gcc [$target == *-*-gnu*]: Enable
++	'default_gnu_indirect_function'.
++
 +2021-01-06  2019-07-10  Marc Glisse  <marc.glisse@inria.fr>
 +
 +	PR testsuite/90806
@@ -7621,7 +7690,7 @@ new file mode 100755
 +++ b/src/gcc/DATESTAMP
 @@ -1 +1 @@
 -20200312
-+20210110
++20210201
 --- a/src/gcc/Makefile.in
 +++ b/src/gcc/Makefile.in
 @@ -1687,6 +1687,10 @@ $(FULL_DRIVER_NAME): ./xgcc
@@ -7646,7 +7715,27 @@ new file mode 100755
  # Use "s-selftest-FE" to ensure that we only run the selftests if the
 --- a/src/gcc/ada/ChangeLog
 +++ b/src/gcc/ada/ChangeLog
-@@ -1,3 +1,49 @@
+@@ -1,3 +1,69 @@
++2021-01-26  Marius Hillenbrand  <mhillen@linux.ibm.com>
++
++	PR ada/98228
++	* gcc-interface/utils.c (maybe_pad_type): Test the size of the new
++	packable type instead of its alignment for addressability's sake.
++
++2021-01-25  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* gcc-interface/trans.c (make_covariant_thunk): Set the DECL_CONTEXT
++	of the parameters and do not set TREE_PUBLIC on the thunk.
++	(maybe_make_gnu_thunk): Pass the alias to the covariant thunk.
++	* gcc-interface/utils.c (finish_subprog_decl): Set the DECL_CONTEXT
++	of the parameters here...
++	(begin_subprog_body): ...instead of here.
++
++2021-01-19  Eric Botcazou  <ebotcazou@adacore.com>
++
++	PR ada/98740
++	* gcc-interface/trans.c (add_decl_expr): Always mark TYPE_ADA_SIZE.
++
 +2020-12-10  Ed Schonberg  <schonberg@adacore.com>
 +
 +	PR ada/98230
@@ -7878,7 +7967,29 @@ new file mode 100755
  	    gnu_init = maybe_unconstrained_array (gnu_init);
  	    if (Do_Range_Check (Expression (gnat_temp)))
  	      gnu_init
-@@ -9830,6 +9801,11 @@ build_binary_op_trapv (enum tree_code code, tree gnu_type, tree left,
+@@ -8951,15 +8922,16 @@ add_decl_expr (tree gnu_decl, Node_Id gnat_node)
+ 	  MARK_VISITED (DECL_SIZE_UNIT (gnu_decl));
+ 	  MARK_VISITED (DECL_INITIAL (gnu_decl));
+ 	}
+-      /* In any case, we have to deal with our own TYPE_ADA_SIZE field.  */
+-      else if (TREE_CODE (gnu_decl) == TYPE_DECL
+-	       && RECORD_OR_UNION_TYPE_P (type)
+-	       && !TYPE_FAT_POINTER_P (type))
+-	MARK_VISITED (TYPE_ADA_SIZE (type));
+     }
+   else
+     add_stmt_with_node (gnu_stmt, gnat_node);
+ 
++  /* Mark our TYPE_ADA_SIZE field now since it will not be gimplified.  */
++  if (TREE_CODE (gnu_decl) == TYPE_DECL
++      && RECORD_OR_UNION_TYPE_P (type)
++      && !TYPE_FAT_POINTER_P (type))
++    MARK_VISITED (TYPE_ADA_SIZE (type));
++
+   /* If this is a variable and an initializer is attached to it, it must be
+      valid for the context.  Similar to init_const in create_var_decl.  */
+   if (TREE_CODE (gnu_decl) == VAR_DECL
+@@ -9830,6 +9802,11 @@ build_binary_op_trapv (enum tree_code code, tree gnu_type, tree left,
    /* If no operand is a constant, we use the generic implementation.  */
    if (TREE_CODE (lhs) != INTEGER_CST && TREE_CODE (rhs) != INTEGER_CST)
      {
@@ -7890,7 +8001,36 @@ new file mode 100755
        /* Never inline a 64-bit mult for a 32-bit target, it's way too long.  */
        if (code == MULT_EXPR && precision == 64 && BITS_PER_WORD < 64)
  	{
-@@ -11267,8 +11243,11 @@ maybe_make_gnu_thunk (Entity_Id gnat_thunk, tree gnu_thunk)
+@@ -11149,7 +11126,7 @@ make_alias_for_thunk (tree target)
+   return alias;
+ }
+ 
+-/* Create the covariant part of the {GNAT,GNU}_THUNK.  */
++/* Create the local covariant part of {GNAT,GNU}_THUNK.  */
+ 
+ static tree
+ make_covariant_thunk (Entity_Id gnat_thunk, tree gnu_thunk)
+@@ -11160,6 +11137,11 @@ make_covariant_thunk (Entity_Id gnat_thunk, tree gnu_thunk)
+ 		  gnu_name, TREE_TYPE (gnu_thunk));
+ 
+   DECL_ARGUMENTS (gnu_cv_thunk) = copy_list (DECL_ARGUMENTS (gnu_thunk));
++  for (tree param_decl = DECL_ARGUMENTS (gnu_cv_thunk);
++       param_decl;
++       param_decl = DECL_CHAIN (param_decl))
++    DECL_CONTEXT (param_decl) = gnu_cv_thunk;
++
+   DECL_RESULT (gnu_cv_thunk) = copy_node (DECL_RESULT (gnu_thunk));
+   DECL_CONTEXT (DECL_RESULT (gnu_cv_thunk)) = gnu_cv_thunk;
+ 
+@@ -11167,7 +11149,6 @@ make_covariant_thunk (Entity_Id gnat_thunk, tree gnu_thunk)
+   DECL_CONTEXT (gnu_cv_thunk) = DECL_CONTEXT (gnu_thunk);
+   TREE_READONLY (gnu_cv_thunk) = TREE_READONLY (gnu_thunk);
+   TREE_THIS_VOLATILE (gnu_cv_thunk) = TREE_THIS_VOLATILE (gnu_thunk);
+-  TREE_PUBLIC (gnu_cv_thunk) = TREE_PUBLIC (gnu_thunk);
+   DECL_ARTIFICIAL (gnu_cv_thunk) = 1;
+ 
+   return gnu_cv_thunk;
+@@ -11267,8 +11248,11 @@ maybe_make_gnu_thunk (Entity_Id gnat_thunk, tree gnu_thunk)
  
    tree gnu_target = gnat_to_gnu_entity (gnat_target, NULL_TREE, false);
  
@@ -7904,8 +8044,83 @@ new file mode 100755
  
    /* If the target returns by invisible reference and is external, apply the
       same transformation as Subprogram_Body_to_gnu here.  */
+@@ -11293,6 +11277,12 @@ maybe_make_gnu_thunk (Entity_Id gnat_thunk, tree gnu_thunk)
+ 
+   cgraph_node *target_node = cgraph_node::get_create (gnu_target);
+ 
++  /* We may also need to create an alias for the target in order to make
++     the call local, depending on the linkage of the target.  */
++  tree gnu_alias = use_alias_for_thunk_p (gnu_target)
++		  ? make_alias_for_thunk (gnu_target)
++		  : gnu_target;
++
+   /* If the return type of the target is a controlling type, then we need
+      both an usual this thunk and a covariant thunk in this order:
+ 
+@@ -11305,17 +11295,11 @@ maybe_make_gnu_thunk (Entity_Id gnat_thunk, tree gnu_thunk)
+       tree gnu_cv_thunk = make_covariant_thunk (gnat_thunk, gnu_thunk);
+       target_node->create_thunk (gnu_cv_thunk, gnu_target, false,
+ 				 - fixed_offset, 0, 0,
+-				 NULL_TREE, gnu_target);
++				 NULL_TREE, gnu_alias);
+ 
+-      gnu_target = gnu_cv_thunk;
++      gnu_alias = gnu_target = gnu_cv_thunk;
+     }
+ 
+-  /* We may also need to create an alias for the target in order to make
+-     the call local, depending on the linkage of the target.  */
+-  tree gnu_alias = use_alias_for_thunk_p (gnu_target)
+-		  ? make_alias_for_thunk (gnu_target)
+-		  : gnu_target;
+-
+   target_node->create_thunk (gnu_thunk, gnu_target, true,
+ 			     fixed_offset, virtual_value, indirect_offset,
+ 			     virtual_offset, gnu_alias);
 --- a/src/gcc/ada/gcc-interface/utils.c
 +++ b/src/gcc/ada/gcc-interface/utils.c
+@@ -1387,7 +1387,7 @@ maybe_pad_type (tree type, tree size, unsigned int align,
+     {
+       tree packable_type = make_packable_type (type, true);
+       if (TYPE_MODE (packable_type) != BLKmode
+-	  && align >= TYPE_ALIGN (packable_type))
++	  && compare_tree_int (TYPE_SIZE (packable_type), align) <= 0)
+         type = packable_type;
+     }
+ 
+@@ -3328,6 +3328,12 @@ create_subprog_decl (tree name, tree asm_name, tree type, tree param_decl_list,
+ void
+ finish_subprog_decl (tree decl, tree asm_name, tree type)
+ {
++  /* DECL_ARGUMENTS is set by the caller, but not its context.  */
++  for (tree param_decl = DECL_ARGUMENTS (decl);
++       param_decl;
++       param_decl = DECL_CHAIN (param_decl))
++    DECL_CONTEXT (param_decl) = decl;
++
+   tree result_decl
+     = build_decl (DECL_SOURCE_LOCATION (decl), RESULT_DECL, NULL_TREE,
+ 		  TREE_TYPE (type));
+@@ -3373,8 +3379,6 @@ finish_subprog_decl (tree decl, tree asm_name, tree type)
+ void
+ begin_subprog_body (tree subprog_decl)
+ {
+-  tree param_decl;
+-
+   announce_function (subprog_decl);
+ 
+   /* This function is being defined.  */
+@@ -3391,10 +3395,6 @@ begin_subprog_body (tree subprog_decl)
+      this function.  */
+   gnat_pushlevel ();
+ 
+-  for (param_decl = DECL_ARGUMENTS (subprog_decl); param_decl;
+-       param_decl = DECL_CHAIN (param_decl))
+-    DECL_CONTEXT (param_decl) = subprog_decl;
+-
+   make_decl_rtl (subprog_decl);
+ }
+ 
 @@ -5624,7 +5624,7 @@ can_materialize_object_renaming_p (Node_Id expr)
      {
        expr = Original_Node (expr);
@@ -8817,7 +9032,18 @@ new file mode 100755
  	case ${target} in
  	     powerpc64*)
  	    	tm_file="${tm_file} rs6000/default64.h rs6000/freebsd64.h"
-@@ -3806,9 +3810,17 @@ fi
+@@ -3279,7 +3283,9 @@ esac
+ case ${target} in
+ *-*-linux*android*|*-*-linux*uclibc*|*-*-linux*musl*)
+         ;;
+-*-*-linux*)
++*-*-kfreebsd*-gnu | *-*-kopensolaris*-gnu)
++        ;;
++*-*-linux* | *-*-gnu*)
+ 	case ${target} in
+ 	aarch64*-* | arm*-* | i[34567]86-* | powerpc*-* | s390*-* | sparc*-* | x86_64-*)
+ 		default_gnu_indirect_function=yes
+@@ -3806,9 +3812,17 @@ fi
  supported_defaults=
  case "${target}" in
  	aarch64*-*-*)
@@ -8838,7 +9064,7 @@ new file mode 100755
  			eval "val=\$with_$which"
  			base_val=`echo $val | sed -e 's/\+.*//'`
  			ext_val=`echo $val | sed -e 's/[a-z0-9.-]\+//'`
-@@ -3847,6 +3859,12 @@ case "${target}" in
+@@ -3847,6 +3861,12 @@ case "${target}" in
  				  sed -e 's/,.*$//'`
  			  fi
  
@@ -8851,7 +9077,7 @@ new file mode 100755
  			  while [ x"$ext_val" != x ]
  			  do
  				ext_val=`echo $ext_val | sed -e 's/\+//'`
-@@ -3896,8 +3914,13 @@ case "${target}" in
+@@ -3896,8 +3916,13 @@ case "${target}" in
  			  fi
  			  true
  			else
@@ -9606,15 +9832,15 @@ new file mode 100755
 +  machine_mode cmp_mode = GET_MODE (x);
 +  machine_mode cc_mode;
 +  rtx cc_reg;
-+
+ 
+-  emit_set_insn (cc_reg, gen_rtx_COMPARE (mode, x, y));
 +  if (cmp_mode == TImode)
 +    {
 +      gcc_assert (code == NE);
 +
 +      cc_mode = CCmode;
 +      cc_reg = gen_rtx_REG (cc_mode, CC_REGNUM);
- 
--  emit_set_insn (cc_reg, gen_rtx_COMPARE (mode, x, y));
++
 +      rtx x_lo = operand_subword (x, 0, 0, TImode);
 +      rtx y_lo = operand_subword (y, 0, 0, TImode);
 +      emit_set_insn (cc_reg, gen_rtx_COMPARE (cc_mode, x_lo, y_lo));
@@ -9932,7 +10158,53 @@ new file mode 100755
    { NULL, aarch64_attr_custom, false, NULL, OPT____ }
  };
  
-@@ -14105,7 +14352,12 @@ aarch64_simd_container_mode (scalar_mode mode, poly_int64 width)
+@@ -13050,26 +13297,31 @@ aarch64_classify_symbol (rtx x, HOST_WIDE_INT offset)
+ 	     the offset does not cause overflow of the final address.  But
+ 	     we have no way of knowing the address of symbol at compile time
+ 	     so we can't accurately say if the distance between the PC and
+-	     symbol + offset is outside the addressible range of +/-1M in the
+-	     TINY code model.  So we rely on images not being greater than
+-	     1M and cap the offset at 1M and anything beyond 1M will have to
+-	     be loaded using an alternative mechanism.  Furthermore if the
+-	     symbol is a weak reference to something that isn't known to
+-	     resolve to a symbol in this module, then force to memory.  */
+-	  if ((SYMBOL_REF_WEAK (x)
+-	       && !aarch64_symbol_binds_local_p (x))
+-	      || !IN_RANGE (offset, -1048575, 1048575))
++	     symbol + offset is outside the addressible range of +/-1MB in the
++	     TINY code model.  So we limit the maximum offset to +/-64KB and
++	     assume the offset to the symbol is not larger than +/-(1MB - 64KB).
++	     If offset_within_block_p is true we allow larger offsets.
++	     Furthermore force to memory if the symbol is a weak reference to
++	     something that doesn't resolve to a symbol in this module.  */
++
++	  if (SYMBOL_REF_WEAK (x) && !aarch64_symbol_binds_local_p (x))
+ 	    return SYMBOL_FORCE_TO_MEM;
++	  if (!(IN_RANGE (offset, -0x10000, 0x10000)
++		|| offset_within_block_p (x, offset)))
++	    return SYMBOL_FORCE_TO_MEM;
++
+ 	  return SYMBOL_TINY_ABSOLUTE;
+ 
+ 	case AARCH64_CMODEL_SMALL:
+ 	  /* Same reasoning as the tiny code model, but the offset cap here is
+-	     4G.  */
+-	  if ((SYMBOL_REF_WEAK (x)
+-	       && !aarch64_symbol_binds_local_p (x))
+-	      || !IN_RANGE (offset, HOST_WIDE_INT_C (-4294967263),
+-			    HOST_WIDE_INT_C (4294967264)))
++	     1MB, allowing +/-3.9GB for the offset to the symbol.  */
++
++	  if (SYMBOL_REF_WEAK (x) && !aarch64_symbol_binds_local_p (x))
++	    return SYMBOL_FORCE_TO_MEM;
++	  if (!(IN_RANGE (offset, -0x100000, 0x100000)
++		|| offset_within_block_p (x, offset)))
+ 	    return SYMBOL_FORCE_TO_MEM;
++
+ 	  return SYMBOL_SMALL_ABSOLUTE;
+ 
+ 	case AARCH64_CMODEL_TINY_PIC:
+@@ -14105,7 +14357,12 @@ aarch64_simd_container_mode (scalar_mode mode, poly_int64 width)
  static machine_mode
  aarch64_preferred_simd_mode (scalar_mode mode)
  {
@@ -9946,7 +10218,7 @@ new file mode 100755
    return aarch64_simd_container_mode (mode, bits);
  }
  
-@@ -14114,7 +14366,11 @@ aarch64_preferred_simd_mode (scalar_mode mode)
+@@ -14114,7 +14371,11 @@ aarch64_preferred_simd_mode (scalar_mode mode)
  static void
  aarch64_autovectorize_vector_sizes (vector_sizes *sizes)
  {
@@ -9959,7 +10231,7 @@ new file mode 100755
      sizes->safe_push (BYTES_PER_SVE_VECTOR);
    sizes->safe_push (16);
    sizes->safe_push (8);
-@@ -15426,16 +15682,26 @@ static void
+@@ -15426,16 +15687,26 @@ static void
  aarch64_emit_load_exclusive (machine_mode mode, rtx rval,
  			     rtx mem, rtx model_rtx)
  {
@@ -9989,7 +10261,7 @@ new file mode 100755
  }
  
  /* Mark the previous jump instruction as unlikely.  */
-@@ -15447,6 +15713,82 @@ aarch64_emit_unlikely_jump (rtx insn)
+@@ -15447,6 +15718,82 @@ aarch64_emit_unlikely_jump (rtx insn)
    add_reg_br_prob_note (jump, profile_probability::very_unlikely ());
  }
  
@@ -10072,7 +10344,7 @@ new file mode 100755
  /* Expand a compare and swap pattern.  */
  
  void
-@@ -15493,6 +15835,17 @@ aarch64_expand_compare_and_swap (rtx operands[])
+@@ -15493,6 +15840,17 @@ aarch64_expand_compare_and_swap (rtx operands[])
  						   newval, mod_s));
        cc_reg = aarch64_gen_compare_reg_maybe_ze (NE, rval, oldval, mode);
      }
@@ -10090,7 +10362,7 @@ new file mode 100755
    else
      {
        /* The oldval predicate varies by mode.  Test it and force to reg.  */
-@@ -15538,13 +15891,11 @@ aarch64_split_compare_and_swap (rtx operands[])
+@@ -15538,13 +15896,11 @@ aarch64_split_compare_and_swap (rtx operands[])
    /* Split after prolog/epilog to avoid interactions with shrinkwrapping.  */
    gcc_assert (epilogue_completed);
  
@@ -10105,7 +10377,7 @@ new file mode 100755
  
    rval = operands[0];
    mem = operands[1];
-@@ -15565,7 +15916,8 @@ aarch64_split_compare_and_swap (rtx operands[])
+@@ -15565,7 +15921,8 @@ aarch64_split_compare_and_swap (rtx operands[])
  	CBNZ	scratch, .label1
      .label2:
  	CMP	rval, 0.  */
@@ -10115,7 +10387,7 @@ new file mode 100755
  
    label1 = NULL;
    if (!is_weak)
-@@ -15578,35 +15930,20 @@ aarch64_split_compare_and_swap (rtx operands[])
+@@ -15578,35 +15935,20 @@ aarch64_split_compare_and_swap (rtx operands[])
    /* The initial load can be relaxed for a __sync operation since a final
       barrier will be emitted to stop code hoisting.  */
    if (is_mm_sync (model))
@@ -10158,7 +10430,7 @@ new file mode 100755
  
    aarch64_emit_store_exclusive (mode, scratch, mem, newval, model_rtx);
  
-@@ -15627,22 +15964,16 @@ aarch64_split_compare_and_swap (rtx operands[])
+@@ -15627,22 +15969,16 @@ aarch64_split_compare_and_swap (rtx operands[])
        aarch64_emit_unlikely_jump (gen_rtx_SET (pc_rtx, x));
      }
    else
@@ -10185,7 +10457,7 @@ new file mode 100755
    /* Emit any final barrier needed for a __sync operation.  */
    if (is_mm_sync (model))
      aarch64_emit_post_barrier (model);
-@@ -16415,7 +16746,8 @@ aarch64_evpc_rev_local (struct expand_vec_perm_d *d)
+@@ -16415,7 +16751,8 @@ aarch64_evpc_rev_local (struct expand_vec_perm_d *d)
  
    if (d->vec_flags == VEC_SVE_PRED
        || !d->one_vector_p
@@ -10195,7 +10467,7 @@ new file mode 100755
      return false;
  
    size = (diff + 1) * GET_MODE_UNIT_SIZE (d->vmode);
-@@ -17045,6 +17377,8 @@ aarch64_copy_one_block_and_progress_pointers (rtx *src, rtx *dst,
+@@ -17045,6 +17382,8 @@ aarch64_copy_one_block_and_progress_pointers (rtx *src, rtx *dst,
  bool
  aarch64_expand_movmem (rtx *operands)
  {
@@ -10204,7 +10476,7 @@ new file mode 100755
    int n, mode_bits;
    rtx dst = operands[0];
    rtx src = operands[1];
-@@ -17055,21 +17389,24 @@ aarch64_expand_movmem (rtx *operands)
+@@ -17055,21 +17394,24 @@ aarch64_expand_movmem (rtx *operands)
    /* When optimizing for size, give a better estimate of the length of a
       memcpy call, but use the default otherwise.  Moves larger than 8 bytes
       will always require an even number of instructions to do now.  And each
@@ -10233,7 +10505,7 @@ new file mode 100755
    base = copy_to_mode_reg (Pmode, XEXP (dst, 0));
    dst = adjust_automodify_address (dst, VOIDmode, base, 0);
  
-@@ -18900,6 +19237,231 @@ aarch64_file_end_indicate_exec_stack ()
+@@ -18900,6 +19242,231 @@ aarch64_file_end_indicate_exec_stack ()
  #undef GNU_PROPERTY_AARCH64_FEATURE_1_BTI
  #undef GNU_PROPERTY_AARCH64_FEATURE_1_AND
  
@@ -10465,7 +10737,7 @@ new file mode 100755
  /* Target-specific selftests.  */
  
  #if CHECKING_P
-@@ -19420,6 +19982,12 @@ aarch64_libgcc_floating_mode_supported_p
+@@ -19420,6 +19987,12 @@ aarch64_libgcc_floating_mode_supported_p
  #define TARGET_RUN_TARGET_SELFTESTS selftest::aarch64_run_selftests
  #endif /* #if CHECKING_P */
  
@@ -19190,7 +19462,13 @@ new file mode 100755
  	{
 --- a/src/gcc/cp/ChangeLog
 +++ b/src/gcc/cp/ChangeLog
-@@ -1,3 +1,273 @@
+@@ -1,3 +1,279 @@
++2021-01-29  Jason Merrill  <jason@redhat.com>
++
++	PR c++/63707
++	* tree.c (build_vec_init_expr): Don't call build_vec_init_elt
++	if we got a CONSTRUCTOR.
++
 +2020-12-16  Nathan Sidwell  <nathan@acm.org>
 +
 +	* parser.c (cp_parser_elaborated_type_specifier): Test
@@ -20363,7 +20641,24 @@ new file mode 100755
  		    abnormal = false;
 --- a/src/gcc/cp/tree.c
 +++ b/src/gcc/cp/tree.c
-@@ -2402,6 +2402,8 @@ is_overloaded_fn (tree x)
+@@ -746,7 +746,15 @@ build_vec_init_expr (tree type, tree init, tsubst_flags_t complain)
+ {
+   tree slot;
+   bool value_init = false;
+-  tree elt_init = build_vec_init_elt (type, init, complain);
++  tree elt_init;
++  if (init && TREE_CODE (init) == CONSTRUCTOR)
++    {
++      gcc_assert (!BRACE_ENCLOSED_INITIALIZER_P (init));
++      /* We built any needed constructor calls in digest_init.  */
++      elt_init = init;
++    }
++  else
++    elt_init = build_vec_init_elt (type, init, complain);
+ 
+   if (init == void_type_node)
+     {
+@@ -2402,6 +2410,8 @@ is_overloaded_fn (tree x)
  tree
  dependent_name (tree x)
  {
@@ -20372,7 +20667,7 @@ new file mode 100755
    if (identifier_p (x))
      return x;
    if (TREE_CODE (x) == TEMPLATE_ID_EXPR)
-@@ -3506,6 +3508,15 @@ called_fns_equal (tree t1, tree t2)
+@@ -3506,6 +3516,15 @@ called_fns_equal (tree t1, tree t2)
        if (name1 != name2)
  	return false;
  
@@ -20388,7 +20683,7 @@ new file mode 100755
        if (TREE_CODE (t1) == TEMPLATE_ID_EXPR)
  	targs1 = TREE_OPERAND (t1, 1);
        if (TREE_CODE (t2) == TEMPLATE_ID_EXPR)
-@@ -3602,7 +3613,8 @@ cp_tree_equal (tree t1, tree t2)
+@@ -3602,7 +3621,8 @@ cp_tree_equal (tree t1, tree t2)
        {
  	tree arg1, arg2;
  	call_expr_arg_iterator iter1, iter2;
@@ -20398,7 +20693,7 @@ new file mode 100755
  	  return false;
  	for (arg1 = first_call_expr_arg (t1, &iter1),
  	       arg2 = first_call_expr_arg (t2, &iter2);
-@@ -3726,6 +3738,9 @@ cp_tree_equal (tree t1, tree t2)
+@@ -3726,6 +3746,9 @@ cp_tree_equal (tree t1, tree t2)
  	    if (SIZEOF_EXPR_TYPE_P (t2))
  	      o2 = TREE_TYPE (o2);
  	  }
@@ -20408,7 +20703,7 @@ new file mode 100755
  	if (TREE_CODE (o1) != TREE_CODE (o2))
  	  return false;
  	if (TYPE_P (o1))
-@@ -4364,6 +4379,33 @@ zero_init_p (const_tree t)
+@@ -4364,6 +4387,33 @@ zero_init_p (const_tree t)
    return 1;
  }
  
@@ -20442,7 +20737,7 @@ new file mode 100755
  /* Handle the C++17 [[nodiscard]] attribute, which is similar to the GNU
     warn_unused_result attribute.  */
  
-@@ -5492,76 +5534,6 @@ maybe_warn_zero_as_null_pointer_constant (tree expr, location_t loc)
+@@ -5492,76 +5542,6 @@ maybe_warn_zero_as_null_pointer_constant (tree expr, location_t loc)
    return false;
  }
  
@@ -20934,6 +21229,94 @@ new file mode 100755
      if (aliassym)
      {
          FuncDeclaration *fd = aliassym->isFuncLiteralDeclaration();
+--- a/src/gcc/d/dmd/dmangle.c
++++ b/src/gcc/d/dmd/dmangle.c
+@@ -176,7 +176,7 @@ public:
+     {
+         visit((Type *)t);
+         if (t->dim)
+-            buf->printf("%llu", t->dim->toInteger());
++            buf->print(t->dim->toInteger());
+         if (t->next)
+             visitWithMask(t->next, t->mod);
+     }
+@@ -274,7 +274,8 @@ public:
+         visit((Type *)t);
+         const char *name = t->ident->toChars();
+         size_t len = strlen(name);
+-        buf->printf("%u%s", (unsigned)len, name);
++        buf->print(len);
++        buf->writestring(name);
+     }
+ 
+     void visit(TypeEnum *t)
+@@ -396,7 +397,7 @@ public:
+             s->error("excessive length %llu for symbol, possible recursive expansion?", len);
+         else
+         {
+-            buf->printf("%llu", (ulonglong)len);
++            buf->print(len);
+             buf->write(id, len);
+         }
+     }
+@@ -614,9 +615,15 @@ public:
+     void visit(IntegerExp *e)
+     {
+         if ((sinteger_t)e->value < 0)
+-            buf->printf("N%lld", -e->value);
++        {
++            buf->writeByte('N');
++            buf->print(-e->value);
++        }
+         else
+-            buf->printf("i%lld",  e->value);
++        {
++            buf->writeByte('i');
++            buf->print(e->value);
++        }
+     }
+ 
+     void visit(RealExp *e)
+@@ -738,7 +745,8 @@ public:
+         }
+         buf->reserve(1 + 11 + 2 * qlen);
+         buf->writeByte(m);
+-        buf->printf("%d_", (int)qlen); // nbytes <= 11
++        buf->print(qlen);
++        buf->writeByte('_');    // nbytes <= 11
+ 
+         for (utf8_t *p = (utf8_t *)buf->data + buf->offset, *pend = p + 2 * qlen;
+              p < pend; p += 2, ++q)
+@@ -754,7 +762,8 @@ public:
+     void visit(ArrayLiteralExp *e)
+     {
+         size_t dim = e->elements ? e->elements->dim : 0;
+-        buf->printf("A%u", dim);
++        buf->writeByte('A');
++        buf->print(dim);
+         for (size_t i = 0; i < dim; i++)
+         {
+             e->getElement(i)->accept(this);
+@@ -764,7 +773,8 @@ public:
+     void visit(AssocArrayLiteralExp *e)
+     {
+         size_t dim = e->keys->dim;
+-        buf->printf("A%u", dim);
++        buf->writeByte('A');
++        buf->print(dim);
+         for (size_t i = 0; i < dim; i++)
+         {
+             (*e->keys)[i]->accept(this);
+@@ -775,7 +785,8 @@ public:
+     void visit(StructLiteralExp *e)
+     {
+         size_t dim = e->elements ? e->elements->dim : 0;
+-        buf->printf("S%u", dim);
++        buf->writeByte('S');
++        buf->print(dim);
+         for (size_t i = 0; i < dim; i++)
+         {
+             Expression *ex = (*e->elements)[i];
 --- a/src/gcc/d/dmd/expressionsem.c
 +++ b/src/gcc/d/dmd/expressionsem.c
 @@ -6837,6 +6837,7 @@ public:
@@ -20944,6 +21327,56 @@ new file mode 100755
          }
          Expression *e = exp->op_overload(sc);
          if (e)
+--- a/src/gcc/d/dmd/root/outbuffer.c
++++ b/src/gcc/d/dmd/root/outbuffer.c
+@@ -325,6 +325,37 @@ void OutBuffer::printf(const char *format, ...)
+     va_end(ap);
+ }
+ 
++/**************************************
++ * Convert `u` to a string and append it to the buffer.
++ * Params:
++ *  u = integral value to append
++ */
++void OutBuffer::print(unsigned long long u)
++{
++    unsigned long long value = u;
++    char buf[20];
++    const unsigned radix = 10;
++
++    size_t i = sizeof(buf);
++    do
++    {
++        if (value < radix)
++        {
++            unsigned char x = (unsigned char)value;
++            buf[--i] = (char)(x + '0');
++            break;
++        }
++        else
++        {
++            unsigned char x = (unsigned char)(value % radix);
++            value = value / radix;
++            buf[--i] = (char)(x + '0');
++        }
++    } while (value);
++
++    write(buf + i, sizeof(buf) - i);
++}
++
+ void OutBuffer::bracket(char left, char right)
+ {
+     reserve(2);
+--- a/src/gcc/d/dmd/root/outbuffer.h
++++ b/src/gcc/d/dmd/root/outbuffer.h
+@@ -62,6 +62,7 @@ public:
+     void fill0(size_t nbytes);
+     void vprintf(const char *format, va_list args);
+     void printf(const char *format, ...);
++    void print(unsigned long long u);
+     void bracket(char left, char right);
+     size_t bracket(size_t i, const char *left, size_t j, const char *right);
+     void spread(size_t offset, size_t nbytes);
 --- a/src/gcc/d/expr.cc
 +++ b/src/gcc/d/expr.cc
 @@ -691,7 +691,6 @@ public:
@@ -21531,7 +21964,65 @@ new file mode 100755
  				    "division"),
 --- a/src/gcc/fortran/ChangeLog
 +++ b/src/gcc/fortran/ChangeLog
-@@ -1,3 +1,668 @@
+@@ -1,3 +1,726 @@
++2021-01-28  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2021-01-28  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/86470
++	* trans.c (gfc_call_malloc): Allocate area of size 1 if passed
++	size is NULL (as documented).
++
++2021-01-25  Paul Thomas  <pault@gcc.gnu.org>
++
++	Backported from master:
++	2021-01-25  Steve Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/98517
++	* resolve.c (resolve_charlen): Check that length expression is
++	present before testing for scalar/integer..
++
++2021-01-25  Paul Thomas  <pault@gcc.gnu.org>
++
++	Backported from master:
++	2020-12-29  Paul Thomas  <pault@gcc.gnu.org>
++
++	PR fortran/93833
++	* trans-array.c (get_array_ctor_var_strlen): If the character
++	length backend_decl cannot be found, convert the expression and
++	use the string length. Clear up some minor white space issues
++	in the rest of the file.
++
++2021-01-23  Paul Thomas  <pault@gcc.gnu.org>
++
++	Backported from master:
++	2020-12-26  Paul Thomas  <pault@gcc.gnu.org>
++
++	PR fortran/98022
++	* data.c (gfc_assign_data_value): Throw an error for inquiry
++	references. Follow with corrected code that would provide the
++	expected result and provides clean error recovery.
++
++2021-01-23  Paul Thomas  <pault@gcc.gnu.org>
++
++	Backported from master:
++	2020-12-12  Paul Thomas  <pault@gcc.gnu.org>
++
++	PR fortran/98022
++	* data.c (gfc_assign_data_value): Handle inquiry references in
++	the data statement object list.
++
++2021-01-19  Tobias Burnus  <tobias@codesourcery.com>
++
++	Backported from master:
++	2020-01-04  Tobias Burnus  <tobias@codesourcery.com>
++
++	PR fortran/91640
++	* trans-expr.c (gfc_conv_procedure_call): Avoid copy-out for nonvariable
++	arguments to contiguous dummy args.  Avoid re-checking whether fsym is
++	NULL.
++
 +2021-01-07  Harald Anlauf  <anlauf@gmx.de>
 +
 +	Backported from master:
@@ -22334,7 +22825,115 @@ new file mode 100755
  	return NULL;
 --- a/src/gcc/fortran/data.c
 +++ b/src/gcc/fortran/data.c
-@@ -498,12 +498,11 @@ gfc_assign_data_value (gfc_expr *lvalue, gfc_expr *rvalue, mpz_t index,
+@@ -20,14 +20,14 @@ along with GCC; see the file COPYING3.  If not see
+ 
+ 
+ /* Notes for DATA statement implementation:
+-									       
++
+    We first assign initial value to each symbol by gfc_assign_data_value
+    during resolving DATA statement. Refer to check_data_variable and
+    traverse_data_list in resolve.c.
+-									       
++
+    The complexity exists in the handling of array section, implied do
+    and array of struct appeared in DATA statement.
+-									       
++
+    We call gfc_conv_structure, gfc_con_array_array_initializer,
+    etc., to convert the initial value. Refer to trans-expr.c and
+    trans-array.c.  */
+@@ -221,11 +221,14 @@ gfc_assign_data_value (gfc_expr *lvalue, gfc_expr *rvalue, mpz_t index,
+   gfc_ref *ref;
+   gfc_expr *init;
+   gfc_expr *expr = NULL;
++  gfc_expr *rexpr;
+   gfc_constructor *con;
+   gfc_constructor *last_con;
+   gfc_symbol *symbol;
+   gfc_typespec *last_ts;
+   mpz_t offset;
++  const char *msg = "F18(R841): data-implied-do object at %L is neither an "
++		    "array-element nor a scalar-structure-component";
+ 
+   symbol = lvalue->symtree->n.sym;
+   init = symbol->value;
+@@ -464,6 +467,74 @@ gfc_assign_data_value (gfc_expr *lvalue, gfc_expr *rvalue, mpz_t index,
+ 	    }
+ 	  break;
+ 
++	case REF_INQUIRY:
++
++	  /* After some discussion on clf it was determined that the following
++	     violates F18(R841). If the error is removed, the expected result
++	     is obtained. Leaving the code in place ensures a clean error
++	     recovery.  */
++	  gfc_error (msg, &lvalue->where);
++
++	  /* This breaks with the other reference types in that the output
++	     constructor has to be of type COMPLEX, whereas the lvalue is
++	     of type REAL.  The rvalue is copied to the real or imaginary
++	     part as appropriate.  In addition, for all except scalar
++	     complex variables, a complex expression has to provided, where
++	     the constructor does not have it, and the expression modified
++	     with a new value for the real or imaginary part.  */
++	  gcc_assert (ref->next == NULL && last_ts->type == BT_COMPLEX);
++	  rexpr = gfc_copy_expr (rvalue);
++	  if (!gfc_compare_types (&lvalue->ts, &rexpr->ts))
++	    gfc_convert_type (rexpr, &lvalue->ts, 0);
++
++	  /* This is the scalar, complex case, where an initializer exists.  */
++	  if (init && ref == lvalue->ref)
++	    expr = symbol->value;
++	  /* Then all cases, where a complex expression does not exist.  */
++	  else if (!last_con || !last_con->expr)
++	    {
++	      expr = gfc_get_constant_expr (BT_COMPLEX, lvalue->ts.kind,
++					    &lvalue->where);
++	      if (last_con)
++		last_con->expr = expr;
++	    }
++	  else
++	    /* Finally, and existing constructor expression to be modified.  */
++	    expr = last_con->expr;
++
++	  /* Rejection of LEN and KIND inquiry references is handled
++	     elsewhere. The error here is added as backup. The assertion
++	     of F2008 for RE and IM is also done elsewhere.  */
++	  switch (ref->u.i)
++	    {
++	    case INQUIRY_LEN:
++	    case INQUIRY_KIND:
++	      gfc_error ("LEN or KIND inquiry ref in DATA statement at %L",
++			 &lvalue->where);
++	      goto abort;
++	    case INQUIRY_RE:
++	      mpfr_set (mpc_realref (expr->value.complex),
++			rexpr->value.real,
++			GFC_RND_MODE);
++	      break;
++	    case INQUIRY_IM:
++	      mpfr_set (mpc_imagref (expr->value.complex),
++			rexpr->value.real,
++			GFC_RND_MODE);
++	      break;
++	    }
++
++	  /* Only the scalar, complex expression needs to be saved as the
++	     symbol value since the last constructor expression is already
++	     provided as the initializer in the code after the reference
++	     cases.  */
++	  if (ref == lvalue->ref)
++	    symbol->value = expr;
++
++	  gfc_free_expr (rexpr);
++	  mpz_clear (offset);
++	  return true;
++
+ 	default:
+ 	  gcc_unreachable ();
+ 	}
+@@ -498,12 +569,11 @@ gfc_assign_data_value (gfc_expr *lvalue, gfc_expr *rvalue, mpz_t index,
  	return false;
      }
  
@@ -22350,6 +22949,92 @@ new file mode 100755
  	return false;
        expr = create_character_initializer (init, last_ts, ref, rvalue);
      }
+@@ -513,7 +583,7 @@ gfc_assign_data_value (gfc_expr *lvalue, gfc_expr *rvalue, mpz_t index,
+ 	  && gfc_has_default_initializer (lvalue->ts.u.derived))
+ 	{
+ 	  gfc_error ("Nonpointer object %qs with default initialization "
+-		     "shall not appear in a DATA statement at %L", 
++		     "shall not appear in a DATA statement at %L",
+ 		     symbol->name, &lvalue->where);
+ 	  return false;
+ 	}
+@@ -540,13 +610,13 @@ abort:
+ 
+ /* Modify the index of array section and re-calculate the array offset.  */
+ 
+-void 
++void
+ gfc_advance_section (mpz_t *section_index, gfc_array_ref *ar,
+ 		     mpz_t *offset_ret)
+ {
+   int i;
+   mpz_t delta;
+-  mpz_t tmp; 
++  mpz_t tmp;
+   bool forwards;
+   int cmp;
+   gfc_expr *start, *end, *stride;
+@@ -567,21 +637,21 @@ gfc_advance_section (mpz_t *section_index, gfc_array_ref *ar,
+ 	    forwards = true;
+ 	  else
+ 	    forwards = false;
+-	  gfc_free_expr(stride);	
++	  gfc_free_expr(stride);
+ 	}
+       else
+ 	{
+ 	  mpz_add_ui (section_index[i], section_index[i], 1);
+ 	  forwards = true;
+ 	}
+-      
++
+       if (ar->end[i])
+         {
+ 	  end = gfc_copy_expr(ar->end[i]);
+ 	  if(!gfc_simplify_expr(end, 1))
+ 	    gfc_internal_error("Simplification error");
+ 	  cmp = mpz_cmp (section_index[i], end->value.integer);
+-	  gfc_free_expr(end);	
++	  gfc_free_expr(end);
+ 	}
+       else
+ 	cmp = mpz_cmp (section_index[i], ar->as->upper[i]->value.integer);
+@@ -595,7 +665,7 @@ gfc_advance_section (mpz_t *section_index, gfc_array_ref *ar,
+ 	      if(!gfc_simplify_expr(start, 1))
+ 	        gfc_internal_error("Simplification error");
+ 	      mpz_set (section_index[i], start->value.integer);
+-	      gfc_free_expr(start); 
++	      gfc_free_expr(start);
+ 	    }
+ 	  else
+ 	    mpz_set (section_index[i], ar->as->lower[i]->value.integer);
+@@ -613,7 +683,7 @@ gfc_advance_section (mpz_t *section_index, gfc_array_ref *ar,
+       mpz_mul (tmp, tmp, delta);
+       mpz_add (*offset_ret, tmp, *offset_ret);
+ 
+-      mpz_sub (tmp, ar->as->upper[i]->value.integer, 
++      mpz_sub (tmp, ar->as->upper[i]->value.integer,
+ 	       ar->as->lower[i]->value.integer);
+       mpz_add_ui (tmp, tmp, 1);
+       mpz_mul (delta, tmp, delta);
+@@ -699,7 +769,7 @@ gfc_formalize_init_value (gfc_symbol *sym)
+ 
+ /* Get the integer value into RET_AS and SECTION from AS and AR, and return
+    offset.  */
+- 
++
+ void
+ gfc_get_section_index (gfc_array_ref *ar, mpz_t *section_index, mpz_t *offset)
+ {
+@@ -741,7 +811,7 @@ gfc_get_section_index (gfc_array_ref *ar, mpz_t *section_index, mpz_t *offset)
+ 	  gcc_unreachable ();
+ 	}
+ 
+-      mpz_sub (tmp, ar->as->upper[i]->value.integer, 
++      mpz_sub (tmp, ar->as->upper[i]->value.integer,
+ 	       ar->as->lower[i]->value.integer);
+       mpz_add_ui (tmp, tmp, 1);
+       mpz_mul (delta, tmp, delta);
 --- a/src/gcc/fortran/decl.c
 +++ b/src/gcc/fortran/decl.c
 @@ -668,6 +668,10 @@ gfc_match_data (void)
@@ -23277,16 +23962,17 @@ new file mode 100755
  	  /* Remove a GFC_ISYM_CAF_GET inserted for a coindexed variable on
  	     the LHS.  */
  	  if (code->expr1->expr_type == EXPR_FUNCTION
-@@ -12000,7 +12042,7 @@ resolve_charlen (gfc_charlen *cl)
+@@ -12000,7 +12042,8 @@ resolve_charlen (gfc_charlen *cl)
  	}
  
        /* cl->length has been resolved.  It should have an integer type.  */
 -      if (cl->length->ts.type != BT_INTEGER)
-+      if (cl->length->ts.type != BT_INTEGER || cl->length->rank != 0)
++      if (cl->length
++	  && (cl->length->ts.type != BT_INTEGER || cl->length->rank != 0))
  	{
  	  gfc_error ("Scalar INTEGER expression expected at %L",
  		     &cl->length->where);
-@@ -12629,6 +12671,7 @@ resolve_fl_procedure (gfc_symbol *sym, int mp_flag)
+@@ -12629,6 +12672,7 @@ resolve_fl_procedure (gfc_symbol *sym, int mp_flag)
  	{
  	  if (arg->sym
  	      && arg->sym->ts.type == BT_DERIVED
@@ -23294,7 +23980,7 @@ new file mode 100755
  	      && !arg->sym->ts.u.derived->attr.use_assoc
  	      && !gfc_check_symbol_access (arg->sym->ts.u.derived)
  	      && !gfc_notify_std (GFC_STD_F2003, "%qs is of a PRIVATE type "
-@@ -12755,8 +12798,10 @@ resolve_fl_procedure (gfc_symbol *sym, int mp_flag)
+@@ -12755,8 +12799,10 @@ resolve_fl_procedure (gfc_symbol *sym, int mp_flag)
      {
        if (sym->attr.proc_pointer)
  	{
@@ -23306,7 +23992,7 @@ new file mode 100755
  	  return false;
  	}
        if (sym->attr.dummy)
-@@ -12843,7 +12888,7 @@ resolve_fl_procedure (gfc_symbol *sym, int mp_flag)
+@@ -12843,7 +12889,7 @@ resolve_fl_procedure (gfc_symbol *sym, int mp_flag)
        if (sym->attr.subroutine && sym->attr.result)
  	{
  	  gfc_error ("PROCEDURE attribute conflicts with RESULT attribute "
@@ -23315,7 +24001,7 @@ new file mode 100755
  	  return false;
  	}
        if (sym->attr.external && sym->attr.function && !sym->attr.module_procedure
-@@ -13541,7 +13586,7 @@ resolve_typebound_procedure (gfc_symtree* stree)
+@@ -13541,7 +13587,7 @@ resolve_typebound_procedure (gfc_symtree* stree)
      {
        /* If proc has not been resolved at this point, proc->name may
  	 actually be a USE associated entity. See PR fortran/89647. */
@@ -23324,7 +24010,7 @@ new file mode 100755
  	  && proc->attr.function == 0 && proc->attr.subroutine == 0)
  	{
  	  gfc_symbol *tmp;
-@@ -13929,7 +13974,7 @@ resolve_component (gfc_component *c, gfc_symbol *sym)
+@@ -13929,7 +13975,7 @@ resolve_component (gfc_component *c, gfc_symbol *sym)
    /* F2008, C448.  */
    if (c->ts.type == BT_CLASS)
      {
@@ -23333,7 +24019,7 @@ new file mode 100755
  	{
  	  attr = &(CLASS_DATA (c)->attr);
  
-@@ -14791,9 +14836,9 @@ resolve_symbol (gfc_symbol *sym)
+@@ -14791,9 +14837,9 @@ resolve_symbol (gfc_symbol *sym)
    gfc_array_spec *as;
    bool saved_specification_expr;
  
@@ -23345,7 +24031,7 @@ new file mode 100755
  
    /* No symbol will ever have union type; only components can be unions.
       Union type declaration symbols have type BT_UNKNOWN but flavor FL_UNION
-@@ -14805,6 +14850,7 @@ resolve_symbol (gfc_symbol *sym)
+@@ -14805,6 +14851,7 @@ resolve_symbol (gfc_symbol *sym)
    if (flag_coarray == GFC_FCOARRAY_LIB && sym->ts.type == BT_CLASS
        && sym->ts.u.derived && CLASS_DATA (sym)
        && CLASS_DATA (sym)->attr.codimension
@@ -23353,7 +24039,7 @@ new file mode 100755
        && (CLASS_DATA (sym)->ts.u.derived->attr.alloc_comp
  	  || CLASS_DATA (sym)->ts.u.derived->attr.pointer_comp))
      {
-@@ -15534,7 +15580,7 @@ resolve_symbol (gfc_symbol *sym)
+@@ -15534,7 +15581,7 @@ resolve_symbol (gfc_symbol *sym)
        if (formal)
  	{
  	  sym->formal_ns = formal->sym->ns;
@@ -23362,7 +24048,7 @@ new file mode 100755
  	    sym->formal_ns->refs++;
  	}
      }
-@@ -16510,7 +16556,8 @@ resolve_equivalence (gfc_equiv *eq)
+@@ -16510,7 +16557,8 @@ resolve_equivalence (gfc_equiv *eq)
  	  && !gfc_notify_std (GFC_STD_GNU, msg, sym->name, &e->where))
  		continue;
  
@@ -23372,7 +24058,7 @@ new file mode 100755
        last_ts =&sym->ts;
        last_where = &e->where;
  
-@@ -16518,8 +16565,7 @@ resolve_equivalence (gfc_equiv *eq)
+@@ -16518,8 +16566,7 @@ resolve_equivalence (gfc_equiv *eq)
  	continue;
  
        /* Shall not be an automatic array.  */
@@ -23632,7 +24318,35 @@ new file mode 100755
    /* Get the size of the array.  */
    if (size && !callee_alloc)
      {
-@@ -2979,13 +3122,16 @@ gfc_conv_ss_descriptor (stmtblock_t * block, gfc_ss * ss, int base)
+@@ -2125,6 +2268,7 @@ get_array_ctor_var_strlen (stmtblock_t *block, gfc_expr * expr, tree * len)
+   gfc_ref *ref;
+   gfc_typespec *ts;
+   mpz_t char_len;
++  gfc_se se;
+ 
+   /* Don't bother if we already know the length is a constant.  */
+   if (*len && INTEGER_CST_P (*len))
+@@ -2170,6 +2314,19 @@ get_array_ctor_var_strlen (stmtblock_t *block, gfc_expr * expr, tree * len)
+ 	}
+     }
+ 
++  /* A last ditch attempt that is sometimes needed for deferred characters.  */
++  if (!ts->u.cl->backend_decl)
++    {
++      gfc_init_se (&se, NULL);
++      if (expr->rank)
++	gfc_conv_expr_descriptor (&se, expr);
++      else
++	gfc_conv_expr (&se, expr);
++      gcc_assert (se.string_length != NULL_TREE);
++      gfc_add_block_to_block (block, &se.pre);
++      ts->u.cl->backend_decl = se.string_length;
++    }
++
+   *len = ts->u.cl->backend_decl;
+ }
+ 
+@@ -2979,13 +3136,16 @@ gfc_conv_ss_descriptor (stmtblock_t * block, gfc_ss * ss, int base)
  	}
        /* Also the data pointer.  */
        tmp = gfc_conv_array_data (se.expr);
@@ -23651,7 +24365,7 @@ new file mode 100755
  	tmp = gfc_evaluate_now (tmp, block);
        info->data = tmp;
  
-@@ -3442,18 +3588,10 @@ build_class_array_ref (gfc_se *se, tree base, tree index)
+@@ -3442,18 +3602,10 @@ build_class_array_ref (gfc_se *se, tree base, tree index)
    size = gfc_class_vtab_size_get (decl);
  
    /* For unlimited polymorphic entities then _len component needs to be
@@ -23674,7 +24388,7 @@ new file mode 100755
  
    /* Build the address of the element.  */
    type = TREE_TYPE (TREE_TYPE (base));
-@@ -6945,6 +7083,24 @@ gfc_get_dataptr_offset (stmtblock_t *block, tree parm, tree desc, tree offset,
+@@ -6945,6 +7097,24 @@ gfc_get_dataptr_offset (stmtblock_t *block, tree parm, tree desc, tree offset,
  	      tmp = gfc_build_array_ref (tmp, index, NULL);
  	      break;
  
@@ -23699,7 +24413,7 @@ new file mode 100755
  	    default:
  	      gcc_unreachable ();
  	      break;
-@@ -6991,7 +7147,12 @@ get_array_charlen (gfc_expr *expr, gfc_se *se)
+@@ -6991,7 +7161,12 @@ get_array_charlen (gfc_expr *expr, gfc_se *se)
        e = gfc_constructor_first (expr->value.constructor)->expr;
  
        gfc_init_se (&tse, NULL);
@@ -23712,7 +24426,7 @@ new file mode 100755
  	gfc_conv_expr_descriptor (&tse, e);
        else
  	gfc_conv_expr (&tse, e);
-@@ -7009,14 +7170,26 @@ get_array_charlen (gfc_expr *expr, gfc_se *se)
+@@ -7009,14 +7184,26 @@ get_array_charlen (gfc_expr *expr, gfc_se *se)
        gfc_add_modify (&se->pre, expr->ts.u.cl->backend_decl,
  		      tse.string_length);
  
@@ -23741,7 +24455,7 @@ new file mode 100755
  
        expr->ts.u.cl->backend_decl =
  		gfc_create_var (gfc_charlen_type_node, "sln");
-@@ -9137,21 +9310,9 @@ structure_alloc_comps (gfc_symbol * der_type, tree decl,
+@@ -9137,21 +9324,9 @@ structure_alloc_comps (gfc_symbol * der_type, tree decl,
  		 for the malloc call.  */
  	      if (UNLIMITED_POLY (c))
  		{
@@ -23764,7 +24478,7 @@ new file mode 100755
  		}
  
  	      /* Coarray component have to have the same allocation status and
-@@ -9890,6 +10051,8 @@ gfc_alloc_allocatable_for_assignment (gfc_loopinfo *loop,
+@@ -9890,6 +10065,8 @@ gfc_alloc_allocatable_for_assignment (gfc_loopinfo *loop,
    tree alloc_expr;
    tree size1;
    tree size2;
@@ -23773,7 +24487,7 @@ new file mode 100755
    tree array1;
    tree cond_null;
    tree cond;
-@@ -9905,6 +10068,7 @@ gfc_alloc_allocatable_for_assignment (gfc_loopinfo *loop,
+@@ -9905,6 +10082,7 @@ gfc_alloc_allocatable_for_assignment (gfc_loopinfo *loop,
    tree jump_label2;
    tree neq_size;
    tree lbd;
@@ -23781,7 +24495,7 @@ new file mode 100755
    int n;
    int dim;
    gfc_array_spec * as;
-@@ -9969,6 +10133,114 @@ gfc_alloc_allocatable_for_assignment (gfc_loopinfo *loop,
+@@ -9969,6 +10147,114 @@ gfc_alloc_allocatable_for_assignment (gfc_loopinfo *loop,
    gcc_assert (GFC_DESCRIPTOR_TYPE_P (TREE_TYPE (desc)));
    array1 = gfc_conv_descriptor_data_get (desc);
  
@@ -23896,7 +24610,7 @@ new file mode 100755
    /* 7.4.1.3 "If variable is an allocated allocatable variable, it is
       deallocated if expr is an array of different shape or any of the
       corresponding length type parameter values of variable and expr
-@@ -9988,6 +10260,7 @@ gfc_alloc_allocatable_for_assignment (gfc_loopinfo *loop,
+@@ -9988,6 +10274,7 @@ gfc_alloc_allocatable_for_assignment (gfc_loopinfo *loop,
  			     rss->info->string_length);
        cond_null = fold_build2_loc (input_location, TRUTH_OR_EXPR,
  				   logical_type_node, tmp, cond_null);
@@ -23904,7 +24618,7 @@ new file mode 100755
      }
    else
      cond_null= gfc_evaluate_now (cond_null, &fblock);
-@@ -10036,6 +10309,19 @@ gfc_alloc_allocatable_for_assignment (gfc_loopinfo *loop,
+@@ -10036,6 +10323,19 @@ gfc_alloc_allocatable_for_assignment (gfc_loopinfo *loop,
        gfc_add_expr_to_block (&fblock, tmp);
      }
  
@@ -23924,7 +24638,7 @@ new file mode 100755
    /* ....else jump past the (re)alloc code.  */
    tmp = build1_v (GOTO_EXPR, jump_label2);
    gfc_add_expr_to_block (&fblock, tmp);
-@@ -10058,11 +10344,6 @@ gfc_alloc_allocatable_for_assignment (gfc_loopinfo *loop,
+@@ -10058,11 +10358,6 @@ gfc_alloc_allocatable_for_assignment (gfc_loopinfo *loop,
    gfc_add_expr_to_block (&fblock, tmp);
  
    /* Get the rhs size and fix it.  */
@@ -23936,7 +24650,7 @@ new file mode 100755
    size2 = gfc_index_one_node;
    for (n = 0; n < expr2->rank; n++)
      {
-@@ -10177,69 +10458,12 @@ gfc_alloc_allocatable_for_assignment (gfc_loopinfo *loop,
+@@ -10177,69 +10472,12 @@ gfc_alloc_allocatable_for_assignment (gfc_loopinfo *loop,
  	gfc_add_modify (&fblock, linfo->delta[dim], tmp);
      }
  
@@ -24008,7 +24722,7 @@ new file mode 100755
    size2 = fold_convert (size_type_node, size2);
    size2 = fold_build2_loc (input_location, MAX_EXPR, size_type_node,
  			   size2, size_one_node);
-@@ -10260,27 +10484,47 @@ gfc_alloc_allocatable_for_assignment (gfc_loopinfo *loop,
+@@ -10260,27 +10498,47 @@ gfc_alloc_allocatable_for_assignment (gfc_loopinfo *loop,
        gfc_add_modify (&fblock, tmp,
  		      gfc_get_dtype_rank_type (expr1->rank,type));
      }
@@ -24069,7 +24783,7 @@ new file mode 100755
      }
    else if (coarray && GFC_DESCRIPTOR_TYPE_P (TREE_TYPE (desc)))
      {
-@@ -10356,11 +10600,19 @@ gfc_alloc_allocatable_for_assignment (gfc_loopinfo *loop,
+@@ -10356,11 +10614,19 @@ gfc_alloc_allocatable_for_assignment (gfc_loopinfo *loop,
    gfc_add_block_to_block (&realloc_block, &caf_se.post);
    realloc_expr = gfc_finish_block (&realloc_block);
  
@@ -24091,7 +24805,7 @@ new file mode 100755
  
    /* Malloc expression.  */
    gfc_init_block (&alloc_block);
-@@ -10407,11 +10659,7 @@ gfc_alloc_allocatable_for_assignment (gfc_loopinfo *loop,
+@@ -10407,11 +10673,7 @@ gfc_alloc_allocatable_for_assignment (gfc_loopinfo *loop,
    alloc_expr = gfc_finish_block (&alloc_block);
  
    /* Malloc if not allocated; realloc otherwise.  */
@@ -24104,7 +24818,7 @@ new file mode 100755
    gfc_add_expr_to_block (&fblock, tmp);
  
    /* Make sure that the scalarizer data pointer is updated.  */
-@@ -10421,7 +10669,7 @@ gfc_alloc_allocatable_for_assignment (gfc_loopinfo *loop,
+@@ -10421,7 +10683,7 @@ gfc_alloc_allocatable_for_assignment (gfc_loopinfo *loop,
        gfc_add_modify (&fblock, linfo->data, tmp);
      }
  
@@ -24508,6 +25222,50 @@ new file mode 100755
  	}
        else if (se->ss && se->ss->info->useflags)
  	{
+@@ -5958,7 +6158,7 @@ gfc_conv_procedure_call (gfc_se * se, gfc_symbol * sym,
+ 				fsym && fsym->attr.pointer);
+ 
+ 	      else if (gfc_is_class_array_ref (e, NULL)
+-			 && fsym && fsym->ts.type == BT_DERIVED)
++		       && fsym && fsym->ts.type == BT_DERIVED)
+ 		/* The actual argument is a component reference to an
+ 		   array of derived types.  In this case, the argument
+ 		   is converted to a temporary, which is passed and then
+@@ -5967,26 +6167,26 @@ gfc_conv_procedure_call (gfc_se * se, gfc_symbol * sym,
+ 		   the same as the declared type, copy-in/copy-out does
+ 		   not occur.  */
+ 		gfc_conv_subref_array_arg (&parmse, e, nodesc_arg,
+-				fsym ? fsym->attr.intent : INTENT_INOUT,
+-				fsym && fsym->attr.pointer);
++					   fsym->attr.intent,
++					   fsym->attr.pointer);
+ 
+ 	      else if (gfc_is_class_array_function (e)
+-			 && fsym && fsym->ts.type == BT_DERIVED)
++		       && fsym && fsym->ts.type == BT_DERIVED)
+ 		/* See previous comment.  For function actual argument,
+ 		   the write out is not needed so the intent is set as
+ 		   intent in.  */
+ 		{
+ 		  e->must_finalize = 1;
+ 		  gfc_conv_subref_array_arg (&parmse, e, nodesc_arg,
+-					     INTENT_IN,
+-					     fsym && fsym->attr.pointer);
++					     INTENT_IN, fsym->attr.pointer);
+ 		}
+ 	      else if (fsym && fsym->attr.contiguous
+-		       && !gfc_is_simply_contiguous (e, false, true))
++		       && !gfc_is_simply_contiguous (e, false, true)
++		       && gfc_expr_is_variable (e))
+ 		{
+ 		  gfc_conv_subref_array_arg (&parmse, e, nodesc_arg,
+-				fsym ? fsym->attr.intent : INTENT_INOUT,
+-				fsym && fsym->attr.pointer);
++					     fsym->attr.intent,
++					     fsym->attr.pointer);
+ 		}
+ 	      else
+ 		gfc_conv_array_parameter (&parmse, e, nodesc_arg, fsym,
 @@ -7462,12 +7662,14 @@ gfc_conv_initializer (gfc_expr * expr, gfc_typespec * ts, tree type,
  	  return se.expr;
  
@@ -24867,6 +25625,16 @@ new file mode 100755
    else if (decl)
      span = get_array_span (type, decl);
  
+@@ -609,6 +616,9 @@ gfc_call_malloc (stmtblock_t * block, tree type, tree size)
+   /* Call malloc.  */
+   gfc_start_block (&block2);
+ 
++  if (size == NULL_TREE)
++    size = build_int_cst (size_type_node, 1);
++
+   size = fold_convert (size_type_node, size);
+   size = fold_build2_loc (input_location, MAX_EXPR, size_type_node, size,
+ 			  build_int_cst (size_type_node, 1));
 --- a/src/gcc/fortran/trans.h
 +++ b/src/gcc/fortran/trans.h
 @@ -415,6 +415,7 @@ tree gfc_class_data_get (tree);
@@ -25791,7 +26559,84 @@ new file mode 100755
    if (warn_packed && TREE_CODE (rli->t) == RECORD_TYPE
 --- a/src/gcc/testsuite/ChangeLog
 +++ b/src/gcc/testsuite/ChangeLog
-@@ -1,3 +1,2059 @@
+@@ -1,3 +1,2136 @@
++2021-01-29  Jason Merrill  <jason@redhat.com>
++
++	PR c++/63707
++	* g++.dg/cpp0x/initlist-array13.C: New test.
++
++2021-01-29  Richard Biener  <rguenther@suse.de>
++
++	Backported from master:
++	2021-01-29  Bin Cheng  <bin.cheng@linux.alibaba.com>
++		    Richard Biener  <rguenther@suse.de>
++
++	PR tree-optimization/97627
++	* g++.dg/pr97627.C: New testcase.
++
++2021-01-28  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2021-01-28  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/86470
++	* gfortran.dg/gomp/pr86470.f90: New test.
++
++2021-01-25  Eric Botcazou  <ebotcazou@adacore.com>
++
++	* gnat.dg/thunk2.adb, gnat.dg/thunk2.ads: New test.
++	* gnat.dg/thunk2_pkg.ads: New helper.
++
++2021-01-25  Paul Thomas  <pault@gcc.gnu.org>
++
++	Backported from master:
++	2021-01-25  Steve Kargl  <kargl@gcc.gnu.org>
++
++	PR fortran/98517
++	* gfortran.dg/charlen_18.f90 : New test.
++
++2021-01-25  Paul Thomas  <pault@gcc.gnu.org>
++
++	Backported from master:
++	2020-12-29  Paul Thomas  <pault@gcc.gnu.org>
++
++	PR fortran/93833
++	* gfortran.dg/deferred_character_36.f90 : New test.
++
++2021-01-23  Paul Thomas  <pault@gcc.gnu.org>
++
++	Backported from master:
++	2020-12-26  Paul Thomas  <pault@gcc.gnu.org>
++
++	PR fortran/98022
++	* gfortran.dg/data_inquiry_ref.f90: Change to dg-compile and
++	add errors for inquiry references.
++
++2021-01-23  Paul Thomas  <pault@gcc.gnu.org>
++
++	Backported from master:
++	2020-12-12  Paul Thomas  <pault@gcc.gnu.org>
++
++	PR fortran/98022
++	* gfortran.dg/data_inquiry_ref.f90: New test.
++
++2021-01-21  Wilco Dijkstra  <wdijkstr@arm.com>
++
++	Backported from master:
++	2019-10-16  Wilco Dijkstra  <wdijkstr@arm.com>
++
++	PR target/98618
++	* gcc.target/aarch64/symbol-range.c: Improve testcase.
++	* gcc.target/aarch64/symbol-range-tiny.c: Likewise.
++
++2021-01-19  Tobias Burnus  <tobias@codesourcery.com>
++
++	Backported from master:
++	2020-01-04  Tobias Burnus  <tobias@codesourcery.com>
++
++	PR fortran/91640
++	* gfortran.dg/contiguous_10.f90: New.
++
 +2021-01-07  Paul Thomas  <pault@gcc.gnu.org>
 +
 +	Backported from master:
@@ -28610,6 +29455,26 @@ new file mode 100644
 +}
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/g++.dg/cpp0x/initlist-array13.C
+@@ -0,0 +1,16 @@
++// PR c++/63707
++// { dg-do compile { target c++11 } }
++
++struct Child
++{
++  Child (int);
++  ~Child ();
++  Child (const Child &) = delete;
++};
++
++struct Parent
++{
++  Parent () : children {{5}, {7}} {}
++
++  Child children[2];
++};
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/g++.dg/cpp0x/lambda/lambda-93597.C
 @@ -0,0 +1,8 @@
 +// PR c++/93597 - ICE with lambda in operator function.
@@ -30205,6 +31070,54 @@ new file mode 100644
 +void h() {
 +  for (int b; b; b++)
 +    c += g[b].e();
++}
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/g++.dg/pr97627.C
+@@ -0,0 +1,44 @@
++/* PR tree-optimization/97627.  */
++/* { dg-do run } */
++
++struct S { unsigned short x, y; } m = { 1, 0 };
++
++__attribute__((noipa)) void
++baz (int x, int y)
++{
++  if (x != 0 || y != 1)
++    __builtin_abort ();
++}
++
++__attribute__((noipa)) void
++bar ()
++{
++  throw 1;
++}
++
++void
++foo ()
++{
++  while (1)
++    {
++      int a = m.x + 1;
++      int b = m.y + 1;
++      for (int c = 0; c < a; c++)
++	for (int d = 0; d < b; d++)
++	  baz (d, b);
++      bar ();
++    }
++}
++
++int
++main ()
++{
++  try
++    {
++      foo ();
++    }
++  catch (int)
++    {
++    }
++  return 0;
 +}
 new file mode 100644
 --- /dev/null
@@ -35405,6 +36318,44 @@ new file mode 100644
 +  while (g (x, y))
 +    asm ("" : "+w" (x), "+w" (y));
 +}
+--- a/src/gcc/testsuite/gcc.target/aarch64/symbol-range-tiny.c
++++ b/src/gcc/testsuite/gcc.target/aarch64/symbol-range-tiny.c
+@@ -1,12 +1,12 @@
+-/* { dg-do compile } */
++/* { dg-do link } */
+ /* { dg-options "-O3 -save-temps -mcmodel=tiny" } */
+ 
+-int fixed_regs[0x00200000];
++char fixed_regs[0x00080000];
+ 
+ int
+-foo()
++main ()
+ {
+-  return fixed_regs[0x00080000];
++  return fixed_regs[0x000ff000];
+ }
+ 
+ /* { dg-final { scan-assembler-not "adr\tx\[0-9\]+, fixed_regs\\\+" } } */
+--- a/src/gcc/testsuite/gcc.target/aarch64/symbol-range.c
++++ b/src/gcc/testsuite/gcc.target/aarch64/symbol-range.c
+@@ -1,12 +1,12 @@
+-/* { dg-do compile } */
++/* { dg-do link } */
+ /* { dg-options "-O3 -save-temps -mcmodel=small" } */
+ 
+-int fixed_regs[0x200000000ULL];
++char fixed_regs[0x80000000];
+ 
+ int
+-foo()
++main ()
+ {
+-  return fixed_regs[0x100000000ULL];
++  return fixed_regs[0xfffff000];
+ }
+ 
+ /* { dg-final { scan-assembler-not "adrp\tx\[0-9\]+, fixed_regs\\\+" } } */
 --- a/src/gcc/testsuite/gcc.target/aarch64/sync-comp-swap.c
 +++ b/src/gcc/testsuite/gcc.target/aarch64/sync-comp-swap.c
 @@ -1,5 +1,5 @@
@@ -39802,6 +40753,28 @@ new file mode 100644
 +end
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/charlen_18.f90
+@@ -0,0 +1,18 @@
++! { dg-do compile }
++! { dg-options "-fdec-structure" }
++!
++! Check fix for PR98517
++!
++! Contributed by Eric Reischer  <emr-gnu@hev.psu.edu>
++!
++      SUBROUTINE TEST_BUG
++      IMPLICIT NONE
++
++      CHARACTER*(*) DEF_VAL
++      PARAMETER (DEF_VAL = 'ABCDEFGH')
++
++      STRUCTURE /SOME_STRUCT/
++          CHARACTER*64    SOME_VAR /DEF_VAL/
++      END STRUCTURE
++
++      END
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/gfortran.dg/class_allocate_25.f90
 @@ -0,0 +1,58 @@
 +! { dg-do run }
@@ -40051,6 +41024,79 @@ new file mode 100644
 +end
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/contiguous_10.f90
+@@ -0,0 +1,69 @@
++! { dg-do run }
++! { dg-additional-options "-fdump-tree-original" }
++!
++! PR fortran/91640
++!
++! Based on G. Steinmetz's test case
++!
++program p
++   implicit none (type, external)
++   real, target :: z(3) = 1.0
++   real :: res(3)
++   real, pointer :: xxx(:)
++
++   res = 42.0
++   call sub (-z, res)
++   if (any (abs (res - (-1.0)) > epsilon(res))) stop 1
++   if (any (abs (z - 1.0) > epsilon(z))) stop 2
++
++   res = 43.0
++   call sub (z*2.0, res)
++   if (any (abs (res - 2.0) > epsilon(res))) stop 3
++   if (any (abs (z - 1.0) > epsilon(z))) stop 4
++
++   res = 44.0
++   call sub(get_var(), res)
++   if (any (abs (res - 1.0) > epsilon(res))) stop 5
++   if (any (abs (z - 1.0) > epsilon(z))) stop 6
++
++   call double(get_var())
++   if (any (abs (z - 2.0) > epsilon(z))) stop 7
++
++   call double(get_var_cont())
++   if (any (abs (z - 4.0) > epsilon(z))) stop 8
++
++   ! For cross check for copy-out:
++   xxx => z
++   if (any (abs (z - 4.0) > epsilon(z))) stop 10
++   if (any (abs (xxx - 4.0) > epsilon(z))) stop 11
++   call double (xxx)
++   if (any (abs (z - 8.0) > epsilon(z))) stop 12
++   if (any (abs (xxx - 8.0) > epsilon(z))) stop 13
++
++contains
++   subroutine sub (x, res)
++      real, contiguous :: x(:)
++      real :: res(3)
++      res = x
++   end
++   subroutine double (x)
++      real, contiguous :: x(:)
++      x = x * 2.0
++   end
++   function get_var()
++     real, pointer :: get_var(:)
++     get_var => z
++   end
++   function get_var_cont()
++     real, pointer, contiguous :: get_var_cont(:)
++     get_var_cont => z
++   end
++end
++
++! only 'xxx' should have a copy out:
++! { dg-final { scan-tree-dump-times "D\\.\[0-9\].* = .*atmp\\.\[0-9\]*\\.data" 1 "original" } }
++! { dg-final { scan-tree-dump-times "D\\.\[0-9\].*xxx\\.span.* = .*atmp\\.\[0-9\]*\\.data" 1 "original" } }
++
++! Only once 'z... = ' – for:   static real(kind=4) z[3] = {[0 ... 2]=1.0e+0};
++! but don't match '(si)ze'
++! { dg-final { scan-tree-dump-times "z\[^e\].* = " 1 "original" } }
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/gfortran.dg/coverage.f90
 @@ -0,0 +1,17 @@
 +! { dg-do compile }
@@ -40070,6 +41116,49 @@ new file mode 100644
 +   integer :: res
 +   res = bar(sbr)
 +end function foo_suite
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/data_inquiry_ref.f90
+@@ -0,0 +1,39 @@
++! { dg-do compile }
++!
++! Test the fix for PR98022. Code is in place to deliver the expected result.
++! However, it was determined that the data statements below violate F18(R841)
++! and so an error results.
++!
++! Contributed by Arseny Solokha  <asolokha@gmx.com>
++!
++module ur
++contains
++! The reporter's test.
++  function kn1() result(hm2)
++    complex :: hm(1:2), hm2(1:3), scalar
++    data (hm(md)%re, md=1,2)/1.0, 2.0/, scalar%re/42.0/     ! { dg-error "neither an array-element" }
++    data (hm(md)%im, md=1,2)/0.0, 0.0/, scalar%im/-42.0/    ! { dg-error "neither an array-element" }
++    hm2(1:2) = hm
++    hm2(3) = scalar
++  end function kn1
++
++! Check for derived types with complex components.
++  function kn2() result(hm2)
++    type t
++      complex :: c
++      integer :: i
++    end type
++    type (t) :: hm(1:2), scalar
++    complex :: hm2(1:3)
++    data (hm(md)%c%re, md=1,2)/0.0, 0.0/, scalar%c%re/42.0/  ! { dg-error "neither an array-element" }
++    data (hm(md)%c%im, md=1,2)/1.0, 2.0/, scalar%c%im/-42.0/ ! { dg-error "neither an array-element" }
++    data (hm(md)%i, md=1,2)/1, 2/
++    hm2(1:2) = hm%c
++    hm2(3) = scalar%c
++  end function kn2
++end module ur
++
++!  use ur
++!  if (any (kn1() .ne. [(1.0,0.0),(2.0,0.0),(42.0,-42.0)])) stop 1
++!  if (any (kn2() .ne. [(0.0,1.0),(0.0,2.0),(42.0,-42.0)])) stop 2
++end
 new file mode 100644
 --- /dev/null
 +++ b/src/gcc/testsuite/gfortran.dg/dec_structure_28.f90
@@ -40108,6 +41197,26 @@ new file mode 100644
 +  integer(kind=4) :: w ! OK
 +end structure
 +
++end
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/deferred_character_36.f90
+@@ -0,0 +1,16 @@
++! { dg-do run }
++!
++! Test the fix for PR93833, which ICEd as shown.
++!
++! Contributed by Gerhard Steinmetz  <gscfq@t-online.de>
++!
++program p
++   character(:), allocatable :: c
++   c = "wxyz"
++contains
++   subroutine s
++      associate (y => [c])
++         if (any(y /= [c])) stop 1
++      end associate
++   end
 +end
 new file mode 100644
 --- /dev/null
@@ -41168,6 +42277,22 @@ new file mode 100644
 +     v(i)%p(1:v(i)%s) = v(3-i)%p(1:v(i)%s)
 +  end forall
 +  if (any(v(2)%p(:) /= [1, 2, 3, 4, 5, 6, 19, 20])) stop 2
++end
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/gomp/pr86470.f90
+@@ -0,0 +1,12 @@
++! { dg-do compile }
++! PR fortran/86470 - ICE with OpenMP, class(*)
++
++program p
++  implicit none
++  class(*), allocatable :: val
++!$OMP PARALLEL private(val)
++  allocate(integer::val)
++  val = 1
++  deallocate(val)
++!$OMP END PARALLEL
 +end
 new file mode 100644
 --- /dev/null
@@ -42781,6 +43906,52 @@ new file mode 100644
 +  end record;
 +
 +end Discr7;
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gnat.dg/thunk2.adb
+@@ -0,0 +1,11 @@
++-- { dg-do compile }
++-- { dg-options "-O2" }
++
++package body Thunk2 is
++
++  overriding function Element (Self : Ext; Name : String) return Ext is
++  begin
++    return Self;
++  end;
++
++end Thunk2;
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gnat.dg/thunk2.ads
+@@ -0,0 +1,12 @@
++with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
++with Thunk2_Pkg; use Thunk2_Pkg;
++
++package Thunk2 is
++
++  type Ext is new Root and I with record
++    S : Unbounded_String;
++  end record;
++
++  overriding function Element (Self : Ext; Name : String) return Ext;
++
++end Thunk2;
+new file mode 100644
+--- /dev/null
++++ b/src/gcc/testsuite/gnat.dg/thunk2_pkg.ads
+@@ -0,0 +1,11 @@
++package Thunk2_Pkg is
++
++  type Root is tagged record
++    A : Integer;
++  end record;
++
++  type I is interface;
++
++  function Element (Self : I; Name : String) return I is abstract;
++
++end Thunk2_Pkg;
 --- a/src/gcc/testsuite/go.test/test/fixedbugs/issue4085b.go
 +++ b/src/gcc/testsuite/go.test/test/fixedbugs/issue4085b.go
 @@ -21,9 +21,11 @@ func main() {
@@ -43710,6 +44881,20 @@ new file mode 100644
  
    add_candidate (data, iv->base, iv->step, false, use);
  
+--- a/src/gcc/tree-ssa-loop-niter.c
++++ b/src/gcc/tree-ssa-loop-niter.c
+@@ -2382,6 +2382,11 @@ number_of_iterations_exit_assumptions (struct loop *loop, edge exit,
+   affine_iv iv0, iv1;
+   bool safe;
+ 
++  /* The condition at a fake exit (if it exists) does not control its
++     execution.  */
++  if (exit->flags & EDGE_FAKE)
++    return false;
++
+   /* Nothing to analyze if the loop is known to be infinite.  */
+   if (loop_constraint_set_p (loop, LOOP_C_INFINITE))
+     return false;
 --- a/src/gcc/tree-ssa-phiopt.c
 +++ b/src/gcc/tree-ssa-phiopt.c
 @@ -1040,7 +1040,7 @@ value_replacement (basic_block cond_bb, basic_block middle_bb,
@@ -44468,7 +45653,17 @@ new file mode 100644
        /* No need for fwait, exception is triggered by emitted fstp.  */
 --- a/src/libgcc/ChangeLog
 +++ b/src/libgcc/ChangeLog
-@@ -1,3 +1,146 @@
+@@ -1,3 +1,156 @@
++2021-01-13  Samuel Thibault  <samuel.thibault@gnu.org>
++
++	Backported from master:
++	2021-01-13  Samuel Thibault  <samuel.thibault@gnu.org>
++
++	* config/i386/gnu-unwind.h (x86_gnu_fallback_frame_state): Add the
++	posix siginfo case to struct handler_args. Detect between legacy
++	and siginfo from the second parameter, which is a small sigcode in
++	the legacy case, and a pointer in the siginfo case.
++
 +2020-08-07  Jakub Jelinek  <jakub@redhat.com>
 +
 +	Backported from master:
@@ -45204,7 +46399,7 @@ new file mode 100644
 new file mode 100644
 --- /dev/null
 +++ b/src/libgcc/config/i386/gnu-unwind.h
-@@ -0,0 +1,107 @@
+@@ -0,0 +1,141 @@
 +/* DWARF2 EH unwinding support for GNU Hurd: x86.
 +   Copyright (C) 2020 Free Software Foundation, Inc.
 +   Contributed by Samuel Thibault <samuel.thibault@gnu.org>
@@ -45245,10 +46440,21 @@ new file mode 100644
 +{
 +  struct handler_args {
 +    int signo;
-+    int sigcode;
-+    struct sigcontext *scp;
++    union
++      {
++	struct
++	  {
++	    long int sigcode;
++	    struct sigcontext *scp;
++	  } legacy;
++	struct
++	  {
++	    siginfo_t *siginfop;
++	    ucontext_t *uctxp;
++	  } posix;
++      };
 +  } *handler_args;
-+  struct sigcontext *scp;
++  long int sigcode;
 +  unsigned long usp;
 +
 +/*
@@ -45282,29 +46488,52 @@ new file mode 100644
 +    return _URC_END_OF_STACK;
 +
 +  handler_args = context->cfa;
-+  scp = handler_args->scp;
-+  usp = scp->sc_uesp;
++  sigcode = handler_args->legacy.sigcode;
++  if (sigcode >= -16 && sigcode < 4096)
++    {
++      /* This cannot be a SIGINFO pointer, assume legacy.  */
++      struct sigcontext *scp = handler_args->legacy.scp;
++      usp = scp->sc_uesp;
++
++      fs->regs.reg[0].loc.offset = (unsigned long)&scp->sc_eax - usp;
++      fs->regs.reg[1].loc.offset = (unsigned long)&scp->sc_ecx - usp;
++      fs->regs.reg[2].loc.offset = (unsigned long)&scp->sc_edx - usp;
++      fs->regs.reg[3].loc.offset = (unsigned long)&scp->sc_ebx - usp;
++      fs->regs.reg[5].loc.offset = (unsigned long)&scp->sc_ebp - usp;
++      fs->regs.reg[6].loc.offset = (unsigned long)&scp->sc_esi - usp;
++      fs->regs.reg[7].loc.offset = (unsigned long)&scp->sc_edi - usp;
++      fs->regs.reg[8].loc.offset = (unsigned long)&scp->sc_eip - usp;
++    }
++  else
++    {
++      /* This is not a valid sigcode, assume SIGINFO.  */
++      ucontext_t *uctxp = handler_args->posix.uctxp;
++      gregset_t *gregset = &uctxp->uc_mcontext.gregs;
++      usp = (*gregset)[REG_UESP];
++
++      fs->regs.reg[0].loc.offset = (unsigned long)&(*gregset)[REG_EAX] - usp;
++      fs->regs.reg[1].loc.offset = (unsigned long)&(*gregset)[REG_ECX] - usp;
++      fs->regs.reg[2].loc.offset = (unsigned long)&(*gregset)[REG_EDX] - usp;
++      fs->regs.reg[3].loc.offset = (unsigned long)&(*gregset)[REG_EBX] - usp;
++      fs->regs.reg[5].loc.offset = (unsigned long)&(*gregset)[REG_EBP] - usp;
++      fs->regs.reg[6].loc.offset = (unsigned long)&(*gregset)[REG_ESI] - usp;
++      fs->regs.reg[7].loc.offset = (unsigned long)&(*gregset)[REG_EDI] - usp;
++      fs->regs.reg[8].loc.offset = (unsigned long)&(*gregset)[REG_EIP] - usp;
++    }
 +
 +  fs->regs.cfa_how = CFA_REG_OFFSET;
 +  fs->regs.cfa_reg = 4;
 +  fs->regs.cfa_offset = usp - (unsigned long) context->cfa;
 +
 +  fs->regs.reg[0].how = REG_SAVED_OFFSET;
-+  fs->regs.reg[0].loc.offset = (unsigned long)&scp->sc_eax - usp;
 +  fs->regs.reg[1].how = REG_SAVED_OFFSET;
-+  fs->regs.reg[1].loc.offset = (unsigned long)&scp->sc_ecx - usp;
 +  fs->regs.reg[2].how = REG_SAVED_OFFSET;
-+  fs->regs.reg[2].loc.offset = (unsigned long)&scp->sc_edx - usp;
 +  fs->regs.reg[3].how = REG_SAVED_OFFSET;
-+  fs->regs.reg[3].loc.offset = (unsigned long)&scp->sc_ebx - usp;
 +  fs->regs.reg[5].how = REG_SAVED_OFFSET;
-+  fs->regs.reg[5].loc.offset = (unsigned long)&scp->sc_ebp - usp;
 +  fs->regs.reg[6].how = REG_SAVED_OFFSET;
-+  fs->regs.reg[6].loc.offset = (unsigned long)&scp->sc_esi - usp;
 +  fs->regs.reg[7].how = REG_SAVED_OFFSET;
-+  fs->regs.reg[7].loc.offset = (unsigned long)&scp->sc_edi - usp;
 +  fs->regs.reg[8].how = REG_SAVED_OFFSET;
-+  fs->regs.reg[8].loc.offset = (unsigned long)&scp->sc_eip - usp;
++
 +  fs->retaddr_column = 8;
 +  fs->signal_frame = 1;
 +
@@ -49896,7 +51125,26 @@ new mode 100755
        break;
 --- a/src/libgomp/ChangeLog
 +++ b/src/libgomp/ChangeLog
-@@ -1,3 +1,195 @@
+@@ -1,3 +1,214 @@
++2021-01-14  Kwok Cheung Yeung  <kcy@codesourcery.com>
++
++	Backported from master:
++	2019-09-30  Kwok Cheung Yeung  <kcy@codesourcery.com>
++
++	* libgomp_g.h: Include stdint.h instead of gstdint.h.
++
++2021-01-14  Thomas Schwinge  <thomas@codesourcery.com>
++
++	Backported from master:
++	2021-01-14  Thomas Schwinge  <thomas@codesourcery.com>
++
++	PR libgomp/65099
++	* plugin/configfrag.ac (PLUGIN_NVPTX): Restrict to supported
++	configurations.
++	* configure: Regenerate.
++	* plugin/plugin-nvptx.c (nvptx_get_num_devices): Remove 64-bit
++	check.
++
 +2020-11-25  Thomas Schwinge  <thomas@codesourcery.com>
 +
 +	Backported from master:
@@ -50092,6 +51340,237 @@ new mode 100755
  2020-03-12  Release Manager
  
  	* GCC 9.3.0 released.
+--- a/src/libgomp/configure
++++ b/src/libgomp/configure
+@@ -15641,21 +15641,30 @@ if test x"$enable_offload_targets" != x; then
+ 	tgt_plugin=intelmic
+ 	;;
+       nvptx*)
+-	tgt_plugin=nvptx
+-	PLUGIN_NVPTX=$tgt
+-	if test "x$CUDA_DRIVER_LIB" != xno \
+-	   && test "x$CUDA_DRIVER_LIB" != xno; then
+-	  PLUGIN_NVPTX_CPPFLAGS=$CUDA_DRIVER_CPPFLAGS
+-	  PLUGIN_NVPTX_LDFLAGS=$CUDA_DRIVER_LDFLAGS
+-	  PLUGIN_NVPTX_LIBS='-lcuda'
+-
+-	  PLUGIN_NVPTX_save_CPPFLAGS=$CPPFLAGS
+-	  CPPFLAGS="$PLUGIN_NVPTX_CPPFLAGS $CPPFLAGS"
+-	  PLUGIN_NVPTX_save_LDFLAGS=$LDFLAGS
+-	  LDFLAGS="$PLUGIN_NVPTX_LDFLAGS $LDFLAGS"
+-	  PLUGIN_NVPTX_save_LIBS=$LIBS
+-	  LIBS="$PLUGIN_NVPTX_LIBS $LIBS"
+-	  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
++	case "${target}" in
++	  aarch64*-*-* | powerpc64le-*-* | x86_64-*-*)
++	    case " ${CC} ${CFLAGS} " in
++	      *" -m32 "* | *" -mx32 "*)
++		# PR libgomp/65099: Currently, we only support offloading in
++		# 64-bit configurations.
++		PLUGIN_NVPTX=0
++		;;
++	      *)
++		tgt_plugin=nvptx
++		PLUGIN_NVPTX=$tgt
++		if test "x$CUDA_DRIVER_LIB" != xno \
++		   && test "x$CUDA_DRIVER_LIB" != xno; then
++		  PLUGIN_NVPTX_CPPFLAGS=$CUDA_DRIVER_CPPFLAGS
++		  PLUGIN_NVPTX_LDFLAGS=$CUDA_DRIVER_LDFLAGS
++		  PLUGIN_NVPTX_LIBS='-lcuda'
++
++		  PLUGIN_NVPTX_save_CPPFLAGS=$CPPFLAGS
++		  CPPFLAGS="$PLUGIN_NVPTX_CPPFLAGS $CPPFLAGS"
++		  PLUGIN_NVPTX_save_LDFLAGS=$LDFLAGS
++		  LDFLAGS="$PLUGIN_NVPTX_LDFLAGS $LDFLAGS"
++		  PLUGIN_NVPTX_save_LIBS=$LIBS
++		  LIBS="$PLUGIN_NVPTX_LIBS $LIBS"
++		  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+ /* end confdefs.h.  */
+ #include "cuda.h"
+ int
+@@ -15671,25 +15680,33 @@ if ac_fn_c_try_link "$LINENO"; then :
+ fi
+ rm -f core conftest.err conftest.$ac_objext \
+     conftest$ac_exeext conftest.$ac_ext
+-	  CPPFLAGS=$PLUGIN_NVPTX_save_CPPFLAGS
+-	  LDFLAGS=$PLUGIN_NVPTX_save_LDFLAGS
+-	  LIBS=$PLUGIN_NVPTX_save_LIBS
+-	fi
+-	case $PLUGIN_NVPTX in
+-	  nvptx*)
+-	    if (test "x$CUDA_DRIVER_INCLUDE" = x \
+-		|| test "x$CUDA_DRIVER_INCLUDE" = xno) \
+-	       && (test "x$CUDA_DRIVER_LIB" = x \
+-		   || test "x$CUDA_DRIVER_LIB" = xno); then
+-	      PLUGIN_NVPTX=1
+-	      PLUGIN_NVPTX_CPPFLAGS='-I$(srcdir)/plugin/cuda'
+-	      PLUGIN_NVPTX_LIBS='-ldl'
+-	      PLUGIN_NVPTX_DYNAMIC=1
+-	    else
+-	      PLUGIN_NVPTX=0
+-	      as_fn_error $? "CUDA driver package required for nvptx support" "$LINENO" 5
+-	    fi
+-	  ;;
++		  CPPFLAGS=$PLUGIN_NVPTX_save_CPPFLAGS
++		  LDFLAGS=$PLUGIN_NVPTX_save_LDFLAGS
++		  LIBS=$PLUGIN_NVPTX_save_LIBS
++		fi
++		case $PLUGIN_NVPTX in
++		  nvptx*)
++		    if (test "x$CUDA_DRIVER_INCLUDE" = x \
++			|| test "x$CUDA_DRIVER_INCLUDE" = xno) \
++		       && (test "x$CUDA_DRIVER_LIB" = x \
++			   || test "x$CUDA_DRIVER_LIB" = xno); then
++		      PLUGIN_NVPTX=1
++		      PLUGIN_NVPTX_CPPFLAGS='-I$(srcdir)/plugin/cuda'
++		      PLUGIN_NVPTX_LIBS='-ldl'
++		      PLUGIN_NVPTX_DYNAMIC=1
++		    else
++		      PLUGIN_NVPTX=0
++		      as_fn_error $? "CUDA driver package required for nvptx support" "$LINENO" 5
++		    fi
++		    ;;
++		esac
++		;;
++	    esac
++	    ;;
++	  *-*-*)
++	    # Target architecture not supported.
++	    PLUGIN_NVPTX=0
++	    ;;
+ 	esac
+ 	;;
+       hsa*)
+--- a/src/libgomp/libgomp_g.h
++++ b/src/libgomp/libgomp_g.h
+@@ -31,7 +31,7 @@
+ 
+ #include <stdbool.h>
+ #include <stddef.h>
+-#include "gstdint.h"
++#include <stdint.h>
+ 
+ /* barrier.c */
+ 
+--- a/src/libgomp/plugin/configfrag.ac
++++ b/src/libgomp/plugin/configfrag.ac
+@@ -158,44 +158,61 @@ if test x"$enable_offload_targets" != x; then
+ 	tgt_plugin=intelmic
+ 	;;
+       nvptx*)
+-	tgt_plugin=nvptx
+-	PLUGIN_NVPTX=$tgt
+-	if test "x$CUDA_DRIVER_LIB" != xno \
+-	   && test "x$CUDA_DRIVER_LIB" != xno; then
+-	  PLUGIN_NVPTX_CPPFLAGS=$CUDA_DRIVER_CPPFLAGS
+-	  PLUGIN_NVPTX_LDFLAGS=$CUDA_DRIVER_LDFLAGS
+-	  PLUGIN_NVPTX_LIBS='-lcuda'
++	case "${target}" in
++	  aarch64*-*-* | powerpc64le-*-* | x86_64-*-*)
++	    case " ${CC} ${CFLAGS} " in
++	      *" -m32 "* | *" -mx32 "*)
++		# PR libgomp/65099: Currently, we only support offloading in
++		# 64-bit configurations.
++		PLUGIN_NVPTX=0
++		;;
++	      *)
++		tgt_plugin=nvptx
++		PLUGIN_NVPTX=$tgt
++		if test "x$CUDA_DRIVER_LIB" != xno \
++		   && test "x$CUDA_DRIVER_LIB" != xno; then
++		  PLUGIN_NVPTX_CPPFLAGS=$CUDA_DRIVER_CPPFLAGS
++		  PLUGIN_NVPTX_LDFLAGS=$CUDA_DRIVER_LDFLAGS
++		  PLUGIN_NVPTX_LIBS='-lcuda'
+ 
+-	  PLUGIN_NVPTX_save_CPPFLAGS=$CPPFLAGS
+-	  CPPFLAGS="$PLUGIN_NVPTX_CPPFLAGS $CPPFLAGS"
+-	  PLUGIN_NVPTX_save_LDFLAGS=$LDFLAGS
+-	  LDFLAGS="$PLUGIN_NVPTX_LDFLAGS $LDFLAGS"
+-	  PLUGIN_NVPTX_save_LIBS=$LIBS
+-	  LIBS="$PLUGIN_NVPTX_LIBS $LIBS"
+-	  AC_LINK_IFELSE(
+-	    [AC_LANG_PROGRAM(
+-	      [#include "cuda.h"],
+-		[CUresult r = cuCtxPushCurrent (NULL);])],
+-	    [PLUGIN_NVPTX=1])
+-	  CPPFLAGS=$PLUGIN_NVPTX_save_CPPFLAGS
+-	  LDFLAGS=$PLUGIN_NVPTX_save_LDFLAGS
+-	  LIBS=$PLUGIN_NVPTX_save_LIBS
+-	fi
+-	case $PLUGIN_NVPTX in
+-	  nvptx*)
+-	    if (test "x$CUDA_DRIVER_INCLUDE" = x \
+-		|| test "x$CUDA_DRIVER_INCLUDE" = xno) \
+-	       && (test "x$CUDA_DRIVER_LIB" = x \
+-		   || test "x$CUDA_DRIVER_LIB" = xno); then
+-	      PLUGIN_NVPTX=1
+-	      PLUGIN_NVPTX_CPPFLAGS='-I$(srcdir)/plugin/cuda'
+-	      PLUGIN_NVPTX_LIBS='-ldl'
+-	      PLUGIN_NVPTX_DYNAMIC=1
+-	    else
+-	      PLUGIN_NVPTX=0
+-	      AC_MSG_ERROR([CUDA driver package required for nvptx support])
+-	    fi
+-	  ;;
++		  PLUGIN_NVPTX_save_CPPFLAGS=$CPPFLAGS
++		  CPPFLAGS="$PLUGIN_NVPTX_CPPFLAGS $CPPFLAGS"
++		  PLUGIN_NVPTX_save_LDFLAGS=$LDFLAGS
++		  LDFLAGS="$PLUGIN_NVPTX_LDFLAGS $LDFLAGS"
++		  PLUGIN_NVPTX_save_LIBS=$LIBS
++		  LIBS="$PLUGIN_NVPTX_LIBS $LIBS"
++		  AC_LINK_IFELSE(
++		    [AC_LANG_PROGRAM(
++		      [#include "cuda.h"],
++			[CUresult r = cuCtxPushCurrent (NULL);])],
++		    [PLUGIN_NVPTX=1])
++		  CPPFLAGS=$PLUGIN_NVPTX_save_CPPFLAGS
++		  LDFLAGS=$PLUGIN_NVPTX_save_LDFLAGS
++		  LIBS=$PLUGIN_NVPTX_save_LIBS
++		fi
++		case $PLUGIN_NVPTX in
++		  nvptx*)
++		    if (test "x$CUDA_DRIVER_INCLUDE" = x \
++			|| test "x$CUDA_DRIVER_INCLUDE" = xno) \
++		       && (test "x$CUDA_DRIVER_LIB" = x \
++			   || test "x$CUDA_DRIVER_LIB" = xno); then
++		      PLUGIN_NVPTX=1
++		      PLUGIN_NVPTX_CPPFLAGS='-I$(srcdir)/plugin/cuda'
++		      PLUGIN_NVPTX_LIBS='-ldl'
++		      PLUGIN_NVPTX_DYNAMIC=1
++		    else
++		      PLUGIN_NVPTX=0
++		      AC_MSG_ERROR([CUDA driver package required for nvptx support])
++		    fi
++		    ;;
++		esac
++		;;
++	    esac
++	    ;;
++	  *-*-*)
++	    # Target architecture not supported.
++	    PLUGIN_NVPTX=0
++	    ;;
+ 	esac
+ 	;;
+       hsa*)
+--- a/src/libgomp/plugin/plugin-nvptx.c
++++ b/src/libgomp/plugin/plugin-nvptx.c
+@@ -876,15 +876,6 @@ nvptx_get_num_devices (void)
+ {
+   int n;
+ 
+-  /* PR libgomp/65099: Currently, we only support offloading in 64-bit
+-     configurations.  */
+-  if (sizeof (void *) != 8)
+-    {
+-      GOMP_PLUGIN_debug (0, "Disabling nvptx offloading;"
+-			 " only 64-bit configurations are supported\n");
+-      return 0;
+-    }
+-
+   /* This function will be called before the plugin has been initialized in
+      order to enumerate available devices, but CUDA API routines can't be used
+      until cuInit has been called.  Just call it now (but don't yet do any
 --- a/src/libgomp/testsuite/lib/libgomp.exp
 +++ b/src/libgomp/testsuite/lib/libgomp.exp
 @@ -229,6 +229,12 @@ proc libgomp_init { args } {
@@ -51952,7 +53431,17 @@ new file mode 100644
  	return MAX (MAX (comp, spec), 64);
 --- a/src/libphobos/ChangeLog
 +++ b/src/libphobos/ChangeLog
-@@ -1,3 +1,30 @@
+@@ -1,3 +1,40 @@
++2021-01-24  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	Backported from master:
++	2021-01-23  Iain Buclaw  <ibuclaw@gdcproject.org>
++
++	PR d/98806
++	* libdruntime/gcc/sections/elf_shared.d (MIPS_Any): Declare version
++	for MIPS32 and MIPS64.
++	(getDependencies): Adjust dlpi_addr on MIPS_Any.
++
 +2020-10-15  Maciej W. Rozycki  <macro@linux-mips.org>
 +
 +	Backported from master:
@@ -52046,6 +53535,26 @@ new file mode 100644
              union
              {
                  timestruc_t st_atim;
+--- a/src/libphobos/libdruntime/gcc/sections/elf_shared.d
++++ b/src/libphobos/libdruntime/gcc/sections/elf_shared.d
+@@ -22,6 +22,8 @@
+ 
+ module gcc.sections.elf_shared;
+ 
++version (MIPS32)  version = MIPS_Any;
++version (MIPS64)  version = MIPS_Any;
+ version (RISCV32) version = RISCV_Any;
+ version (RISCV64) version = RISCV_Any;
+ version (S390)    version = IBMZ_Any;
+@@ -763,6 +765,8 @@ version (Shared)
+                     // in glibc: #define DL_RO_DYN_SECTION 1
+                     version (RISCV_Any)
+                         strtab = cast(const(char)*)(info.dlpi_addr + dyn.d_un.d_ptr); // relocate
++                    else version (MIPS_Any)
++                        strtab = cast(const(char)*)(info.dlpi_addr + dyn.d_un.d_ptr); // relocate
+                     else
+                         strtab = cast(const(char)*)dyn.d_un.d_ptr;
+                 }
 --- a/src/libsanitizer/ChangeLog
 +++ b/src/libsanitizer/ChangeLog
 @@ -1,3 +1,8 @@
@@ -52078,7 +53587,122 @@ new file mode 100644
    ucontext_t *ucontext = (ucontext_t*)context;
 --- a/src/libstdc++-v3/ChangeLog
 +++ b/src/libstdc++-v3/ChangeLog
-@@ -1,3 +1,670 @@
+@@ -1,3 +1,785 @@
++2021-01-13  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2021-01-13  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/98605
++	* include/std/mutex (call_once): Use NOLINT to suppress clang
++	analyzer warnings.
++
++2021-01-11  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2020-09-24  Jonathan Wakely  <jwakely@redhat.com>
++
++	* doc/xml/manual/configure.xml: Correct name of option.
++	* doc/html/*: Regenerate.
++
++2021-01-11  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2020-12-02  Jonathan Wakely  <jwakely@redhat.com>
++
++	* python/libstdcxx/v6/printers.py (StdExpPathPrinter): Store the
++	name of the type and pass it to the iterator.
++	(StdPathPrinter): Likewise.
++	* testsuite/libstdc++-prettyprinters/filesystem-ts.cc: New test.
++
++2021-01-11  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2020-12-16  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/96083
++	* include/ext/throw_allocator.h: Use __has_builtin to check for
++	__builtin_sprintf support, and use std::sprintf if necessary.
++
++2021-01-11  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2020-12-02  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/65480
++	PR libstdc++/68735
++	* python/libstdcxx/v6/printers.py (function_pointer_to_name):
++	New helper function to get the name of a function from its
++	address.
++	(StdExpAnyPrinter.__init__): Use it.
++
++2021-01-11  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2020-08-10  Jonathan Wakely  <jwakely@redhat.com>
++
++	* python/libstdcxx/v6/printers.py (UniquePointerPrinter.__init__):
++	Use gdb.Type.strip_typedefs().
++	* testsuite/libstdc++-prettyprinters/compat.cc: Use a typedef in
++	the emulated old type.
++
++2021-01-11  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2019-05-14  Jonathan Wakely  <jwakely@redhat.com>
++
++	* python/libstdcxx/v6/printers.py (UniquePointerPrinter.__init__): Do
++	not assume field called _M_head_impl is the first tuple element.
++	* testsuite/libstdc++-prettyprinters/compat.cc: Make tuple
++	implementation more accurate.
++	* testsuite/libstdc++-prettyprinters/cxx11.cc: Check unique_ptr with
++	empty pointer type and non-empty deleter.
++
++2021-01-11  François Dumont  <fdumont@gcc.gnu.org>
++
++	Backported from master:
++	2019-12-20  François Dumont  <fdumont@gcc.gnu.org>
++
++	* python/libstdcxx/v6/printers.py (lookup_node_type): Remove redundant
++	call to lookup_node_type.
++	* testsuite/libstdc++-prettyprinters/80276.cc: Define
++	_GLIBCXX_USE_CXX11_ABI to 0.
++	* testsuite/libstdc++-prettyprinters/91997.cc: Use regexp-test to check
++	'a' content.
++
++2021-01-11  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2019-11-29  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/91997
++	* python/libstdcxx/v6/printers.py (find_type): Fail more gracefully
++	if we run out of base classes to look at.
++	(llokup_templ_spec, lookup_node_type): New utilities to find node
++	types for node-based containers.
++	(StdListPrinter.children, NodeIteratorPrinter.__init__)
++	(NodeIteratorPrinter.to_string, StdSlistPrinter.children)
++	(StdSlistIteratorPrinter.to_string, StdRbtreeIteratorPrinter.__init__)
++	(StdMapPrinter.children, StdSetPrinter.children)
++	(StdForwardListPrinter.children): Use lookup_node_type instead of
++	find_type.
++	(StdListIteratorPrinter.__init__, StdFwdListIteratorPrinter.__init__):
++	Pass name of node type to NodeIteratorPrinter constructor.
++	(Tr1HashtableIterator.__init__): Rename argument.
++	(StdHashtableIterator.__init__): Likewise. Use lookup_templ_spec
++	instead of find_type.
++	* testsuite/libstdc++-prettyprinters/59161.cc: Remove workaround for
++	_Node typedef not being present in debuginfo.
++	* testsuite/libstdc++-prettyprinters/91997.cc: New test.
++
++2021-01-11  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2020-07-31  Jonathan Wakely  <jwakely@redhat.com>
++
++	* testsuite/experimental/filesystem/filesystem_error/cons.cc:
++	Remove -std=gnu++17 option.
++
 +2020-11-26  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	Backported from master:
@@ -55684,6 +57308,18 @@ new file mode 100644
      __GXX_ABI_VERSION. This macro is defined as the version of the
      compiler v3 ABI, with g++ 3.0 being version 100. This macro will
      be automatically defined whenever g++ is used (the curious can
+--- a/src/libstdc++-v3/doc/html/manual/configure.html
++++ b/src/libstdc++-v3/doc/html/manual/configure.html
+@@ -110,7 +110,8 @@
+ 	the build directory, will do much the same thing, without the
+ 	configuration difference and without building everything twice:
+ 	<code class="code">make CXXFLAGS='-g3 -O0 -fno-inline' all</code>
+-     </p></dd><dt><span class="term"><code class="code">--enable-libstdcxx-debug-flags=FLAGS</code></span></dt><dd><p>This option is only valid when <code class="code"> --enable-debug </code>
++     </p></dd><dt><span class="term"><code class="code">--enable-libstdcxx-debug-flags=FLAGS</code></span></dt><dd><p>This option is only valid when
++	<code class="code">--enable-libstdcxx-debug</code>
+ 	is also specified, and applies to the debug builds only. With
+ 	this option, you can pass a specific string of flags to the
+ 	compiler to use when building the debug versions of libstdc++.
 --- a/src/libstdc++-v3/doc/html/manual/status.html
 +++ b/src/libstdc++-v3/doc/html/manual/status.html
 @@ -5,7 +5,7 @@
@@ -56376,6 +58012,18 @@ new file mode 100644
      </itemizedlist>
      </listitem>
  
+--- a/src/libstdc++-v3/doc/xml/manual/configure.xml
++++ b/src/libstdc++-v3/doc/xml/manual/configure.xml
+@@ -198,7 +198,8 @@
+ 
+  <varlistentry><term><code>--enable-libstdcxx-debug-flags=FLAGS</code></term>
+ 
+- <listitem><para>This option is only valid when <code> --enable-debug </code>
++ <listitem><para>This option is only valid when
++	<code>--enable-libstdcxx-debug</code>
+ 	is also specified, and applies to the debug builds only. With
+ 	this option, you can pass a specific string of flags to the
+ 	compiler to use when building the debug versions of libstdc++.
 --- a/src/libstdc++-v3/doc/xml/manual/status_cxx1998.xml
 +++ b/src/libstdc++-v3/doc/xml/manual/status_cxx1998.xml
 @@ -18,7 +18,7 @@ This status table is based on the table of contents of ISO/IEC 14882:2003.
@@ -59251,6 +60899,64 @@ new file mode 100644
  
 -#endif 
 +#endif
+--- a/src/libstdc++-v3/include/ext/throw_allocator.h
++++ b/src/libstdc++-v3/include/ext/throw_allocator.h
+@@ -63,6 +63,13 @@
+ # include <tr1/random>
+ #endif
+ 
++#ifdef __has_builtin
++# if !__has_builtin(__builtin_sprintf)
++#  include <cstdio>
++#  define _GLIBCXX_NO_BUILTIN_SPRINTF
++# endif
++#endif
++
+ namespace __gnu_cxx _GLIBCXX_VISIBILITY(default)
+ {
+ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+@@ -309,6 +316,10 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+     static void
+     log_to_string(std::string& s, const_reference ref)
+     {
++#ifdef _GLIBCXX_NO_BUILTIN_SPRINTF
++      __typeof__(&std::sprintf) __builtin_sprintf = &std::sprintf;
++#endif
++
+       char buf[40];
+       const char tab('\t');
+       s += "label: ";
+@@ -331,6 +342,10 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+     static void
+     log_to_string(std::string& s, const std::pair<const void*, size_t>& ref)
+     {
++#ifdef _GLIBCXX_NO_BUILTIN_SPRINTF
++      auto __builtin_sprintf = &std::sprintf;
++#endif
++
+       char buf[40];
+       const char tab('\t');
+       s += "label: ";
+@@ -565,6 +580,10 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+       static gen_t generator(engine(), distribution);
+ #endif
+ 
++#ifdef _GLIBCXX_NO_BUILTIN_SPRINTF
++      __typeof__(&std::sprintf) __builtin_sprintf = &std::sprintf;
++#endif
++
+       double random = generator();
+       if (random < distribution.min() || random > distribution.max())
+ 	{
+@@ -945,6 +964,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ _GLIBCXX_END_NAMESPACE_VERSION
+ } // namespace
+ 
++#undef _GLIBCXX_NO_BUILTIN_SPRINTF
++
+ #if __cplusplus >= 201103L
+ 
+ # include <bits/functional_hash.h>
 --- a/src/libstdc++-v3/include/std/bit
 +++ b/src/libstdc++-v3/include/std/bit
 @@ -250,6 +250,8 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
@@ -59422,6 +61128,30 @@ new file mode 100644
    template<typename _Tp = std::byte>
      class polymorphic_allocator;
  #endif
+--- a/src/libstdc++-v3/include/std/mutex
++++ b/src/libstdc++-v3/include/std/mutex
+@@ -672,7 +672,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 			std::forward<_Args>(__args)...);
+       };
+ #ifdef _GLIBCXX_HAVE_TLS
+-      __once_callable = std::__addressof(__callable);
++      __once_callable = std::__addressof(__callable); // NOLINT: PR 82481
+       __once_call = []{ (*(decltype(__callable)*)__once_callable)(); };
+ #else
+       unique_lock<mutex> __functor_lock(__get_once_mutex());
+@@ -687,12 +687,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+         __set_once_functor_lock_ptr(0);
+ #endif
+ 
+-#ifdef __clang_analyzer__
+-      // PR libstdc++/82481
+-      __once_callable = nullptr;
+-      __once_call = nullptr;
+-#endif
+-
+       if (__e)
+ 	__throw_system_error(__e);
+     }
 --- a/src/libstdc++-v3/include/std/numeric
 +++ b/src/libstdc++-v3/include/std/numeric
 @@ -60,6 +60,7 @@
@@ -60049,6 +61779,386 @@ new file mode 100644
  #endif // C++2a
  #endif // C++17
  #endif // C++14
+--- a/src/libstdc++-v3/python/libstdcxx/v6/printers.py
++++ b/src/libstdc++-v3/python/libstdcxx/v6/printers.py
+@@ -94,13 +94,77 @@ def find_type(orig, name):
+         # The type was not found, so try the superclass.  We only need
+         # to check the first superclass, so we don't bother with
+         # anything fancier here.
+-        field = typ.fields()[0]
+-        if not field.is_base_class:
++        fields = typ.fields()
++        if len(fields) and fields[0].is_base_class:
++            typ = fields[0].type
++        else:
+             raise ValueError("Cannot find type %s::%s" % (str(orig), name))
+-        typ = field.type
+ 
+ _versioned_namespace = '__8::'
+ 
++def lookup_templ_spec(templ, *args):
++    """
++    Lookup template specialization templ<args...>
++    """
++    t = '{}<{}>'.format(templ, ', '.join([str(a) for a in args]))
++    try:
++        return gdb.lookup_type(t)
++    except gdb.error as e:
++        # Type not found, try again in versioned namespace.
++        global _versioned_namespace
++        if _versioned_namespace and _versioned_namespace not in templ:
++            t = t.replace('::', '::' + _versioned_namespace, 1)
++            try:
++                return gdb.lookup_type(t)
++            except gdb.error:
++                # If that also fails, rethrow the original exception
++                pass
++        raise e
++
++# Use this to find container node types instead of find_type,
++# see https://gcc.gnu.org/bugzilla/show_bug.cgi?id=91997 for details.
++def lookup_node_type(nodename, containertype):
++    """
++    Lookup specialization of template NODENAME corresponding to CONTAINERTYPE.
++    e.g. if NODENAME is '_List_node' and CONTAINERTYPE is std::list<int>
++    then return the type std::_List_node<int>.
++    Returns None if not found.
++    """
++    # If nodename is unqualified, assume it's in namespace std.
++    if '::' not in nodename:
++        nodename = 'std::' + nodename
++    try:
++        valtype = find_type(containertype, 'value_type')
++    except:
++        valtype = containertype.template_argument(0)
++    valtype = valtype.strip_typedefs()
++    try:
++        return lookup_templ_spec(nodename, valtype)
++    except gdb.error as e:
++        # For debug mode containers the node is in std::__cxx1998.
++        if is_member_of_namespace(nodename, 'std'):
++            if is_member_of_namespace(containertype, 'std::__cxx1998',
++                                      'std::__debug', '__gnu_debug'):
++                nodename = nodename.replace('::', '::__cxx1998::', 1)
++                try:
++                    return lookup_templ_spec(nodename, valtype)
++                except gdb.error:
++                    pass
++        return None
++
++def is_member_of_namespace(typ, *namespaces):
++    """
++    Test whether a type is a member of one of the specified namespaces.
++    The type can be specified as a string or a gdb.Type object.
++    """
++    if type(typ) is gdb.Type:
++        typ = str(typ)
++    typ = strip_versioned_namespace(typ)
++    for namespace in namespaces:
++        if typ.startswith(namespace + '::'):
++            return True
++    return False
++
+ def is_specialization_of(x, template_name):
+     "Test if a type is a given template instantiation."
+     global _versioned_namespace
+@@ -181,13 +245,22 @@ class UniquePointerPrinter:
+ 
+     def __init__ (self, typename, val):
+         self.val = val
+-        impl_type = val.type.fields()[0].type.tag
++        impl_type = val.type.fields()[0].type.strip_typedefs()
+         if is_specialization_of(impl_type, '__uniq_ptr_impl'): # New implementation
+-            self.pointer = val['_M_t']['_M_t']['_M_head_impl']
++            tuple_member = val['_M_t']['_M_t']
+         elif is_specialization_of(impl_type, 'tuple'):
+-            self.pointer = val['_M_t']['_M_head_impl']
++            tuple_member = val['_M_t']
+         else:
+-            raise ValueError("Unsupported implementation for unique_ptr: %s" % impl_type)
++            raise ValueError("Unsupported implementation for unique_ptr: %s" % str(impl_type))
++        tuple_impl_type = tuple_member.type.fields()[0].type # _Tuple_impl
++        tuple_head_type = tuple_impl_type.fields()[1].type   # _Head_base
++        head_field = tuple_head_type.fields()[0]
++        if head_field.name == '_M_head_impl':
++            self.pointer = tuple_member['_M_head_impl']
++        elif head_field.is_base_class:
++            self.pointer = tuple_member.cast(head_field.type)
++        else:
++            raise ValueError("Unsupported implementation for tuple in unique_ptr: %s" % str(impl_type))
+ 
+     def children (self):
+         return SmartPtrIterator(self.pointer)
+@@ -242,40 +315,40 @@ class StdListPrinter:
+         self.val = val
+ 
+     def children(self):
+-        nodetype = find_type(self.val.type, '_Node')
+-        nodetype = nodetype.strip_typedefs().pointer()
++        nodetype = lookup_node_type('_List_node', self.val.type).pointer()
+         return self._iterator(nodetype, self.val['_M_impl']['_M_node'])
+ 
+     def to_string(self):
+-        if self.val['_M_impl']['_M_node'].address == self.val['_M_impl']['_M_node']['_M_next']:
++        headnode = self.val['_M_impl']['_M_node']
++        if headnode['_M_next'] == headnode.address:
+             return 'empty %s' % (self.typename)
+         return '%s' % (self.typename)
+ 
+ class NodeIteratorPrinter:
+-    def __init__(self, typename, val, contname):
++    def __init__(self, typename, val, contname, nodename):
+         self.val = val
+         self.typename = typename
+         self.contname = contname
++        self.nodetype = lookup_node_type(nodename, val.type)
+ 
+     def to_string(self):
+         if not self.val['_M_node']:
+             return 'non-dereferenceable iterator for std::%s' % (self.contname)
+-        nodetype = find_type(self.val.type, '_Node')
+-        nodetype = nodetype.strip_typedefs().pointer()
+-        node = self.val['_M_node'].cast(nodetype).dereference()
++        node = self.val['_M_node'].cast(self.nodetype.pointer()).dereference()
+         return str(get_value_from_list_node(node))
+ 
+ class StdListIteratorPrinter(NodeIteratorPrinter):
+     "Print std::list::iterator"
+ 
+     def __init__(self, typename, val):
+-        NodeIteratorPrinter.__init__(self, typename, val, 'list')
++        NodeIteratorPrinter.__init__(self, typename, val, 'list', '_List_node')
+ 
+ class StdFwdListIteratorPrinter(NodeIteratorPrinter):
+     "Print std::forward_list::iterator"
+ 
+     def __init__(self, typename, val):
+-        NodeIteratorPrinter.__init__(self, typename, val, 'forward_list')
++        NodeIteratorPrinter.__init__(self, typename, val, 'forward_list',
++                                     '_Fwd_list_node')
+ 
+ class StdSlistPrinter:
+     "Print a __gnu_cxx::slist"
+@@ -302,9 +375,8 @@ class StdSlistPrinter:
+         self.val = val
+ 
+     def children(self):
+-        nodetype = find_type(self.val.type, '_Node')
+-        nodetype = nodetype.strip_typedefs().pointer()
+-        return self._iterator(nodetype, self.val)
++        nodetype = lookup_node_type('__gnu_cxx::_Slist_node', self.val.type)
++        return self._iterator(nodetype.pointer(), self.val)
+ 
+     def to_string(self):
+         if self.val['_M_head']['_M_next'] == 0:
+@@ -320,8 +392,7 @@ class StdSlistIteratorPrinter:
+     def to_string(self):
+         if not self.val['_M_node']:
+             return 'non-dereferenceable iterator for __gnu_cxx::slist'
+-        nodetype = find_type(self.val.type, '_Node')
+-        nodetype = nodetype.strip_typedefs().pointer()
++        nodetype = lookup_node_type('__gnu_cxx::_Slist_node', self.val.type).pointer()
+         return str(self.val['_M_node'].cast(nodetype).dereference()['_M_data'])
+ 
+ class StdVectorPrinter:
+@@ -574,12 +645,8 @@ class StdRbtreeIteratorPrinter:
+ 
+     def __init__ (self, typename, val):
+         self.val = val
+-        valtype = self.val.type.template_argument(0).strip_typedefs()
+-        nodetype = '_Rb_tree_node<' + str(valtype) + '>'
+-        if _versioned_namespace and typename.startswith('std::' + _versioned_namespace):
+-            nodetype = _versioned_namespace + nodetype
+-        nodetype = gdb.lookup_type('std::' + nodetype)
+-        self.link_type = nodetype.strip_typedefs().pointer()
++        nodetype = lookup_node_type('_Rb_tree_node', self.val.type)
++        self.link_type = nodetype.pointer()
+ 
+     def to_string (self):
+         if not self.val['_M_node']:
+@@ -644,9 +711,7 @@ class StdMapPrinter:
+                                num_elements(len(RbtreeIterator (self.val))))
+ 
+     def children (self):
+-        rep_type = find_type(self.val.type, '_Rep_type')
+-        node = find_type(rep_type, '_Link_type')
+-        node = node.strip_typedefs()
++        node = lookup_node_type('_Rb_tree_node', self.val.type).pointer()
+         return self._iter (RbtreeIterator (self.val), node)
+ 
+     def display_hint (self):
+@@ -684,9 +749,7 @@ class StdSetPrinter:
+                                num_elements(len(RbtreeIterator (self.val))))
+ 
+     def children (self):
+-        rep_type = find_type(self.val.type, '_Rep_type')
+-        node = find_type(rep_type, '_Link_type')
+-        node = node.strip_typedefs()
++        node = lookup_node_type('_Rb_tree_node', self.val.type).pointer()
+         return self._iter (RbtreeIterator (self.val), node)
+ 
+ class StdBitsetPrinter:
+@@ -844,11 +907,11 @@ class StdStringPrinter:
+         return 'string'
+ 
+ class Tr1HashtableIterator(Iterator):
+-    def __init__ (self, hash):
+-        self.buckets = hash['_M_buckets']
++    def __init__ (self, hashtable):
++        self.buckets = hashtable['_M_buckets']
+         self.bucket = 0
+-        self.bucket_count = hash['_M_bucket_count']
+-        self.node_type = find_type(hash.type, '_Node').pointer()
++        self.bucket_count = hashtable['_M_bucket_count']
++        self.node_type = find_type(hashtable.type, '_Node').pointer()
+         self.node = 0
+         while self.bucket != self.bucket_count:
+             self.node = self.buckets[self.bucket]
+@@ -875,9 +938,13 @@ class Tr1HashtableIterator(Iterator):
+         return result
+ 
+ class StdHashtableIterator(Iterator):
+-    def __init__(self, hash):
+-        self.node = hash['_M_before_begin']['_M_nxt']
+-        self.node_type = find_type(hash.type, '__node_type').pointer()
++    def __init__(self, hashtable):
++        self.node = hashtable['_M_before_begin']['_M_nxt']
++        valtype = hashtable.type.template_argument(1)
++        cached = hashtable.type.template_argument(9).template_argument(0)
++        node_type = lookup_templ_spec('std::__detail::_Hash_node', str(valtype),
++                                      'true' if cached else 'false')
++        self.node_type = node_type.pointer()
+ 
+     def __iter__(self):
+         return self
+@@ -892,7 +959,7 @@ class StdHashtableIterator(Iterator):
+         return valptr.dereference()
+ 
+ class Tr1UnorderedSetPrinter:
+-    "Print a tr1::unordered_set"
++    "Print a std::unordered_set or tr1::unordered_set"
+ 
+     def __init__ (self, typename, val):
+         self.typename = strip_versioned_namespace(typename)
+@@ -918,7 +985,7 @@ class Tr1UnorderedSetPrinter:
+         return izip (counter, StdHashtableIterator (self.hashtable()))
+ 
+ class Tr1UnorderedMapPrinter:
+-    "Print a tr1::unordered_map"
++    "Print a std::unordered_map or tr1::unordered_map"
+ 
+     def __init__ (self, typename, val):
+         self.typename = strip_versioned_namespace(typename)
+@@ -989,8 +1056,7 @@ class StdForwardListPrinter:
+         self.typename = strip_versioned_namespace(typename)
+ 
+     def children(self):
+-        nodetype = find_type(self.val.type, '_Node')
+-        nodetype = nodetype.strip_typedefs().pointer()
++        nodetype = lookup_node_type('_Fwd_list_node', self.val.type).pointer()
+         return self._iterator(nodetype, self.val['_M_impl']['_M_head'])
+ 
+     def to_string(self):
+@@ -1041,6 +1107,29 @@ class SingleObjContainerPrinter(object):
+             return self.visualizer.display_hint ()
+         return self.hint
+ 
++def function_pointer_to_name(f):
++    "Find the name of the function referred to by the gdb.Value f, "
++    " which should contain a function pointer from the program."
++
++    # Turn the function pointer into an actual address.
++    # This is needed to unpack ppc64 function descriptors.
++    f = f.dereference().address
++
++    if sys.version_info[0] == 2:
++        # Older versions of GDB need to use long for Python 2,
++        # because int(f) on 64-bit big-endian values raises a
++        # gdb.error saying "Cannot convert value to int."
++        f = long(f)
++    else:
++        f = int(f)
++
++    try:
++        # If the function can't be found older versions of GDB raise a
++        # RuntimeError saying "Cannot locate object file for block."
++        return gdb.block_for_pc(f).function.name
++    except:
++        return None
++
+ class StdExpAnyPrinter(SingleObjContainerPrinter):
+     "Print a std::any or std::experimental::any"
+ 
+@@ -1053,11 +1142,11 @@ class StdExpAnyPrinter(SingleObjContainerPrinter):
+         visualizer = None
+         mgr = self.val['_M_manager']
+         if mgr != 0:
+-            func = gdb.block_for_pc(int(mgr.cast(gdb.lookup_type('intptr_t'))))
++            func = function_pointer_to_name(mgr)
+             if not func:
+-                raise ValueError("Invalid function pointer in %s" % self.typename)
++                raise ValueError("Invalid function pointer in %s" % (self.typename))
+             rx = r"""({0}::_Manager_\w+<.*>)::_S_manage\((enum )?{0}::_Op, (const {0}|{0} const) ?\*, (union )?{0}::_Arg ?\*\)""".format(typename)
+-            m = re.match(rx, func.function.name)
++            m = re.match(rx, func)
+             if not m:
+                 raise ValueError("Unknown manager function in %s" % self.typename)
+ 
+@@ -1209,6 +1298,7 @@ class StdExpPathPrinter:
+ 
+     def __init__ (self, typename, val):
+         self.val = val
++        self.typename = typename
+         start = self.val['_M_cmpts']['_M_impl']['_M_start']
+         finish = self.val['_M_cmpts']['_M_impl']['_M_finish']
+         self.num_cmpts = int (finish - start)
+@@ -1227,10 +1317,11 @@ class StdExpPathPrinter:
+             t = self._path_type()
+             if t:
+                 path = '%s [%s]' % (path, t)
+-        return "filesystem::path %s" % path
++        return "experimental::filesystem::path %s" % path
+ 
+     class _iterator(Iterator):
+-        def __init__(self, cmpts):
++        def __init__(self, cmpts, pathtype):
++            self.pathtype = pathtype
+             self.item = cmpts['_M_impl']['_M_start']
+             self.finish = cmpts['_M_impl']['_M_finish']
+             self.count = 0
+@@ -1246,13 +1337,13 @@ class StdExpPathPrinter:
+             self.count = self.count + 1
+             self.item = self.item + 1
+             path = item['_M_pathname']
+-            t = StdExpPathPrinter(item.type.name, item)._path_type()
++            t = StdExpPathPrinter(self.pathtype, item)._path_type()
+             if not t:
+                 t = count
+             return ('[%s]' % t, path)
+ 
+     def children(self):
+-        return self._iterator(self.val['_M_cmpts'])
++        return self._iterator(self.val['_M_cmpts'], self.typename)
+ 
+ class StdPathPrinter:
+     "Print a std::filesystem::path"
+@@ -1285,6 +1376,7 @@ class StdPathPrinter:
+ 
+     class _iterator(Iterator):
+         def __init__(self, impl, pathtype):
++            self.pathtype = pathtype
+             if impl:
+                 # We can't access _Impl::_M_size because _Impl is incomplete
+                 # so cast to int* to access the _M_size member at offset zero,
+@@ -1317,7 +1409,7 @@ class StdPathPrinter:
+             self.count = self.count + 1
+             self.item = self.item + 1
+             path = item['_M_pathname']
+-            t = StdPathPrinter(item.type.name, item)._path_type()
++            t = StdPathPrinter(self.pathtype, item)._path_type()
+             if not t:
+                 t = count
+             return ('[%s]' % t, path)
 --- a/src/libstdc++-v3/src/c++17/fs_ops.cc
 +++ b/src/libstdc++-v3/src/c++17/fs_ops.cc
 @@ -1175,11 +1175,17 @@ fs::path fs::read_symlink(const path& p, error_code& ec)
@@ -62687,6 +64797,17 @@ new file mode 100644
 +  }
 +  VERIFY( caught );
 +}
+--- a/src/libstdc++-v3/testsuite/experimental/filesystem/filesystem_error/cons.cc
++++ b/src/libstdc++-v3/testsuite/experimental/filesystem/filesystem_error/cons.cc
+@@ -15,7 +15,7 @@
+ // with this library; see the file COPYING3.  If not see
+ // <http://www.gnu.org/licenses/>.
+ 
+-// { dg-options "-std=gnu++17 -lstdc++fs" }
++// { dg-options "-lstdc++fs" }
+ // { dg-do run { target c++11 } }
+ // { dg-require-filesystem-ts "" }
+ 
 new file mode 100644
 --- /dev/null
 +++ b/src/libstdc++-v3/testsuite/experimental/filesystem/iterators/97731.cc
@@ -63603,6 +65724,212 @@ new file mode 100644
          file delete $src
  
          if [string match "" $lines] {
+--- a/src/libstdc++-v3/testsuite/libstdc++-prettyprinters/59161.cc
++++ b/src/libstdc++-v3/testsuite/libstdc++-prettyprinters/59161.cc
+@@ -45,8 +45,6 @@ int main()
+   std::list<C> l;
+   l.push_back(c);
+   std::list<C>::iterator liter = l.begin();
+-  // Need to ensure the list<C>::iterator::_Node typedef is in the debuginfo:
+-  int tmp __attribute__((unused)) = (*liter).ref;
+ // { dg-final { regexp-test liter {ref = @0x.*} } }
+ 
+   __gnu_cxx::slist<C> sl;
+--- a/src/libstdc++-v3/testsuite/libstdc++-prettyprinters/80276.cc
++++ b/src/libstdc++-v3/testsuite/libstdc++-prettyprinters/80276.cc
+@@ -19,6 +19,9 @@
+ // with this library; see the file COPYING3.  If not see
+ // <http://www.gnu.org/licenses/>.
+ 
++// Type printers only recognize the old std::string for now.
++#define _GLIBCXX_USE_CXX11_ABI 0
++
+ #include <iostream>
+ #include <list>
+ #include <memory>
+new file mode 100644
+--- /dev/null
++++ b/src/libstdc++-v3/testsuite/libstdc++-prettyprinters/91997.cc
+@@ -0,0 +1,53 @@
++// { dg-options "-std=gnu++17 -g -O0 -Wno-unused" }
++// { dg-do run { target c++17 } }
++
++// Copyright (C) 2019 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++#include <forward_list>
++#include <list>
++#include <set>
++#include <map>
++#include <string>
++#include <any>
++#include <iostream>
++
++int main()
++{
++  std::list<std::string> list{"a"};
++  std::list<std::string>::iterator lit = list.begin();
++  // { dg-final { note-test lit {"a"} } }
++
++  std::forward_list<std::string> flist{"b"};
++  std::forward_list<std::string>::iterator flit = flist.begin();
++  // { dg-final { note-test flit {"b"} } }
++
++  std::map<int, int> m{ {1, 2} };
++  auto mit = m.begin();
++  // { dg-final { note-test mit {{first = 1, second = 2}} } }
++
++  std::any a = m;
++  // { dg-final { regexp-test a {std::any containing std::(__debug::)?map with 1 element = {\[1\] = 2}} } }
++
++  std::set<int> s{1, 2};
++  auto sit = s.begin();
++  // { dg-final { note-test sit {1} } }
++
++  std::cout << "\n";
++  return 0;			// Mark SPOT
++}
++// { dg-final { gdb-test SPOT } }
+--- a/src/libstdc++-v3/testsuite/libstdc++-prettyprinters/compat.cc
++++ b/src/libstdc++-v3/testsuite/libstdc++-prettyprinters/compat.cc
+@@ -23,12 +23,30 @@
+ 
+ namespace std
+ {
+-  template<typename T, typename U>
+-    struct tuple
++  template<typename T>
++    struct _Head_base : T
++    { };
++
++  template<typename T>
++    struct _Head_base<T*>
+     {
+-      T _M_head_impl;
++      T* _M_head_impl;
+     };
+ 
++  template<unsigned long, typename ...> struct _Tuple_impl;
++
++  template<typename T, typename U>
++    struct _Tuple_impl<0, T, U> : _Tuple_impl<1, U>, _Head_base<T>
++    { };
++
++  template<typename U>
++    struct _Tuple_impl<1, U> : _Head_base<U>
++    { };
++
++  template<typename T, typename U>
++    struct tuple : _Tuple_impl<0, T, U>
++    { };
++
+   template<typename T> struct default_delete { };
+ 
+   template<typename T, typename D = default_delete<T>>
+@@ -36,7 +54,9 @@ namespace std
+     {
+       unique_ptr(T* p) { _M_t._M_head_impl = p; }
+ 
+-      tuple<T*, D> _M_t;
++      using __tuple_type = tuple<T*, D>;
++
++      __tuple_type _M_t;
+     };
+ 
+   // Old representation of std::optional, before GCC 9
+--- a/src/libstdc++-v3/testsuite/libstdc++-prettyprinters/cxx11.cc
++++ b/src/libstdc++-v3/testsuite/libstdc++-prettyprinters/cxx11.cc
+@@ -60,6 +60,21 @@ struct datum
+ 
+ std::unique_ptr<datum> global;
+ 
++struct Deleter
++{
++  // Deleter is not an empty class:
++  int deleter_member = -1;
++  // But pointer is an empty class:
++  struct pointer
++  {
++    pointer(const void* = nullptr) { }
++    explicit operator bool() const noexcept { return false; }
++    friend bool operator==(pointer, pointer) noexcept { return true; }
++    friend bool operator!=(pointer, pointer) noexcept { return false; }
++  };
++  void operator()(pointer) const noexcept { }
++};
++
+ int
+ main()
+ {
+@@ -137,6 +152,11 @@ main()
+   std::unique_ptr<data>& rarrptr = arrptr;
+ // { dg-final { regexp-test rarrptr {std::unique_ptr.datum \[\]. = {get\(\) = 0x.*}} } }
+ 
++  std::unique_ptr<int, Deleter> empty_ptr;
++// { dg-final { note-test empty_ptr {std::unique_ptr<int> = {get() = {<No data fields>}}} } }
++  std::unique_ptr<int, Deleter>& rempty_ptr = empty_ptr;
++// { dg-final { note-test rempty_ptr {std::unique_ptr<int> = {get() = {<No data fields>}}} } }
++
+   ExTuple tpl(6,7);
+ // { dg-final { note-test tpl {std::tuple containing = {[1] = 6, [2] = 7}} } }
+   ExTuple &rtpl = tpl;
+new file mode 100644
+--- /dev/null
++++ b/src/libstdc++-v3/testsuite/libstdc++-prettyprinters/filesystem-ts.cc
+@@ -0,0 +1,39 @@
++// { dg-options "-g -O0 -lstdc++fs" }
++// { dg-do run { target c++11 } }
++// { dg-require-filesystem-ts "" }
++
++// Copyright (C) 2020 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING3.  If not see
++// <http://www.gnu.org/licenses/>.
++
++#include <experimental/filesystem>
++#include <iostream>
++
++int
++main()
++{
++  std::experimental::filesystem::path path0;
++// { dg-final { note-test path0 {experimental::filesystem::path ""} } }
++  std::experimental::filesystem::path path1("filename");
++// { dg-final { note-test path1 {experimental::filesystem::path "filename"} } }
++  std::experimental::filesystem::path path2("/dir/.");
++// { dg-final { note-test path2 {experimental::filesystem::path "/dir/." = {[root-directory] = "/", [1] = "dir", [2] = "."}} } }
++
++  std::cout << "\n";
++  return 0;			// Mark SPOT
++}
++
++// { dg-final { gdb-test SPOT } }
 --- a/src/libstdc++-v3/testsuite/tr1/8_c_compatibility/cstdlib/functions.cc
 +++ b/src/libstdc++-v3/testsuite/tr1/8_c_compatibility/cstdlib/functions.cc
 @@ -30,7 +30,7 @@ void test01()
