@@ -1,7 +1,7 @@
-# DP: updates from the 8 branch upto 20210111 (6d1d6f7a4f3).
+# DP: updates from the 8 branch upto 20210202 (4f74a68f2fb).
 
 LANG=C git diff --no-renames --src-prefix=a/src/ --dst-prefix=b/src/ \
-        8cd3bffead2ed1d1998c190865694f920fbc93ab 6d1d6f7a4f3847615a2c2ad309ffa88145d9ffab \
+        8cd3bffead2ed1d1998c190865694f920fbc93ab 4f74a68f2fb6d4a20555983bd3fa42aed027ceed \
 	| awk '/^diff .*\.texi/ {skip=1; next} /^diff / { skip=0 } skip==0' \
 	| grep -v -E '^(diff|index)'
 
@@ -5108,7 +5108,24 @@ new file mode 100755
 +            print('Please resolve all remaining file conflicts.')
 --- a/src/gcc/ChangeLog
 +++ b/src/gcc/ChangeLog
-@@ -1,3 +1,2111 @@
+@@ -1,3 +1,2128 @@
++2021-01-21  Wilco Dijkstra  <wdijkstr@arm.com>
++
++	Backported from master:
++	2019-10-16  Wilco Dijkstra  <wdijkstr@arm.com>
++
++	PR target/98618
++	* config/aarch64/aarch64.c (aarch64_classify_symbol):
++	Apply reasonable limit to symbol offsets.
++
++2021-01-13  Samuel Thibault  <samuel.thibault@ens-lyon.org>
++
++	Backported from master:
++	2021-01-13  Samuel Thibault  <samuel.thibault@ens-lyon.org>
++
++	* config.gcc [$target == *-*-gnu*]: Enable
++	'default_gnu_indirect_function'.
++
 +2020-12-28  Uroš Bizjak  <ubizjak@gmail.com>
 +
 +	PR target/96793
@@ -7224,7 +7241,7 @@ new file mode 100755
 +++ b/src/gcc/DATESTAMP
 @@ -1 +1 @@
 -20200304
-+20210111
++20210201
 --- a/src/gcc/ada/ChangeLog
 +++ b/src/gcc/ada/ChangeLog
 @@ -1,3 +1,19 @@
@@ -7817,7 +7834,18 @@ new file mode 100755
      }
 --- a/src/gcc/config.gcc
 +++ b/src/gcc/config.gcc
-@@ -3703,9 +3703,17 @@ fi
+@@ -3174,7 +3174,9 @@ esac
+ case ${target} in
+ *-*-linux*android*|*-*-linux*uclibc*|*-*-linux*musl*)
+         ;;
+-*-*-linux*)
++*-*-kfreebsd*-gnu | *-*-kopensolaris*-gnu)
++        ;;
++*-*-linux* | *-*-gnu*)
+ 	case ${target} in
+ 	aarch64*-* | arm*-* | i[34567]86-* | powerpc*-* | s390*-* | sparc*-* | x86_64-*)
+ 		default_gnu_indirect_function=yes
+@@ -3703,9 +3705,17 @@ fi
  supported_defaults=
  case "${target}" in
  	aarch64*-*-*)
@@ -7838,7 +7866,7 @@ new file mode 100755
  			eval "val=\$with_$which"
  			base_val=`echo $val | sed -e 's/\+.*//'`
  			ext_val=`echo $val | sed -e 's/[a-z0-9.-]\+//'`
-@@ -3744,6 +3752,12 @@ case "${target}" in
+@@ -3744,6 +3754,12 @@ case "${target}" in
  				  sed -e 's/,.*$//'`
  			  fi
  
@@ -7851,7 +7879,7 @@ new file mode 100755
  			  while [ x"$ext_val" != x ]
  			  do
  				ext_val=`echo $ext_val | sed -e 's/\+//'`
-@@ -3793,8 +3807,13 @@ case "${target}" in
+@@ -3793,8 +3809,13 @@ case "${target}" in
  			  fi
  			  true
  			else
@@ -9167,7 +9195,53 @@ new file mode 100755
    { NULL, aarch64_attr_custom, false, NULL, OPT____ }
  };
  
-@@ -12906,7 +13051,12 @@ aarch64_simd_container_mode (scalar_mode mode, poly_int64 width)
+@@ -11866,26 +12011,31 @@ aarch64_classify_symbol (rtx x, HOST_WIDE_INT offset)
+ 	     the offset does not cause overflow of the final address.  But
+ 	     we have no way of knowing the address of symbol at compile time
+ 	     so we can't accurately say if the distance between the PC and
+-	     symbol + offset is outside the addressible range of +/-1M in the
+-	     TINY code model.  So we rely on images not being greater than
+-	     1M and cap the offset at 1M and anything beyond 1M will have to
+-	     be loaded using an alternative mechanism.  Furthermore if the
+-	     symbol is a weak reference to something that isn't known to
+-	     resolve to a symbol in this module, then force to memory.  */
+-	  if ((SYMBOL_REF_WEAK (x)
+-	       && !aarch64_symbol_binds_local_p (x))
+-	      || !IN_RANGE (offset, -1048575, 1048575))
++	     symbol + offset is outside the addressible range of +/-1MB in the
++	     TINY code model.  So we limit the maximum offset to +/-64KB and
++	     assume the offset to the symbol is not larger than +/-(1MB - 64KB).
++	     If offset_within_block_p is true we allow larger offsets.
++	     Furthermore force to memory if the symbol is a weak reference to
++	     something that doesn't resolve to a symbol in this module.  */
++
++	  if (SYMBOL_REF_WEAK (x) && !aarch64_symbol_binds_local_p (x))
+ 	    return SYMBOL_FORCE_TO_MEM;
++	  if (!(IN_RANGE (offset, -0x10000, 0x10000)
++		|| offset_within_block_p (x, offset)))
++	    return SYMBOL_FORCE_TO_MEM;
++
+ 	  return SYMBOL_TINY_ABSOLUTE;
+ 
+ 	case AARCH64_CMODEL_SMALL:
+ 	  /* Same reasoning as the tiny code model, but the offset cap here is
+-	     4G.  */
+-	  if ((SYMBOL_REF_WEAK (x)
+-	       && !aarch64_symbol_binds_local_p (x))
+-	      || !IN_RANGE (offset, HOST_WIDE_INT_C (-4294967263),
+-			    HOST_WIDE_INT_C (4294967264)))
++	     1MB, allowing +/-3.9GB for the offset to the symbol.  */
++
++	  if (SYMBOL_REF_WEAK (x) && !aarch64_symbol_binds_local_p (x))
+ 	    return SYMBOL_FORCE_TO_MEM;
++	  if (!(IN_RANGE (offset, -0x100000, 0x100000)
++		|| offset_within_block_p (x, offset)))
++	    return SYMBOL_FORCE_TO_MEM;
++
+ 	  return SYMBOL_SMALL_ABSOLUTE;
+ 
+ 	case AARCH64_CMODEL_TINY_PIC:
+@@ -12906,7 +13056,12 @@ aarch64_simd_container_mode (scalar_mode mode, poly_int64 width)
  static machine_mode
  aarch64_preferred_simd_mode (scalar_mode mode)
  {
@@ -9181,7 +9255,7 @@ new file mode 100755
    return aarch64_simd_container_mode (mode, bits);
  }
  
-@@ -12915,7 +13065,11 @@ aarch64_preferred_simd_mode (scalar_mode mode)
+@@ -12915,7 +13070,11 @@ aarch64_preferred_simd_mode (scalar_mode mode)
  static void
  aarch64_autovectorize_vector_sizes (vector_sizes *sizes)
  {
@@ -9194,7 +9268,7 @@ new file mode 100755
      sizes->safe_push (BYTES_PER_SVE_VECTOR);
    sizes->safe_push (16);
    sizes->safe_push (8);
-@@ -14117,40 +14271,54 @@ static void
+@@ -14117,40 +14276,54 @@ static void
  aarch64_emit_load_exclusive (machine_mode mode, rtx rval,
  			     rtx mem, rtx model_rtx)
  {
@@ -9215,8 +9289,7 @@ new file mode 100755
 -      gcc_unreachable ();
 -    }
 +      rtx (*gen) (rtx, rtx, rtx);
- 
--  emit_insn (gen (rval, mem, model_rtx));
++
 +      switch (mode)
 +	{
 +	case E_QImode: gen = gen_aarch64_load_exclusiveqi; break;
@@ -9226,7 +9299,8 @@ new file mode 100755
 +	default:
 +	  gcc_unreachable ();
 +	}
-+
+ 
+-  emit_insn (gen (rval, mem, model_rtx));
 +      emit_insn (gen (rval, mem, model_rtx));
 +    }
  }
@@ -9255,8 +9329,7 @@ new file mode 100755
 -      gcc_unreachable ();
 -    }
 +      rtx (*gen) (rtx, rtx, rtx, rtx);
- 
--  emit_insn (gen (bval, rval, mem, model_rtx));
++
 +      switch (mode)
 +	{
 +	case E_QImode: gen = gen_aarch64_store_exclusiveqi; break;
@@ -9266,13 +9339,14 @@ new file mode 100755
 +	default:
 +	  gcc_unreachable ();
 +	}
-+
+ 
+-  emit_insn (gen (bval, rval, mem, model_rtx));
 +      emit_insn (gen (bval, mem, rval, model_rtx));
 +    }
  }
  
  /* Mark the previous jump instruction as unlikely.  */
-@@ -14162,30 +14330,89 @@ aarch64_emit_unlikely_jump (rtx insn)
+@@ -14162,30 +14335,89 @@ aarch64_emit_unlikely_jump (rtx insn)
    add_reg_br_prob_note (jump, profile_probability::very_unlikely ());
  }
  
@@ -9381,7 +9455,7 @@ new file mode 100755
  
    bval = operands[0];
    rval = operands[1];
-@@ -14196,88 +14423,107 @@ aarch64_expand_compare_and_swap (rtx operands[])
+@@ -14196,88 +14428,107 @@ aarch64_expand_compare_and_swap (rtx operands[])
    mod_s = operands[6];
    mod_f = operands[7];
    mode = GET_MODE (mem);
@@ -9550,7 +9624,7 @@ new file mode 100755
  /* Emit a barrier, that is appropriate for memory model MODEL, at the end of a
     sequence implementing an atomic operation.  */
  
-@@ -14295,42 +14541,6 @@ aarch64_emit_post_barrier (enum memmodel model)
+@@ -14295,42 +14546,6 @@ aarch64_emit_post_barrier (enum memmodel model)
      }
  }
  
@@ -9593,7 +9667,7 @@ new file mode 100755
  /* Split a compare and swap pattern.  */
  
  void
-@@ -14339,13 +14549,11 @@ aarch64_split_compare_and_swap (rtx operands[])
+@@ -14339,13 +14554,11 @@ aarch64_split_compare_and_swap (rtx operands[])
    /* Split after prolog/epilog to avoid interactions with shrinkwrapping.  */
    gcc_assert (epilogue_completed);
  
@@ -9608,7 +9682,7 @@ new file mode 100755
  
    rval = operands[0];
    mem = operands[1];
-@@ -14366,7 +14574,7 @@ aarch64_split_compare_and_swap (rtx operands[])
+@@ -14366,7 +14579,7 @@ aarch64_split_compare_and_swap (rtx operands[])
  	CBNZ	scratch, .label1
      .label2:
  	CMP	rval, 0.  */
@@ -9617,7 +9691,7 @@ new file mode 100755
  
    label1 = NULL;
    if (!is_weak)
-@@ -14379,26 +14587,20 @@ aarch64_split_compare_and_swap (rtx operands[])
+@@ -14379,26 +14592,20 @@ aarch64_split_compare_and_swap (rtx operands[])
    /* The initial load can be relaxed for a __sync operation since a final
       barrier will be emitted to stop code hoisting.  */
    if (is_mm_sync (model))
@@ -9651,7 +9725,7 @@ new file mode 100755
  
    aarch64_emit_store_exclusive (mode, scratch, mem, newval, model_rtx);
  
-@@ -14410,273 +14612,21 @@ aarch64_split_compare_and_swap (rtx operands[])
+@@ -14410,273 +14617,21 @@ aarch64_split_compare_and_swap (rtx operands[])
        aarch64_emit_unlikely_jump (gen_rtx_SET (pc_rtx, x));
      }
    else
@@ -9929,7 +10003,7 @@ new file mode 100755
  /* Split an atomic operation.  */
  
  void
-@@ -15435,7 +15385,8 @@ aarch64_evpc_rev_local (struct expand_vec_perm_d *d)
+@@ -15435,7 +15390,8 @@ aarch64_evpc_rev_local (struct expand_vec_perm_d *d)
  
    if (d->vec_flags == VEC_SVE_PRED
        || !d->one_vector_p
@@ -9939,7 +10013,7 @@ new file mode 100755
      return false;
  
    size = (diff + 1) * GET_MODE_UNIT_SIZE (d->vmode);
-@@ -16046,7 +15997,7 @@ aarch64_copy_one_block_and_progress_pointers (rtx *src, rtx *dst,
+@@ -16046,7 +16002,7 @@ aarch64_copy_one_block_and_progress_pointers (rtx *src, rtx *dst,
  bool
  aarch64_expand_movmem (rtx *operands)
  {
@@ -25636,7 +25710,16 @@ new file mode 100755
  				    "division"),
 --- a/src/gcc/fortran/ChangeLog
 +++ b/src/gcc/fortran/ChangeLog
-@@ -1,3 +1,253 @@
+@@ -1,3 +1,262 @@
++2021-01-28  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2021-01-28  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/86470
++	* trans.c (gfc_call_malloc): Allocate area of size 1 if passed
++	size is NULL (as documented).
++
 +2020-12-23  Harald Anlauf  <anlauf@gmx.de>
 +
 +	Backported from master:
@@ -26440,6 +26523,18 @@ new file mode 100755
    t = base_decl;
    if (!integer_zerop (data_off))
      t = fold_build_pointer_plus (t, data_off);
+--- a/src/gcc/fortran/trans.c
++++ b/src/gcc/fortran/trans.c
+@@ -602,6 +602,9 @@ gfc_call_malloc (stmtblock_t * block, tree type, tree size)
+   /* Call malloc.  */
+   gfc_start_block (&block2);
+ 
++  if (size == NULL_TREE)
++    size = build_int_cst (size_type_node, 1);
++
+   size = fold_convert (size_type_node, size);
+   size = fold_build2_loc (input_location, MAX_EXPR, size_type_node, size,
+ 			  build_int_cst (size_type_node, 1));
 --- a/src/gcc/fortran/trans.h
 +++ b/src/gcc/fortran/trans.h
 @@ -953,7 +953,6 @@ struct GTY(())	lang_type	 {
@@ -27375,7 +27470,24 @@ new file mode 100755
    if (warn_packed && TREE_CODE (rli->t) == RECORD_TYPE
 --- a/src/gcc/testsuite/ChangeLog
 +++ b/src/gcc/testsuite/ChangeLog
-@@ -1,3 +1,1351 @@
+@@ -1,3 +1,1368 @@
++2021-01-28  Harald Anlauf  <anlauf@gmx.de>
++
++	Backported from master:
++	2021-01-28  Harald Anlauf  <anlauf@gmx.de>
++
++	PR fortran/86470
++	* gfortran.dg/gomp/pr86470.f90: New test.
++
++2021-01-21  Wilco Dijkstra  <wdijkstr@arm.com>
++
++	Backported from master:
++	2019-10-16  Wilco Dijkstra  <wdijkstr@arm.com>
++
++	PR target/98618
++	* gcc.target/aarch64/symbol-range.c: Improve testcase.
++	* gcc.target/aarch64/symbol-range-tiny.c: Likewise.
++
 +2020-12-28  Uroš Bizjak  <ubizjak@gmail.com>
 +
 +	PR target/96793
@@ -35338,6 +35450,44 @@ new file mode 100644
 +/* { dg-options "-fstack-protector-all -O2 -fpic" } */
 +
 +#include "stack-protector-1.c"
+--- a/src/gcc/testsuite/gcc.target/aarch64/symbol-range-tiny.c
++++ b/src/gcc/testsuite/gcc.target/aarch64/symbol-range-tiny.c
+@@ -1,12 +1,12 @@
+-/* { dg-do compile } */
++/* { dg-do link } */
+ /* { dg-options "-O3 -save-temps -mcmodel=tiny" } */
+ 
+-int fixed_regs[0x00200000];
++char fixed_regs[0x00080000];
+ 
+ int
+-foo()
++main ()
+ {
+-  return fixed_regs[0x00080000];
++  return fixed_regs[0x000ff000];
+ }
+ 
+ /* { dg-final { scan-assembler-not "adr\tx\[0-9\]+, fixed_regs\\\+" } } */
+--- a/src/gcc/testsuite/gcc.target/aarch64/symbol-range.c
++++ b/src/gcc/testsuite/gcc.target/aarch64/symbol-range.c
+@@ -1,12 +1,12 @@
+-/* { dg-do compile } */
++/* { dg-do link } */
+ /* { dg-options "-O3 -save-temps -mcmodel=small" } */
+ 
+-int fixed_regs[0x200000000ULL];
++char fixed_regs[0x80000000];
+ 
+ int
+-foo()
++main ()
+ {
+-  return fixed_regs[0x100000000ULL];
++  return fixed_regs[0xfffff000];
+ }
+ 
+ /* { dg-final { scan-assembler-not "adrp\tx\[0-9\]+, fixed_regs\\\+" } } */
 --- a/src/gcc/testsuite/gcc.target/aarch64/sync-comp-swap.c
 +++ b/src/gcc/testsuite/gcc.target/aarch64/sync-comp-swap.c
 @@ -1,5 +1,5 @@
@@ -38453,6 +38603,22 @@ new file mode 100644
 +end
 new file mode 100644
 --- /dev/null
++++ b/src/gcc/testsuite/gfortran.dg/gomp/pr86470.f90
+@@ -0,0 +1,12 @@
++! { dg-do compile }
++! PR fortran/86470 - ICE with OpenMP, class(*)
++
++program p
++  implicit none
++  class(*), allocatable :: val
++!$OMP PARALLEL private(val)
++  allocate(integer::val)
++  val = 1
++  deallocate(val)
++!$OMP END PARALLEL
++end
+new file mode 100644
+--- /dev/null
 +++ b/src/gcc/testsuite/gfortran.dg/iall_masked.f90
 @@ -0,0 +1,22 @@
 +! { dg-do run }
@@ -40063,7 +40229,17 @@ new file mode 100644
        /* No need for fwait, exception is triggered by emitted fstp.  */
 --- a/src/libgcc/ChangeLog
 +++ b/src/libgcc/ChangeLog
-@@ -1,3 +1,139 @@
+@@ -1,3 +1,149 @@
++2021-01-13  Samuel Thibault  <samuel.thibault@gnu.org>
++
++	Backported from master:
++	2021-01-13  Samuel Thibault  <samuel.thibault@gnu.org>
++
++	* config/i386/gnu-unwind.h (x86_gnu_fallback_frame_state): Add the
++	posix siginfo case to struct handler_args. Detect between legacy
++	and siginfo from the second parameter, which is a small sigcode in
++	the legacy case, and a pointer in the siginfo case.
++
 +2020-11-25  Szabolcs Nagy  <szabolcs.nagy@arm.com>
 +
 +	Backported from master:
@@ -40762,7 +40938,7 @@ new file mode 100644
 new file mode 100644
 --- /dev/null
 +++ b/src/libgcc/config/i386/gnu-unwind.h
-@@ -0,0 +1,107 @@
+@@ -0,0 +1,141 @@
 +/* DWARF2 EH unwinding support for GNU Hurd: x86.
 +   Copyright (C) 2020 Free Software Foundation, Inc.
 +   Contributed by Samuel Thibault <samuel.thibault@gnu.org>
@@ -40803,10 +40979,21 @@ new file mode 100644
 +{
 +  struct handler_args {
 +    int signo;
-+    int sigcode;
-+    struct sigcontext *scp;
++    union
++      {
++	struct
++	  {
++	    long int sigcode;
++	    struct sigcontext *scp;
++	  } legacy;
++	struct
++	  {
++	    siginfo_t *siginfop;
++	    ucontext_t *uctxp;
++	  } posix;
++      };
 +  } *handler_args;
-+  struct sigcontext *scp;
++  long int sigcode;
 +  unsigned long usp;
 +
 +/*
@@ -40840,29 +41027,52 @@ new file mode 100644
 +    return _URC_END_OF_STACK;
 +
 +  handler_args = context->cfa;
-+  scp = handler_args->scp;
-+  usp = scp->sc_uesp;
++  sigcode = handler_args->legacy.sigcode;
++  if (sigcode >= -16 && sigcode < 4096)
++    {
++      /* This cannot be a SIGINFO pointer, assume legacy.  */
++      struct sigcontext *scp = handler_args->legacy.scp;
++      usp = scp->sc_uesp;
++
++      fs->regs.reg[0].loc.offset = (unsigned long)&scp->sc_eax - usp;
++      fs->regs.reg[1].loc.offset = (unsigned long)&scp->sc_ecx - usp;
++      fs->regs.reg[2].loc.offset = (unsigned long)&scp->sc_edx - usp;
++      fs->regs.reg[3].loc.offset = (unsigned long)&scp->sc_ebx - usp;
++      fs->regs.reg[5].loc.offset = (unsigned long)&scp->sc_ebp - usp;
++      fs->regs.reg[6].loc.offset = (unsigned long)&scp->sc_esi - usp;
++      fs->regs.reg[7].loc.offset = (unsigned long)&scp->sc_edi - usp;
++      fs->regs.reg[8].loc.offset = (unsigned long)&scp->sc_eip - usp;
++    }
++  else
++    {
++      /* This is not a valid sigcode, assume SIGINFO.  */
++      ucontext_t *uctxp = handler_args->posix.uctxp;
++      gregset_t *gregset = &uctxp->uc_mcontext.gregs;
++      usp = (*gregset)[REG_UESP];
++
++      fs->regs.reg[0].loc.offset = (unsigned long)&(*gregset)[REG_EAX] - usp;
++      fs->regs.reg[1].loc.offset = (unsigned long)&(*gregset)[REG_ECX] - usp;
++      fs->regs.reg[2].loc.offset = (unsigned long)&(*gregset)[REG_EDX] - usp;
++      fs->regs.reg[3].loc.offset = (unsigned long)&(*gregset)[REG_EBX] - usp;
++      fs->regs.reg[5].loc.offset = (unsigned long)&(*gregset)[REG_EBP] - usp;
++      fs->regs.reg[6].loc.offset = (unsigned long)&(*gregset)[REG_ESI] - usp;
++      fs->regs.reg[7].loc.offset = (unsigned long)&(*gregset)[REG_EDI] - usp;
++      fs->regs.reg[8].loc.offset = (unsigned long)&(*gregset)[REG_EIP] - usp;
++    }
 +
 +  fs->regs.cfa_how = CFA_REG_OFFSET;
 +  fs->regs.cfa_reg = 4;
 +  fs->regs.cfa_offset = usp - (unsigned long) context->cfa;
 +
 +  fs->regs.reg[0].how = REG_SAVED_OFFSET;
-+  fs->regs.reg[0].loc.offset = (unsigned long)&scp->sc_eax - usp;
 +  fs->regs.reg[1].how = REG_SAVED_OFFSET;
-+  fs->regs.reg[1].loc.offset = (unsigned long)&scp->sc_ecx - usp;
 +  fs->regs.reg[2].how = REG_SAVED_OFFSET;
-+  fs->regs.reg[2].loc.offset = (unsigned long)&scp->sc_edx - usp;
 +  fs->regs.reg[3].how = REG_SAVED_OFFSET;
-+  fs->regs.reg[3].loc.offset = (unsigned long)&scp->sc_ebx - usp;
 +  fs->regs.reg[5].how = REG_SAVED_OFFSET;
-+  fs->regs.reg[5].loc.offset = (unsigned long)&scp->sc_ebp - usp;
 +  fs->regs.reg[6].how = REG_SAVED_OFFSET;
-+  fs->regs.reg[6].loc.offset = (unsigned long)&scp->sc_esi - usp;
 +  fs->regs.reg[7].how = REG_SAVED_OFFSET;
-+  fs->regs.reg[7].loc.offset = (unsigned long)&scp->sc_edi - usp;
 +  fs->regs.reg[8].how = REG_SAVED_OFFSET;
-+  fs->regs.reg[8].loc.offset = (unsigned long)&scp->sc_eip - usp;
++
 +  fs->retaddr_column = 8;
 +  fs->signal_frame = 1;
 +
@@ -45342,7 +45552,19 @@ new mode 100755
        const 'rtype_name` *restrict abase_x;
 --- a/src/libgomp/ChangeLog
 +++ b/src/libgomp/ChangeLog
-@@ -1,3 +1,56 @@
+@@ -1,3 +1,68 @@
++2021-01-14  Thomas Schwinge  <thomas@codesourcery.com>
++
++	Backported from master:
++	2021-01-14  Thomas Schwinge  <thomas@codesourcery.com>
++
++	PR libgomp/65099
++	* plugin/configfrag.ac (PLUGIN_NVPTX): Restrict to supported
++	configurations.
++	* configure: Regenerate.
++	* plugin/plugin-nvptx.c (nvptx_get_num_devices): Remove 64-bit
++	check.
++
 +2020-11-25  Thomas Schwinge  <thomas@codesourcery.com>
 +
 +	Backported from master:
@@ -45399,6 +45621,206 @@ new mode 100755
  2020-03-04  Release Manager
  
  	* GCC 8.4.0 released.
+--- a/src/libgomp/configure
++++ b/src/libgomp/configure
+@@ -15398,19 +15398,28 @@ if test x"$enable_offload_targets" != x; then
+ 	tgt_name=intelmic
+ 	;;
+       nvptx*)
+-        tgt_name=nvptx
+-	PLUGIN_NVPTX=$tgt
+-	PLUGIN_NVPTX_CPPFLAGS=$CUDA_DRIVER_CPPFLAGS
+-	PLUGIN_NVPTX_LDFLAGS=$CUDA_DRIVER_LDFLAGS
+-	PLUGIN_NVPTX_LIBS='-lcuda'
+-
+-	PLUGIN_NVPTX_save_CPPFLAGS=$CPPFLAGS
+-	CPPFLAGS="$PLUGIN_NVPTX_CPPFLAGS $CPPFLAGS"
+-	PLUGIN_NVPTX_save_LDFLAGS=$LDFLAGS
+-	LDFLAGS="$PLUGIN_NVPTX_LDFLAGS $LDFLAGS"
+-	PLUGIN_NVPTX_save_LIBS=$LIBS
+-	LIBS="$PLUGIN_NVPTX_LIBS $LIBS"
+-	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
++	case "${target}" in
++	  aarch64*-*-* | powerpc64le-*-* | x86_64-*-*)
++	    case " ${CC} ${CFLAGS} " in
++	      *" -m32 "* | *" -mx32 "*)
++		# PR libgomp/65099: Currently, we only support offloading in
++		# 64-bit configurations.
++		PLUGIN_NVPTX=0
++		;;
++	      *)
++		tgt_name=nvptx
++		PLUGIN_NVPTX=$tgt
++		PLUGIN_NVPTX_CPPFLAGS=$CUDA_DRIVER_CPPFLAGS
++		PLUGIN_NVPTX_LDFLAGS=$CUDA_DRIVER_LDFLAGS
++		PLUGIN_NVPTX_LIBS='-lcuda'
++
++		PLUGIN_NVPTX_save_CPPFLAGS=$CPPFLAGS
++		CPPFLAGS="$PLUGIN_NVPTX_CPPFLAGS $CPPFLAGS"
++		PLUGIN_NVPTX_save_LDFLAGS=$LDFLAGS
++		LDFLAGS="$PLUGIN_NVPTX_LDFLAGS $LDFLAGS"
++		PLUGIN_NVPTX_save_LIBS=$LIBS
++		LIBS="$PLUGIN_NVPTX_LIBS $LIBS"
++		cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+ /* end confdefs.h.  */
+ #include "cuda.h"
+ int
+@@ -15426,22 +15435,30 @@ if ac_fn_c_try_link "$LINENO"; then :
+ fi
+ rm -f core conftest.err conftest.$ac_objext \
+     conftest$ac_exeext conftest.$ac_ext
+-	CPPFLAGS=$PLUGIN_NVPTX_save_CPPFLAGS
+-	LDFLAGS=$PLUGIN_NVPTX_save_LDFLAGS
+-	LIBS=$PLUGIN_NVPTX_save_LIBS
+-	case $PLUGIN_NVPTX in
+-	  nvptx*)
+-	    if test "x$CUDA_DRIVER_INCLUDE" = x \
+-	       && test "x$CUDA_DRIVER_LIB" = x; then
+-	      PLUGIN_NVPTX=1
+-	      PLUGIN_NVPTX_CPPFLAGS='-I$(srcdir)/plugin/cuda'
+-	      PLUGIN_NVPTX_LIBS='-ldl'
+-	      PLUGIN_NVPTX_DYNAMIC=1
+-	    else
+-	      PLUGIN_NVPTX=0
+-	      as_fn_error "CUDA driver package required for nvptx support" "$LINENO" 5
+-	    fi
+-	  ;;
++		CPPFLAGS=$PLUGIN_NVPTX_save_CPPFLAGS
++		LDFLAGS=$PLUGIN_NVPTX_save_LDFLAGS
++		LIBS=$PLUGIN_NVPTX_save_LIBS
++		case $PLUGIN_NVPTX in
++		  nvptx*)
++		    if test "x$CUDA_DRIVER_INCLUDE" = x \
++		       && test "x$CUDA_DRIVER_LIB" = x; then
++		      PLUGIN_NVPTX=1
++		      PLUGIN_NVPTX_CPPFLAGS='-I$(srcdir)/plugin/cuda'
++		      PLUGIN_NVPTX_LIBS='-ldl'
++		      PLUGIN_NVPTX_DYNAMIC=1
++		    else
++		      PLUGIN_NVPTX=0
++		      as_fn_error "CUDA driver package required for nvptx support" "$LINENO" 5
++		    fi
++		    ;;
++		esac
++		;;
++	    esac
++	    ;;
++	  *-*-*)
++	    # Target architecture not supported.
++	    PLUGIN_NVPTX=0
++	    ;;
+ 	esac
+ 	;;
+       hsa*)
+--- a/src/libgomp/plugin/configfrag.ac
++++ b/src/libgomp/plugin/configfrag.ac
+@@ -148,39 +148,56 @@ if test x"$enable_offload_targets" != x; then
+ 	tgt_name=intelmic
+ 	;;
+       nvptx*)
+-        tgt_name=nvptx
+-	PLUGIN_NVPTX=$tgt
+-	PLUGIN_NVPTX_CPPFLAGS=$CUDA_DRIVER_CPPFLAGS
+-	PLUGIN_NVPTX_LDFLAGS=$CUDA_DRIVER_LDFLAGS
+-	PLUGIN_NVPTX_LIBS='-lcuda'
++	case "${target}" in
++	  aarch64*-*-* | powerpc64le-*-* | x86_64-*-*)
++	    case " ${CC} ${CFLAGS} " in
++	      *" -m32 "* | *" -mx32 "*)
++		# PR libgomp/65099: Currently, we only support offloading in
++		# 64-bit configurations.
++		PLUGIN_NVPTX=0
++		;;
++	      *)
++		tgt_name=nvptx
++		PLUGIN_NVPTX=$tgt
++		PLUGIN_NVPTX_CPPFLAGS=$CUDA_DRIVER_CPPFLAGS
++		PLUGIN_NVPTX_LDFLAGS=$CUDA_DRIVER_LDFLAGS
++		PLUGIN_NVPTX_LIBS='-lcuda'
+ 
+-	PLUGIN_NVPTX_save_CPPFLAGS=$CPPFLAGS
+-	CPPFLAGS="$PLUGIN_NVPTX_CPPFLAGS $CPPFLAGS"
+-	PLUGIN_NVPTX_save_LDFLAGS=$LDFLAGS
+-	LDFLAGS="$PLUGIN_NVPTX_LDFLAGS $LDFLAGS"
+-	PLUGIN_NVPTX_save_LIBS=$LIBS
+-	LIBS="$PLUGIN_NVPTX_LIBS $LIBS"
+-	AC_LINK_IFELSE(
+-	  [AC_LANG_PROGRAM(
+-	    [#include "cuda.h"],
+-	      [CUresult r = cuCtxPushCurrent (NULL);])],
+-	  [PLUGIN_NVPTX=1])
+-	CPPFLAGS=$PLUGIN_NVPTX_save_CPPFLAGS
+-	LDFLAGS=$PLUGIN_NVPTX_save_LDFLAGS
+-	LIBS=$PLUGIN_NVPTX_save_LIBS
+-	case $PLUGIN_NVPTX in
+-	  nvptx*)
+-	    if test "x$CUDA_DRIVER_INCLUDE" = x \
+-	       && test "x$CUDA_DRIVER_LIB" = x; then
+-	      PLUGIN_NVPTX=1
+-	      PLUGIN_NVPTX_CPPFLAGS='-I$(srcdir)/plugin/cuda'
+-	      PLUGIN_NVPTX_LIBS='-ldl'
+-	      PLUGIN_NVPTX_DYNAMIC=1
+-	    else
+-	      PLUGIN_NVPTX=0
+-	      AC_MSG_ERROR([CUDA driver package required for nvptx support])
+-	    fi
+-	  ;;
++		PLUGIN_NVPTX_save_CPPFLAGS=$CPPFLAGS
++		CPPFLAGS="$PLUGIN_NVPTX_CPPFLAGS $CPPFLAGS"
++		PLUGIN_NVPTX_save_LDFLAGS=$LDFLAGS
++		LDFLAGS="$PLUGIN_NVPTX_LDFLAGS $LDFLAGS"
++		PLUGIN_NVPTX_save_LIBS=$LIBS
++		LIBS="$PLUGIN_NVPTX_LIBS $LIBS"
++		AC_LINK_IFELSE(
++		  [AC_LANG_PROGRAM(
++		    [#include "cuda.h"],
++		      [CUresult r = cuCtxPushCurrent (NULL);])],
++		  [PLUGIN_NVPTX=1])
++		CPPFLAGS=$PLUGIN_NVPTX_save_CPPFLAGS
++		LDFLAGS=$PLUGIN_NVPTX_save_LDFLAGS
++		LIBS=$PLUGIN_NVPTX_save_LIBS
++		case $PLUGIN_NVPTX in
++		  nvptx*)
++		    if test "x$CUDA_DRIVER_INCLUDE" = x \
++		       && test "x$CUDA_DRIVER_LIB" = x; then
++		      PLUGIN_NVPTX=1
++		      PLUGIN_NVPTX_CPPFLAGS='-I$(srcdir)/plugin/cuda'
++		      PLUGIN_NVPTX_LIBS='-ldl'
++		      PLUGIN_NVPTX_DYNAMIC=1
++		    else
++		      PLUGIN_NVPTX=0
++		      AC_MSG_ERROR([CUDA driver package required for nvptx support])
++		    fi
++		    ;;
++		esac
++		;;
++	    esac
++	    ;;
++	  *-*-*)
++	    # Target architecture not supported.
++	    PLUGIN_NVPTX=0
++	    ;;
+ 	esac
+ 	;;
+       hsa*)
+--- a/src/libgomp/plugin/plugin-nvptx.c
++++ b/src/libgomp/plugin/plugin-nvptx.c
+@@ -835,15 +835,6 @@ nvptx_get_num_devices (void)
+ {
+   int n;
+ 
+-  /* PR libgomp/65099: Currently, we only support offloading in 64-bit
+-     configurations.  */
+-  if (sizeof (void *) != 8)
+-    {
+-      GOMP_PLUGIN_debug (0, "Disabling nvptx offloading;"
+-			 " only 64-bit configurations are supported\n");
+-      return 0;
+-    }
+-
+   /* This function will be called before the plugin has been initialized in
+      order to enumerate available devices, but CUDA API routines can't be used
+      until cuInit has been called.  Just call it now (but don't yet do any
 --- a/src/libgomp/testsuite/lib/libgomp.exp
 +++ b/src/libgomp/testsuite/lib/libgomp.exp
 @@ -248,6 +248,12 @@ proc libgomp_init { args } {
@@ -45854,7 +46276,67 @@ new file mode 100644
  	return MAX (MAX (comp, spec), 64);
 --- a/src/libstdc++-v3/ChangeLog
 +++ b/src/libstdc++-v3/ChangeLog
-@@ -1,3 +1,189 @@
+@@ -1,3 +1,249 @@
++2021-01-13  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2021-01-13  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/98605
++	* include/std/mutex (call_once): Use NOLINT to suppress clang
++	analyzer warnings.
++
++2021-01-11  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2020-12-02  Jonathan Wakely  <jwakely@redhat.com>
++
++	* python/libstdcxx/v6/printers.py (StdExpPathPrinter): Store the
++	name of the type and pass it to the iterator.
++	* testsuite/libstdc++-prettyprinters/filesystem-ts.cc: New test.
++
++2021-01-11  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2020-12-02  Jonathan Wakely  <jwakely@redhat.com>
++
++	PR libstdc++/65480
++	PR libstdc++/68735
++	* python/libstdcxx/v6/printers.py (function_pointer_to_name):
++	New helper function to get the name of a function from its
++	address.
++	(StdExpAnyPrinter.__init__): Use it.
++
++2021-01-11  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2020-08-10  Jonathan Wakely  <jwakely@redhat.com>
++
++	* python/libstdcxx/v6/printers.py (UniquePointerPrinter.__init__):
++	Use gdb.Type.strip_typedefs().
++	* testsuite/libstdc++-prettyprinters/compat.cc: Use a typedef in
++	the emulated old type.
++
++2021-01-11  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2019-05-14  Jonathan Wakely  <jwakely@redhat.com>
++
++	* python/libstdcxx/v6/printers.py (UniquePointerPrinter.__init__): Do
++	not assume field called _M_head_impl is the first tuple element.
++	* testsuite/libstdc++-prettyprinters/compat.cc: Copy from gcc-9
++	branch.
++	* testsuite/libstdc++-prettyprinters/cxx11.cc: Check unique_ptr with
++	empty pointer type and non-empty deleter.
++
++2021-01-11  Jonathan Wakely  <jwakely@redhat.com>
++
++	Backported from master:
++	2020-09-24  Jonathan Wakely  <jwakely@redhat.com>
++
++	* doc/xml/manual/configure.xml: Correct name of option.
++	* doc/html/*: Regenerate.
++
 +2020-11-26  Jonathan Wakely  <jwakely@redhat.com>
 +
 +	Backported from master:
@@ -46919,6 +47401,30 @@ new file mode 100644
  	return *(this->_M_str + this->_M_len - 1);
        }
  
+--- a/src/libstdc++-v3/include/std/mutex
++++ b/src/libstdc++-v3/include/std/mutex
+@@ -673,7 +673,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+ 			std::forward<_Args>(__args)...);
+       };
+ #ifdef _GLIBCXX_HAVE_TLS
+-      __once_callable = std::__addressof(__callable);
++      __once_callable = std::__addressof(__callable); // NOLINT: PR 82481
+       __once_call = []{ (*(decltype(__callable)*)__once_callable)(); };
+ #else
+       unique_lock<mutex> __functor_lock(__get_once_mutex());
+@@ -688,12 +688,6 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
+         __set_once_functor_lock_ptr(0);
+ #endif
+ 
+-#ifdef __clang_analyzer__
+-      // PR libstdc++/82481
+-      __once_callable = nullptr;
+-      __once_call = nullptr;
+-#endif
+-
+       if (__e)
+ 	__throw_system_error(__e);
+     }
 --- a/src/libstdc++-v3/include/std/numeric
 +++ b/src/libstdc++-v3/include/std/numeric
 @@ -60,6 +60,7 @@
